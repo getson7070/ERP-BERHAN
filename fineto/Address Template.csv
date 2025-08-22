@@ -1,0 +1,55 @@
+"Data Import Template"
+"Table:","Address Template"
+""
+""
+"Notes:"
+"Please do not change the template headings."
+"First data column must be blank."
+"If you are uploading new records, leave the ""name"" (ID) column blank."
+"If you are uploading new records, ""Naming Series"" becomes mandatory, if present."
+"Only mandatory fields are necessary for new records. You can delete non-mandatory columns if you wish."
+"For updating, you can update only selective columns."
+"You can only upload upto 5000 records in one go. (may be less in some cases)"
+""
+"DocType:","Address Template","","","","",""
+"Column Labels:","ID","Country","Created On","Created By","Is Default","Template"
+"Column Name:","name","country","creation","owner","is_default","template"
+"Mandatory:","Yes","Yes","No","No","No","No"
+"Type:","Data","Link","Datetime","Link","Check","Code"
+"Info:","","Valid Country","dd-mm-yyyy","Valid User","0 or 1",""
+"Start entering data below this line"
+"","""Ethiopia""","Ethiopia","2024-06-28 12:06:34.415112","Administrator",1,"{{ address_line1 }}<br>
+{% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
+{{ city }}<br>
+{% if state %}{{ state }}<br>{% endif -%}
+{% if pincode %}{{ pincode }}<br>{% endif -%}
+{{ country }}<br>
+<br>
+{% if phone %}{{ _(""Phone"") }}: {{ phone }}<br>{% endif -%}
+{% if fax %}{{ _(""Fax"") }}: {{ fax }}<br>{% endif -%}
+{% if email_id %}{{ _(""Email"") }}: {{ email_id }}<br>{% endif -%}
+"
+"","""Germany""","Germany","2024-06-28 12:06:37.497286","Administrator",0,"{{ address_line1 }}<br>
+{% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
+{% if country in [""Germany"", ""Deutschland""] %}
+    {{ pincode }} {{ city }}
+{% else %}
+    {{ pincode }} {{ city | upper }}<br>
+    {{ country | upper }}
+{% endif %}
+"
+"","""Luxembourg""","Luxembourg","2024-06-28 12:06:37.532780","Administrator",0,"{% if address_line1 %}{{ address_line1 }}<br>{% endif -%}
+{% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
+{% if pincode %}L-{{ pincode }}{% endif -%}{% if city %} {{ city }}{% endif %}<br>
+{% if country %}{{ country | upper }}{% endif %}
+"
+"","""Taiwan""","Taiwan","2024-06-28 12:06:37.523962","Administrator",0,"{{ country }}<br>{% if pincode %}{{ pincode }}<br>{% endif -%}{{ county }}{{ city }}{{ address_line1 }}{% if address_line2 %}{{ address_line2 }}{% endif -%}
+{% if phone %}<br>Phone: {{ phone }}{% endif -%}
+{% if fax %}<br>Fax: {{ fax }}{% endif -%}
+{% if email_id %}<br>Email: {{ email_id }}{% endif -%}
+"
+"","""United States""","United States","2024-06-28 12:06:37.511425","Administrator",0,"{{ address_line1 }}<br>
+{% if address_line2 %}{{ address_line2 }}<br>{% endif -%}
+{{ city }}, {% if state %}{{ state }}{% endif -%}{% if pincode %} {{ pincode }}<br>{% endif -%}
+{% if country != ""United States"" %}{{ country }}{% endif -%}
+"

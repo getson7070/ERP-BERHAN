@@ -1,0 +1,24 @@
+"Data Import Template"
+"Table:","Dashboard Chart Source"
+""
+""
+"Notes:"
+"Please do not change the template headings."
+"First data column must be blank."
+"If you are uploading new records, leave the ""name"" (ID) column blank."
+"If you are uploading new records, ""Naming Series"" becomes mandatory, if present."
+"Only mandatory fields are necessary for new records. You can delete non-mandatory columns if you wish."
+"For updating, you can update only selective columns."
+"You can only upload upto 5000 records in one go. (may be less in some cases)"
+""
+"DocType:","Dashboard Chart Source","","","","",""
+"Column Labels:","ID","Source Name","Module","Created On","Created By","Timeseries"
+"Column Name:","name","source_name","module","creation","owner","timeseries"
+"Mandatory:","Yes","Yes","Yes","No","No","No"
+"Type:","Data","Data","Link","Datetime","Link","Check"
+"Info:","","","Valid Module Def","dd-mm-yyyy","Valid User","0 or 1"
+"Start entering data below this line"
+"","""Account Balance Timeline""","Account Balance Timeline","Accounts","2019-02-06 07:57:10.377718","Administrator",1
+"","""Employees by Age""","Employees by Age","HR","2022-08-22 12:49:07.303139","Administrator",0
+"","""Hiring vs Attrition Count""","Hiring vs Attrition Count","HR","2022-08-21 21:38:22.271985","Administrator",1
+"","""Warehouse wise Stock Value""","Warehouse wise Stock Value","Stock","2020-05-14 14:27:44.108017","Administrator",0
