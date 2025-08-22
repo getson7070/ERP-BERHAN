@@ -1,0 +1,1286 @@
+import sqlite3
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackQueryHandler
+import bcrypt
+import logging
+from datetime import datetime
+import csv  # For client list integration
+
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+TOKEN = '7236996385:AAFV3tB9yEV21HUDq_jTb2e_WkKw_VkhLMU'  # Replace with your bot token
+
+def get_db():
+    conn = sqlite3.connect('erp.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def check_client_list(tin):
+    try:
+        with open('client_list.csv', mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                if row['tin'] == tin:
+                    return {
+                        'name': row['name'],
+                        'tin': row['tin'],
+                        'phone': row['phone'],
+                        'email': row['email']
+                    }
+        return None
+    except FileNotFoundError:
+        return None
+
+# States
+EMPLOYEE_LOGIN_USERNAME, EMPLOYEE_LOGIN_PASSWORD = range(2)
+CLIENT_LOGIN_EMAIL, CLIENT_LOGIN_PASSWORD = range(2, 4)
+CLIENT_REG_TIN, CLIENT_REG_INST, CLIENT_REG_ADDR, CLIENT_REG_PHONE, CLIENT_REG_REGION, CLIENT_REG_CITY, CLIENT_REG_EMAIL, CLIENT_REG_PASS = range(4, 12)
+EMPLOYEE_REG_USERNAME, EMPLOYEE_REG_PASSWORD, EMPLOYEE_REG_PERMISSIONS, EMPLOYEE_REG_POSITION, EMPLOYEE_REG_HIRE_DATE, EMPLOYEE_REG_SALARY = range(12, 18)
+MESSAGE = range(18, 19)
+INSTITUTION, LOCATION, PHONE, VISIT_DATE, INTERESTED_PRODUCTS, OUTCOME, SALE_AMOUNT, VISIT_TYPE, FOLLOW_UP_DETAILS = range(19, 28)
+ADD_INVENTORY, INVENTORY_DESC, INVENTORY_PACK, INVENTORY_BRAND, INVENTORY_TYPE, INVENTORY_EXP, INVENTORY_CAT = range(28, 35)
+ADD_TENDER, TENDER_TYPE, TENDER_DESC, TENDER_DUE, TENDER_INST, TENDER_ENVELOPE, TENDER_PRIVATE, TENDER_TECH, TENDER_FIN = range(35, 44)
+PLACE_ORDER, ORDER_ITEM, ORDER_QTY, ORDER_CUST, ORDER_VAT_EXEMPT = range(44, 49)
+RECEIVE_INVENTORY, RECEIVE_ITEM, RECEIVE_QTY = range(49, 52)
+INVENTORY_OUT, OUT_ITEM, OUT_QTY, OUT_ACTION, OUT_SUBACTION = range(52, 57)
+MAINTENANCE_REQUEST, MAINTENANCE_EQUIP, MAINTENANCE_TYPE = range(57, 60)
+MAINTENANCE_FOLLOWUP, MAINTENANCE_ID, MAINTENANCE_REPORT = range(60, 63)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = str(update.effective_user.id)
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE (tin = ? OR username = ?) AND user_type = ? AND approved_by_ceo = TRUE', (user_id, user_id, 'employee')).fetchone()
+    conn.close()
+    if user:
+        await update.message.reply_text('You are pre-registered. Use /employee_login to log in.')
+    else:
+        await update.message.reply_text('Use /client_login to log in, /client_registration to register as client, or /employee_registration (for management) to register as employee.')
+    logger.info("User started the bot: %s", user_id)
+
+async def employee_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Enter your username (phone number):')
+    return EMPLOYEE_LOGIN_USERNAME
+
+async def get_employee_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['username'] = update.message.text
+    await update.message.reply_text('Enter your password:')
+    return EMPLOYEE_LOGIN_PASSWORD
+
+async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    password = update.message.text.encode('utf-8')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE user_type = ? AND username = ? AND approved_by_ceo = TRUE', ('employee', context.user_data['username'])).fetchone()
+    conn.close()
+    if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+        context.user_data['logged_in'] = True
+        context.user_data['role'] = 'employee'
+        context.user_data['tin'] = user['tin'] if user['tin'] else None
+        context.user_data['username'] = context.user_data['username']
+        context.user_data['permissions'] = user['permissions'].split(',') if user['permissions'] else []
+        conn = get_db()
+        conn.execute('UPDATE users SET last_login = ? WHERE username = ?', (datetime.now(), context.user_data['username']))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text('Logged in successfully. Use /dashboard to see menu.')
+        logger.info("Employee logged in: %s", context.user_data['username'])
+    else:
+        await update.message.reply_text('Invalid username/password or account not approved. Try /employee_login again.')
+        logger.warning("Failed employee login attempt for username: %s", context.user_data['username'])
+    return ConversationHandler.END
+
+async def client_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Enter your email:')
+    return CLIENT_LOGIN_EMAIL
+
+async def get_client_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['email'] = update.message.text
+    await update.message.reply_text('Enter your password:')
+    return CLIENT_LOGIN_PASSWORD
+
+async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    password = update.message.text.encode('utf-8')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE user_type = ? AND email = ? AND approved_by_ceo = TRUE', ('client', context.user_data['email'])).fetchone()
+    conn.close()
+    if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+        context.user_data['logged_in'] = True
+        context.user_data['role'] = 'client'
+        context.user_data['tin'] = user['tin']
+        context.user_data['username'] = context.user_data['email']
+        context.user_data['permissions'] = user['permissions'].split(',') if user['permissions'] else []
+        conn = get_db()
+        conn.execute('UPDATE users SET last_login = ? WHERE email = ?', (datetime.now(), context.user_data['email']))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text('Logged in successfully. Use /dashboard to see menu.')
+        logger.info("Client logged in: %s", context.user_data['email'])
+    else:
+        await update.message.reply_text('Invalid email/password or account not approved. Try /client_login again.')
+        logger.warning("Failed client login attempt for email: %s", context.user_data['email'])
+    return ConversationHandler.END
+
+async def client_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Enter your 10-digit TIN (e.g., 0052225274):')
+    return CLIENT_REG_TIN
+
+async def get_client_reg_tin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    tin = update.message.text
+    if not tin.isdigit() or len(tin) != 10:
+        await update.message.reply_text('TIN must be a 10-digit number. Try /client_registration again.')
+        return ConversationHandler.END
+    context.user_data['tin'] = tin
+    conn = get_db()
+    client_info = check_client_list(tin)
+    conn.close()
+    if client_info and not conn.execute('SELECT * FROM users WHERE tin = ?', (tin,)).fetchone():
+        context.user_data['phone'] = client_info['phone']
+        context.user_data['email'] = client_info['email']
+        await update.message.reply_text(f'Client {client_info["name"]} with TIN {tin} found. Enter institution name:')
+        return CLIENT_REG_INST
+    elif conn.execute('SELECT * FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone():
+        user = conn.execute('SELECT institution_name, tin FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone()
+        if user['tin'] and user['institution_name']:
+            await update.message.reply_text(f'Client {user["institution_name"]} with TIN {tin} already exists. Log in or use /message to contact support.')
+            return ConversationHandler.END
+        await update.message.reply_text('TIN or email already registered. Try /client_registration again.')
+        return ConversationHandler.END
+    await update.message.reply_text('Enter institution name:')
+    return CLIENT_REG_INST
+
+async def get_client_reg_inst(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['institution_name'] = update.message.text
+    await update.message.reply_text('Enter address:')
+    return CLIENT_REG_ADDR
+
+async def get_client_reg_addr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['address'] = update.message.text
+    await update.message.reply_text('Enter phone number:')
+    return CLIENT_REG_PHONE
+
+async def get_client_reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['phone'] = update.message.text
+    conn = get_db()
+    regions = [row['region'] for row in conn.execute('SELECT DISTINCT region FROM regions_cities').fetchall()]
+    conn.close()
+    keyboard = [[KeyboardButton(region) for region in regions[i:i+2]] for i in range(0, len(regions), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select region:', reply_markup=reply_markup)
+    return CLIENT_REG_REGION
+
+async def get_client_reg_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['region'] = update.message.text
+    conn = get_db()
+    cities = [row['city'] for row in conn.execute('SELECT city FROM regions_cities WHERE region = ?', (context.user_data['region'],)).fetchall()]
+    conn.close()
+    keyboard = [[KeyboardButton(city) for city in cities[i:i+2]] for i in range(0, len(cities), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select city:', reply_markup=reply_markup)
+    return CLIENT_REG_CITY
+
+async def get_client_reg_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['city'] = update.message.text
+    await update.message.reply_text('Enter email:')
+    return CLIENT_REG_EMAIL
+
+async def get_client_reg_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['email'] = update.message.text
+    await update.message.reply_text('Enter password:')
+    return CLIENT_REG_PASS
+
+async def get_client_reg_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    password = update.message.text.encode('utf-8')
+    conn = get_db()
+    password_hash = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+    try:
+        conn.execute('''
+            INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', ('client', context.user_data['tin'], context.user_data['institution_name'], context.user_data['address'],
+              context.user_data['phone'], context.user_data['region'], context.user_data['city'], context.user_data['email'],
+              password_hash, 'put_order,my_approved_orders,order_status,maintenance_request,maintenance_status,message', False))
+        conn.commit()
+        await update.message.reply_text('Registration submitted. Awaiting management approval.')
+        logger.info("Client registration submitted: %s", context.user_data['tin'])
+    except sqlite3.IntegrityError:
+        await update.message.reply_text('TIN or email already registered. Try /client_registration again.')
+    conn.close()
+    return ConversationHandler.END
+
+async def employee_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db()
+    user = conn.execute('SELECT permissions FROM users WHERE username = ?', (context.user_data.get('username', ''),)).fetchone()
+    conn.close()
+    if not user or 'user_management' not in user['permissions'].split(','):
+        await update.message.reply_text('Access denied. Only management can register employees.')
+        return ConversationHandler.END
+    await update.message.reply_text('Enter employee username (phone number):')
+    return EMPLOYEE_REG_USERNAME
+
+async def get_employee_reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['username'] = update.message.text
+    await update.message.reply_text('Enter password:')
+    return EMPLOYEE_REG_PASSWORD
+
+async def get_employee_reg_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['password'] = update.message.text.encode('utf-8')
+    await update.message.reply_text('Enter permissions (comma-separated, e.g., add_report,view_orders):')
+    return EMPLOYEE_REG_PERMISSIONS
+
+async def get_employee_reg_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['permissions'] = update.message.text.split(',')
+    await update.message.reply_text('Enter position:')
+    return EMPLOYEE_REG_POSITION
+
+async def get_employee_reg_position(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['position'] = update.message.text
+    await update.message.reply_text('Enter hire date (YYYY-MM-DD):')
+    return EMPLOYEE_REG_HIRE_DATE
+
+async def get_employee_reg_hire_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['hire_date'] = update.message.text
+    await update.message.reply_text('Enter salary (ETB):')
+    return EMPLOYEE_REG_SALARY
+
+async def get_employee_reg_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['salary'] = float(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for salary.')
+        return EMPLOYEE_REG_SALARY
+    conn = get_db()
+    password_hash = bcrypt.hashpw(context.user_data['password'], bcrypt.gensalt()).decode('utf-8')
+    try:
+        conn.execute('''
+            INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, position, hire_date, salary)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', ('employee', context.user_data['username'], password_hash, ','.join(context.user_data['permissions']),
+              False, context.user_data['position'], context.user_data['hire_date'], context.user_data['salary']))
+        conn.commit()
+        await update.message.reply_text('Employee registration submitted. Awaiting approval.')
+        logger.info("Employee registration submitted: %s", context.user_data['username'])
+    except sqlite3.IntegrityError:
+        await update.message.reply_text('Username already registered. Try /employee_registration again.')
+    conn.close()
+    return ConversationHandler.END
+
+async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Enter your message to support:')
+    return MESSAGE
+
+async def get_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    message = update.message.text
+    conn = get_db()
+    user = conn.execute('SELECT tin FROM users WHERE email = ?', (context.user_data.get('email', ''),)).fetchone()
+    if user:
+        conn.execute('INSERT INTO messages (tin, message, date) VALUES (?, ?, ?)', (user['tin'], message, datetime.now()))
+        conn.commit()
+        await update.message.reply_text('Message sent to support successfully.')
+    else:
+        await update.message.reply_text('Please log in to send a message.')
+    conn.close()
+    return ConversationHandler.END
+
+async def dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'logged_in' not in context.user_data or not context.user_data['logged_in']:
+        await update.message.reply_text('Please log in first with /employee_login or /client_login.')
+        return ConversationHandler.END
+    if 'client' in context.user_data['role']:
+        keyboard = [
+            [KeyboardButton('Put Order'), KeyboardButton('My Approved Orders')],
+            [KeyboardButton('Order Status'), KeyboardButton('Maintenance Request')],
+            [KeyboardButton('Maintenance Status'), KeyboardButton('Message')],
+            [KeyboardButton('Logout')]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton('Marketing'), KeyboardButton('Inventory')],
+            [KeyboardButton('Tenders'), KeyboardButton('Reports')],
+            [KeyboardButton('Orders'), KeyboardButton('Maintenance')],
+            [KeyboardButton('Logout')]
+        ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Welcome to BERHAN ERP Dashboard. Choose an option:', reply_markup=reply_markup)
+    return ConversationHandler.END
+
+async def logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
+    await update.message.reply_text('Logged out. Use /employee_login or /client_login to log in again.')
+    logger.info("User logged out: %s", update.effective_user.id)
+    return ConversationHandler.END
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text
+    if 'logged_in' not in context.user_data or not context.user_data['logged_in']:
+        await update.message.reply_text('Please log in first with /employee_login or /client_login.')
+        return ConversationHandler.END
+    if text == 'Put Order' and 'put_order' in context.user_data['permissions']:
+        return await place_order(update, context)
+    elif text == 'My Approved Orders' and 'my_approved_orders' in context.user_data['permissions']:
+        return await my_approved_orders(update, context)
+    elif text == 'Order Status' and 'order_status' in context.user_data['permissions']:
+        return await order_status(update, context)
+    elif text == 'Maintenance Request' and 'maintenance_request' in context.user_data['permissions']:
+        return await maintenance_request(update, context)
+    elif text == 'Maintenance Status' and 'maintenance_status' in context.user_data['permissions']:
+        return await maintenance_status(update, context)
+    elif text == 'Message' and 'message' in context.user_data['permissions']:
+        return await message(update, context)
+    elif text == 'Marketing' and any(p in context.user_data['permissions'] for p in ['add_report', 'my_report', 'marketing_report', 'promotion_report']):
+        keyboard = [
+            [KeyboardButton('Add Report'), KeyboardButton('My Report')],
+            [KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Marketing Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Inventory' and any(p in context.user_data['permissions'] for p in ['add_inventory', 'receive_inventory', 'inventory_out', 'inventory_report']):
+        keyboard = [
+            [KeyboardButton('Add Inventory'), KeyboardButton('Receive Inventory')],
+            [KeyboardButton('Inventory Out'), KeyboardButton('Inventory Report')],
+            [KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Inventory Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Tenders' and any(p in context.user_data['permissions'] for p in ['add_tender', 'tenders_list', 'tenders_report']):
+        keyboard = [
+            [KeyboardButton('Add Tender'), KeyboardButton('Tenders List')],
+            [KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Tenders Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Reports' and any(p in context.user_data['permissions'] for p in ['tenders_report', 'inventory_report', 'marketing_report']):
+        keyboard = [
+            [KeyboardButton('Tenders Report'), KeyboardButton('Inventory Report')],
+            [KeyboardButton('Marketing Report'), KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Reports Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Orders' and 'view_orders' in context.user_data['permissions']:
+        keyboard = [
+            [KeyboardButton('Place Order'), KeyboardButton('View Orders')],
+            [KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Orders Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Maintenance' and any(p in context.user_data['permissions'] for p in ['maintenance_request', 'maintenance_report', 'maintenance_followup']):
+        keyboard = [
+            [KeyboardButton('Request Maintenance'), KeyboardButton('View Maintenance')],
+            [KeyboardButton('Back')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Maintenance Section:', reply_markup=reply_markup)
+        return ConversationHandler.END
+    elif text == 'Logout':
+        await logout(update, context)
+        return ConversationHandler.END
+    elif text == 'Back':
+        await dashboard(update, context)
+        return ConversationHandler.END
+    elif text == 'Add Report' and 'add_report' in context.user_data['permissions']:
+        return await add_report(update, context)
+    elif text == 'My Report' and 'add_report' in context.user_data['permissions']:
+        return await my_report(update, context)
+    elif text == 'Add Inventory' and 'add_inventory' in context.user_data['permissions']:
+        return await add_inventory(update, context)
+    elif text == 'Receive Inventory' and 'receive_inventory' in context.user_data['permissions']:
+        return await receive_inventory(update, context)
+    elif text == 'Inventory Out' and 'inventory_out' in context.user_data['permissions']:
+        return await inventory_out(update, context)
+    elif text == 'Inventory Report' and 'inventory_report' in context.user_data['permissions']:
+        return await inventory_report(update, context)
+    elif text == 'Add Tender' and 'add_tender' in context.user_data['permissions']:
+        return await add_tender(update, context)
+    elif text == 'Tenders List' and 'tenders_list' in context.user_data['permissions']:
+        return await tenders_list(update, context)
+    elif text == 'Tenders Report' and 'tenders_report' in context.user_data['permissions']:
+        return await tenders_report(update, context)
+    elif text == 'Marketing Report' in context.user_data['permissions']:
+        return await marketing_report(update, context)
+    elif text == 'Place Order' and 'put_order' in context.user_data['permissions']:
+        return await place_order(update, context)
+    elif text == 'View Orders' and 'view_orders' in context.user_data['permissions']:
+        return await view_orders(update, context)
+    elif text == 'Request Maintenance' and 'maintenance_request' in context.user_data['permissions']:
+        return await maintenance_request(update, context)
+    elif text == 'View Maintenance' and 'maintenance_report' in context.user_data['permissions']:
+        return await maintenance_view(update, context)
+    else:
+        await update.message.reply_text('Invalid option or insufficient permissions. Please choose from the menu.')
+        return ConversationHandler.END
+
+async def add_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'logged_in' not in context.user_data or not context.user_data['logged_in']:
+        await update.message.reply_text('Please log in first with /employee_login or /client_login.')
+        return ConversationHandler.END
+    if 'add_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing add_report permission.')
+        return ConversationHandler.END
+    await update.message.reply_text('Enter institution:')
+    return INSTITUTION
+
+async def get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['institution'] = update.message.text
+    await update.message.reply_text('Enter location (e.g., Location 1):')
+    return LOCATION
+
+async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['location'] = update.message.text
+    await update.message.reply_text('Enter phone (internal, not visible to reps):')
+    return PHONE
+
+async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['phone'] = update.message.text
+    await update.message.reply_text('Enter visit date (YYYY-MM-DD):')
+    return VISIT_DATE
+
+async def get_visit_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['visit_date'] = update.message.text
+    clia = ['EXI1800', 'EXI1820', 'EXI2400']
+    chemistry = ['EXC200', 'EXC420']
+    poct = ['EXR110', 'EXR120', 'Q8 PRO']
+    hematology = ['EXC8000', 'EXC6000', 'Z50', 'Z3', 'Z3 CRP']
+    microbiology = ['EXS2600', 'EXB120']
+    ultrasound = ['DW-350', 'DW-360', 'DW-370', 'DW-580', 'DW-CE540', 'DW-CE780', 'DW-CT520', 'DW-PE522', 'DW-PE542', 'DW-PE512']
+    other = ['OTHERS']
+    keyboard = [
+        [InlineKeyboardButton('CLIA', callback_data='clia')],
+        [InlineKeyboardButton('Chemistry', callback_data='chemistry')],
+        [InlineKeyboardButton('POCT', callback_data='poct')],
+        [InlineKeyboardButton('Hematology', callback_data='hematology')],
+        [InlineKeyboardButton('Microbiology', callback_data='microbiology')],
+        [InlineKeyboardButton('Ultrasound', callback_data='ultrasound')],
+        [InlineKeyboardButton('Other', callback_data='other')]
+    ]
+    reply_markup = InlineKeyboardMarkup([keyboard[i:i+2] for i in range(0, len(keyboard), 2)])
+    await update.message.reply_text('Select product category:', reply_markup=reply_markup)
+    context.user_data['selected_products'] = []
+    context.user_data['current_category'] = None
+    return INTERESTED_PRODUCTS
+
+def build_menu(buttons, n_cols):
+    return [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    conn = get_db()
+    if data in ['clia', 'chemistry', 'poct', 'hematology', 'microbiology', 'ultrasound', 'other']:
+        context.user_data['current_category'] = data
+        categories = {
+            'clia': ['EXI1800', 'EXI1820', 'EXI2400'],
+            'chemistry': ['EXC200', 'EXC420'],
+            'poct': ['EXR110', 'EXR120', 'Q8 PRO'],
+            'hematology': ['EXC8000', 'EXC6000', 'Z50', 'Z3', 'Z3 CRP'],
+            'microbiology': ['EXS2600', 'EXB120'],
+            'ultrasound': ['DW-350', 'DW-360', 'DW-370', 'DW-580', 'DW-CE540', 'DW-CE780', 'DW-CT520', 'DW-PE522', 'DW-PE542', 'DW-PE512'],
+            'other': ['OTHERS']
+        }
+        items = categories[data]
+        keyboard = [[InlineKeyboardButton(item, callback_data=f'select_{item}') for item in items]]
+        keyboard.append([InlineKeyboardButton('Back to Categories', callback_data='back'), InlineKeyboardButton('Done', callback_data='done')])
+        reply_markup = InlineKeyboardMarkup(build_menu(keyboard, 2))
+        await query.edit_message_text(text=f"Select products from {data.upper()}:", reply_markup=reply_markup)
+        return INTERESTED_PRODUCTS
+    elif data.startswith('select_'):
+        product = data.replace('select_', '')
+        if product not in context.user_data['selected_products']:
+            context.user_data['selected_products'].append(product)
+        await query.edit_message_text(text=f"Selected products: {', '.join(context.user_data['selected_products'])}\nSelect more or use 'Back'/'Done'.")
+        return INTERESTED_PRODUCTS
+    elif data == 'back':
+        keyboard = [
+            [InlineKeyboardButton('CLIA', callback_data='clia')],
+            [InlineKeyboardButton('Chemistry', callback_data='chemistry')],
+            [InlineKeyboardButton('POCT', callback_data='poct')],
+            [InlineKeyboardButton('Hematology', callback_data='hematology')],
+            [InlineKeyboardButton('Microbiology', callback_data='microbiology')],
+            [InlineKeyboardButton('Ultrasound', callback_data='ultrasound')],
+            [InlineKeyboardButton('Other', callback_data='other')]
+        ]
+        reply_markup = InlineKeyboardMarkup(build_menu(keyboard, 2))
+        await query.edit_message_text(text="Select product category:", reply_markup=reply_markup)
+        context.user_data['current_category'] = None
+        return INTERESTED_PRODUCTS
+    elif data == 'done':
+        await query.edit_message_text(text=f"Selected products: {', '.join(context.user_data['selected_products'])}")
+        context.user_data['interested_products'] = ', '.join(context.user_data['selected_products'])
+        keyboard = [
+            [KeyboardButton('Sale'), KeyboardButton('Contract')],
+            [KeyboardButton('Negotiation'), KeyboardButton('No Interest')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await query.message.reply_text('Enter outcome:', reply_markup=reply_markup)
+        return OUTCOME
+
+async def get_outcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['outcome'] = update.message.text
+    if context.user_data['outcome'] == 'Sale':
+        await update.message.reply_text('Enter sale amount (ETB):')
+        return SALE_AMOUNT
+    else:
+        keyboard = [
+            [KeyboardButton('First Visit'), KeyboardButton('Follow-up')]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text('Enter visit type:', reply_markup=reply_markup)
+        return VISIT_TYPE
+
+async def get_sale_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['sale_amount'] = float(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for sale amount.')
+        return SALE_AMOUNT
+    keyboard = [
+        [KeyboardButton('First Visit'), KeyboardButton('Follow-up')]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Enter visit type:', reply_markup=reply_markup)
+    return VISIT_TYPE
+
+async def get_visit_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['visit_type'] = update.message.text
+    if context.user_data['visit_type'] == 'Follow-up':
+        await update.message.reply_text('Enter follow-up details:')
+        return FOLLOW_UP_DETAILS
+    else:
+        await save_report(update, context)
+        return ConversationHandler.END
+
+async def get_follow_up_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['follow_up_details'] = update.message.text
+    await save_report(update, context)
+    return ConversationHandler.END
+
+async def save_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = get_db()
+    sales_rep = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    conn.execute('''
+    INSERT INTO reports (institution, location, owner, phone, visit_date, interested_products, outcome, sale_amount, visit_type, follow_up_details, sales_rep)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (context.user_data['institution'], context.user_data['location'], '', context.user_data['phone'],
+          context.user_data['visit_date'], context.user_data['interested_products'], context.user_data['outcome'],
+          context.user_data.get('sale_amount'), context.user_data['visit_type'], context.user_data.get('follow_up_details'),
+          sales_rep))
+    conn.commit()
+    await update.message.reply_text('Report submitted successfully.')
+    logger.info("Report submitted by %s", sales_rep)
+    conn.close()
+
+async def my_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'add_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing add_report permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    sales_rep = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    reports = conn.execute('SELECT institution, visit_date, outcome, visit_type FROM reports WHERE sales_rep = ? ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    conn.close()
+    if not reports:
+        await update.message.reply_text('No reports found.')
+        return ConversationHandler.END
+    message = 'My Reports:\n'
+    for report in reports:
+        message += f"Institution: {report['institution']}, Date: {report['visit_date']}, Outcome: {report['outcome']}, Type: {report['visit_type']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def add_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'add_inventory' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing add_inventory permission.')
+        return ConversationHandler.END
+    await update.message.reply_text('Enter description:')
+    return ADD_INVENTORY
+
+async def get_inventory_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['description'] = update.message.text
+    await update.message.reply_text('Enter pack size:')
+    return INVENTORY_PACK
+
+async def get_inventory_pack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['pack_size'] = update.message.text
+    await update.message.reply_text('Enter brand:')
+    return INVENTORY_BRAND
+
+async def get_inventory_brand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['brand'] = update.message.text
+    keyboard = [
+        [KeyboardButton('Device'), KeyboardButton('Reagent')]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Enter type:', reply_markup=reply_markup)
+    return INVENTORY_TYPE
+
+async def get_inventory_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['type'] = update.message.text
+    if context.user_data['type'] == 'Reagent':
+        await update.message.reply_text('Enter expiration date (YYYY-MM-DD):')
+        return INVENTORY_EXP
+    else:
+        await update.message.reply_text('Enter category (e.g., CLIA, Chemistry):')
+        return INVENTORY_CAT
+
+async def get_inventory_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['exp_date'] = update.message.text
+    await update.message.reply_text('Enter category (e.g., CLIA, Chemistry):')
+    return INVENTORY_CAT
+
+async def get_inventory_cat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['category'] = update.message.text
+    await save_inventory(update, context)
+    return ConversationHandler.END
+
+async def save_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = get_db()
+    initials = ''.join(word[0].upper() for word in context.user_data['brand'].split())
+    seq = conn.execute('SELECT COUNT(*) FROM inventory').fetchone()[0] + 1
+    item_code = f"{context.user_data['category'][:3].upper()}-{initials}-{context.user_data['pack_size']}-{seq:04d}"
+    user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    conn.execute('''
+    INSERT INTO inventory (item_code, description, pack_size, brand, type, exp_date, category, stock)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (item_code, context.user_data['description'], context.user_data['pack_size'], context.user_data['brand'],
+          context.user_data['type'], context.user_data.get('exp_date'), context.user_data['category'], 0))
+    conn.commit()
+    await update.message.reply_text('Inventory item added successfully.')
+    logger.info("Inventory added by %s", user)
+    conn.close()
+
+async def receive_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'receive_inventory' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing receive_inventory permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    items = conn.execute('SELECT id, item_code FROM inventory').fetchall()
+    conn.close()
+    if not items:
+        await update.message.reply_text('No items available in inventory.')
+        return ConversationHandler.END
+    keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select item to receive:', reply_markup=reply_markup)
+    return RECEIVE_INVENTORY
+
+async def get_receive_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db()
+    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    conn.close()
+    await update.message.reply_text('Enter quantity to receive:')
+    return RECEIVE_QTY
+
+async def get_receive_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['quantity'] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for quantity.')
+        return RECEIVE_QTY
+    conn = get_db()
+    conn.execute('UPDATE inventory SET stock = stock + ? WHERE id = ?', (context.user_data['quantity'], context.user_data['item_id']))
+    user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    conn.execute('''
+    INSERT INTO inventory_movements (item_id, quantity, action, date, user)
+    VALUES (?, ?, 'Receive', ?, ?)
+    ''', (context.user_data['item_id'], context.user_data['quantity'], datetime.now(), user))
+    conn.commit()
+    await update.message.reply_text('Inventory received successfully.')
+    conn.close()
+    return ConversationHandler.END
+
+async def inventory_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'inventory_out' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing inventory_out permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    items = conn.execute('SELECT id, item_code, stock FROM inventory WHERE stock > 0').fetchall()
+    conn.close()
+    if not items:
+        await update.message.reply_text('No items available for out.')
+        return ConversationHandler.END
+    keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select item to move out:', reply_markup=reply_markup)
+    return INVENTORY_OUT
+
+async def get_out_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db()
+    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    conn.close()
+    await update.message.reply_text('Enter quantity to move out:')
+    return OUT_QTY
+
+async def get_out_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['quantity'] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for quantity.')
+        return OUT_QTY
+    conn = get_db()
+    stock = conn.execute('SELECT stock FROM inventory WHERE id = ?', (context.user_data['item_id'],)).fetchone()['stock']
+    conn.close()
+    if stock < context.user_data['quantity']:
+        await update.message.reply_text('Insufficient stock.')
+        return OUT_QTY
+    keyboard = [
+        [KeyboardButton('Sales'), KeyboardButton('Delivery')]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Enter action:', reply_markup=reply_markup)
+    return OUT_ACTION
+
+async def get_out_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['action'] = update.message.text
+    if context.user_data['action'] == 'Sales':
+        keyboard = [
+            [KeyboardButton('Credit'), KeyboardButton('Cash')]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton('Sample'), KeyboardButton('Pre-qualification')],
+            [KeyboardButton('Quality Test'), KeyboardButton('Donation')]
+        ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Enter sub-action:', reply_markup=reply_markup)
+    return OUT_SUBACTION
+
+async def get_out_subaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['sub_action'] = update.message.text
+    conn = get_db()
+    conn.execute('UPDATE inventory SET stock = stock - ? WHERE id = ?', (context.user_data['quantity'], context.user_data['item_id']))
+    user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    conn.execute('''
+    INSERT INTO inventory_movements (item_id, quantity, action, sub_action, date, user)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ''', (context.user_data['item_id'], context.user_data['quantity'], context.user_data['action'],
+          context.user_data['sub_action'], datetime.now(), user))
+    conn.commit()
+    await update.message.reply_text('Inventory out recorded successfully.')
+    conn.close()
+    return ConversationHandler.END
+
+async def inventory_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'inventory_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing inventory_report permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    inventory = conn.execute('SELECT * FROM inventory ORDER BY id DESC LIMIT 5').fetchall()
+    movements = conn.execute('SELECT * FROM inventory_movements ORDER BY date DESC LIMIT 5').fetchall()
+    conn.close()
+    message = 'Inventory Report:\n\nItems:\n'
+    for item in inventory:
+        message += f"ID: {item['id']}, Code: {item['item_code']}, Stock: {item['stock']}\n"
+    message += '\nMovements:\n'
+    for move in movements:
+        message += f"ID: {move['id']}, Item ID: {move['item_id']}, Qty: {move['quantity']}, Date: {move['date']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def add_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'add_tender' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing add_tender permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    tender_types = conn.execute('SELECT id, type_name FROM tender_types').fetchall()
+    conn.close()
+    keyboard = [[KeyboardButton(t['type_name']) for t in tender_types]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select tender type:', reply_markup=reply_markup)
+    return TENDER_TYPE
+
+async def get_tender_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db()
+    context.user_data['tender_type_id'] = conn.execute('SELECT id FROM tender_types WHERE type_name = ?', (update.message.text,)).fetchone()['id']
+    conn.close()
+    await update.message.reply_text('Enter description:')
+    return TENDER_DESC
+
+async def get_tender_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['description'] = update.message.text
+    await update.message.reply_text('Enter due date (YYYY-MM-DD):')
+    return TENDER_DUE
+
+async def get_tender_due(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['due_date'] = update.message.text
+    await update.message.reply_text('Enter institution (optional):')
+    return TENDER_INST
+
+async def get_tender_inst(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['institution'] = update.message.text
+    keyboard = [
+        [KeyboardButton('One Envelope'), KeyboardButton('Two Envelope')]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Enter envelope type:', reply_markup=reply_markup)
+    return TENDER_ENVELOPE
+
+async def get_tender_envelope(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['envelope_type'] = update.message.text
+    if context.user_data['envelope_type'] == 'One Envelope':
+        await update.message.reply_text('Enter private key:')
+        return TENDER_PRIVATE
+    else:
+        await update.message.reply_text('Enter technical key:')
+        return TENDER_TECH
+
+async def get_tender_private(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['private_key'] = update.message.text
+    await save_tender(update, context)
+    return ConversationHandler.END
+
+async def get_tender_tech(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['tech_key'] = update.message.text
+    await update.message.reply_text('Enter financial key:')
+    return TENDER_FIN
+
+async def get_tender_fin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['fin_key'] = update.message.text
+    await save_tender(update, context)
+    return ConversationHandler.END
+
+async def save_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    conn = get_db()
+    user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
+    conn.execute('''
+    INSERT INTO tenders (tender_type_id, description, due_date, status, user, institution, envelope_type, private_key, tech_key, fin_key)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (context.user_data['tender_type_id'], context.user_data['description'], context.user_data['due_date'],
+          'Open', user, context.user_data.get('institution'), context.user_data['envelope_type'],
+          context.user_data.get('private_key'), context.user_data.get('tech_key'), context.user_data.get('fin_key')))
+    conn.commit()
+    await update.message.reply_text('Tender added successfully.')
+    logger.info("Tender added by %s", user)
+    conn.close()
+
+async def tenders_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'tenders_list' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing tenders_list permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.status, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC LIMIT 5').fetchall()
+    conn.close()
+    if not tenders:
+        await update.message.reply_text('No tenders found.')
+        return ConversationHandler.END
+    message = 'Tenders List:\n'
+    for tender in tenders:
+        message += f"ID: {tender['id']}, Type: {tender['type_name']}, Due: {tender['due_date']}, Status: {tender['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def tenders_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'tenders_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing tenders_report permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.status, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC LIMIT 5').fetchall()
+    conn.close()
+    if not tenders:
+        await update.message.reply_text('No tenders found.')
+        return ConversationHandler.END
+    message = 'Tenders Report:\n'
+    for tender in tenders:
+        message += f"ID: {tender['id']}, Type: {tender['type_name']}, Due: {tender['due_date']}, Status: {tender['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def marketing_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'marketing_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing marketing_report permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    reports = conn.execute('SELECT institution, visit_date, outcome, visit_type FROM reports ORDER BY visit_date DESC LIMIT 5').fetchall()
+    conn.close()
+    if not reports:
+        await update.message.reply_text('No reports found.')
+        return ConversationHandler.END
+    message = 'Marketing Report:\n'
+    for report in reports:
+        message += f"Institution: {report['institution']}, Date: {report['visit_date']}, Outcome: {report['outcome']}, Type: {report['visit_type']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'put_order' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing put_order permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    items = conn.execute('SELECT id, item_code FROM inventory').fetchall()
+    conn.close()
+    if not items:
+        await update.message.reply_text('No items available in inventory.')
+        return ConversationHandler.END
+    keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select item to order:', reply_markup=reply_markup)
+    return ORDER_ITEM
+
+async def get_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db()
+    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    conn.close()
+    await update.message.reply_text('Enter quantity:')
+    return ORDER_QTY
+
+async def get_order_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['quantity'] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for quantity.')
+        return ORDER_QTY
+    await update.message.reply_text('Enter customer name:')
+    return ORDER_CUST
+
+async def get_order_cust(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['customer'] = update.message.text
+    keyboard = [
+        [KeyboardButton('Yes'), KeyboardButton('No')]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Is this order VAT exempt? (Yes/No):', reply_markup=reply_markup)
+    return ORDER_VAT_EXEMPT
+
+async def get_order_vat_exempt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['vat_exempt'] = update.message.text.lower() == 'yes'
+    conn = get_db()
+    sales_rep = context.user_data['tin']
+    conn.execute('''
+    INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt)
+    VALUES (?, ?, ?, ?, ?)
+    ''', (context.user_data['item_id'], context.user_data['quantity'], context.user_data['customer'],
+          sales_rep, context.user_data['vat_exempt']))
+    conn.commit()
+    await update.message.reply_text('Order placed successfully, pending approval.')
+    conn.close()
+    return ConversationHandler.END
+
+async def my_approved_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'my_approved_orders' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing my_approved_orders permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    sales_rep = context.user_data['tin']
+    orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? AND status = "approved" ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    conn.close()
+    if not orders:
+        await update.message.reply_text('No approved orders found.')
+        return ConversationHandler.END
+    message = 'My Approved Orders:\n'
+    for order in orders:
+        message += f"ID: {order['id']}, Item ID: {order['item_id']}, Qty: {order['quantity']}, Status: {order['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def order_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'order_status' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing order_status permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    sales_rep = context.user_data['tin']
+    orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    conn.close()
+    if not orders:
+        await update.message.reply_text('No orders found.')
+        return ConversationHandler.END
+    message = 'Order Status:\n'
+    for order in orders:
+        message += f"ID: {order['id']}, Item ID: {order['item_id']}, Qty: {order['quantity']}, Status: {order['status']}, Delivery Status: {order['delivery_status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def maintenance_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'maintenance_request' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing maintenance_request permission.')
+        return ConversationHandler.END
+    await update.message.reply_text('Enter equipment ID:')
+    return MAINTENANCE_EQUIP
+
+async def get_maintenance_equip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['equipment_id'] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid number for equipment ID.')
+        return MAINTENANCE_EQUIP
+    await update.message.reply_text('Enter maintenance type:')
+    return MAINTENANCE_TYPE
+
+async def get_maintenance_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['type'] = update.message.text
+    conn = get_db()
+    user = context.user_data['tin']
+    conn.execute('''
+    INSERT INTO maintenance (equipment_id, request_date, type, status, user)
+    VALUES (?, ?, ?, ?, ?)
+    ''', (context.user_data['equipment_id'], datetime.now(), context.user_data['type'], 'pending', user))
+    conn.commit()
+    await update.message.reply_text('Maintenance request submitted.')
+    conn.close()
+    return ConversationHandler.END
+
+async def maintenance_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'maintenance_status' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing maintenance_status permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    user = context.user_data['tin']
+    maintenance = conn.execute('SELECT * FROM maintenance WHERE user = ? ORDER BY request_date DESC LIMIT 5', (user,)).fetchall()
+    conn.close()
+    if not maintenance:
+        await update.message.reply_text('No maintenance requests found.')
+        return ConversationHandler.END
+    message = 'Maintenance Status:\n'
+    for maint in maintenance:
+        message += f"ID: {maint['id']}, Equip ID: {maint['equipment_id']}, Type: {maint['type']}, Status: {maint['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def maintenance_followup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'maintenance_followup' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing maintenance_followup permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    maintenance = conn.execute('SELECT * FROM maintenance WHERE status = "pending" LIMIT 5').fetchall()
+    conn.close()
+    if not maintenance:
+        await update.message.reply_text('No pending maintenance requests.')
+        return ConversationHandler.END
+    keyboard = [[KeyboardButton(str(m['id'])) for m in maintenance[i:i+2]] for i in range(0, len(maintenance), 2)]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text('Select maintenance ID to follow up:', reply_markup=reply_markup)
+    return MAINTENANCE_ID
+
+async def get_maintenance_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        context.user_data['maintenance_id'] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text('Please enter a valid maintenance ID.')
+        return MAINTENANCE_ID
+    await update.message.reply_text('Enter report details:')
+    return MAINTENANCE_REPORT
+
+async def get_maintenance_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['report'] = update.message.text
+    conn = get_db()
+    conn.execute('UPDATE maintenance SET status = "completed", report = ?, user = ? WHERE id = ?',
+                 (context.user_data['report'], context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin'], context.user_data['maintenance_id']))
+    conn.commit()
+    await update.message.reply_text('Maintenance followed up successfully.')
+    conn.close()
+    return ConversationHandler.END
+
+async def view_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'view_orders' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing view_orders permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    if context.user_data['tin'] is None:  # Management
+        orders = conn.execute('SELECT * FROM orders ORDER BY id DESC LIMIT 10').fetchall()
+    else:
+        orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? ORDER BY id DESC LIMIT 10', (context.user_data['tin'],)).fetchall()
+    conn.close()
+    if not orders:
+        await update.message.reply_text('No orders found.')
+        return ConversationHandler.END
+    message = 'Orders:\n'
+    for order in orders:
+        message += f"ID: {order['id']}, Item ID: {order['item_id']}, Qty: {order['quantity']}, Status: {order['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+async def maintenance_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if 'maintenance_report' not in context.user_data['permissions']:
+        await update.message.reply_text('Access denied. Missing maintenance_report permission.')
+        return ConversationHandler.END
+    conn = get_db()
+    maintenance = conn.execute('SELECT * FROM maintenance ORDER BY request_date DESC LIMIT 10').fetchall()
+    conn.close()
+    if not maintenance:
+        await update.message.reply_text('No maintenance requests found.')
+        return ConversationHandler.END
+    message = 'Maintenance Requests:\n'
+    for maint in maintenance:
+        message += f"ID: {maint['id']}, Equip ID: {maint['equipment_id']}, Type: {maint['type']}, Status: {maint['status']}\n"
+    await update.message.reply_text(message)
+    return ConversationHandler.END
+
+def main() -> None:
+    application = Application.builder().token(TOKEN).proxy_url('socks5://123.141.181.7:5031').build() # Replace with a valid proxy
+
+    employee_login_conv = ConversationHandler(
+        entry_points=[CommandHandler('employee_login', employee_login)],
+        states={
+            EMPLOYEE_LOGIN_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_username)],
+            EMPLOYEE_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_password)],
+        },
+        fallbacks=[],
+        per_message=True  # Added to fix PTBUserWarning
+    )
+
+    client_login_conv = ConversationHandler(
+        entry_points=[CommandHandler('client_login', client_login)],
+        states={
+            CLIENT_LOGIN_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_email)],
+            CLIENT_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_password)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    client_reg_conv = ConversationHandler(
+        entry_points=[CommandHandler('client_registration', client_registration)],
+        states={
+            CLIENT_REG_TIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_tin)],
+            CLIENT_REG_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_inst)],
+            CLIENT_REG_ADDR: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_addr)],
+            CLIENT_REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_phone)],
+            CLIENT_REG_REGION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_region)],
+            CLIENT_REG_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_city)],
+            CLIENT_REG_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_email)],
+            CLIENT_REG_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_pass)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    employee_reg_conv = ConversationHandler(
+        entry_points=[CommandHandler('employee_registration', employee_registration)],
+        states={
+            EMPLOYEE_REG_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_username)],
+            EMPLOYEE_REG_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_password)],
+            EMPLOYEE_REG_PERMISSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_permissions)],
+            EMPLOYEE_REG_POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_position)],
+            EMPLOYEE_REG_HIRE_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_hire_date)],
+            EMPLOYEE_REG_SALARY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_salary)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    report_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Add Report$') & ~filters.COMMAND, add_report)],
+        states={
+            INSTITUTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_institution)],
+            LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_location)],
+            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
+            VISIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_date)],
+            INTERESTED_PRODUCTS: [CallbackQueryHandler(button)],
+            OUTCOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_outcome)],
+            SALE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sale_amount)],
+            VISIT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_type)],
+            FOLLOW_UP_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_follow_up_details)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    inventory_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Add Inventory$') & ~filters.COMMAND, add_inventory)],
+        states={
+            ADD_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
+            INVENTORY_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
+            INVENTORY_PACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_pack)],
+            INVENTORY_BRAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_brand)],
+            INVENTORY_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_type)],
+            INVENTORY_EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_exp)],
+            INVENTORY_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_cat)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    receive_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Receive Inventory$') & ~filters.COMMAND, receive_inventory)],
+        states={
+            RECEIVE_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
+            RECEIVE_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
+            RECEIVE_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_qty)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    out_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Inventory Out$') & ~filters.COMMAND, inventory_out)],
+        states={
+            INVENTORY_OUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
+            OUT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
+            OUT_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_qty)],
+            OUT_ACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_action)],
+            OUT_SUBACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_subaction)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    tender_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Add Tender$') & ~filters.COMMAND, add_tender)],
+        states={
+            TENDER_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_type)],
+            TENDER_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_desc)],
+            TENDER_DUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_due)],
+            TENDER_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_inst)],
+            TENDER_ENVELOPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_envelope)],
+            TENDER_PRIVATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_private)],
+            TENDER_TECH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_tech)],
+            TENDER_FIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_fin)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    order_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Place Order$') & ~filters.COMMAND, place_order)],
+        states={
+            ORDER_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_item)],
+            ORDER_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_qty)],
+            ORDER_CUST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_cust)],
+            ORDER_VAT_EXEMPT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_vat_exempt)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    maintenance_request_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^Request Maintenance$') & ~filters.COMMAND, maintenance_request)],
+        states={
+            MAINTENANCE_EQUIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_equip)],
+            MAINTENANCE_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_type)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    maintenance_followup_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex('^View Maintenance$') & ~filters.COMMAND, maintenance_followup)],
+        states={
+            MAINTENANCE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_id)],
+            MAINTENANCE_REPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_report)],
+        },
+        fallbacks=[],
+        per_message=True
+    )
+
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(employee_login_conv)
+    application.add_handler(client_login_conv)
+    application.add_handler(client_reg_conv)
+    application.add_handler(employee_reg_conv)
+    application.add_handler(report_conv)
+    application.add_handler(inventory_conv)
+    application.add_handler(receive_conv)
+    application.add_handler(out_conv)
+    application.add_handler(tender_conv)
+    application.add_handler(order_conv)
+    application.add_handler(maintenance_request_conv)
+    application.add_handler(maintenance_followup_conv)
+    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    application.run_polling(timeout=120, allowed_updates=Update.ALL_TYPES)  # Increased timeout to 120 seconds
+
+if __name__ == '__main__':
+    main()

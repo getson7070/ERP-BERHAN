@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Report</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f4f9; font-size: 16px; min-height: 100vh; }
+        .container { padding: 20px; border-radius: 10px; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #1e90ff; font-weight: 600; }
+        .navbar { margin-bottom: 20px; }
+        .dropdown:hover .dropdown-menu { display: block; }
+        table { margin-top: 20px; }
+    </style>
+</head>
+body class="container">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> ERP Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bullhorn"></i> Marketing
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('add_report') }}"><i class="fas fa-plus"></i> Add Report</a></li>
+                            {% if session.role == 'Sales Rep' %}
+                            <li><a class="dropdown-item" href="{{ url_for('my_report') }}"><i class="fas fa-user"></i> My Report</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-warehouse"></i> Inventory
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if session.role in ['Storekeeper', 'Accountant', 'Management'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('add_inventory') }}"><i class="fas fa-plus"></i> Add Inventory</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('receive_inventory') }}"><i class="fas fa-download"></i> Receive Inventory</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('inventory_out') }}"><i class="fas fa-upload"></i> Inventory Out</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-contract"></i> Tenders
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if session.role in ['Tender', 'Management'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('add_tender') }}"><i class="fas fa-plus"></i> Add Tender</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('tenders_list') }}"><i class="fas fa-list"></i> Tenders List</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-chart-bar"></i> Reports
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if session.role == 'Management' %}
+                            <li><a class="dropdown-item" href="{{ url_for('tenders_report') }}"><i class="fas fa-file-alt"></i> Tenders Report</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('promotion_report') }}"><i class="fas fa-trophy"></i> Promotion Report</a></li>
+                            {% endif %}
+                            {% if session.role in ['Storekeeper', 'Accountant', 'Management'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('inventory_report') }}"><i class="fas fa-list"></i> Inventory Report</a></li>
+                            {% endif %}
+                            {% if session.role == 'Management' %}
+                            <li><a class="dropdown-item" href="{{ url_for('marketing_report') }}"><i class="fas fa-chart-pie"></i> Marketing Report</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% if session.role in ['Sales Rep', 'Cashier'] %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('put_order') }}"><i class="fas fa-shopping-cart"></i> Put Order</a>
+                    </li>
+                    {% endif %}
+                    {% if session.role == 'Management' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('user_management') }}"><i class="fas fa-users-cog"></i> User Management</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('orders') }}"><i class="fas fa-clipboard-list"></i> Orders</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <h1>Inventory Report</h1>
+    <h2>Inventory Items</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Item Code</th>
+                <th>Description</th>
+                <th>Pack Size</th>
+                <th>Brand</th>
+                <th>Type</th>
+                <th>Exp Date</th>
+                <th>Batch No</th>
+                <th>Serial No</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inventory %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.pack_size }}</td>
+                <td>{{ item.brand }}</td>
+                <td>{{ item.type }}</td>
+                <td>{{ item.exp_date }}</td>
+                <td>{{ item.batch_no }}</td>
+                <td>{{ item.serial_no }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ item.price }}</td>
+                <td>{{ item.stock }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h2>Movements</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Item ID</th>
+                <th>Quantity</th>
+                <th>Action</th>
+                <th>Sub Action</th>
+                <th>Date</th>
+                <th>User</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for movement in movements %}
+            <tr>
+                <td>{{ movement.id }}</td>
+                <td>{{ movement.item_id }}</td>
+                <td>{{ movement.quantity }}</td>
+                <td>{{ movement.action }}</td>
+                <td>{{ movement.sub_action }}</td>
+                <td>{{ movement.date }}</td>
+                <td>{{ movement.user }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+</body>
+</html>

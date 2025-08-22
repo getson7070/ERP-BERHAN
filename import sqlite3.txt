@@ -1,0 +1,8 @@
+import sqlite3
+
+conn = sqlite3.connect('erp.db')
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM users WHERE username = 'admin';")
+results = cursor.fetchall()
+print(results)
+conn.close()

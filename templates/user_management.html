@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>User Management</h2>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
+        <h3>Pending Employees</h3>
+        <form method="POST" action="">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Permissions</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        {% if user['user_type'] == 'employee' %}
+                            <tr>
+                                <td>{{ user['username'] }}</td>
+                                <td>{{ user['role'] if user['role'] }}</td>
+                                <td>{{ user['permissions'] if user['permissions'] }}</td>
+                                <td>
+                                    <button type="submit" name="username" value="{{ user['username'] }}" class="btn btn-success btn-sm">Approve</button>
+                                    <button type="submit" name="username" value="{{ user['username'] }}" class="btn btn-danger btn-sm">Reject</button>
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="action" value="reject">
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
+
+        <h3>Pending Clients</h3>
+        <form method="POST" action="">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>TIN</th>
+                        <th>Institution Name</th>
+                        <th>Email</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        {% if user['user_type'] == 'client' %}
+                            <tr>
+                                <td>{{ user['tin'] }}</td>
+                                <td>{{ user['institution_name'] }}</td>
+                                <td>{{ user['email'] }}</td>
+                                <td>
+                                    <button type="submit" name="username" value="{{ user['tin'] }}" class="btn btn-success btn-sm">Approve</button>
+                                    <button type="submit" name="username" value="{{ user['tin'] }}" class="btn btn-danger btn-sm">Reject</button>
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="action" value="reject">
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
+        <a href="{{ url_for('employee_registration') }}" class="btn btn-primary mb-3">Register Employee</a>
+        <a href="{{ url_for('client_registration') }}" class="btn btn-primary">Register Client</a>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

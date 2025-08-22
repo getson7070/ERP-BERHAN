@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BERHAN ERP Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            height: 100vh;
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #343a40;
+            padding-top: 20px;
+            color: white;
+        }
+        .sidebar a {
+            padding: 10px 15px;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        .sidebar a:hover {
+            background-color: #495057;
+        }
+        .content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h4 class="text-center">BERHAN ERP</h4>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        {% if 'user_management' in permissions %}
+            <a href="#">User Management</a>
+            <div style="padding-left: 20px;">
+                <a href="{{ url_for('user_management') }}">Manage Users</a>
+                <a href="{{ url_for('employee_registration') }}">Register Employee</a>
+                <a href="{{ url_for('client_registration') }}">Register Client</a>
+            </div>
+        {% endif %}
+        {% if 'add_report' in permissions or 'marketing_report' in permissions %}
+            <a href="#">Marketing</a>
+            <div style="padding-left: 20px;">
+                {% if 'marketing_report' in permissions %}
+                    <a href="{{ url_for('promotion_report_sales') }}">Promotion Report (Sales)</a>
+                    <a href="{{ url_for('promotion_report_activities') }}">Promotion Report (Activities)</a>
+                {% endif %}
+                {% if 'add_report' in permissions %}
+                    <a href="{{ url_for('add_report') }}">Add Report</a>
+                    <a href="{{ url_for('my_report') }}">My Report</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if 'add_inventory' in permissions or 'receive_inventory' in permissions or 'inventory_out' in permissions or 'inventory_report' in permissions %}
+            <a href="#">Inventory</a>
+            <div style="padding-left: 20px;">
+                {% if 'add_inventory' in permissions %}
+                    <a href="{{ url_for('add_inventory') }}">Add Inventory</a>
+                {% endif %}
+                {% if 'receive_inventory' in permissions %}
+                    <a href="{{ url_for('receive_inventory') }}">Receive Inventory</a>
+                {% endif %}
+                {% if 'inventory_out' in permissions %}
+                    <a href="{{ url_for('inventory_out') }}">Inventory Out</a>
+                {% endif %}
+                {% if 'inventory_report' in permissions %}
+                    <a href="#">Inventory Report</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if 'add_tender' in permissions or 'tenders_list' in permissions or 'tenders_report' in permissions %}
+            <a href="#">Tenders</a>
+            <div style="padding-left: 20px;">
+                {% if 'add_tender' in permissions %}
+                    <a href="{{ url_for('add_tender') }}">Add Tender</a>
+                {% endif %}
+                {% if 'tenders_list' in permissions %}
+                    <a href="{{ url_for('tenders_list') }}">Tenders List</a>
+                {% endif %}
+                {% if 'tenders_report' in permissions %}
+                    <a href="{{ url_for('tenders_report') }}">Tenders Report</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if 'view_orders' in permissions or 'put_order' in permissions %}
+            <a href="#">Orders</a>
+            <div style="padding-left: 20px;">
+                {% if 'put_order' in permissions %}
+                    <a href="{{ url_for('put_order') }}">Put Order</a>
+                {% endif %}
+                {% if 'view_orders' in permissions %}
+                    <a href="{{ url_for('orders') }}">View Orders</a>
+                {% endif %}
+                {% if 'approve_order' in permissions %}
+                    <a href="{{ url_for('approve_orders') }}">Approve/Reject Orders</a>
+                {% endif %}
+                <a href="{{ url_for('my_orders') }}">My Orders</a>
+            </div>
+        {% endif %}
+        {% if 'maintenance_request' in permissions or 'maintenance_report' in permissions or 'maintenance_followup' in permissions %}
+            <a href="#">Maintenance</a>
+            <div style="padding-left: 20px;">
+                {% if 'maintenance_request' in permissions %}
+                    <a href="{{ url_for('maintenance_request') }}">Request Maintenance</a>
+                {% endif %}
+                {% if 'maintenance_status' in permissions %}
+                    <a href="{{ url_for('maintenance_status') }}">Maintenance Status</a>
+                {% endif %}
+                {% if 'maintenance_followup' in permissions %}
+                    <a href="{{ url_for('maintenance_followup') }}">Maintenance Followup</a>
+                {% endif %}
+                {% if 'maintenance_report' in permissions %}
+                    <a href="{{ url_for('maintenance_report') }}">Maintenance Report</a>
+                {% endif %}
+                {% if 'approve_maintenance' in permissions %}
+                    <a href="{{ url_for('approve_maintenance') }}">Approve/Reject Maintenance</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+    <div class="content">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

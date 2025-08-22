@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Out</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Inventory Out</h2>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="">
+            <div class="mb-3">
+                <label for="item_id" class="form-label">Item</label>
+                <select name="item_id" id="item_id" class="form-select" required>
+                    {% for item in items %}
+                        <option value="{{ item['id'] }}">{{ item['item_code'] }} (Stock: {{ item['stock'] }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="quantity" class="form-label">Quantity</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="action" class="form-label">Action</label>
+                <select name="action" id="action" class="form-select" required>
+                    <option value="Sales">Sales</option>
+                    <option value="Delivery">Delivery</option>
+                </select>
+            </div>
+            <div class="mb-3" id="sub_action_field">
+                <label for="sub_action" class="form-label">Sub-Action</label>
+                <select name="sub_action" id="sub_action" class="form-select" required>
+                    <option value="Credit">Credit</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Sample">Sample</option>
+                    <option value="Pre-qualification">Pre-qualification</option>
+                    <option value="Quality Test">Quality Test</option>
+                    <option value="Donation">Donation</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
+        </form>
+    </div>
+    <script>
+        document.getElementById('action').addEventListener('change', function() {
+            var subAction = document.getElementById('sub_action');
+            if (this.value === 'Sales') {
+                subAction.innerHTML = '<option value="Credit">Credit</option><option value="Cash">Cash</option>';
+            } else {
+                subAction.innerHTML = '<option value="Sample">Sample</option><option value="Pre-qualification">Pre-qualification</option><option value="Quality Test">Quality Test</option><option value="Donation">Donation</option>';
+            }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
