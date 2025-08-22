@@ -1,52 +1,113 @@
 import sqlite3
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackQueryHandler
+from enum import IntEnum
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ConversationHandler,
+    ContextTypes,
+    CallbackQueryHandler,
+)
 import bcrypt
 import logging
 from datetime import datetime
 import csv  # For client list integration
 
-# Set up logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-TOKEN = '7236996385:AAFV3tB9yEV21HUDq_jTb2e_WkKw_VkhLMU'  # Replace with your bot token
 
 def get_db():
-    conn = sqlite3.connect('erp.db')
+    conn = sqlite3.connect("erp.db")
     conn.row_factory = sqlite3.Row
     return conn
 
-def check_client_list(tin):
-    try:
-        with open('client_list.csv', mode='r', newline='') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row['tin'] == tin:
-                    return {
-                        'name': row['name'],
-                        'tin': row['tin'],
-                        'phone': row['phone'],
-                        'email': row['email']
-                    }
-        return None
-    except FileNotFoundError:
-        return None
 
-# States
-EMPLOYEE_LOGIN_USERNAME, EMPLOYEE_LOGIN_PASSWORD = range(2)
-CLIENT_LOGIN_EMAIL, CLIENT_LOGIN_PASSWORD = range(2, 4)
-CLIENT_REG_TIN, CLIENT_REG_INST, CLIENT_REG_ADDR, CLIENT_REG_PHONE, CLIENT_REG_REGION, CLIENT_REG_CITY, CLIENT_REG_EMAIL, CLIENT_REG_PASS = range(4, 12)
-EMPLOYEE_REG_USERNAME, EMPLOYEE_REG_PASSWORD, EMPLOYEE_REG_PERMISSIONS, EMPLOYEE_REG_POSITION, EMPLOYEE_REG_HIRE_DATE, EMPLOYEE_REG_SALARY = range(12, 18)
-MESSAGE = range(18, 19)
-INSTITUTION, LOCATION, PHONE, VISIT_DATE, INTERESTED_PRODUCTS, OUTCOME, SALE_AMOUNT, VISIT_TYPE, FOLLOW_UP_DETAILS = range(19, 28)
-ADD_INVENTORY, INVENTORY_DESC, INVENTORY_PACK, INVENTORY_BRAND, INVENTORY_TYPE, INVENTORY_EXP, INVENTORY_CAT = range(28, 35)
-ADD_TENDER, TENDER_TYPE, TENDER_DESC, TENDER_DUE, TENDER_INST, TENDER_ENVELOPE, TENDER_PRIVATE, TENDER_TECH, TENDER_FIN = range(35, 44)
-PLACE_ORDER, ORDER_ITEM, ORDER_QTY, ORDER_CUST, ORDER_VAT_EXEMPT = range(44, 49)
-RECEIVE_INVENTORY, RECEIVE_ITEM, RECEIVE_QTY = range(49, 52)
-INVENTORY_OUT, OUT_ITEM, OUT_QTY, OUT_ACTION, OUT_SUBACTION = range(52, 57)
-MAINTENANCE_REQUEST, MAINTENANCE_EQUIP, MAINTENANCE_TYPE = range(57, 60)
-MAINTENANCE_FOLLOWUP, MAINTENANCE_ID, MAINTENANCE_REPORT = range(60, 63)
+def check_client_list(tin: str):
+    try:
+        with open("client_list.csv", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row.get("tin") == tin:
+                    return row
+    except FileNotFoundError:
+        logger.error("client_list.csv not found.")
+    return None
+
+
+class BotState(IntEnum):
+    EMPLOYEE_LOGIN_USERNAME = 0
+    EMPLOYEE_LOGIN_PASSWORD = 1
+    CLIENT_LOGIN_EMAIL = 2
+    CLIENT_LOGIN_PASSWORD = 3
+    CLIENT_REG_TIN = 4
+    CLIENT_REG_INST = 5
+    CLIENT_REG_ADDR = 6
+    CLIENT_REG_PHONE = 7
+    CLIENT_REG_REGION = 8
+    CLIENT_REG_CITY = 9
+    CLIENT_REG_EMAIL = 10
+    CLIENT_REG_PASS = 11
+    EMPLOYEE_REG_USERNAME = 12
+    EMPLOYEE_REG_PASSWORD = 13
+    EMPLOYEE_REG_PERMISSIONS = 14
+    EMPLOYEE_REG_POSITION = 15
+    EMPLOYEE_REG_HIRE_DATE = 16
+    EMPLOYEE_REG_SALARY = 17
+    MESSAGE = 18
+    INSTITUTION = 19
+    LOCATION = 20
+    PHONE = 21
+    VISIT_DATE = 22
+    INTERESTED_PRODUCTS = 23
+    OUTCOME = 24
+    SALE_AMOUNT = 25
+    VISIT_TYPE = 26
+    FOLLOW_UP_DETAILS = 27
+    ADD_INVENTORY = 28
+    INVENTORY_DESC = 29
+    INVENTORY_PACK = 30
+    INVENTORY_BRAND = 31
+    INVENTORY_TYPE = 32
+    INVENTORY_EXP = 33
+    INVENTORY_CAT = 34
+    ADD_TENDER = 35
+    TENDER_TYPE = 36
+    TENDER_DESC = 37
+    TENDER_DUE = 38
+    TENDER_INST = 39
+    TENDER_ENVELOPE = 40
+    TENDER_PRIVATE = 41
+    TENDER_TECH = 42
+    TENDER_FIN = 43
+    PLACE_ORDER = 44
+    ORDER_ITEM = 45
+    ORDER_QTY = 46
+    ORDER_CUST = 47
+    ORDER_VAT_EXEMPT = 48
+    RECEIVE_INVENTORY = 49
+    RECEIVE_ITEM = 50
+    RECEIVE_QTY = 51
+    INVENTORY_OUT = 52
+    OUT_ITEM = 53
+    OUT_QTY = 54
+    OUT_ACTION = 55
+    OUT_SUBACTION = 56
+    MAINTENANCE_REQUEST = 57
+    MAINTENANCE_EQUIP = 58
+    MAINTENANCE_TYPE = 59
+    MAINTENANCE_FOLLOWUP = 60
+    MAINTENANCE_ID = 61
+    MAINTENANCE_REPORT = 62
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = str(update.effective_user.id)
@@ -61,12 +122,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def employee_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Enter your username (phone number):')
-    return EMPLOYEE_LOGIN_USERNAME
+    return BotState.EMPLOYEE_LOGIN_USERNAME
 
 async def get_employee_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['username'] = update.message.text
     await update.message.reply_text('Enter your password:')
-    return EMPLOYEE_LOGIN_PASSWORD
+    return BotState.EMPLOYEE_LOGIN_PASSWORD
 
 async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text.encode('utf-8')
@@ -92,12 +153,12 @@ async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def client_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Enter your email:')
-    return CLIENT_LOGIN_EMAIL
+    return BotState.CLIENT_LOGIN_EMAIL
 
 async def get_client_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['email'] = update.message.text
     await update.message.reply_text('Enter your password:')
-    return CLIENT_LOGIN_PASSWORD
+    return BotState.CLIENT_LOGIN_PASSWORD
 
 async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text.encode('utf-8')
@@ -123,7 +184,7 @@ async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def client_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Enter your 10-digit TIN (e.g., 0052225274):')
-    return CLIENT_REG_TIN
+    return BotState.CLIENT_REG_TIN
 
 async def get_client_reg_tin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     tin = update.message.text
@@ -138,7 +199,7 @@ async def get_client_reg_tin(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data['phone'] = client_info['phone']
         context.user_data['email'] = client_info['email']
         await update.message.reply_text(f'Client {client_info["name"]} with TIN {tin} found. Enter institution name:')
-        return CLIENT_REG_INST
+        return BotState.CLIENT_REG_INST
     elif conn.execute('SELECT * FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone():
         user = conn.execute('SELECT institution_name, tin FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone()
         if user['tin'] and user['institution_name']:
@@ -147,17 +208,17 @@ async def get_client_reg_tin(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text('TIN or email already registered. Try /client_registration again.')
         return ConversationHandler.END
     await update.message.reply_text('Enter institution name:')
-    return CLIENT_REG_INST
+    return BotState.CLIENT_REG_INST
 
 async def get_client_reg_inst(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['institution_name'] = update.message.text
     await update.message.reply_text('Enter address:')
-    return CLIENT_REG_ADDR
+    return BotState.CLIENT_REG_ADDR
 
 async def get_client_reg_addr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['address'] = update.message.text
     await update.message.reply_text('Enter phone number:')
-    return CLIENT_REG_PHONE
+    return BotState.CLIENT_REG_PHONE
 
 async def get_client_reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['phone'] = update.message.text
@@ -167,7 +228,7 @@ async def get_client_reg_phone(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [[KeyboardButton(region) for region in regions[i:i+2]] for i in range(0, len(regions), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select region:', reply_markup=reply_markup)
-    return CLIENT_REG_REGION
+    return BotState.CLIENT_REG_REGION
 
 async def get_client_reg_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['region'] = update.message.text
@@ -177,17 +238,17 @@ async def get_client_reg_region(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard = [[KeyboardButton(city) for city in cities[i:i+2]] for i in range(0, len(cities), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select city:', reply_markup=reply_markup)
-    return CLIENT_REG_CITY
+    return BotState.CLIENT_REG_CITY
 
 async def get_client_reg_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['city'] = update.message.text
     await update.message.reply_text('Enter email:')
-    return CLIENT_REG_EMAIL
+    return BotState.CLIENT_REG_EMAIL
 
 async def get_client_reg_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['email'] = update.message.text
     await update.message.reply_text('Enter password:')
-    return CLIENT_REG_PASS
+    return BotState.CLIENT_REG_PASS
 
 async def get_client_reg_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text.encode('utf-8')
@@ -216,39 +277,39 @@ async def employee_registration(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text('Access denied. Only management can register employees.')
         return ConversationHandler.END
     await update.message.reply_text('Enter employee username (phone number):')
-    return EMPLOYEE_REG_USERNAME
+    return BotState.EMPLOYEE_REG_USERNAME
 
 async def get_employee_reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['username'] = update.message.text
     await update.message.reply_text('Enter password:')
-    return EMPLOYEE_REG_PASSWORD
+    return BotState.EMPLOYEE_REG_PASSWORD
 
 async def get_employee_reg_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['password'] = update.message.text.encode('utf-8')
     await update.message.reply_text('Enter permissions (comma-separated, e.g., add_report,view_orders):')
-    return EMPLOYEE_REG_PERMISSIONS
+    return BotState.EMPLOYEE_REG_PERMISSIONS
 
 async def get_employee_reg_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['permissions'] = update.message.text.split(',')
     await update.message.reply_text('Enter position:')
-    return EMPLOYEE_REG_POSITION
+    return BotState.EMPLOYEE_REG_POSITION
 
 async def get_employee_reg_position(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['position'] = update.message.text
     await update.message.reply_text('Enter hire date (YYYY-MM-DD):')
-    return EMPLOYEE_REG_HIRE_DATE
+    return BotState.EMPLOYEE_REG_HIRE_DATE
 
 async def get_employee_reg_hire_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['hire_date'] = update.message.text
     await update.message.reply_text('Enter salary (ETB):')
-    return EMPLOYEE_REG_SALARY
+    return BotState.EMPLOYEE_REG_SALARY
 
 async def get_employee_reg_salary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['salary'] = float(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for salary.')
-        return EMPLOYEE_REG_SALARY
+        return BotState.EMPLOYEE_REG_SALARY
     conn = get_db()
     password_hash = bcrypt.hashpw(context.user_data['password'], bcrypt.gensalt()).decode('utf-8')
     try:
@@ -267,7 +328,7 @@ async def get_employee_reg_salary(update: Update, context: ContextTypes.DEFAULT_
 
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Enter your message to support:')
-    return MESSAGE
+    return BotState.MESSAGE
 
 async def get_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message.text
@@ -422,22 +483,22 @@ async def add_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text('Access denied. Missing add_report permission.')
         return ConversationHandler.END
     await update.message.reply_text('Enter institution:')
-    return INSTITUTION
+    return BotState.INSTITUTION
 
 async def get_institution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['institution'] = update.message.text
     await update.message.reply_text('Enter location (e.g., Location 1):')
-    return LOCATION
+    return BotState.LOCATION
 
 async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['location'] = update.message.text
     await update.message.reply_text('Enter phone (internal, not visible to reps):')
-    return PHONE
+    return BotState.PHONE
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['phone'] = update.message.text
     await update.message.reply_text('Enter visit date (YYYY-MM-DD):')
-    return VISIT_DATE
+    return BotState.VISIT_DATE
 
 async def get_visit_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['visit_date'] = update.message.text
@@ -461,7 +522,7 @@ async def get_visit_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text('Select product category:', reply_markup=reply_markup)
     context.user_data['selected_products'] = []
     context.user_data['current_category'] = None
-    return INTERESTED_PRODUCTS
+    return BotState.INTERESTED_PRODUCTS
 
 def build_menu(buttons, n_cols):
     return [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
@@ -487,13 +548,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         keyboard.append([InlineKeyboardButton('Back to Categories', callback_data='back'), InlineKeyboardButton('Done', callback_data='done')])
         reply_markup = InlineKeyboardMarkup(build_menu(keyboard, 2))
         await query.edit_message_text(text=f"Select products from {data.upper()}:", reply_markup=reply_markup)
-        return INTERESTED_PRODUCTS
+        return BotState.INTERESTED_PRODUCTS
     elif data.startswith('select_'):
         product = data.replace('select_', '')
         if product not in context.user_data['selected_products']:
             context.user_data['selected_products'].append(product)
         await query.edit_message_text(text=f"Selected products: {', '.join(context.user_data['selected_products'])}\nSelect more or use 'Back'/'Done'.")
-        return INTERESTED_PRODUCTS
+        return BotState.INTERESTED_PRODUCTS
     elif data == 'back':
         keyboard = [
             [InlineKeyboardButton('CLIA', callback_data='clia')],
@@ -507,7 +568,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup = InlineKeyboardMarkup(build_menu(keyboard, 2))
         await query.edit_message_text(text="Select product category:", reply_markup=reply_markup)
         context.user_data['current_category'] = None
-        return INTERESTED_PRODUCTS
+        return BotState.INTERESTED_PRODUCTS
     elif data == 'done':
         await query.edit_message_text(text=f"Selected products: {', '.join(context.user_data['selected_products'])}")
         context.user_data['interested_products'] = ', '.join(context.user_data['selected_products'])
@@ -517,39 +578,39 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
         await query.message.reply_text('Enter outcome:', reply_markup=reply_markup)
-        return OUTCOME
+        return BotState.OUTCOME
 
 async def get_outcome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['outcome'] = update.message.text
     if context.user_data['outcome'] == 'Sale':
         await update.message.reply_text('Enter sale amount (ETB):')
-        return SALE_AMOUNT
+        return BotState.SALE_AMOUNT
     else:
         keyboard = [
             [KeyboardButton('First Visit'), KeyboardButton('Follow-up')]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
         await update.message.reply_text('Enter visit type:', reply_markup=reply_markup)
-        return VISIT_TYPE
+        return BotState.VISIT_TYPE
 
 async def get_sale_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['sale_amount'] = float(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for sale amount.')
-        return SALE_AMOUNT
+        return BotState.SALE_AMOUNT
     keyboard = [
         [KeyboardButton('First Visit'), KeyboardButton('Follow-up')]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Enter visit type:', reply_markup=reply_markup)
-    return VISIT_TYPE
+    return BotState.VISIT_TYPE
 
 async def get_visit_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['visit_type'] = update.message.text
     if context.user_data['visit_type'] == 'Follow-up':
         await update.message.reply_text('Enter follow-up details:')
-        return FOLLOW_UP_DETAILS
+        return BotState.FOLLOW_UP_DETAILS
     else:
         await save_report(update, context)
         return ConversationHandler.END
@@ -596,17 +657,17 @@ async def add_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await update.message.reply_text('Access denied. Missing add_inventory permission.')
         return ConversationHandler.END
     await update.message.reply_text('Enter description:')
-    return ADD_INVENTORY
+    return BotState.ADD_INVENTORY
 
 async def get_inventory_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['description'] = update.message.text
     await update.message.reply_text('Enter pack size:')
-    return INVENTORY_PACK
+    return BotState.INVENTORY_PACK
 
 async def get_inventory_pack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['pack_size'] = update.message.text
     await update.message.reply_text('Enter brand:')
-    return INVENTORY_BRAND
+    return BotState.INVENTORY_BRAND
 
 async def get_inventory_brand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['brand'] = update.message.text
@@ -615,21 +676,21 @@ async def get_inventory_brand(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Enter type:', reply_markup=reply_markup)
-    return INVENTORY_TYPE
+    return BotState.INVENTORY_TYPE
 
 async def get_inventory_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['type'] = update.message.text
     if context.user_data['type'] == 'Reagent':
         await update.message.reply_text('Enter expiration date (YYYY-MM-DD):')
-        return INVENTORY_EXP
+        return BotState.INVENTORY_EXP
     else:
         await update.message.reply_text('Enter category (e.g., CLIA, Chemistry):')
-        return INVENTORY_CAT
+        return BotState.INVENTORY_CAT
 
 async def get_inventory_exp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['exp_date'] = update.message.text
     await update.message.reply_text('Enter category (e.g., CLIA, Chemistry):')
-    return INVENTORY_CAT
+    return BotState.INVENTORY_CAT
 
 async def get_inventory_cat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['category'] = update.message.text
@@ -665,21 +726,21 @@ async def receive_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select item to receive:', reply_markup=reply_markup)
-    return RECEIVE_INVENTORY
+    return BotState.RECEIVE_INVENTORY
 
 async def get_receive_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
     context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity to receive:')
-    return RECEIVE_QTY
+    return BotState.RECEIVE_QTY
 
 async def get_receive_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['quantity'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for quantity.')
-        return RECEIVE_QTY
+        return BotState.RECEIVE_QTY
     conn = get_db()
     conn.execute('UPDATE inventory SET stock = stock + ? WHERE id = ?', (context.user_data['quantity'], context.user_data['item_id']))
     user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
@@ -705,33 +766,33 @@ async def inventory_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select item to move out:', reply_markup=reply_markup)
-    return INVENTORY_OUT
+    return BotState.INVENTORY_OUT
 
 async def get_out_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
     context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity to move out:')
-    return OUT_QTY
+    return BotState.OUT_QTY
 
 async def get_out_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['quantity'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for quantity.')
-        return OUT_QTY
+        return BotState.OUT_QTY
     conn = get_db()
     stock = conn.execute('SELECT stock FROM inventory WHERE id = ?', (context.user_data['item_id'],)).fetchone()['stock']
     conn.close()
     if stock < context.user_data['quantity']:
         await update.message.reply_text('Insufficient stock.')
-        return OUT_QTY
+        return BotState.OUT_QTY
     keyboard = [
         [KeyboardButton('Sales'), KeyboardButton('Delivery')]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Enter action:', reply_markup=reply_markup)
-    return OUT_ACTION
+    return BotState.OUT_ACTION
 
 async def get_out_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['action'] = update.message.text
@@ -746,7 +807,7 @@ async def get_out_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Enter sub-action:', reply_markup=reply_markup)
-    return OUT_SUBACTION
+    return BotState.OUT_SUBACTION
 
 async def get_out_subaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['sub_action'] = update.message.text
@@ -790,24 +851,24 @@ async def add_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [[KeyboardButton(t['type_name']) for t in tender_types]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select tender type:', reply_markup=reply_markup)
-    return TENDER_TYPE
+    return BotState.TENDER_TYPE
 
 async def get_tender_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
     context.user_data['tender_type_id'] = conn.execute('SELECT id FROM tender_types WHERE type_name = ?', (update.message.text,)).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter description:')
-    return TENDER_DESC
+    return BotState.TENDER_DESC
 
 async def get_tender_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['description'] = update.message.text
     await update.message.reply_text('Enter due date (YYYY-MM-DD):')
-    return TENDER_DUE
+    return BotState.TENDER_DUE
 
 async def get_tender_due(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['due_date'] = update.message.text
     await update.message.reply_text('Enter institution (optional):')
-    return TENDER_INST
+    return BotState.TENDER_INST
 
 async def get_tender_inst(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['institution'] = update.message.text
@@ -816,16 +877,16 @@ async def get_tender_inst(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Enter envelope type:', reply_markup=reply_markup)
-    return TENDER_ENVELOPE
+    return BotState.TENDER_ENVELOPE
 
 async def get_tender_envelope(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['envelope_type'] = update.message.text
     if context.user_data['envelope_type'] == 'One Envelope':
         await update.message.reply_text('Enter private key:')
-        return TENDER_PRIVATE
+        return BotState.TENDER_PRIVATE
     else:
         await update.message.reply_text('Enter technical key:')
-        return TENDER_TECH
+        return BotState.TENDER_TECH
 
 async def get_tender_private(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['private_key'] = update.message.text
@@ -835,7 +896,7 @@ async def get_tender_private(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def get_tender_tech(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['tech_key'] = update.message.text
     await update.message.reply_text('Enter financial key:')
-    return TENDER_FIN
+    return BotState.TENDER_FIN
 
 async def get_tender_fin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['fin_key'] = update.message.text
@@ -917,23 +978,23 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     keyboard = [[KeyboardButton(item['item_code']) for item in items[i:i+2]] for i in range(0, len(items), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select item to order:', reply_markup=reply_markup)
-    return ORDER_ITEM
+    return BotState.ORDER_ITEM
 
 async def get_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
     context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity:')
-    return ORDER_QTY
+    return BotState.ORDER_QTY
 
 async def get_order_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['quantity'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for quantity.')
-        return ORDER_QTY
+        return BotState.ORDER_QTY
     await update.message.reply_text('Enter customer name:')
-    return ORDER_CUST
+    return BotState.ORDER_CUST
 
 async def get_order_cust(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['customer'] = update.message.text
@@ -942,7 +1003,7 @@ async def get_order_cust(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Is this order VAT exempt? (Yes/No):', reply_markup=reply_markup)
-    return ORDER_VAT_EXEMPT
+    return BotState.ORDER_VAT_EXEMPT
 
 async def get_order_vat_exempt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['vat_exempt'] = update.message.text.lower() == 'yes'
@@ -997,16 +1058,16 @@ async def maintenance_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text('Access denied. Missing maintenance_request permission.')
         return ConversationHandler.END
     await update.message.reply_text('Enter equipment ID:')
-    return MAINTENANCE_EQUIP
+    return BotState.MAINTENANCE_EQUIP
 
 async def get_maintenance_equip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['equipment_id'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid number for equipment ID.')
-        return MAINTENANCE_EQUIP
+        return BotState.MAINTENANCE_EQUIP
     await update.message.reply_text('Enter maintenance type:')
-    return MAINTENANCE_TYPE
+    return BotState.MAINTENANCE_TYPE
 
 async def get_maintenance_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['type'] = update.message.text
@@ -1051,16 +1112,16 @@ async def maintenance_followup(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [[KeyboardButton(str(m['id'])) for m in maintenance[i:i+2]] for i in range(0, len(maintenance), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text('Select maintenance ID to follow up:', reply_markup=reply_markup)
-    return MAINTENANCE_ID
+    return BotState.MAINTENANCE_ID
 
 async def get_maintenance_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         context.user_data['maintenance_id'] = int(update.message.text)
     except ValueError:
         await update.message.reply_text('Please enter a valid maintenance ID.')
-        return MAINTENANCE_ID
+        return BotState.MAINTENANCE_ID
     await update.message.reply_text('Enter report details:')
-    return MAINTENANCE_REPORT
+    return BotState.MAINTENANCE_REPORT
 
 async def get_maintenance_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['report'] = update.message.text
@@ -1113,8 +1174,8 @@ def main() -> None:
     employee_login_conv = ConversationHandler(
         entry_points=[CommandHandler('employee_login', employee_login)],
         states={
-            EMPLOYEE_LOGIN_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_username)],
-            EMPLOYEE_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_password)],
+            BotState.EMPLOYEE_LOGIN_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_username)],
+            BotState.EMPLOYEE_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_password)],
         },
         fallbacks=[],
         per_message=True  # Added to fix PTBUserWarning
@@ -1123,8 +1184,8 @@ def main() -> None:
     client_login_conv = ConversationHandler(
         entry_points=[CommandHandler('client_login', client_login)],
         states={
-            CLIENT_LOGIN_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_email)],
-            CLIENT_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_password)],
+            BotState.CLIENT_LOGIN_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_email)],
+            BotState.CLIENT_LOGIN_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_password)],
         },
         fallbacks=[],
         per_message=True
@@ -1133,14 +1194,14 @@ def main() -> None:
     client_reg_conv = ConversationHandler(
         entry_points=[CommandHandler('client_registration', client_registration)],
         states={
-            CLIENT_REG_TIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_tin)],
-            CLIENT_REG_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_inst)],
-            CLIENT_REG_ADDR: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_addr)],
-            CLIENT_REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_phone)],
-            CLIENT_REG_REGION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_region)],
-            CLIENT_REG_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_city)],
-            CLIENT_REG_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_email)],
-            CLIENT_REG_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_pass)],
+            BotState.CLIENT_REG_TIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_tin)],
+            BotState.CLIENT_REG_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_inst)],
+            BotState.CLIENT_REG_ADDR: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_addr)],
+            BotState.CLIENT_REG_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_phone)],
+            BotState.CLIENT_REG_REGION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_region)],
+            BotState.CLIENT_REG_CITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_city)],
+            BotState.CLIENT_REG_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_email)],
+            BotState.CLIENT_REG_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_reg_pass)],
         },
         fallbacks=[],
         per_message=True
@@ -1149,12 +1210,12 @@ def main() -> None:
     employee_reg_conv = ConversationHandler(
         entry_points=[CommandHandler('employee_registration', employee_registration)],
         states={
-            EMPLOYEE_REG_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_username)],
-            EMPLOYEE_REG_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_password)],
-            EMPLOYEE_REG_PERMISSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_permissions)],
-            EMPLOYEE_REG_POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_position)],
-            EMPLOYEE_REG_HIRE_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_hire_date)],
-            EMPLOYEE_REG_SALARY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_salary)],
+            BotState.EMPLOYEE_REG_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_username)],
+            BotState.EMPLOYEE_REG_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_password)],
+            BotState.EMPLOYEE_REG_PERMISSIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_permissions)],
+            BotState.EMPLOYEE_REG_POSITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_position)],
+            BotState.EMPLOYEE_REG_HIRE_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_hire_date)],
+            BotState.EMPLOYEE_REG_SALARY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_employee_reg_salary)],
         },
         fallbacks=[],
         per_message=True
@@ -1163,15 +1224,15 @@ def main() -> None:
     report_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Add Report$') & ~filters.COMMAND, add_report)],
         states={
-            INSTITUTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_institution)],
-            LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_location)],
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
-            VISIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_date)],
-            INTERESTED_PRODUCTS: [CallbackQueryHandler(button)],
-            OUTCOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_outcome)],
-            SALE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sale_amount)],
-            VISIT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_type)],
-            FOLLOW_UP_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_follow_up_details)],
+            BotState.INSTITUTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_institution)],
+            BotState.LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_location)],
+            BotState.PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone)],
+            BotState.VISIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_date)],
+            BotState.INTERESTED_PRODUCTS: [CallbackQueryHandler(button)],
+            BotState.OUTCOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_outcome)],
+            BotState.SALE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_sale_amount)],
+            BotState.VISIT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_visit_type)],
+            BotState.FOLLOW_UP_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_follow_up_details)],
         },
         fallbacks=[],
         per_message=True
@@ -1180,13 +1241,13 @@ def main() -> None:
     inventory_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Add Inventory$') & ~filters.COMMAND, add_inventory)],
         states={
-            ADD_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
-            INVENTORY_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
-            INVENTORY_PACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_pack)],
-            INVENTORY_BRAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_brand)],
-            INVENTORY_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_type)],
-            INVENTORY_EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_exp)],
-            INVENTORY_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_cat)],
+            BotState.ADD_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
+            BotState.INVENTORY_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_desc)],
+            BotState.INVENTORY_PACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_pack)],
+            BotState.INVENTORY_BRAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_brand)],
+            BotState.INVENTORY_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_type)],
+            BotState.INVENTORY_EXP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_exp)],
+            BotState.INVENTORY_CAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_inventory_cat)],
         },
         fallbacks=[],
         per_message=True
@@ -1195,9 +1256,9 @@ def main() -> None:
     receive_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Receive Inventory$') & ~filters.COMMAND, receive_inventory)],
         states={
-            RECEIVE_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
-            RECEIVE_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
-            RECEIVE_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_qty)],
+            BotState.RECEIVE_INVENTORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
+            BotState.RECEIVE_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_item)],
+            BotState.RECEIVE_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_receive_qty)],
         },
         fallbacks=[],
         per_message=True
@@ -1206,11 +1267,11 @@ def main() -> None:
     out_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Inventory Out$') & ~filters.COMMAND, inventory_out)],
         states={
-            INVENTORY_OUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
-            OUT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
-            OUT_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_qty)],
-            OUT_ACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_action)],
-            OUT_SUBACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_subaction)],
+            BotState.INVENTORY_OUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
+            BotState.OUT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_item)],
+            BotState.OUT_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_qty)],
+            BotState.OUT_ACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_action)],
+            BotState.OUT_SUBACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_out_subaction)],
         },
         fallbacks=[],
         per_message=True
@@ -1219,14 +1280,14 @@ def main() -> None:
     tender_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Add Tender$') & ~filters.COMMAND, add_tender)],
         states={
-            TENDER_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_type)],
-            TENDER_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_desc)],
-            TENDER_DUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_due)],
-            TENDER_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_inst)],
-            TENDER_ENVELOPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_envelope)],
-            TENDER_PRIVATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_private)],
-            TENDER_TECH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_tech)],
-            TENDER_FIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_fin)],
+            BotState.TENDER_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_type)],
+            BotState.TENDER_DESC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_desc)],
+            BotState.TENDER_DUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_due)],
+            BotState.TENDER_INST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_inst)],
+            BotState.TENDER_ENVELOPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_envelope)],
+            BotState.TENDER_PRIVATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_private)],
+            BotState.TENDER_TECH: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_tech)],
+            BotState.TENDER_FIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tender_fin)],
         },
         fallbacks=[],
         per_message=True
@@ -1235,10 +1296,10 @@ def main() -> None:
     order_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Place Order$') & ~filters.COMMAND, place_order)],
         states={
-            ORDER_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_item)],
-            ORDER_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_qty)],
-            ORDER_CUST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_cust)],
-            ORDER_VAT_EXEMPT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_vat_exempt)],
+            BotState.ORDER_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_item)],
+            BotState.ORDER_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_qty)],
+            BotState.ORDER_CUST: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_cust)],
+            BotState.ORDER_VAT_EXEMPT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_order_vat_exempt)],
         },
         fallbacks=[],
         per_message=True
@@ -1247,8 +1308,8 @@ def main() -> None:
     maintenance_request_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^Request Maintenance$') & ~filters.COMMAND, maintenance_request)],
         states={
-            MAINTENANCE_EQUIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_equip)],
-            MAINTENANCE_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_type)],
+            BotState.MAINTENANCE_EQUIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_equip)],
+            BotState.MAINTENANCE_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_type)],
         },
         fallbacks=[],
         per_message=True
@@ -1257,8 +1318,8 @@ def main() -> None:
     maintenance_followup_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^View Maintenance$') & ~filters.COMMAND, maintenance_followup)],
         states={
-            MAINTENANCE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_id)],
-            MAINTENANCE_REPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_report)],
+            BotState.MAINTENANCE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_id)],
+            BotState.MAINTENANCE_REPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_maintenance_report)],
         },
         fallbacks=[],
         per_message=True
