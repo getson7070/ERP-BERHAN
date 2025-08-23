@@ -20,12 +20,16 @@
     {% endwith %}
     <form method="POST">
         <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
         </div>
         <div class="form-group">
             <label for="password">Password:</label>
             <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group">
+            <label for="totp">TOTP Code:</label>
+            <input type="text" id="totp" name="totp" minlength="6" maxlength="6">
         </div>
         <input type="submit" value="Login">
     </form>
