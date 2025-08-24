@@ -1,4 +1,5 @@
 import sqlite3
+import subprocess
 from argon2 import PasswordHasher
 
 
@@ -9,17 +10,15 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 def init_db():
+    # Apply database migrations to ensure the latest schema
+    subprocess.run(["alembic", "upgrade", "head"], check=True)
+
     conn = sqlite3.connect('erp.db')
     cursor = conn.cursor()
 
-    # Drop existing tables to ensure clean schema
-    cursor.execute("DROP TABLE IF EXISTS users")
-    cursor.execute("DROP TABLE IF EXISTS access_logs")
-    conn.commit()
-
     # Create users table
     cursor.execute('''
-    CREATE TABLE users (
+    CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_type TEXT NOT NULL CHECK(user_type IN ('employee', 'client')),
         tin TEXT,
@@ -42,7 +41,7 @@ def init_db():
 
     # Create access_logs table for IP/device logging
     cursor.execute('''
-    CREATE TABLE access_logs (
+    CREATE TABLE IF NOT EXISTS access_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user TEXT NOT NULL,
         ip TEXT NOT NULL,
