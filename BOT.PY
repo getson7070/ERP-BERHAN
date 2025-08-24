@@ -17,9 +17,27 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 import bcrypt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 import logging
 from datetime import datetime
 import csv  # For client list integration
+
+
+ph = PasswordHasher()
+
+
+def hash_password(password: str) -> str:
+    return ph.hash(password)
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    if password_hash.startswith("$argon2"):
+        try:
+            return ph.verify(password_hash, password)
+        except VerifyMismatchError:
+            return False
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 logging.basicConfig(level=logging.INFO)
@@ -130,11 +148,11 @@ async def get_employee_username(update: Update, context: ContextTypes.DEFAULT_TY
     return BotState.EMPLOYEE_LOGIN_PASSWORD
 
 async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    password = update.message.text.encode('utf-8')
+    password = update.message.text
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE user_type = ? AND username = ? AND approved_by_ceo = TRUE', ('employee', context.user_data['username'])).fetchone()
     conn.close()
-    if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+    if user and verify_password(password, user['password_hash']):
         context.user_data['logged_in'] = True
         context.user_data['role'] = 'employee'
         context.user_data['tin'] = user['tin'] if user['tin'] else None
@@ -161,11 +179,11 @@ async def get_client_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return BotState.CLIENT_LOGIN_PASSWORD
 
 async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    password = update.message.text.encode('utf-8')
+    password = update.message.text
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE user_type = ? AND email = ? AND approved_by_ceo = TRUE', ('client', context.user_data['email'])).fetchone()
     conn.close()
-    if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+    if user and verify_password(password, user['password_hash']):
         context.user_data['logged_in'] = True
         context.user_data['role'] = 'client'
         context.user_data['tin'] = user['tin']
@@ -251,9 +269,9 @@ async def get_client_reg_email(update: Update, context: ContextTypes.DEFAULT_TYP
     return BotState.CLIENT_REG_PASS
 
 async def get_client_reg_pass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    password = update.message.text.encode('utf-8')
+    password = update.message.text
     conn = get_db()
-    password_hash = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+    password_hash = hash_password(password)
     try:
         conn.execute('''
             INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
@@ -285,7 +303,7 @@ async def get_employee_reg_username(update: Update, context: ContextTypes.DEFAUL
     return BotState.EMPLOYEE_REG_PASSWORD
 
 async def get_employee_reg_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['password'] = update.message.text.encode('utf-8')
+    context.user_data['password'] = update.message.text
     await update.message.reply_text('Enter permissions (comma-separated, e.g., add_report,view_orders):')
     return BotState.EMPLOYEE_REG_PERMISSIONS
 
@@ -311,7 +329,7 @@ async def get_employee_reg_salary(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text('Please enter a valid number for salary.')
         return BotState.EMPLOYEE_REG_SALARY
     conn = get_db()
-    password_hash = bcrypt.hashpw(context.user_data['password'], bcrypt.gensalt()).decode('utf-8')
+    password_hash = hash_password(context.user_data['password'])
     try:
         conn.execute('''
             INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, position, hire_date, salary)

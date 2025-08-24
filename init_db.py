@@ -1,5 +1,12 @@
 import sqlite3
-import bcrypt
+from argon2 import PasswordHasher
+
+
+ph = PasswordHasher()
+
+
+def hash_password(password: str) -> str:
+    return ph.hash(password)
 
 def init_db():
     conn = sqlite3.connect('erp.db')
@@ -174,19 +181,18 @@ def init_db():
     cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('NGO/UN Portal Tender',))
 
     cursor.execute('DELETE FROM users WHERE username = "admin"')
-    password = 'admin123'.encode('utf-8')
-    password_hash = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+    password_hash = hash_password('admin123')
     cursor.execute('INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role) VALUES (?, ?, ?, ?, ?, ?)',
                    ('employee', 'admin', password_hash, 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report', True, 'Admin'))
 
     admin_phones = ['0946423021', '0984707070', '0969111144']
     employee_phones = ['0969351111', '0969361111', '0969371111', '0969381111', '0969161111', '0923804931', '0911183488']
     for phone in admin_phones:
-        password_hash = bcrypt.hashpw(phone.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        password_hash = hash_password(phone)
         cursor.execute('INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role) VALUES (?, ?, ?, ?, ?, ?)',
                        ('employee', phone, password_hash, 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report', True, 'Admin'))
     for phone in employee_phones:
-        password_hash = bcrypt.hashpw(phone.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        password_hash = hash_password(phone)
         cursor.execute('INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role) VALUES (?, ?, ?, ?, ?, ?)',
                        ('employee', phone, password_hash, 'add_report,put_order,view_orders', True, 'Sales Rep'))
 
