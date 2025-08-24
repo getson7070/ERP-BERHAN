@@ -1,16 +1,36 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, IntegerField, FloatField, DateField, BooleanField, SelectMultipleField, FileField
+from wtforms import (
+    StringField,
+    PasswordField,
+    SubmitField,
+    SelectField,
+    TextAreaField,
+    IntegerField,
+    FloatField,
+    DateField,
+    BooleanField,
+    SelectMultipleField,
+    FileField,
+)
 from wtforms.validators import DataRequired, Length, NumberRange
 from functools import wraps
 import sqlite3
 import bcrypt
 from datetime import datetime
 import csv
-from io import TextIOWrapper
+from io import TextIOWrapper, BytesIO
+import base64
+
+import pyotp
+import qrcode
+from flask_talisman import Talisman
+
+from config import SECRET_KEY, DATABASE_URL
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a secure key
+app.config["SECRET_KEY"] = SECRET_KEY
+Talisman(app, force_https=True, session_cookie_secure=True)
 
 def adapt_datetime(dt):
     return dt.isoformat(" ")
@@ -25,7 +45,7 @@ def login_required(f):
     return wrap
 
 def get_db():
-    conn = sqlite3.connect('erp.db')
+    conn = sqlite3.connect(DATABASE_URL)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -63,6 +83,7 @@ def employee_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
         password = PasswordField('Password', validators=[DataRequired()])
+        totp = StringField('TOTP Code', validators=[Length(min=6, max=6)])
         submit = SubmitField('Login')
     form = LoginForm()
     if form.validate_on_submit():
@@ -72,6 +93,14 @@ def employee_login():
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'employee')).fetchone()
         conn.close()
         if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+            if not user['totp_secret']:
+                session['temp_user_id'] = email
+                session['temp_role'] = 'employee'
+                return redirect(url_for('enroll_totp'))
+            totp_code = form.totp.data
+            if not totp_code or not pyotp.TOTP(user['totp_secret']).verify(totp_code):
+                flash('Invalid TOTP code.')
+                return render_template('employee_login.html', form=form)
             session['logged_in'] = True
             session['role'] = 'employee'
             session['username'] = email
@@ -90,6 +119,7 @@ def client_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
         password = PasswordField('Password', validators=[DataRequired()])
+        totp = StringField('TOTP Code', validators=[Length(min=6, max=6)])
         submit = SubmitField('Login')
     form = LoginForm()
     if form.validate_on_submit():
@@ -99,6 +129,14 @@ def client_login():
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'client')).fetchone()
         conn.close()
         if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+            if not user['totp_secret']:
+                session['temp_user_id'] = email
+                session['temp_role'] = 'client'
+                return redirect(url_for('enroll_totp'))
+            totp_code = form.totp.data
+            if not totp_code or not pyotp.TOTP(user['totp_secret']).verify(totp_code):
+                flash('Invalid TOTP code.')
+                return render_template('client_login.html', form=form)
             session['logged_in'] = True
             session['role'] = 'client'
             session['tin'] = user['tin']
@@ -112,6 +150,52 @@ def client_login():
         else:
             flash('Invalid email/password or not approved.')
     return render_template('client_login.html', form=form)
+
+
+@app.route('/enroll_totp', methods=['GET', 'POST'])
+def enroll_totp():
+    if 'temp_user_id' not in session:
+        return redirect(url_for('choose_login'))
+    secret = session.get('temp_totp_secret')
+    if not secret:
+        secret = pyotp.random_base32()
+        session['temp_totp_secret'] = secret
+    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=session['temp_user_id'], issuer_name='ERP-BERHAN'
+    )
+    img = qrcode.make(otp_uri)
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    if request.method == 'POST':
+        code = request.form.get('totp')
+        if pyotp.TOTP(secret).verify(code):
+            conn = get_db()
+            conn.execute(
+                'UPDATE users SET totp_secret = ? WHERE email = ? AND user_type = ?',
+                (secret, session['temp_user_id'], session['temp_role']),
+            )
+            conn.commit()
+            user = conn.execute(
+                'SELECT * FROM users WHERE email = ? AND user_type = ?',
+                (session['temp_user_id'], session['temp_role']),
+            ).fetchone()
+            conn.close()
+            session.pop('temp_totp_secret', None)
+            session.pop('temp_user_id', None)
+            role = session.pop('temp_role', None)
+            session['logged_in'] = True
+            session['role'] = role
+            session['username'] = user['email']
+            session['permissions'] = (
+                user['permissions'].split(',') if user['permissions'] else []
+            )
+            if role == 'client':
+                session['tin'] = user['tin']
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid TOTP code.')
+    return render_template('enroll_totp.html', qr_code=qr_b64)
 
 @app.route('/client_registration', methods=['GET', 'POST'])
 def client_registration():

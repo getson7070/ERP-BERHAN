@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTP Enrollment</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .form-group { margin-bottom: 10px; }
+        img { margin: 20px auto; }
+    </style>
+</head>
+<body>
+    <h2>Scan QR Code to Enroll</h2>
+    <img src="data:image/png;base64,{{ qr_code }}" alt="TOTP QR Code">
+    <form method="POST">
+        <div class="form-group">
+            <label for="totp">Enter Code:</label>
+            <input type="text" id="totp" name="totp" required minlength="6" maxlength="6">
+        </div>
+        <input type="submit" value="Enable">
+    </form>
+</body>
+</html>

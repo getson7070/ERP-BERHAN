@@ -24,6 +24,7 @@ def init_db():
         city TEXT,
         email TEXT UNIQUE,
         password_hash TEXT NOT NULL,
+        totp_secret TEXT,
         permissions TEXT,
         approved_by_ceo BOOLEAN DEFAULT FALSE,
         last_login DATETIME,
