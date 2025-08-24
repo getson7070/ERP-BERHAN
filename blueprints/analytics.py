@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for
 from functools import wraps
+import os
 import sqlite3
 from celery import Celery
 from celery.schedules import crontab
@@ -8,7 +9,9 @@ from datetime import datetime
 analytics_bp = Blueprint('analytics', __name__)
 
 celery = Celery(
-    __name__, broker='redis://localhost:6379/0', backend='redis://localhost:6379/0'
+    __name__,
+    broker=os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+    backend=os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
 )
 
 def login_required(f):
