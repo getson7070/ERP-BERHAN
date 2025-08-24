@@ -6,12 +6,32 @@ from wtforms.validators import DataRequired, Length, NumberRange
 from functools import wraps
 import sqlite3
 import bcrypt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from datetime import datetime
 import csv
 from io import TextIOWrapper
+import os
+import secrets
+
+ph = PasswordHasher()
+
+
+def hash_password(password: str) -> str:
+    return ph.hash(password)
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    if password_hash.startswith("$argon2"):
+        try:
+            return ph.verify(password_hash, password)
+        except VerifyMismatchError:
+            return False
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a secure key
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(16))
 register_blueprints(app)
 
 def adapt_datetime(dt):
@@ -69,11 +89,11 @@ def employee_login():
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data
-        password = form.password.data.encode('utf-8')
+        password = form.password.data
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'employee')).fetchone()
         conn.close()
-        if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+        if user and verify_password(password, user['password_hash']):
             session['logged_in'] = True
             session['role'] = 'employee'
             session['username'] = email
@@ -96,11 +116,11 @@ def client_login():
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data
-        password = form.password.data.encode('utf-8')
+        password = form.password.data
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'client')).fetchone()
         conn.close()
-        if user and bcrypt.checkpw(password, user['password_hash'].encode('utf-8')):
+        if user and verify_password(password, user['password_hash']):
             session['logged_in'] = True
             session['role'] = 'client'
             session['tin'] = user['tin']
@@ -130,7 +150,12 @@ def client_registration():
     conn = get_db()
     form = ClientRegistrationForm()
     form.region.choices = [(r['region'], r['region']) for r in conn.execute('SELECT DISTINCT region FROM regions_cities').fetchall()]
-    form.city.choices = [(c['city'], c['city']) for c in conn.execute('SELECT city FROM regions_cities WHERE region = ?', (form.region.data,)).fetchall()] if form.region.data else []
+    if not form.region.data and form.region.choices:
+        form.region.data = form.region.choices[0][0]
+    form.city.choices = [
+        (c['city'], c['city'])
+        for c in conn.execute('SELECT city FROM regions_cities WHERE region = ?', (form.region.data,)).fetchall()
+    ] if form.region.data else []
     if form.validate_on_submit():
         tin = form.tin.data
         if not tin.isdigit():
@@ -147,12 +172,12 @@ def client_registration():
         region = form.region.data
         city = form.city.data
         email = form.email.data
-        password = form.password.data.encode('utf-8')
+        password = form.password.data
         if conn.execute('SELECT * FROM users WHERE tin = ? OR email = ?', (tin, email)).fetchone():
             flash('TIN or email already registered.')
             conn.close()
             return render_template('client_registration.html', form=form)
-        password_hash = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+        password_hash = hash_password(password)
         conn.execute('''
             INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -189,7 +214,7 @@ def employee_registration():
     if form.validate_on_submit():
         username = form.username.data
         email = form.email.data
-        password = form.password.data.encode('utf-8')
+        password = form.password.data
         role = form.role.data
         permissions = ','.join(form.permissions.data)
         hire_date = form.hire_date.data
@@ -199,7 +224,7 @@ def employee_registration():
             flash('Username or email already registered.')
             conn.close()
             return render_template('employee_registration.html', form=form)
-        password_hash = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+        password_hash = hash_password(password)
         conn.execute('''
             INSERT INTO users (user_type, username, email, password_hash, permissions, approved_by_ceo, hire_date, salary, role)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

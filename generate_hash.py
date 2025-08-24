@@ -1,7 +1,11 @@
-import bcrypt
+from argon2 import PasswordHasher
 
-# Generate bcrypt hash for testing
-password = 'admin123'.encode('utf-8')
-salt = bcrypt.gensalt()
-password_hash = bcrypt.hashpw(password, salt).decode('utf-8')
-print(password_hash)
+
+def main() -> None:
+    ph = PasswordHasher()
+    password_hash = ph.hash('admin123')
+    print(password_hash)
+
+
+if __name__ == '__main__':
+    main()
