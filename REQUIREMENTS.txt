@@ -1,6 +1,19 @@
-Flask>=2.3.0
-flask-wtf>=1.2.0
-werkzeug==3.0.4
-python-telegram-bot==21.5
-bcrypt==4.0.1
-argon2-cffi==21.3.0  # New for Argon2 hashing
+diff --git a/REQUIREMENTS.txt b/REQUIREMENTS.txt
+index a39045c641ac971125ebfacad32ca18b743b70c1..982d5650a4dd752af4abb83d22b42d6bc8605d51 100644
+--- a/REQUIREMENTS.txt
++++ b/REQUIREMENTS.txt
+@@ -1,6 +1,8 @@
+-Flask>=2.3.0
+-flask-wtf>=1.2.0
+-werkzeug==3.0.4
+-python-telegram-bot==21.5
+-bcrypt==4.0.1
+-argon2-cffi==21.3.0  # New for Argon2 hashing
++Flask>=2.3.0
++flask-wtf>=1.2.0
++werkzeug==3.0.4
++python-telegram-bot==21.5
++bcrypt==4.0.1
++argon2-cffi==21.3.0
++celery>=5.3.0
++redis>=5.0.0
