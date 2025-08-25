@@ -27,6 +27,7 @@ When modifying templates or front-end behavior, confirm the following:
   - Chat/collaboration within the ERP
   - Offline mode with automatic sync
   - AI-powered recommendations
+
 ## Project Phases
 1. Foundation & Security
    - Strengthen core authentication, authorization, and data protection.
