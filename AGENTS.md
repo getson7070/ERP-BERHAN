@@ -11,6 +11,23 @@
 - After running required checks, push updates to the `main` branch:
 
   `git push origin HEAD:main`
+
+## UI/UX & Feature Checklist
+When modifying templates or front-end behavior, confirm the following:
+- All templates use industry-standard Bootstrap layouts with client-side validation and responsive design.
+- Dashboards remain clean and modular with smart navigation to ensure consistency and familiarity.
+- Interfaces support responsive design and mobile-friendly actions.
+- The broader system roadmap accounts for:
+  - Task & workflow automation
+  - Data entry optimization
+  - Visualization & reports
+  - Role-based access control
+  - Error handling & guidance
+  - Calendar integration
+  - Chat/collaboration within the ERP
+  - Offline mode with automatic sync
+  - AI-powered recommendations
+
 ## Project Phases
 1. Foundation & Security
    - Strengthen core authentication, authorization, and data protection.
@@ -35,17 +52,3 @@
 6. Feature Expansion
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
-## UI/UX and Feature Checklist
-- Verify every template uses Bootstrap layout, client-side validation (`needs-validation`), and responsive design.
-- Ensure the dashboard remains clean and modular with intuitive navigation and consistent patterns across pages.
-- Confirm mobile-friendly actions and layouts for all views.
-- For each release, assess presence of:
-  - Task & workflow automation
-  - Data entry optimization
-  - Visualization & reporting
-  - Role-based access control
-  - Error handling & guidance
-  - Calendar integration
-  - Chat/collaboration tools
-  - Offline (mobile) mode with auto-sync
-  - AI-powered recommendations
