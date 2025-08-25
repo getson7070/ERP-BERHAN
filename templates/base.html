@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ get_locale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +11,23 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">BERHAN ERP</a>
-            <div class="navbar-nav">
-                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-                <a class="nav-link {% if request.blueprint == 'tenders' %}active{% endif %}" href="{{ url_for('tenders.tenders_list') }}">Tenders</a>
-                <a class="nav-link {% if request.blueprint == 'orders' %}active{% endif %}" href="{{ url_for('orders.orders') }}">Orders</a>
-                <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">{{ _('BERHAN ERP') }}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
+                    {% if session.get('role') != 'Client' %}
+                    <a class="nav-link {% if request.blueprint == 'tenders' %}active{% endif %}" href="{{ url_for('tenders.tenders_list') }}">{{ _('Tenders') }}</a>
+                    {% endif %}
+                    <a class="nav-link {% if request.blueprint == 'orders' %}active{% endif %}" href="{{ url_for('orders.orders') }}">{{ _('Orders') }}</a>
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">{{ _('Logout') }}</a>
+                </div>
+                <div class="navbar-nav">
+                    <a class="nav-link" href="{{ url_for('main.set_language', lang='en') }}">EN</a>
+                    <a class="nav-link" href="{{ url_for('main.set_language', lang='am') }}">AM</a>
+                </div>
             </div>
         </div>
     </nav>

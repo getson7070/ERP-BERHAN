@@ -71,6 +71,13 @@ For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
 secrets manager.
 
+## UI/UX
+
+The interface uses responsive Bootstrap 5 templates with a mobile-friendly
+navbar and offline sync via a service worker. `Flask-Babel` enables
+multilingual support (English and Amharic) with a language switcher, and the
+`/dashboard` route delivers role-based views for employees, clients, and admins.
+
 ## Backups
 
 The `backup.py` helper creates timestamped database backups. PostgreSQL and

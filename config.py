@@ -33,3 +33,7 @@ class Config:
     OAUTH_AUTH_URL = os.environ.get('OAUTH_AUTH_URL')
     OAUTH_TOKEN_URL = os.environ.get('OAUTH_TOKEN_URL')
     OAUTH_USERINFO_URL = os.environ.get('OAUTH_USERINFO_URL')
+
+    LANGUAGES = ['en', 'am']
+    BABEL_DEFAULT_LOCALE = 'en'
+    BABEL_DEFAULT_TIMEZONE = 'UTC'
