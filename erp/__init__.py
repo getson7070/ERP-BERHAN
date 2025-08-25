@@ -26,7 +26,7 @@ REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endp
 
 
 def create_app():
-    app = Flask(__name__, static_folder='static', template_folder='../templates')
+    app = Flask(__name__, static_folder='../static', template_folder='../templates')
     app.config.from_object(Config)
 
     logging.config.dictConfig({
@@ -40,7 +40,12 @@ def create_app():
 
     socketio.init_app(app, message_queue=app.config['REDIS_URL'])
     oauth.init_app(app)
-    babel.init_app(app, locale_selector=lambda: session.get('lang') or request.accept_languages.best_match(app.config['LANGUAGES']))
+    app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
+
+    def select_locale():
+        return session.get('lang') or request.accept_languages.best_match(app.config['BABEL_SUPPORTED_LOCALES']) or app.config['BABEL_DEFAULT_LOCALE']
+
+    babel.init_app(app, locale_selector=select_locale)
     app.jinja_env.globals['get_locale'] = get_locale
     if app.config.get('OAUTH_CLIENT_ID'):
         oauth.register(
@@ -56,7 +61,7 @@ def create_app():
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
-
+    app.jinja_env.globals['get_locale'] = get_locale
 
     from .routes import auth, orders, tenders, main, analytics
     app.register_blueprint(auth.bp)

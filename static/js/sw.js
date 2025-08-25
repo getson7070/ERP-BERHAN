@@ -1,5 +1,5 @@
 const CACHE_NAME = 'erp-cache-v1';
-const OFFLINE_URLS = ['/', '/dashboard'];
+const OFFLINE_URLS = ['/', '/choose_login', '/dashboard'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_URLS)));

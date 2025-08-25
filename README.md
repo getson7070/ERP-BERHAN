@@ -15,6 +15,7 @@ The application pulls configuration from environment variables. Key settings inc
 - `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
 - `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
 - `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
+- `BABEL_DEFAULT_LOCALE`/`BABEL_SUPPORTED_LOCALES` – default and available locales for UI translations.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
@@ -26,6 +27,17 @@ and result backend via the following environment variables:
 
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
+
+## Automation & Analytics
+
+Celery powers several background workflows:
+
+- Scheduled tasks send pending order reminders and generate monthly compliance
+  reports.
+- KPI materialized views refresh every 30 minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard.
+- Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
+  reports and schedule compliance exports.
 
 ## Database Migrations
 
@@ -73,10 +85,12 @@ secrets manager.
 
 ## UI/UX
 
-The interface uses responsive Bootstrap 5 templates with a mobile-friendly
-navbar and offline sync via a service worker. `Flask-Babel` enables
-multilingual support (English and Amharic) with a language switcher, and the
-`/dashboard` route delivers role-based views for employees, clients, and admins.
+All templates leverage Bootstrap 5 for responsive design and mobile parity.
+`Flask-Babel` powers multi-language support; set `BABEL_DEFAULT_LOCALE` and
+`BABEL_SUPPORTED_LOCALES` to expose additional translations. A service worker
+(`static/js/sw.js`) ensures offline access and queues actions for sync when the
+connection restores. The `/dashboard` route delivers role-based views for
+employees, clients, and admins.
 
 ## Backups
 

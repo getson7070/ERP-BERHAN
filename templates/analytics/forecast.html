@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Sales Forecast{% endblock %}
+{% block body %}
+<div class="container py-5">
+  <h2 class="mb-4 text-center">Next Month Forecast</h2>
+  <div class="alert alert-info text-center" role="alert">
+    Expected sales: <strong>{{ prediction }}</strong>
+  </div>
+</div>
+{% endblock %}

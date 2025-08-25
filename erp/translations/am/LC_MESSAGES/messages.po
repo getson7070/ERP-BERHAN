@@ -130,3 +130,9 @@ msgstr "የይለፍ ቃል"
 msgid "Please enter your password."
 msgstr "እባክዎ የይለፍ ቃልዎን ያስገቡ።"
 
+
+msgid "Toggle navigation"
+msgstr "አሰሳ ቀይር"
+
+msgid "Submit"
+msgstr "አስገባ"

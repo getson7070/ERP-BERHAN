@@ -28,4 +28,8 @@ socket.on('kpi_update', data => {
     statusChart.update();
 });
 </script>
+<div class="mt-3">
+  <p>Projected next-month sales: <strong>{{ sales_forecast }}</strong></p>
+  <a href="{{ url_for('analytics.report_builder') }}" class="btn btn-secondary">Report Builder</a>
+</div>
 {% endblock %}
