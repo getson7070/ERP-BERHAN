@@ -15,6 +15,7 @@ The application pulls configuration from environment variables. Key settings inc
 - `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
 - `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
 - `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
+- `BABEL_DEFAULT_LOCALE`/`BABEL_SUPPORTED_LOCALES` – default and available locales for UI translations.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
@@ -81,6 +82,14 @@ row-level security.
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
 secrets manager.
+
+## UI/UX
+
+All templates leverage Bootstrap 5 for responsive design and mobile parity.
+`Flask-Babel` powers multi-language support; set `BABEL_DEFAULT_LOCALE` and
+`BABEL_SUPPORTED_LOCALES` to expose additional translations. A service worker
+(`static/js/sw.js`) ensures offline access and queues actions for sync when the
+connection restores.
 
 ## Backups
 

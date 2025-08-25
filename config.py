@@ -33,3 +33,6 @@ class Config:
     OAUTH_AUTH_URL = os.environ.get('OAUTH_AUTH_URL')
     OAUTH_TOKEN_URL = os.environ.get('OAUTH_TOKEN_URL')
     OAUTH_USERINFO_URL = os.environ.get('OAUTH_USERINFO_URL')
+
+    BABEL_DEFAULT_LOCALE = os.environ.get('BABEL_DEFAULT_LOCALE', 'en')
+    BABEL_SUPPORTED_LOCALES = os.environ.get('BABEL_SUPPORTED_LOCALES', 'en,am').split(',')

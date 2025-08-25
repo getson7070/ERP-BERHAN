@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from flask_talisman import Talisman
 from flask_socketio import SocketIO
 from authlib.integrations.flask_client import OAuth
+from flask_babel import Babel, get_locale
 import logging.config
 import os
 import time
@@ -18,13 +19,14 @@ load_dotenv()
 
 socketio = SocketIO()
 oauth = OAuth()
+babel = Babel()
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
 REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
 
 
 def create_app():
-    app = Flask(__name__, static_folder='static')
+    app = Flask(__name__, static_folder='../static', template_folder='../templates')
     app.config.from_object(Config)
 
     logging.config.dictConfig({
@@ -38,6 +40,12 @@ def create_app():
 
     socketio.init_app(app, message_queue=app.config['REDIS_URL'])
     oauth.init_app(app)
+
+    def select_locale():
+        return request.accept_languages.best_match(app.config['BABEL_SUPPORTED_LOCALES']) or app.config['BABEL_DEFAULT_LOCALE']
+
+    app.config['BABEL_TRANSLATION_DIRECTORIES'] = '../translations'
+    babel.init_app(app, locale_selector=select_locale)
     if app.config.get('OAUTH_CLIENT_ID'):
         oauth.register(
             'sso',
@@ -52,7 +60,7 @@ def create_app():
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
-
+    app.jinja_env.globals['get_locale'] = get_locale
 
     from .routes import auth, orders, tenders, main, analytics
     app.register_blueprint(auth.bp)
