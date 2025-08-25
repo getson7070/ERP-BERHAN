@@ -18,6 +18,7 @@ def init_db():
         print("Alembic migration skipped or failed; ensure alembic is installed and configured.")
 
     conn = sqlite3.connect('erp.db')
+    conn.execute('PRAGMA foreign_keys = ON')
     cursor = conn.cursor()
 
     # Create users table
@@ -46,20 +47,6 @@ def init_db():
     )
     ''')
 
-    # Add security columns if they do not exist
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN account_locked BOOLEAN DEFAULT FALSE")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN last_password_change DATETIME")
-    except sqlite3.OperationalError:
-        pass
-
     # Create access_logs table for IP/device logging
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS access_logs (
@@ -68,6 +55,17 @@ def init_db():
         ip TEXT NOT NULL,
         device TEXT NOT NULL,
         timestamp DATETIME NOT NULL
+    )
+    ''')
+
+    # Password reset requests
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
 
@@ -183,16 +181,16 @@ def init_db():
     )
     ''')
 
+    cursor.execute('DROP TABLE IF EXISTS maintenance')
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS maintenance (
+    CREATE TABLE maintenance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         equipment_id INTEGER NOT NULL,
         request_date DATETIME NOT NULL,
         type TEXT NOT NULL,
         status TEXT DEFAULT 'pending',
         report TEXT,
-        user TEXT NOT NULL,
-        FOREIGN KEY (user) REFERENCES users(tin)
+        user TEXT NOT NULL
     )
     ''')
 

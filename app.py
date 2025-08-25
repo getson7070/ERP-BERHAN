@@ -32,6 +32,11 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(16))
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
+)
 register_blueprints(app)
 
 def adapt_datetime(dt):
@@ -49,6 +54,7 @@ def login_required(f):
 def get_db():
     conn = sqlite3.connect('erp.db')
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON')
     return conn
 
 @app.before_request
