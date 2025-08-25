@@ -1,0 +1,11 @@
+{
+  "Access Log.csv": {
+    "table": "access_logs",
+    "field_map": {
+      "user": "user",
+      "ip": "ip",
+      "device": "device",
+      "timestamp": "timestamp"
+    }
+  }
+}

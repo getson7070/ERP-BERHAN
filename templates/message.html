@@ -19,6 +19,7 @@
         {% endif %}
     {% endwith %}
     <form method="POST">
+        {{ form.hidden_tag() }}
         <div class="form-group">
             <label for="message">Message:</label>
             <textarea id="message" name="message" required></textarea>

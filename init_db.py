@@ -1,7 +1,8 @@
-import sqlite3
 import subprocess
 from datetime import datetime
 from argon2 import PasswordHasher
+import os
+from db import get_db
 
 
 ph = PasswordHasher()
@@ -17,8 +18,7 @@ def init_db():
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("Alembic migration skipped or failed; ensure alembic is installed and configured.")
 
-    conn = sqlite3.connect('erp.db')
-    conn.execute('PRAGMA foreign_keys = ON')
+    conn = get_db()
     cursor = conn.cursor()
 
     # Create users table
@@ -198,21 +198,53 @@ def init_db():
     cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('Paper Tender',))
     cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('NGO/UN Portal Tender',))
 
-    cursor.execute('DELETE FROM users WHERE username = "admin"')
-    password_hash = hash_password('admin123')
-    cursor.execute('INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                   ('employee', 'admin', password_hash, 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report', True, 'Admin', datetime.now()))
+    admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if admin_password:
+        password_hash = hash_password(admin_password)
+        cursor.execute(
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                'employee',
+                admin_username,
+                password_hash,
+                'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report',
+                True,
+                'Admin',
+                datetime.now(),
+            ),
+        )
 
     admin_phones = ['0946423021', '0984707070', '0969111144']
     employee_phones = ['0969351111', '0969361111', '0969371111', '0969381111', '0969161111', '0923804931', '0911183488']
     for phone in admin_phones:
         password_hash = hash_password(phone)
-        cursor.execute('INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                       ('employee', phone, password_hash, 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report', True, 'Admin', datetime.now()))
+        cursor.execute(
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                'employee',
+                phone,
+                password_hash,
+                'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report',
+                True,
+                'Admin',
+                datetime.now(),
+            ),
+        )
     for phone in employee_phones:
         password_hash = hash_password(phone)
-        cursor.execute('INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                       ('employee', phone, password_hash, 'add_report,put_order,view_orders', True, 'Sales Rep', datetime.now()))
+        cursor.execute(
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                'employee',
+                phone,
+                password_hash,
+                'add_report,put_order,view_orders',
+                True,
+                'Sales Rep',
+                datetime.now(),
+            ),
+        )
 
     conn.commit()
     conn.close()

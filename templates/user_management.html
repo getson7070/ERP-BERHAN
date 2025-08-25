@@ -12,6 +12,7 @@
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
         <h3>Pending Employees</h3>
         <form method="POST" action="">
+            {{ form.hidden_tag() }}
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -43,6 +44,7 @@
 
         <h3>Pending Clients</h3>
         <form method="POST" action="">
+            {{ form.hidden_tag() }}
             <table class="table table-striped">
                 <thead>
                     <tr>

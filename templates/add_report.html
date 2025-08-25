@@ -20,6 +20,7 @@
             <div class="alert alert-danger">{{ error }}</div>
         {% endif %}
         <form method="POST" action="">
+            {{ form.hidden_tag() }}
             <div class="mb-3">
                 <label for="institution" class="form-label">Institution</label>
                 <select name="institution" id="institution" class="form-select" required onchange="toggleNewInstitution()">

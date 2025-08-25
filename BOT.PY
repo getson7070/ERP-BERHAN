@@ -1,4 +1,3 @@
-import sqlite3
 from enum import IntEnum
 from telegram import (
     Update,
@@ -22,6 +21,7 @@ from argon2.exceptions import VerifyMismatchError
 import logging
 from datetime import datetime
 import csv  # For client list integration
+from db import get_db
 
 
 ph = PasswordHasher()
@@ -42,12 +42,6 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def get_db():
-    conn = sqlite3.connect("erp.db")
-    conn.row_factory = sqlite3.Row
-    return conn
 
 
 def check_client_list(tin: str):

@@ -3,6 +3,12 @@ BERHAN PHARMA
 
 ## Environment Variables
 
+The application pulls configuration from environment variables. Key settings include:
+
+- `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
+- `DATABASE_PATH` – path to the SQLite database file (default `erp.db`).
+- `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
+
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
 

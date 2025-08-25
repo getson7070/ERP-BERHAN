@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, session, redirect, url_for
 from functools import wraps
 import os
-import sqlite3
 from celery import Celery
 from celery.schedules import crontab
 from datetime import datetime
+from db import get_db
 
 analytics_bp = Blueprint('analytics', __name__)
 
@@ -21,12 +21,6 @@ def login_required(f):
             return redirect(url_for('choose_login'))
         return f(*args, **kwargs)
     return wrap
-
-def get_db():
-    conn = sqlite3.connect('erp.db')
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA foreign_keys = ON')
-    return conn
 
 @analytics_bp.record_once
 def init_celery(state):
@@ -66,7 +60,7 @@ def dashboard():
 
 @celery.task
 def generate_report():
-    conn = sqlite3.connect('erp.db')
+    conn = get_db()
     cur = conn.cursor()
     orders = cur.execute('SELECT status, COUNT(*) FROM orders GROUP BY status').fetchall()
     maintenance = cur.execute('SELECT status, COUNT(*) FROM maintenance GROUP BY status').fetchall()
