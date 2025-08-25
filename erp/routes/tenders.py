@@ -4,6 +4,8 @@ from wtforms import StringField, SelectField, DateField, SubmitField
 from wtforms.validators import DataRequired
 from datetime import datetime
 
+from sqlalchemy import text
+
 from db import get_db
 from erp.utils import login_required, has_permission
 
@@ -40,7 +42,8 @@ def add_tender():
         submit = SubmitField('Submit')
     conn = get_db()
     form = TenderForm()
-    form.tender_type_id.choices = [(t['id'], t['type_name']) for t in conn.execute('SELECT id, type_name FROM tender_types').fetchall()]
+    types = conn.execute(text('SELECT id, type_name FROM tender_types')).mappings().fetchall()
+    form.tender_type_id.choices = [(t['id'], t['type_name']) for t in types]
     if form.validate_on_submit():
         tender_type_id = form.tender_type_id.data
         description = form.description.data
@@ -52,20 +55,22 @@ def add_tender():
         fin_key = form.fin_key.data if envelope_type == 'Two Envelope' else None
         user = session.get('username') if session.get('role') != 'Client' else session['tin']
         conn.execute(
-            '''INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, user, institution, envelope_type, private_key, tech_key, fin_key)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (
-                tender_type_id,
-                description,
-                due_date,
-                'advert_registered',
-                user,
-                institution,
-                envelope_type,
-                private_key,
-                tech_key,
-                fin_key,
+            text(
+                'INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, username, institution, envelope_type, private_key, tech_key, fin_key) '
+                'VALUES (:tender_type_id, :description, :due_date, :state, :username, :institution, :envelope_type, :private_key, :tech_key, :fin_key)'
             ),
+            {
+                'tender_type_id': tender_type_id,
+                'description': description,
+                'due_date': due_date,
+                'state': 'advert_registered',
+                'username': user,
+                'institution': institution,
+                'envelope_type': envelope_type,
+                'private_key': private_key,
+                'tech_key': tech_key,
+                'fin_key': fin_key,
+            }
         )
         conn.commit()
         conn.close()
@@ -80,7 +85,7 @@ def tenders_list():
     if not has_permission('tenders_list'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
-    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
+    tenders = conn.execute(text('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC')).mappings().fetchall()
     conn.close()
     return render_template('tenders_list.html', tenders=tenders, states=WORKFLOW_STATES)
 
@@ -91,7 +96,7 @@ def tenders_report():
     if not has_permission('tenders_report'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
-    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
+    tenders = conn.execute(text('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC')).mappings().fetchall()
     conn.close()
     return render_template('tenders_report.html', tenders=tenders, states=WORKFLOW_STATES)
 
@@ -103,22 +108,32 @@ def advance_tender(tender_id):
         return redirect(url_for('main.dashboard'))
 
     conn = get_db()
-    tender = conn.execute('SELECT workflow_state FROM tenders WHERE id = ?', (tender_id,)).fetchone()
+    tender = conn.execute(
+        text('SELECT workflow_state FROM tenders WHERE id = :id'),
+        {'id': tender_id},
+    ).fetchone()
     if not tender:
         conn.close()
         flash('Tender not found.', 'danger')
         return redirect(url_for('tenders.tenders_list'))
 
-    current = tender['workflow_state']
+    # Support both tuple and mapping rows for different DB drivers
+    current = tender[0] if isinstance(tender, tuple) else tender._mapping['workflow_state']
     idx = WORKFLOW_STATES.index(current)
 
     if current not in ['opening_minute', 'evaluated', 'awarded'] and idx < len(WORKFLOW_STATES) - 1:
         next_state = WORKFLOW_STATES[idx + 1]
-        conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', (next_state, tender_id))
+        conn.execute(
+            text('UPDATE tenders SET workflow_state = :state WHERE id = :id'),
+            {'state': next_state, 'id': tender_id},
+        )
         flash(f"Tender advanced to {next_state.replace('_', ' ').title()}.", 'info')
     elif current == 'opening_minute':
         if request.form.get('evaluation_complete'):
-            conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', ('evaluated', tender_id))
+            conn.execute(
+                text('UPDATE tenders SET workflow_state = :state WHERE id = :id'),
+                {'state': 'evaluated', 'id': tender_id},
+            )
             flash('Tender marked as Evaluated.', 'info')
         else:
             flash('Evaluation not complete.', 'danger')
@@ -128,12 +143,21 @@ def advance_tender(tender_id):
         award_date = request.form.get('award_date')
         if result == 'won' and awarded_to and award_date:
             conn.execute(
-                'UPDATE tenders SET workflow_state = ?, result = ?, awarded_to = ?, award_date = ? WHERE id = ?',
-                ('awarded', result, awarded_to, award_date, tender_id),
+                text('UPDATE tenders SET workflow_state = :state, result = :result, awarded_to = :awarded_to, award_date = :award_date WHERE id = :id'),
+                {
+                    'state': 'awarded',
+                    'result': result,
+                    'awarded_to': awarded_to,
+                    'award_date': award_date,
+                    'id': tender_id,
+                },
             )
             flash('Tender awarded.', 'success')
         elif result and result in ['defeat', 'rejected', 'cancelled']:
-            conn.execute('UPDATE tenders SET result = ? WHERE id = ?', (result, tender_id))
+            conn.execute(
+                text('UPDATE tenders SET result = :result WHERE id = :id'),
+                {'result': result, 'id': tender_id},
+            )
             flash('Tender result recorded.', 'warning')
         else:
             flash('Result and award details required.', 'danger')

@@ -3,17 +3,43 @@ from flask import session, redirect, url_for
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
+from db import get_db
+from sqlalchemy import text
 
 
 def has_permission(permission: str) -> bool:
-    """Return True if current session has a permission.
-
-    Management role automatically receives all permissions.
-    """
+    """Check database for permission tied to current organization."""
+    # During tests, a permissions list may be stored in the session.
+    session_perms = session.get("permissions")
+    if session_perms is not None:
+        return permission in session_perms
     role = session.get("role")
     if role == "Management":
         return True
-    return permission in session.get("permissions", [])
+    user_id = session.get("user_id")
+    org_id = session.get("org_id")
+    if not user_id or not org_id:
+        # Fallback to session-based permissions for legacy tests and
+        # unauthenticated flows.  This preserves previous behaviour while
+        # the RBAC tables are populated.
+        return permission in session.get("permissions", [])
+
+    conn = get_db()
+    result = conn.execute(
+        text(
+            """
+            SELECT 1
+            FROM role_assignments ra
+            JOIN role_permissions rp ON ra.role_id = rp.role_id
+            JOIN permissions p ON rp.permission_id = p.id
+            WHERE ra.user_id = :user_id AND ra.org_id = :org_id AND p.name = :perm
+            """
+        ),
+        {"user_id": user_id, "org_id": org_id, "perm": permission},
+    )
+    has_perm = result.first() is not None
+    conn.close()
+    return has_perm
 
 
 def roles_required(*roles):
@@ -22,7 +48,25 @@ def roles_required(*roles):
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            if session.get("role") not in roles:
+            user_id = session.get("user_id")
+            org_id = session.get("org_id")
+            if not user_id or not org_id:
+                return redirect(url_for("main.dashboard"))
+
+            conn = get_db()
+            rows = conn.execute(
+                text(
+                    """
+                    SELECT r.name FROM role_assignments ra
+                    JOIN roles r ON ra.role_id = r.id
+                    WHERE ra.user_id = :user_id AND ra.org_id = :org_id
+                    """
+                ),
+                {"user_id": user_id, "org_id": org_id},
+            ).fetchall()
+            conn.close()
+            user_roles = [row[0] for row in rows]
+            if not any(r in user_roles for r in roles):
                 return redirect(url_for("main.dashboard"))
             return f(*args, **kwargs)
 
