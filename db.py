@@ -1,12 +1,15 @@
 """Database helpers for the ERP application.
 
-This module was originally written for a SQLite-only setup.  The
+This module was originally written for a SQLite-only setup. The
 application has since moved to PostgreSQL with SQLAlchemy, but the test
 suite still patches ``DATABASE_PATH`` to point to a temporary SQLite
-file.  To support both scenarios, the engine is created on demand based
-on the current environment variables instead of at import time.  This
+file. To support both scenarios, the engine is created on demand based
+on the current environment variables instead of at import time. This
 mirrors production behaviour while letting the tests supply a SQLite
 path without needing a running PostgreSQL server.
+
+Connection pooling parameters (size, overflow, timeout) are configurable
+via environment variables to support high-concurrency deployments.
 """
 
 import os
@@ -19,6 +22,8 @@ from flask import has_request_context, session
 
 
 POOL_SIZE = int(os.environ.get("DB_POOL_SIZE", "5"))
+MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", "10"))
+POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.Redis.from_url(REDIS_URL)
 
@@ -26,11 +31,16 @@ redis_client = redis.Redis.from_url(REDIS_URL)
 def _get_engine(url: str | None, path: str) -> Engine:
     """Create and cache a SQLAlchemy engine for the given configuration."""
 
+    pool_args = dict(pool_size=POOL_SIZE,
+                     max_overflow=MAX_OVERFLOW,
+                     pool_timeout=POOL_TIMEOUT,
+                     pool_pre_ping=True,
+                     future=True)
     if url:
-        return create_engine(url, pool_size=POOL_SIZE, future=True)
+        return create_engine(url, **pool_args)
     if path:
         return create_engine(f"sqlite:///{path}", future=True)
-    return create_engine("postgresql://postgres:postgres@127.0.0.1:5432/erp", pool_size=POOL_SIZE, future=True)
+    return create_engine("postgresql://postgres:postgres@127.0.0.1:5432/erp", **pool_args)
 
 class _ConnectionWrapper:
     """Bridge SQLite-style helpers with SQLAlchemy engines.

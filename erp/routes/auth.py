@@ -25,6 +25,8 @@ from erp.utils import (
     has_permission,
     roles_required,
 )
+from erp.audit import log_audit
+from erp import oauth
 
 bp = Blueprint('auth', __name__)
 
@@ -128,6 +130,42 @@ def choose_login():
     return render_template('choose_login.html', form=form)
 
 
+@bp.route('/oauth_login')
+def oauth_login():
+    redirect_uri = url_for('auth.oauth_callback', _external=True)
+    return oauth.sso.authorize_redirect(redirect_uri)
+
+
+@bp.route('/oauth_callback')
+def oauth_callback():
+    token = oauth.sso.authorize_access_token()
+    resp = oauth.sso.get(current_app.config['OAUTH_USERINFO_URL'], token=token)
+    profile = resp.json()
+    email = profile.get('email')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    if not user:
+        conn.close()
+        flash('Unauthorized user')
+        return redirect(url_for('auth.choose_login'))
+    session.permanent = True
+    session['logged_in'] = True
+    session['role'] = user['role'] or 'Employee'
+    session['username'] = email
+    session['permissions'] = (
+        user['permissions'].split(',') if user['permissions'] else []
+    )
+    session['org_id'] = user.get('org_id')
+    log_audit(user['id'], user.get('org_id'), 'login', 'SSO')
+    conn.execute(
+        'UPDATE users SET last_login = ? WHERE email = ?',
+        (datetime.now(), email),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for('main.dashboard'))
+
+
 @bp.route('/employee_login', methods=['GET', 'POST'])
 def employee_login():
     class LoginForm(FlaskForm):
@@ -149,6 +187,7 @@ def employee_login():
                 session['logged_in'] = True
                 session['role'] = user['role'] or 'Employee'
                 session['username'] = email
+                session['org_id'] = user.get('org_id')
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
@@ -156,6 +195,7 @@ def employee_login():
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
                 )
+                log_audit(user['id'], user.get('org_id'), 'login', 'employee password')
                 conn.commit()
                 conn.close()
                 return redirect(url_for('main.dashboard'))
@@ -202,6 +242,7 @@ def client_login():
                 session['role'] = 'Client'
                 session['tin'] = user['tin']
                 session['username'] = email
+                session['org_id'] = user.get('org_id')
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
@@ -209,6 +250,7 @@ def client_login():
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
                 )
+                log_audit(user['id'], user.get('org_id'), 'login', 'client password')
                 conn.commit()
                 conn.close()
                 return redirect(url_for('main.dashboard'))

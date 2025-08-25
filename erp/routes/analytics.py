@@ -2,6 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, session
 from celery import Celery
 from celery.schedules import crontab
 from datetime import datetime
+from flask import request
+
+# Forecasting uses simple averages; avoid heavy ML deps for lightweight installs
 
 from db import get_db
 from erp.utils import login_required, roles_required
@@ -60,6 +63,18 @@ def init_celery(state):
         'refresh-kpi-sales': {
             'task': 'analytics.refresh_kpis',
             'schedule': crontab(minute='*/30'),
+        },
+        'send-approval-reminders': {
+            'task': 'analytics.send_approval_reminders',
+            'schedule': crontab(hour='*/4'),
+        },
+        'forecast-monthly-sales': {
+            'task': 'analytics.forecast_sales',
+            'schedule': crontab(hour=2, minute=0, day_of_month='1'),
+        },
+        'weekly-compliance-report': {
+            'task': 'analytics.generate_compliance_report',
+            'schedule': crontab(hour=3, minute=0, day_of_week='sun'),
         },
     }
 
@@ -124,3 +139,72 @@ def refresh_kpis():
     cur.close()
     conn.close()
     socketio.emit('kpi_update', fetch_kpis())
+
+
+@celery.task
+def send_approval_reminders():
+    """Notify sales reps of orders awaiting approval."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, sales_rep FROM orders WHERE status = 'pending'")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    for order_id, rep in rows:
+        print(f'Reminder sent to {rep} for order {order_id}')
+    return len(rows)
+
+
+@celery.task
+def forecast_sales():
+    """Naive monthly sales forecast using average trend."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2')
+    rows = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    if len(rows) < 2:
+        return 0.0
+    trend = rows[0] - rows[1]
+    return float(rows[0] + trend)
+
+
+@celery.task
+def generate_compliance_report():
+    """Produce a simple CSV listing orders missing status."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM orders WHERE status IS NULL")
+    missing = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    filename = f"compliance_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    with open(filename, 'w') as f:
+        f.write('order_id\n')
+        for oid in missing:
+            f.write(f"{oid}\n")
+    return filename
+    
+
+@bp.route('/analytics/reports', methods=['GET', 'POST'])
+@login_required
+@roles_required('Management')
+def report_builder():
+    """Simple tabular report builder supporting orders and tenders."""
+    rows = []
+    headers = []
+    if request.method == 'POST':
+        report_type = request.form.get('report_type')
+        conn = get_db()
+        cur = conn.cursor()
+        if report_type == 'orders':
+            cur.execute('SELECT id, customer, status FROM orders')
+            headers = ['id', 'customer', 'status']
+        else:
+            cur.execute('SELECT id, title, status FROM tenders')
+            headers = ['id', 'title', 'status']
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    return render_template('analytics/report_builder.html', rows=rows, headers=headers)
