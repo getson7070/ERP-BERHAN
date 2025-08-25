@@ -14,7 +14,10 @@ def create_app():
     app = Flask(__name__, static_folder='static')
     app.config.from_object(Config)
 
-    Talisman(app, content_security_policy=None)
+    Talisman(app, content_security_policy=None, force_https=True)
+
+    app.jinja_env.trim_blocks = True
+    app.jinja_env.lstrip_blocks = True
 
     sqlite3.register_adapter(datetime, lambda dt: dt.isoformat(" "))
 
@@ -24,6 +27,10 @@ def create_app():
     app.register_blueprint(tenders.bp)
     app.register_blueprint(analytics.bp)
     app.register_blueprint(main.bp)
+
+    @app.context_processor
+    def inject_now():
+        return {'current_year': datetime.utcnow().year}
 
     @app.before_request
     def log_access():

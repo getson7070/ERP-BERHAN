@@ -1,11 +1,15 @@
 from enum import IntEnum
+"""Telegram bot interface for BERHAN ERP."""
+
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
     KeyboardButton,
+    Defaults,
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -1181,7 +1185,13 @@ async def maintenance_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 def main() -> None:
-    application = Application.builder().token(TOKEN).proxy_url('socks5://123.141.181.7:5031').build() # Replace with a valid proxy
+    application = (
+        Application.builder()
+        .token(TOKEN)
+        .defaults(Defaults(parse_mode=ParseMode.HTML))
+        .proxy_url('socks5://123.141.181.7:5031')
+        .build()  # Replace with a valid proxy
+    )
 
     employee_login_conv = ConversationHandler(
         entry_points=[CommandHandler('employee_login', employee_login)],
