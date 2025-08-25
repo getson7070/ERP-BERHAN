@@ -4,7 +4,6 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
 from db import get_db
-from sqlalchemy import text
 
 
 def has_permission(permission: str) -> bool:
@@ -25,19 +24,17 @@ def has_permission(permission: str) -> bool:
         return permission in session.get("permissions", [])
 
     conn = get_db()
-    result = conn.execute(
-        text(
-            """
-            SELECT 1
-            FROM role_assignments ra
-            JOIN role_permissions rp ON ra.role_id = rp.role_id
-            JOIN permissions p ON rp.permission_id = p.id
-            WHERE ra.user_id = :user_id AND ra.org_id = :org_id AND p.name = :perm
-            """
-        ),
-        {"user_id": user_id, "org_id": org_id, "perm": permission},
+    cur = conn.execute(
+        """
+        SELECT 1
+        FROM role_assignments ra
+        JOIN role_permissions rp ON ra.role_id = rp.role_id
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE ra.user_id = %s AND ra.org_id = %s AND p.name = %s
+        """,
+        (user_id, org_id, permission),
     )
-    has_perm = result.first() is not None
+    has_perm = cur.fetchone() is not None
     conn.close()
     return has_perm
 
@@ -54,16 +51,15 @@ def roles_required(*roles):
                 return redirect(url_for("main.dashboard"))
 
             conn = get_db()
-            rows = conn.execute(
-                text(
-                    """
-                    SELECT r.name FROM role_assignments ra
-                    JOIN roles r ON ra.role_id = r.id
-                    WHERE ra.user_id = :user_id AND ra.org_id = :org_id
-                    """
-                ),
-                {"user_id": user_id, "org_id": org_id},
-            ).fetchall()
+            cur = conn.execute(
+                """
+                SELECT r.name FROM role_assignments ra
+                JOIN roles r ON ra.role_id = r.id
+                WHERE ra.user_id = %s AND ra.org_id = %s
+                """,
+                (user_id, org_id),
+            )
+            rows = cur.fetchall()
             conn.close()
             user_roles = [row[0] for row in rows]
             if not any(r in user_roles for r in roles):

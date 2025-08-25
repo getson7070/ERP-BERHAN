@@ -14,6 +14,7 @@ from functools import lru_cache
 import redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.sql.elements import TextClause
 from flask import has_request_context, session
 
 
@@ -31,19 +32,58 @@ def _get_engine(url: str | None, path: str) -> Engine:
         return create_engine(f"sqlite:///{path}", future=True)
     return create_engine("postgresql://postgres:postgres@127.0.0.1:5432/erp", pool_size=POOL_SIZE, future=True)
 
+class _ConnectionWrapper:
+    """Bridge SQLite-style helpers with SQLAlchemy engines.
+
+    The application still expects connections to expose ``cursor`` and
+    ``execute`` methods like the built-in ``sqlite3`` connection.  By
+    wrapping the raw SQLAlchemy connection we can provide those APIs while
+    benefiting from SQLAlchemy's pooling and PostgreSQL support.
+    """
+
+    def __init__(self, raw, dialect):
+        self._raw = raw
+        self._dialect = dialect
+
+    def cursor(self):
+        return self._raw.cursor()
+
+    def execute(self, sql, params=None):
+        cur = self._raw.cursor()
+        if isinstance(sql, TextClause):
+            compiled = sql.compile(dialect=self._dialect)
+            sql_str = str(compiled)
+            if compiled.positiontup:
+                ordered = [params[key] for key in compiled.positiontup]
+                cur.execute(sql_str, ordered)
+            else:
+                cur.execute(sql_str, params or {})
+        else:
+            cur.execute(sql, params or ())
+        return cur
+
+    def commit(self):
+        return self._raw.commit()
+
+    def rollback(self):
+        return self._raw.rollback()
+
+    def close(self):
+        return self._raw.close()
+
+
 def get_db():
-    """Return a raw DB-API connection with tenant context applied."""
+    """Return a DB-API connection with tenant context applied."""
 
     url = os.environ.get("DATABASE_URL")
     path = os.environ.get("DATABASE_PATH", "erp.db")
     engine = _get_engine(url, path)
-    conn = engine.connect()
-    # Provide DB-API compatibility for legacy code expecting ``cursor()``.
-    if not hasattr(conn, "cursor"):
-        conn.cursor = conn.connection.cursor  # type: ignore[attr-defined]
+    raw = engine.raw_connection()
     # Only attempt to set tenant context when using PostgreSQL.
     if engine.url.get_backend_name().startswith("postgres") and has_request_context():
         org_id = session.get("org_id")
         if org_id is not None:
-            conn.execute(text("SET my.org_id = :org_id"), {"org_id": org_id})
-    return conn
+            cur = raw.cursor()
+            cur.execute("SET my.org_id = %s", (org_id,))
+            cur.close()
+    return _ConnectionWrapper(raw, engine.dialect)

@@ -76,6 +76,8 @@ def _login(client):
         sess['role'] = 'Admin'
         sess['user_id'] = 1
         sess['org_id'] = 1
+        # Bypass DB permission check for sqlite tests
+        sess['permissions'] = ['tenders_list']
 
 
 def test_evaluate_marks_evaluated(tmp_path):
