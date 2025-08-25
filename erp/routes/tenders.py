@@ -87,17 +87,23 @@ def tenders_report():
 @bp.route('/tenders/<int:tender_id>/advance', methods=['POST'])
 @login_required
 def advance_tender(tender_id):
+    if 'tenders_list' not in session.get('permissions', []):
+        return redirect(url_for('main.dashboard'))
+
     conn = get_db()
     tender = conn.execute('SELECT workflow_state FROM tenders WHERE id = ?', (tender_id,)).fetchone()
     if not tender:
         conn.close()
         flash('Tender not found.')
         return redirect(url_for('tenders.tenders_list'))
+
     current = tender['workflow_state']
     idx = WORKFLOW_STATES.index(current)
+
     if idx < len(WORKFLOW_STATES) - 2:
         next_state = WORKFLOW_STATES[idx + 1]
         conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', (next_state, tender_id))
+        flash(f"Tender advanced to {next_state.replace('_', ' ').title()}.")
     elif current == 'awaiting_result':
         result = request.form.get('result')
         if result not in ['won', 'defeat', 'rejected', 'cancelled']:
@@ -106,6 +112,9 @@ def advance_tender(tender_id):
             return redirect(url_for('tenders.tenders_list'))
         conn.execute('UPDATE tenders SET workflow_state = "completed", result = ? WHERE id = ?', (result, tender_id))
         flash(f'Tender {result}.')
+    else:
+        flash('Tender already completed.')
+
     conn.commit()
     conn.close()
     return redirect(url_for('tenders.tenders_list'))
