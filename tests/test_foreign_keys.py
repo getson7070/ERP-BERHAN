@@ -2,12 +2,12 @@ import os
 import sys
 
 import pytest
-import psycopg2
-from psycopg2 import errors
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from erp import create_app
-from db import get_db
+from erp import create_app  # noqa: E402
+from db import get_db  # noqa: E402
 
 
 @pytest.fixture
@@ -18,14 +18,18 @@ def app():
 def test_foreign_keys_enforced(app):
     with app.app_context():
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute('DROP TABLE IF EXISTS child')
-        cur.execute('DROP TABLE IF EXISTS parent')
-        cur.execute('CREATE TABLE parent(id SERIAL PRIMARY KEY)')
-        cur.execute('CREATE TABLE child(id SERIAL PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))')
-        with pytest.raises(errors.ForeignKeyViolation):
-            cur.execute('INSERT INTO child (parent_id) VALUES (999)')
+        # Enable FK enforcement for SQLite
+        conn.execute(text("PRAGMA foreign_keys=ON"))
+        conn.execute(text("DROP TABLE IF EXISTS child"))
+        conn.execute(text("DROP TABLE IF EXISTS parent"))
+        conn.execute(text("CREATE TABLE parent(id INTEGER PRIMARY KEY)"))
+        conn.execute(
+            text(
+                "CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))"
+            )
+        )
+        with pytest.raises(IntegrityError):
+            conn.execute(text("INSERT INTO child (parent_id) VALUES (999)"))
         conn.rollback()
-        cur.close()
         conn.close()
 
