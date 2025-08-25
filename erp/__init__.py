@@ -14,7 +14,7 @@ def create_app():
     app = Flask(__name__, static_folder='static')
     app.config.from_object(Config)
 
-    Talisman(app, content_security_policy=None)
+    Talisman(app, content_security_policy=None, force_https=True)
 
     sqlite3.register_adapter(datetime, lambda dt: dt.isoformat(" "))
 

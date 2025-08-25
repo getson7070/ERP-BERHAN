@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 
 from db import get_db
-from erp.utils import login_required
+from erp.utils import login_required, roles_required
 
 bp = Blueprint('analytics', __name__)
 
@@ -31,16 +31,22 @@ def init_celery(state):
         'generate-daily-report': {
             'task': 'analytics.generate_report',
             'schedule': crontab(hour=0, minute=0),
-        }
+        },
+        'expire-due-tenders': {
+            'task': 'analytics.expire_tenders',
+            'schedule': crontab(hour=1, minute=0),
+        },
     }
 
 
 @bp.route('/analytics/dashboard')
 @login_required
+@roles_required('Management')
 def dashboard():
     conn = get_db()
     pending_orders = conn.execute('SELECT COUNT(*) FROM orders WHERE status = "pending"').fetchone()[0]
     pending_maintenance = conn.execute('SELECT COUNT(*) FROM maintenance WHERE status = "pending"').fetchone()[0]
+    expired_tenders = conn.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'").fetchone()[0]
     conn.close()
     role = session.get('role')
     permissions = session.get('permissions', [])
@@ -50,6 +56,7 @@ def dashboard():
         permissions=permissions,
         pending_orders=pending_orders,
         pending_maintenance=pending_maintenance,
+        expired_tenders=expired_tenders,
     )
 
 
@@ -69,3 +76,13 @@ def generate_report():
             f.write(f"{status},{count}\n")
     conn.close()
     return filename
+
+
+@celery.task
+def expire_tenders():
+    conn = get_db()
+    conn.execute(
+        "UPDATE tenders SET status = 'expired' WHERE due_date < DATE('now') AND status IS NULL"
+    )
+    conn.commit()
+    conn.close()

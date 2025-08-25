@@ -9,19 +9,22 @@
         {% endfor %}
     {% endif %}
 {% endwith %}
-<form method="POST">
+<form method="POST" class="needs-validation" novalidate>
     {{ form.hidden_tag() }}
     <div class="mb-3">
         {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control", placeholder="Enter email") }}
+        {{ form.email(class="form-control", placeholder="Enter email", required=True) }}
+        <div class="invalid-feedback">Please enter your email.</div>
     </div>
     <div class="mb-3">
         {{ form.password.label(class="form-label") }}
-        {{ form.password(class="form-control", placeholder="Enter password") }}
+        {{ form.password(class="form-control", placeholder="Enter password", required=True) }}
+        <div class="invalid-feedback">Please enter your password.</div>
     </div>
     <div class="mb-3">
         {{ form.totp.label(class="form-label") }}
-        {{ form.totp(class="form-control", placeholder="Enter MFA code") }}
+        {{ form.totp(class="form-control", placeholder="Enter MFA code", required=True) }}
+        <div class="invalid-feedback">Please enter your MFA code.</div>
     </div>
     {{ form.submit(class="btn btn-primary w-100") }}
 </form>
@@ -31,7 +34,7 @@
 <div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="POST" action="{{ url_for('auth.password_reset') }}">
+      <form method="POST" action="{{ url_for('auth.password_reset') }}" class="needs-validation" novalidate>
         <div class="modal-header">
           <h5 class="modal-title">Reset Password</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -40,6 +43,7 @@
           <div class="mb-3">
             <label for="resetEmail" class="form-label">Email</label>
             <input type="email" class="form-control" id="resetEmail" name="email" required>
+            <div class="invalid-feedback">Please enter a valid email.</div>
           </div>
         </div>
         <div class="modal-footer">

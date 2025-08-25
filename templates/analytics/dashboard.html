@@ -8,11 +8,11 @@ const ctx = document.getElementById('statusChart');
 new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: ['Pending Orders', 'Pending Maintenance'],
+        labels: ['Pending Orders', 'Pending Maintenance', 'Expired Tenders'],
         datasets: [{
-            label: 'Pending Items',
-            data: [{{ pending_orders }}, {{ pending_maintenance }}],
-            backgroundColor: ['#0d6efd', '#dc3545']
+            label: 'Items',
+            data: [{{ pending_orders }}, {{ pending_maintenance }}, {{ expired_tenders }}],
+            backgroundColor: ['#0d6efd', '#dc3545', '#6c757d']
         }]
     },
     options: {

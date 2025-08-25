@@ -11,3 +11,26 @@
 - After running required checks, push updates to the `main` branch:
 
   `git push origin HEAD:main`
+## Project Phases
+1. Foundation & Security
+   - Strengthen core authentication, authorization, and data protection.
+   - Centralize secrets and enforce HTTPS/TOTP.
+   - Implement role-based access control (RBAC).
+2. Database & Infrastructure
+   - Ensure migration safety, backups, and cloud readiness.
+   - Adopt Alembic migrations and pooled connections.
+   - Provide backup and restore tooling.
+3. Automation & Analytics
+   - Automate tender lifecycle, reporting, and scheduled jobs.
+   - Expand tender automation.
+   - Build analytics dashboard.
+4. UI/UX Modernization
+   - Apply industry-standard layouts and client-side validation.
+   - Refactor templates to responsive Bootstrap.
+5. Monitoring & Reliability
+   - Introduce observability, crash handling, and self-healing.
+   - Add structured logging and health checks.
+   - Automate backups and restart policies.
+6. Feature Expansion
+   - Extend ERP functionality for broader coverage.
+   - Enhance HR and document generation.

@@ -1,51 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Registration</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-5">
-        <h2>Register New Employee</h2>
-        {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-        {% endif %}
-        <form method="POST">
-            {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.username.label(class="form-label") }}
-                {{ form.username(class="form-control", id="username") }}
-            </div>
-            <div class="mb-3">
-                {{ form.email.label(class="form-label") }}
-                {{ form.email(class="form-control", id="email") }}
-            </div>
-            <div class="mb-3">
-                {{ form.password.label(class="form-label") }}
-                {{ form.password(class="form-control", id="password") }}
-            </div>
-            <div class="mb-3">
-                {{ form.role.label(class="form-label") }}
-                {{ form.role(class="form-select", id="role") }}
-            </div>
-            <div class="mb-3">
-                {{ form.permissions.label(class="form-label") }}
-                {{ form.permissions(class="form-select", id="permissions", multiple=True) }}
-            </div>
-            <div class="mb-3">
-                {{ form.hire_date.label(class="form-label") }}
-                {{ form.hire_date(class="form-control", id="hire_date") }}
-            </div>
-            <div class="mb-3">
-                {{ form.salary.label(class="form-label") }}
-                {{ form.salary(class="form-control", id="salary") }}
-            </div>
-            {{ form.submit(class="btn btn-primary") }}
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
-        </form>
+{% extends "base_auth.html" %}
+{% block title %}Employee Registration{% endblock %}
+{% block content %}
+<h2 class="mb-4 text-center">Register New Employee</h2>
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+<form method="POST" class="needs-validation" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+        {{ form.username.label(class="form-label") }}
+        {{ form.username(class="form-control", id="username", required=True) }}
+        <div class="invalid-feedback">Username is required.</div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <div class="mb-3">
+        {{ form.email.label(class="form-label") }}
+        {{ form.email(class="form-control", id="email", required=True) }}
+        <div class="invalid-feedback">Email is required.</div>
+    </div>
+    <div class="mb-3">
+        {{ form.password.label(class="form-label") }}
+        {{ form.password(class="form-control", id="password", required=True, minlength=8) }}
+        <div class="invalid-feedback">Password must be at least 8 characters.</div>
+    </div>
+    <div class="mb-3">
+        {{ form.role.label(class="form-label") }}
+        {{ form.role(class="form-select", id="role", required=True) }}
+        <div class="invalid-feedback">Role is required.</div>
+    </div>
+    <div class="mb-3">
+        {{ form.permissions.label(class="form-label") }}
+        {{ form.permissions(class="form-select", id="permissions", multiple=True, required=True) }}
+        <div class="invalid-feedback">Select at least one permission.</div>
+    </div>
+    <div class="mb-3">
+        {{ form.hire_date.label(class="form-label") }}
+        {{ form.hire_date(class="form-control", id="hire_date", required=True) }}
+        <div class="invalid-feedback">Hire date is required.</div>
+    </div>
+    <div class="mb-3">
+        {{ form.salary.label(class="form-label") }}
+        {{ form.salary(class="form-control", id="salary", required=True, min="0") }}
+        <div class="invalid-feedback">Salary is required.</div>
+    </div>
+    {{ form.submit(class="btn btn-primary w-100") }}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary w-100 mt-2">Back to Dashboard</a>
+</form>
+{% endblock %}

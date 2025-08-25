@@ -29,3 +29,12 @@ def create_backup(db_url, backup_dir="backups"):
     else:
         raise ValueError("Unsupported database URL")
     return dump_file
+
+
+def restore_backup(db_url, backup_file):
+    """Restore a database from a backup file."""
+    if db_url.startswith("sqlite:///"):
+        dest = db_url.replace("sqlite:///", "")
+        shutil.copy(backup_file, dest)
+        return dest
+    raise ValueError("Restore supported only for sqlite databases")
