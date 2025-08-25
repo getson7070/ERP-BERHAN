@@ -1,10 +1,15 @@
 from flask import Blueprint, render_template, redirect, url_for, session
 from celery import Celery
 from celery.schedules import crontab
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from flask_wtf import FlaskForm
+from wtforms import DateField, SelectField, SubmitField
+from wtforms.validators import DataRequired
 
 from db import get_db
 from erp.utils import login_required, roles_required
+from erp.audit import log_audit
 from erp import socketio
 from flask_socketio import emit
 
@@ -61,6 +66,14 @@ def init_celery(state):
             'task': 'analytics.refresh_kpis',
             'schedule': crontab(minute='*/30'),
         },
+        'send-order-reminders': {
+            'task': 'analytics.send_order_reminders',
+            'schedule': crontab(hour=8, minute=0),
+        },
+        'monthly-compliance-report': {
+            'task': 'analytics.generate_compliance_report',
+            'schedule': crontab(day_of_month=1, hour=2, minute=0),
+        },
     }
 
 
@@ -82,6 +95,40 @@ def dashboard():
     )
 
 
+class ReportForm(FlaskForm):
+    start = DateField('Start Date', validators=[DataRequired()])
+    end = DateField('End Date', validators=[DataRequired()])
+    report_type = SelectField(
+        'Report Type',
+        choices=[('visits', 'Field Reports')],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField('Generate')
+
+
+@bp.route('/analytics/report-builder', methods=['GET', 'POST'])
+@login_required
+@roles_required('Management')
+def report_builder():
+    form = ReportForm()
+    filename = None
+    if form.validate_on_submit():
+        filename = build_report(
+            form.start.data.isoformat(),
+            form.end.data.isoformat(),
+            form.report_type.data,
+        )
+    return render_template('analytics/report_builder.html', form=form, filename=filename)
+
+
+@bp.route('/analytics/forecast')
+@login_required
+@roles_required('Management')
+def forecast():
+    prediction = forecast_sales()
+    return render_template('analytics/forecast.html', prediction=prediction)
+
+
 @socketio.on('connect')
 def push_kpis():
     emit('kpi_update', fetch_kpis())
@@ -101,6 +148,70 @@ def generate_report():
         f.write('Maintenance\n')
         for status, count in maintenance:
             f.write(f"{status},{count}\n")
+    conn.close()
+    return filename
+
+
+@celery.task
+def send_order_reminders():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM orders WHERE status = 'pending'")
+    order_ids = [row[0] for row in cur.fetchall()]
+    for oid in order_ids:
+        log_audit(None, None, 'reminder', f'Order {oid} pending approval')
+    cur.close()
+    conn.close()
+    return order_ids
+
+
+@celery.task
+def build_report(start_date, end_date, report_type):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT institution, visit_date, sales_rep FROM reports WHERE visit_date BETWEEN ? AND ?',
+        (start_date, end_date),
+    )
+    rows = cur.fetchall()
+    filename = f"{report_type}_report_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    with open(filename, 'w') as f:
+        f.write('institution,visit_date,sales_rep\n')
+        for inst, date, rep in rows:
+            f.write(f"{inst},{date},{rep}\n")
+    cur.close()
+    conn.close()
+    return filename
+
+
+@celery.task
+def forecast_sales():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT month, total_sales FROM kpi_sales ORDER BY month')
+    data = [(datetime.fromisoformat(row[0]), float(row[1])) for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    if len(data) < 2:
+        return 0
+    values = [row[1] for row in data]
+    diffs = [values[i] - values[i - 1] for i in range(1, len(values))]
+    avg_growth = sum(diffs) / len(diffs)
+    return max(0, values[-1] + avg_growth)
+
+
+@celery.task
+def generate_compliance_report():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT customer, SUM(quantity) FROM orders GROUP BY customer')
+    rows = cur.fetchall()
+    filename = f"compliance_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    with open(filename, 'w') as f:
+        f.write('customer,total_quantity\n')
+        for cust, total in rows:
+            f.write(f"{cust},{total}\n")
+    cur.close()
     conn.close()
     return filename
 

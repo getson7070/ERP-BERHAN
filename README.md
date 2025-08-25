@@ -27,6 +27,12 @@ and result backend via the following environment variables:
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
 
+### Automation & Analytics
+
+- Scheduled tasks send pending order reminders and generate monthly compliance reports.
+- Management users can build custom CSV reports via `/analytics/report-builder`.
+- A lightweight forecasting engine estimates next month's sales on `/analytics/forecast`.
+
 ## Database Migrations
 
 Schema changes are managed with Alembic. Apply migrations with:

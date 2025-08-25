@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Report Builder{% endblock %}
+{% block body %}
+<div class="container py-5">
+  <h2 class="mb-4 text-center">Generate Custom Report</h2>
+  <form method="post" class="row g-3">
+    {{ form.hidden_tag() }}
+    <div class="col-md-4">
+      {{ form.start.label(class="form-label") }}
+      {{ form.start(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      {{ form.end.label(class="form-label") }}
+      {{ form.end(class="form-control", type="date") }}
+    </div>
+    <div class="col-md-4">
+      {{ form.report_type.label(class="form-label") }}
+      {{ form.report_type(class="form-select") }}
+    </div>
+    <div class="col-12 text-end">
+      {{ form.submit(class="btn btn-primary") }}
+    </div>
+  </form>
+  {% if filename %}
+  <div class="alert alert-success mt-4" role="alert">
+    Report generated: <code>{{ filename }}</code>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
