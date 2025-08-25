@@ -157,6 +157,8 @@ def init_db():
         description TEXT NOT NULL,
         due_date DATE NOT NULL,
         status TEXT DEFAULT 'Open',
+        workflow_state TEXT NOT NULL DEFAULT 'advertised',
+        result TEXT,
         user TEXT NOT NULL,
         institution TEXT,
         envelope_type TEXT NOT NULL,
@@ -166,6 +168,13 @@ def init_db():
         FOREIGN KEY (tender_type_id) REFERENCES tender_types(id)
     )
     ''')
+
+    cursor.execute("PRAGMA table_info(tenders)")
+    existing = [row['name'] for row in cursor.fetchall()]
+    if 'workflow_state' not in existing:
+        cursor.execute("ALTER TABLE tenders ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'advertised'")
+    if 'result' not in existing:
+        cursor.execute("ALTER TABLE tenders ADD COLUMN result TEXT")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (

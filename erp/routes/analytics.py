@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, session, redirect, url_for
-from functools import wraps
-import os
+from flask import Blueprint, render_template, redirect, url_for, session
 from celery import Celery
 from celery.schedules import crontab
 from datetime import datetime
-from db import get_db
+import os
 
-analytics_bp = Blueprint('analytics', __name__)
+from db import get_db
+from erp.utils import login_required
+
+bp = Blueprint('analytics', __name__)
 
 celery = Celery(
     __name__,
@@ -14,34 +15,27 @@ celery = Celery(
     backend=os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
 )
 
-def login_required(f):
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if 'logged_in' not in session or not session['logged_in']:
-            return redirect(url_for('choose_login'))
-        return f(*args, **kwargs)
-    return wrap
 
-@analytics_bp.record_once
+@bp.record_once
 def init_celery(state):
     app = state.app
     celery.conf.update(app.config)
-    TaskBase = celery.Task
 
-    class ContextTask(TaskBase):
+    class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
             with app.app_context():
-                return TaskBase.__call__(self, *args, **kwargs)
+                return super().__call__(*args, **kwargs)
 
     celery.Task = ContextTask
     celery.conf.beat_schedule = {
         'generate-daily-report': {
-            'task': 'blueprints.analytics.generate_report',
+            'task': 'analytics.generate_report',
             'schedule': crontab(hour=0, minute=0),
         }
     }
 
-@analytics_bp.route('/analytics/dashboard')
+
+@bp.route('/analytics/dashboard')
 @login_required
 def dashboard():
     conn = get_db()
@@ -57,6 +51,7 @@ def dashboard():
         pending_orders=pending_orders,
         pending_maintenance=pending_maintenance,
     )
+
 
 @celery.task
 def generate_report():

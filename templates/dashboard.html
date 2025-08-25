@@ -46,13 +46,13 @@
             <a href="#">Tenders</a>
             <div class="ps-3">
                 {% if 'add_tender' in permissions %}
-                    <a href="{{ url_for('add_tender') }}">Add Tender</a>
+                    <a href="{{ url_for('tenders.add_tender') }}">Add Tender</a>
                 {% endif %}
                 {% if 'tenders_list' in permissions %}
-                    <a href="{{ url_for('tenders_list') }}">Tenders List</a>
+                    <a href="{{ url_for('tenders.tenders_list') }}">Tenders List</a>
                 {% endif %}
                 {% if 'tenders_report' in permissions %}
-                    <a href="{{ url_for('tenders_report') }}">Tenders Report</a>
+                    <a href="{{ url_for('tenders.tenders_report') }}">Tenders Report</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -60,10 +60,10 @@
             <a href="#">Orders</a>
             <div class="ps-3">
                 {% if 'put_order' in permissions %}
-                    <a href="{{ url_for('put_order') }}">Put Order</a>
+                    <a href="{{ url_for('orders.put_order') }}">Put Order</a>
                 {% endif %}
                 {% if 'view_orders' in permissions %}
-                    <a href="{{ url_for('orders') }}">View Orders</a>
+                    <a href="{{ url_for('orders.orders') }}">View Orders</a>
                 {% endif %}
                 {% if 'approve_order' in permissions %}
                     <a href="{{ url_for('approve_orders') }}">Approve/Reject Orders</a>
@@ -91,7 +91,7 @@
                 {% endif %}
             </div>
         {% endif %}
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
     </div>
     <div class="content">
         {% with messages = get_flashed_messages() %}
