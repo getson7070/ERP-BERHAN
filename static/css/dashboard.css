@@ -2,27 +2,26 @@ body {
     font-family: Arial, sans-serif;
     background-color: #f8f9fa;
 }
+
+/* Sidebar */
 .sidebar {
+    min-height: 100vh;
     background-color: #343a40;
     padding-top: 20px;
     color: white;
-    min-height: 100vh;
 }
-.sidebar a {
-    padding: 10px 15px;
-    text-decoration: none;
-    color: white;
-    display: block;
+
+.sidebar .nav-link {
+    color: #fff;
 }
-.sidebar a:hover {
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
     background-color: #495057;
-}
-.content {
-    padding: 20px;
 }
 
 @media (max-width: 767.98px) {
     .sidebar {
-        min-height: auto;
+        min-height: 0;
     }
 }

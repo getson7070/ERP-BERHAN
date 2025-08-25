@@ -2,13 +2,15 @@
 {% block title %}Client Dashboard{% endblock %}
 {% block body %}
 <div class="container py-5">
-<h2>Client Dashboard</h2>
-    <a href="/put_order" class="menu-item">Put Order</a><br>
-    <a href="/my_approved_orders" class="menu-item">My Approved Orders</a><br>
-    <a href="/order_status" class="menu-item">Order Status</a><br>
-    <a href="/maintenance_request" class="menu-item">Maintenance Request</a><br>
-    <a href="/maintenance_status" class="menu-item">Maintenance Status</a><br>
-    <a href="/message" class="menu-item">Message Support</a><br>
-    <a href="/logout" class="menu-item">Logout</a>
+  <h2 class="mb-4">Client Dashboard</h2>
+  <div class="list-group">
+    <a href="/put_order" class="list-group-item list-group-item-action">Put Order</a>
+    <a href="/my_approved_orders" class="list-group-item list-group-item-action">My Approved Orders</a>
+    <a href="/order_status" class="list-group-item list-group-item-action">Order Status</a>
+    <a href="/maintenance_request" class="list-group-item list-group-item-action">Maintenance Request</a>
+    <a href="/maintenance_status" class="list-group-item list-group-item-action">Maintenance Status</a>
+    <a href="/message" class="list-group-item list-group-item-action">Message Support</a>
+    <a href="/logout" class="list-group-item list-group-item-action">Logout</a>
+  </div>
 </div>
 {% endblock %}

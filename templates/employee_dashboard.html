@@ -2,22 +2,24 @@
 {% block title %}Employee Dashboard{% endblock %}
 {% block body %}
 <div class="container py-5">
-<h2>Employee Dashboard</h2>
-    <a href="/add_report" class="menu-item">Add Report</a><br>
-    <a href="/my_report" class="menu-item">My Report</a><br>
-    <a href="/marketing_report" class="menu-item">Marketing Report</a><br>
-    <a href="/promotion_report" class="menu-item">Promotion Report</a><br>
-    <a href="/add_inventory" class="menu-item">Add Inventory</a><br>
-    <a href="/receive_inventory" class="menu-item">Receive Inventory</a><br>
-    <a href="/inventory_out" class="menu-item">Inventory Out</a><br>
-    <a href="/inventory_report" class="menu-item">Inventory Report</a><br>
-    <a href="{{ url_for('tenders.add_tender') }}" class="menu-item">Add Tender</a><br>
-    <a href="{{ url_for('tenders.tenders_list') }}" class="menu-item">Tenders List</a><br>
-    <a href="{{ url_for('tenders.tenders_report') }}" class="menu-item">Tenders Report</a><br>
-    <a href="/orders" class="menu-item">Orders</a><br>
-    <a href="/maintenance_report" class="menu-item">Maintenance Report</a><br>
-    <a href="/maintenance_followup" class="menu-item">Maintenance Followup</a><br>
-    <a href="/user_management" class="menu-item">User Management</a><br>
-    <a href="/logout" class="menu-item">Logout</a>
+  <h2 class="mb-4">Employee Dashboard</h2>
+  <div class="list-group">
+    <a href="/add_report" class="list-group-item list-group-item-action">Add Report</a>
+    <a href="/my_report" class="list-group-item list-group-item-action">My Report</a>
+    <a href="/marketing_report" class="list-group-item list-group-item-action">Marketing Report</a>
+    <a href="/promotion_report" class="list-group-item list-group-item-action">Promotion Report</a>
+    <a href="/add_inventory" class="list-group-item list-group-item-action">Add Inventory</a>
+    <a href="/receive_inventory" class="list-group-item list-group-item-action">Receive Inventory</a>
+    <a href="/inventory_out" class="list-group-item list-group-item-action">Inventory Out</a>
+    <a href="/inventory_report" class="list-group-item list-group-item-action">Inventory Report</a>
+    <a href="{{ url_for('tenders.add_tender') }}" class="list-group-item list-group-item-action">Add Tender</a>
+    <a href="{{ url_for('tenders.tenders_list') }}" class="list-group-item list-group-item-action">Tenders List</a>
+    <a href="{{ url_for('tenders.tenders_report') }}" class="list-group-item list-group-item-action">Tenders Report</a>
+    <a href="/orders" class="list-group-item list-group-item-action">Orders</a>
+    <a href="/maintenance_report" class="list-group-item list-group-item-action">Maintenance Report</a>
+    <a href="/maintenance_followup" class="list-group-item list-group-item-action">Maintenance Followup</a>
+    <a href="/user_management" class="list-group-item list-group-item-action">User Management</a>
+    <a href="/logout" class="list-group-item list-group-item-action">Logout</a>
+  </div>
 </div>
 {% endblock %}
