@@ -29,9 +29,9 @@
    - Refactor templates to responsive Bootstrap.
    - Ensure all templates extend `base.html` or `base_auth.html` and forms use `needs-validation` with `novalidate`.
 5. Monitoring & Reliability
-   - Introduce observability, crash handling, and self-healing.
-   - Add structured logging and health checks.
-   - Automate backups and restart policies.
+    - Introduce observability, crash handling, and self-healing.
+    - Add structured logging and health checks.
+    - Automate backups and restart policies.
 6. Feature Expansion
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
