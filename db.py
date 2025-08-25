@@ -38,6 +38,9 @@ def get_db():
     path = os.environ.get("DATABASE_PATH", "erp.db")
     engine = _get_engine(url, path)
     conn = engine.connect()
+    # Provide DB-API compatibility for legacy code expecting ``cursor()``.
+    if not hasattr(conn, "cursor"):
+        conn.cursor = conn.connection.cursor  # type: ignore[attr-defined]
     # Only attempt to set tenant context when using PostgreSQL.
     if engine.url.get_backend_name().startswith("postgres") and has_request_context():
         org_id = session.get("org_id")
