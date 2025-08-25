@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy import text
 
 from db import get_db
-import db
 from erp.utils import login_required, has_permission
 
 bp = Blueprint('tenders', __name__)
@@ -109,37 +108,32 @@ def advance_tender(tender_id):
         return redirect(url_for('main.dashboard'))
 
     conn = get_db()
-    cur = conn.cursor()
-<<<<<<< HEAD
-    placeholder = '%s'
-    if cur.__class__.__module__.startswith('sqlite3'):
-        placeholder = '?'
-=======
-    placeholder = "?" if db.engine.dialect.name == "sqlite" else "%s"
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
-    cur.execute(f'SELECT workflow_state FROM tenders WHERE id = {placeholder}', (tender_id,))
-    tender = cur.fetchone()
+    tender = conn.execute(
+        text('SELECT workflow_state FROM tenders WHERE id = :id'),
+        {'id': tender_id},
+    ).fetchone()
     if not tender:
-        cur.close()
         conn.close()
         flash('Tender not found.', 'danger')
         return redirect(url_for('tenders.tenders_list'))
 
-<<<<<<< HEAD
-    current = tender[0]
-=======
     # Support both tuple and mapping rows for different DB drivers
-    current = tender[0] if isinstance(tender, tuple) else tender['workflow_state']
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
+    current = tender[0] if isinstance(tender, tuple) else tender._mapping['workflow_state']
     idx = WORKFLOW_STATES.index(current)
 
     if current not in ['opening_minute', 'evaluated', 'awarded'] and idx < len(WORKFLOW_STATES) - 1:
         next_state = WORKFLOW_STATES[idx + 1]
-        cur.execute(f'UPDATE tenders SET workflow_state = {placeholder} WHERE id = {placeholder}', (next_state, tender_id))
+        conn.execute(
+            text('UPDATE tenders SET workflow_state = :state WHERE id = :id'),
+            {'state': next_state, 'id': tender_id},
+        )
         flash(f"Tender advanced to {next_state.replace('_', ' ').title()}.", 'info')
     elif current == 'opening_minute':
         if request.form.get('evaluation_complete'):
-            cur.execute(f'UPDATE tenders SET workflow_state = {placeholder} WHERE id = {placeholder}', ('evaluated', tender_id))
+            conn.execute(
+                text('UPDATE tenders SET workflow_state = :state WHERE id = :id'),
+                {'state': 'evaluated', 'id': tender_id},
+            )
             flash('Tender marked as Evaluated.', 'info')
         else:
             flash('Evaluation not complete.', 'danger')
@@ -148,13 +142,22 @@ def advance_tender(tender_id):
         awarded_to = request.form.get('awarded_to')
         award_date = request.form.get('award_date')
         if result == 'won' and awarded_to and award_date:
-            cur.execute(
-                f'UPDATE tenders SET workflow_state = {placeholder}, result = {placeholder}, awarded_to = {placeholder}, award_date = {placeholder} WHERE id = {placeholder}',
-                ('awarded', result, awarded_to, award_date, tender_id),
+            conn.execute(
+                text('UPDATE tenders SET workflow_state = :state, result = :result, awarded_to = :awarded_to, award_date = :award_date WHERE id = :id'),
+                {
+                    'state': 'awarded',
+                    'result': result,
+                    'awarded_to': awarded_to,
+                    'award_date': award_date,
+                    'id': tender_id,
+                },
             )
             flash('Tender awarded.', 'success')
         elif result and result in ['defeat', 'rejected', 'cancelled']:
-            cur.execute(f'UPDATE tenders SET result = {placeholder} WHERE id = {placeholder}', (result, tender_id))
+            conn.execute(
+                text('UPDATE tenders SET result = :result WHERE id = :id'),
+                {'result': result, 'id': tender_id},
+            )
             flash('Tender result recorded.', 'warning')
         else:
             flash('Result and award details required.', 'danger')
@@ -162,6 +165,5 @@ def advance_tender(tender_id):
         flash('Tender already awarded.', 'info')
 
     conn.commit()
-    cur.close()
     conn.close()
     return redirect(url_for('tenders.tenders_list'))

@@ -3,59 +3,41 @@ from flask import session, redirect, url_for
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
-<<<<<<< HEAD
 from db import get_db
-=======
-import db
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
+from sqlalchemy import text
 
 
 def has_permission(permission: str) -> bool:
     """Check database for permission tied to current organization."""
-<<<<<<< HEAD
-=======
     # During tests, a permissions list may be stored in the session.
     session_perms = session.get("permissions")
     if session_perms is not None:
         return permission in session_perms
-
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
     role = session.get("role")
     if role == "Management":
         return True
     user_id = session.get("user_id")
     org_id = session.get("org_id")
     if not user_id or not org_id:
-<<<<<<< HEAD
         # Fallback to session-based permissions for legacy tests and
         # unauthenticated flows.  This preserves previous behaviour while
         # the RBAC tables are populated.
         return permission in session.get("permissions", [])
+
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-=======
-        return False
-    conn = db.get_db()
-    cur = conn.cursor()
-    placeholder = "?" if db.engine.dialect.name == "sqlite" else "%s"
-    cur.execute(
-        f"""
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
-        SELECT 1
-        FROM role_assignments ra
-        JOIN role_permissions rp ON ra.role_id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.id
-<<<<<<< HEAD
-        WHERE ra.user_id = %s AND ra.org_id = %s AND p.name = %s
-=======
-        WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder} AND p.name = {placeholder}
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
-        """,
-        (user_id, org_id, permission),
+    result = conn.execute(
+        text(
+            """
+            SELECT 1
+            FROM role_assignments ra
+            JOIN role_permissions rp ON ra.role_id = rp.role_id
+            JOIN permissions p ON rp.permission_id = p.id
+            WHERE ra.user_id = :user_id AND ra.org_id = :org_id AND p.name = :perm
+            """
+        ),
+        {"user_id": user_id, "org_id": org_id, "perm": permission},
     )
-    has_perm = cur.fetchone() is not None
+    has_perm = result.first() is not None
     conn.close()
     return has_perm
 
@@ -70,29 +52,20 @@ def roles_required(*roles):
             org_id = session.get("org_id")
             if not user_id or not org_id:
                 return redirect(url_for("main.dashboard"))
-<<<<<<< HEAD
+
             conn = get_db()
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT r.name FROM role_assignments ra
-                JOIN roles r ON ra.role_id = r.id
-                WHERE ra.user_id = %s AND ra.org_id = %s
-=======
-            conn = db.get_db()
-            cur = conn.cursor()
-            placeholder = "?" if db.engine.dialect.name == "sqlite" else "%s"
-            cur.execute(
-                f"""
-                SELECT r.name FROM role_assignments ra
-                JOIN roles r ON ra.role_id = r.id
-                WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder}
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
-                """,
-                (user_id, org_id),
-            )
-            user_roles = [row[0] for row in cur.fetchall()]
+            rows = conn.execute(
+                text(
+                    """
+                    SELECT r.name FROM role_assignments ra
+                    JOIN roles r ON ra.role_id = r.id
+                    WHERE ra.user_id = :user_id AND ra.org_id = :org_id
+                    """
+                ),
+                {"user_id": user_id, "org_id": org_id},
+            ).fetchall()
             conn.close()
+            user_roles = [row[0] for row in rows]
             if not any(r in user_roles for r in roles):
                 return redirect(url_for("main.dashboard"))
             return f(*args, **kwargs)

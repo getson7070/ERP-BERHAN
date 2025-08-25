@@ -56,12 +56,9 @@ def create_app():
     @app.before_request
     def start_timer():
         g.start_time = time.time()
-<<<<<<< HEAD
-=======
         # Skip access log writes during tests to avoid unintended database access
         if app.config.get('TESTING'):
             return
->>>>>>> 12080d8822c0e364cac9d5b64b9664482ab79753
         if 'logged_in' in session and session['logged_in']:
             ip = request.remote_addr
             device = request.user_agent.string

@@ -53,28 +53,31 @@ When modifying templates or front-end behavior, confirm the following:
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
 
-## Upcoming Requests
-1. Replace SQLite usage in `db.py` with SQLAlchemy pointing to PostgreSQL.
-   - Introduce Redis connections for caching and task queues; update Celery config accordingly.
-   - Provide Alembic migrations for the new schema and update `REQUIREMENTS.txt`.
-2. Create `organizations`, `roles`, `permissions`, and `role_assignments` tables in `init_db.py`.
-   - Add `org_id` columns to business tables (`orders`, `tenders`, `inventory`, etc.).
-   - Update `erp/utils.py` decorators to check role/permission mappings per organization.
-3. Introduce an `/auth/token` endpoint in `erp/routes/auth.py` issuing JWT access/refresh tokens.
-   - Configure PostgreSQL row-level security policies tied to `org_id` and user roles.
-   - Ensure admin logins require TOTP; rotate tokens via environment-managed secrets.
-4. Add a WebSocket server (e.g., Flask-SocketIO) for pushing live KPIs.
-   - Create SQL materialized views for key metrics and schedule periodic refresh.
-   - Update dashboard templates under `templates/analytics/` to subscribe to WebSocket updates.
-5. Introduce structured logging (e.g., `logging.config.dictConfig`) in `erp/__init__.py`.
-   - Instrument metrics with a library like `prometheus_client`; expose `/metrics`.
-   - Configure error monitoring and distributed tracing (e.g., Sentry, OpenTelemetry) for API and Celery tasks.
-6. Refactor templates under `templates/` to ensure mobile-responsive design with Bootstrap.
-   - Add service worker & IndexedDB logic in `static/js/` for offline data capture and sync endpoints.
-   - Document offline sync strategy and user flow in project docs.
-7. Add a storage layer (e.g., `storages/s3.py`) using boto3.
-   - Update forms and routes handling uploads to persist files in S3 and store URLs in DB.
-   - Configure credentials via environment variables and document in README.md.
+## Implementation Roadmap
+1. Clean `db.py` and `erp/utils.py` by removing conflict markers and consolidating the PostgreSQL implementation with Redis caching.
+2. Replace SQLite-style `?` placeholders in SQL queries with `%s` and update connection logic to use SQLAlchemy’s parameter binding.
+3. Run migrations and regression tests across orders, tenders, and analytics modules to confirm PostgreSQL compatibility.
+4. Create scaffolding for finance, HR, CRM, procurement, and project management under `erp/routes/` with corresponding templates and tests.
+5. Define database schemas and migrations for these modules, ensuring each includes `org_id` for multi-tenant isolation.
+6. Update navigation and role-based dashboards to expose new modules based on user permissions.
+7. Introduce responsive components and feature parity for mobile by auditing all templates under `templates/`.
+8. Implement language packs and a locale selector using Flask-Babel; ensure translations for core pages.
+9. Add user-customizable widgets and saved searches within dashboard templates.
+10. Introduce FastAPI or Flask-RESTful endpoints under `erp/api/` for orders, inventory, and tenders.
+11. Implement webhook support and SDK documentation; integrate with at least one accounting or payment service.
+12. Add OAuth2 flows for external systems to authenticate and interact with the ERP.
+13. Develop a report builder UI in `templates/analytics/` allowing filter selection and export to PDF/Excel.
+14. Add compliance report generators (e.g., tax, HR) in `erp/routes/analytics.py` with supporting migrations.
+15. Integrate an anomaly-detection model (e.g., scikit-learn) for sales and inventory forecasting.
+16. Implement SSO/OAuth2 providers (e.g., Keycloak) and enforce HTTPS/TLS everywhere.
+17. Enable database encryption at rest (PostgreSQL TDE or disk-level encryption) and document key rotation.
+18. Expand audit logging to capture every CRUD action with timestamp, user, IP, and store logs in an immutable table.
+19. Provide Docker/Kubernetes manifests for API, worker, and bot services with load balancing and failover.
+20. Document upgrade procedures using Alembic migrations and rolling deploys.
+21. Set up CI/CD pipelines that run tests, linting, and security scans before deployment.
+22. Implement a plugin framework allowing modules to register new routes and jobs dynamically.
+23. Integrate a task automation engine (e.g., Celery workflows) for reminders and approvals.
+24. Evaluate ML libraries for forecasting or chatbot capabilities and expose hooks for AI modules.
 
 ## Additional Recommendations
 1. UI/UX Review: After implementing changes, run usability tests and lint CSS/JS to ensure responsive design meets industry standards.
