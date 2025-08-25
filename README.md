@@ -6,7 +6,9 @@ BERHAN PHARMA
 The application pulls configuration from environment variables. Key settings include:
 
 - `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
-- `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
+ - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
+ - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
+   knobs for high‑load deployments.
 - `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
 - `TOTP_ISSUER` – issuer name shown in authenticator apps for MFA codes.
 - `JWT_SECRET` – HMAC secret for signing access and refresh tokens.
@@ -73,7 +75,8 @@ secrets manager.
 
 The `backup.py` helper creates timestamped database backups. PostgreSQL and
 MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
-to be used for replication or off-site disaster recovery.
+to be used for replication or off-site disaster recovery. See
+`docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
 ### Multi-Factor Authentication
 
@@ -120,7 +123,8 @@ status becomes *Evaluated*; recording a winning supplier and date moves it to
 A production-ready WSGI entrypoint (`wsgi.py`), `Dockerfile`, and `.env.example`
 are provided for running the application in a Gunicorn-backed container. Configure
 environment variables as needed and build the container with Docker for
-consistent deployments.
+consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
+high‑availability setup with readiness probes and horizontal pod autoscaling.
 
 ## Observability & Offline Use
 
@@ -131,3 +135,8 @@ output to aid in tracing and alerting.
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
 the API once connectivity returns, providing a more resilient mobile experience.
+
+## Performance Benchmarking
+
+Run `python scripts/benchmark.py` against a target URL to measure request
+throughput and validate connection pool tuning or scaling changes.

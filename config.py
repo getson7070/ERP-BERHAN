@@ -8,6 +8,11 @@ class Config:
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', REDIS_URL)
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', REDIS_URL)
+
+    # Database connection pooling
+    DB_POOL_SIZE = int(os.environ.get('DB_POOL_SIZE', '5'))
+    DB_MAX_OVERFLOW = int(os.environ.get('DB_MAX_OVERFLOW', '10'))
+    DB_POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', '30'))
     PREFERRED_URL_SCHEME = 'https'
     TOTP_ISSUER = os.environ.get('TOTP_ISSUER', 'ERP-BERHAN')
     JWT_SECRET = os.environ.get('JWT_SECRET', secrets.token_hex(32))
