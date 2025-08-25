@@ -35,9 +35,3 @@
 6. Feature Expansion
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
-
-## UI/UX & Feature Checklist
-- Verify every template uses a responsive Bootstrap layout with client-side validation.
-- Maintain a clean, modular dashboard with intuitive navigation and consistent styling.
-- Ensure mobile-friendly interactions across all pages.
-- Assess implementation of advanced features: workflow automation, data entry optimization, visualization & reports, role-based access control, error handling guidance, calendar integration, in-app chat/collaboration, offline auto-sync, and AI-driven recommendations.
