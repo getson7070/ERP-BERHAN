@@ -122,6 +122,15 @@ view. A Celery beat job periodically executes `REFRESH MATERIALIZED VIEW
 CONCURRENTLY kpi_sales` and pushes updates to connected dashboards over
 WebSockets for near real-time visibility.
 
+## Automation & Analytics
+
+Background jobs expand automation and insight capabilities:
+
+- `send_approval_reminders` notifies sales representatives of pending orders.
+- `forecast_sales` computes a naive monthly projection of sales trends.
+- `generate_compliance_report` writes weekly CSV reports of orders missing status.
+- `/analytics/reports` offers a simple report builder for orders and tenders.
+
 ## Tender Lifecycle
 
 Tenders progress through defined workflow states culminating in automatic

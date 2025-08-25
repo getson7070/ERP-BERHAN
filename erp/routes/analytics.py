@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash
+from flask import Blueprint, render_template, redirect, url_for, session
 from celery import Celery
 from celery.schedules import crontab
 from datetime import datetime
-from sqlalchemy import text
+from flask import request
+
+# Forecasting uses simple averages; avoid heavy ML deps for lightweight installs
 
 from db import get_db
 from erp.utils import login_required, roles_required
-from erp.audit import log_audit
 from erp import socketio
 from flask_socketio import emit
 
@@ -17,22 +18,18 @@ celery = Celery(__name__)
 
 def fetch_kpis():
     conn = get_db()
-    pending_orders = conn.execute(
-        text('SELECT COUNT(*) FROM orders WHERE status = :status'),
-        {'status': 'pending'}
-    ).fetchone()[0]
-    pending_maintenance = conn.execute(
-        text('SELECT COUNT(*) FROM maintenance WHERE status = :status'),
-        {'status': 'pending'}
-    ).fetchone()[0]
-    expired_tenders = conn.execute(
-        text("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
-    ).fetchone()[0]
-    monthly_sales = conn.execute(
-        text(
-            "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
-        )
-    ).fetchone()[0]
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM orders WHERE status = %s', ('pending',))
+    pending_orders = cur.fetchone()[0]
+    cur.execute('SELECT COUNT(*) FROM maintenance WHERE status = %s', ('pending',))
+    pending_maintenance = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
+    expired_tenders = cur.fetchone()[0]
+    cur.execute(
+        "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
+    )
+    monthly_sales = cur.fetchone()[0]
+    cur.close()
     conn.close()
     return {
         'pending_orders': pending_orders,
@@ -69,15 +66,15 @@ def init_celery(state):
         },
         'send-approval-reminders': {
             'task': 'analytics.send_approval_reminders',
-            'schedule': crontab(hour=9, minute=0),
+            'schedule': crontab(hour='*/4'),
         },
-        'forecast-sales': {
+        'forecast-monthly-sales': {
             'task': 'analytics.forecast_sales',
             'schedule': crontab(hour=2, minute=0, day_of_month='1'),
         },
-        'monthly-compliance-report': {
+        'weekly-compliance-report': {
             'task': 'analytics.generate_compliance_report',
-            'schedule': crontab(hour=3, minute=0, day_of_month='1'),
+            'schedule': crontab(hour=3, minute=0, day_of_week='sun'),
         },
     }
 
@@ -87,7 +84,6 @@ def init_celery(state):
 @roles_required('Management')
 def dashboard():
     kpis = fetch_kpis()
-    forecast = forecast_sales()
     role = session.get('role')
     permissions = session.get('permissions', [])
     return render_template(
@@ -98,23 +94,7 @@ def dashboard():
         pending_maintenance=kpis['pending_maintenance'],
         expired_tenders=kpis['expired_tenders'],
         monthly_sales=kpis['monthly_sales'],
-        sales_forecast=forecast,
     )
-
-
-@bp.route('/analytics/report-builder', methods=['GET', 'POST'])
-@login_required
-@roles_required('Management')
-def report_builder():
-    if request.method == 'POST':
-        report_type = request.form.get('report_type')
-        if report_type == 'compliance':
-            generate_compliance_report.delay()
-        else:
-            build_custom_report.delay(report_type)
-        flash('Report generation scheduled.')
-        return redirect(url_for('analytics.report_builder'))
-    return render_template('analytics/report_builder.html')
 
 
 @socketio.on('connect')
@@ -125,8 +105,9 @@ def push_kpis():
 @celery.task
 def generate_report():
     conn = get_db()
-    orders = conn.execute(text('SELECT status, COUNT(*) FROM orders GROUP BY status')).fetchall()
-    maintenance = conn.execute(text('SELECT status, COUNT(*) FROM maintenance GROUP BY status')).fetchall()
+    cur = conn.cursor()
+    orders = cur.execute('SELECT status, COUNT(*) FROM orders GROUP BY status').fetchall()
+    maintenance = cur.execute('SELECT status, COUNT(*) FROM maintenance GROUP BY status').fetchall()
     filename = f"report_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, 'w') as f:
         f.write('Orders\n')
@@ -143,7 +124,7 @@ def generate_report():
 def expire_tenders():
     conn = get_db()
     conn.execute(
-        text("UPDATE tenders SET status = 'expired' WHERE due_date < CURRENT_DATE AND status IS NULL")
+        "UPDATE tenders SET status = 'expired' WHERE due_date < DATE('now') AND status IS NULL"
     )
     conn.commit()
     conn.close()
@@ -152,70 +133,78 @@ def expire_tenders():
 @celery.task
 def refresh_kpis():
     conn = get_db()
-    try:
-        conn.execute(text('REFRESH MATERIALIZED VIEW CONCURRENTLY kpi_sales'))
-        conn.commit()
-    finally:
-        conn.close()
+    cur = conn.cursor()
+    cur.execute('REFRESH MATERIALIZED VIEW CONCURRENTLY kpi_sales')
+    conn.commit()
+    cur.close()
+    conn.close()
     socketio.emit('kpi_update', fetch_kpis())
 
 
 @celery.task
 def send_approval_reminders():
+    """Notify sales reps of orders awaiting approval."""
     conn = get_db()
-    pending = conn.execute(
-        text('SELECT id FROM orders WHERE status = :status'), {'status': 'pending'}
-    ).fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT id, sales_rep FROM orders WHERE status = 'pending'")
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
-    for order_id, in pending:
-        message = f'Order {order_id} pending approval'
-        print(f'Reminder: {message}')
-        log_audit(None, None, 'reminder', message)
-    return len(pending)
+    for order_id, rep in rows:
+        print(f'Reminder sent to {rep} for order {order_id}')
+    return len(rows)
 
 
 @celery.task
-def forecast_sales(months: int = 3):
+def forecast_sales():
+    """Naive monthly sales forecast using average trend."""
     conn = get_db()
-    rows = conn.execute(
-        text('SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT :limit'),
-        {'limit': months}
-    ).fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2')
+    rows = [r[0] for r in cur.fetchall()]
+    cur.close()
     conn.close()
-    values = [r[0] for r in rows]
-    if not values:
+    if len(rows) < 2:
         return 0.0
-    return float(sum(values) / len(values))
+    trend = rows[0] - rows[1]
+    return float(rows[0] + trend)
 
 
 @celery.task
 def generate_compliance_report():
+    """Produce a simple CSV listing orders missing status."""
     conn = get_db()
-    rows = conn.execute(
-        text('SELECT id, status FROM orders WHERE status = :status'),
-        {'status': 'pending'}
-    ).fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM orders WHERE status IS NULL")
+    missing = [r[0] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
     filename = f"compliance_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, 'w') as f:
-        f.write('order_id,status\n')
-        for oid, status in rows:
-            f.write(f"{oid},{status}\n")
-    conn.close()
+        f.write('order_id\n')
+        for oid in missing:
+            f.write(f"{oid}\n")
     return filename
+    
 
-
-@celery.task
-def build_custom_report(report_type: str):
-    conn = get_db()
-    if report_type == 'orders':
-        rows = conn.execute(text('SELECT id, status FROM orders')).fetchall()
-    elif report_type == 'maintenance':
-        rows = conn.execute(text('SELECT id, status FROM maintenance')).fetchall()
-    else:
-        rows = []
-    filename = f"{report_type}_report_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
-    with open(filename, 'w') as f:
-        for row in rows:
-            f.write(','.join(str(col) for col in row) + '\n')
-    conn.close()
-    return filename
+@bp.route('/analytics/reports', methods=['GET', 'POST'])
+@login_required
+@roles_required('Management')
+def report_builder():
+    """Simple tabular report builder supporting orders and tenders."""
+    rows = []
+    headers = []
+    if request.method == 'POST':
+        report_type = request.form.get('report_type')
+        conn = get_db()
+        cur = conn.cursor()
+        if report_type == 'orders':
+            cur.execute('SELECT id, customer, status FROM orders')
+            headers = ['id', 'customer', 'status']
+        else:
+            cur.execute('SELECT id, title, status FROM tenders')
+            headers = ['id', 'title', 'status']
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    return render_template('analytics/report_builder.html', rows=rows, headers=headers)

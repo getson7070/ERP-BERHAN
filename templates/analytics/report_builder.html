@@ -1,32 +1,40 @@
-{% extends "dashboard.html" %}
+{% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">Report Builder</h2>
-<form method="post" class="needs-validation" novalidate>
-  <div class="mb-3">
-    <label for="report_type" class="form-label">Report Type</label>
-    <select id="report_type" name="report_type" class="form-select" required>
-      <option value="" selected>Select type</option>
-      <option value="orders">Orders</option>
-      <option value="maintenance">Maintenance</option>
-      <option value="compliance">Compliance</option>
-    </select>
-    <div class="invalid-feedback">Please choose a report.</div>
+<div class="container mt-4">
+  <h2>Report Builder</h2>
+  <form method="post" class="row g-3">
+    <div class="col-md-4">
+      <label for="report_type" class="form-label">Report Type</label>
+      <select class="form-select" id="report_type" name="report_type" required>
+        <option value="orders">Orders</option>
+        <option value="tenders">Tenders</option>
+      </select>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Generate</button>
+    </div>
+  </form>
+  {% if rows %}
+  <div class="mt-4">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          {% for header in headers %}
+          <th>{{ header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+          <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-  <button type="submit" class="btn btn-primary">Generate</button>
-</form>
-<script>
-(() => {
-  'use strict';
-  const forms = document.querySelectorAll('.needs-validation');
-  Array.from(forms).forEach(form => {
-    form.addEventListener('submit', event => {
-      if (!form.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      form.classList.add('was-validated');
-    }, false);
-  });
-})();
-</script>
+  {% endif %}
+</div>
 {% endblock %}
