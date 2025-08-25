@@ -10,10 +10,14 @@ from wtforms import (
     SelectMultipleField,
 )
 from wtforms.validators import DataRequired, Length, NumberRange
-from datetime import datetime
+from datetime import datetime, timedelta
+import os
+import jwt
 import pyotp
+import uuid
+import json
 
-from db import get_db
+from db import get_db, redis_client
 from erp.utils import (
     hash_password,
     verify_password,
@@ -23,6 +27,90 @@ from erp.utils import (
 )
 
 bp = Blueprint('auth', __name__)
+
+
+@bp.route('/auth/token', methods=['POST'])
+def issue_token():
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    totp_code = data.get('totp')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    if not user or not verify_password(password, user['password_hash']):
+        conn.close()
+        return {'error': 'invalid_credentials'}, 401
+    if user['role'] in ('Admin', 'Management'):
+        if not user['mfa_secret'] or not pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(totp_code or ''):
+            conn.close()
+            return {'error': 'mfa_required'}, 401
+    secret = current_app.config['JWT_SECRET']
+    kid = current_app.config['JWT_SECRET_ID']
+    refresh_id = str(uuid.uuid4())
+    access_payload = {
+        'sub': email,
+        'org_id': user.get('org_id'),
+        'exp': datetime.utcnow() + timedelta(minutes=15),
+        'kid': kid
+    }
+    refresh_payload = {
+        'sub': email,
+        'org_id': user.get('org_id'),
+        'jti': refresh_id,
+        'exp': datetime.utcnow() + timedelta(days=7),
+        'kid': kid
+    }
+    access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
+    refresh = jwt.encode(refresh_payload, secret, algorithm='HS256', headers={'kid': kid})
+    redis_client.setex(f"refresh:{refresh_id}", timedelta(days=7), json.dumps({'email': email, 'org_id': user.get('org_id')}))
+    current_app.logger.info("issued tokens for %s", email)
+    conn.close()
+    return {'access_token': access, 'refresh_token': refresh}
+
+
+@bp.route('/auth/refresh', methods=['POST'])
+def refresh_token():
+    data = request.get_json() or {}
+    token = data.get('refresh_token')
+    secret = current_app.config['JWT_SECRET']
+    try:
+        payload = jwt.decode(token, secret, algorithms=['HS256'])
+    except jwt.InvalidTokenError:
+        return {'error': 'invalid_token'}, 401
+    jti = payload.get('jti')
+    key = f"refresh:{jti}"
+    stored = redis_client.get(key)
+    if not stored:
+        return {'error': 'invalid_token'}, 401
+    redis_client.delete(key)
+    email = payload['sub']
+    org_id = payload.get('org_id')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    if not user:
+        conn.close()
+        return {'error': 'unknown_user'}, 401
+    kid = current_app.config['JWT_SECRET_ID']
+    new_refresh_id = str(uuid.uuid4())
+    access_payload = {
+        'sub': email,
+        'org_id': org_id,
+        'exp': datetime.utcnow() + timedelta(minutes=15),
+        'kid': kid
+    }
+    refresh_payload = {
+        'sub': email,
+        'org_id': org_id,
+        'jti': new_refresh_id,
+        'exp': datetime.utcnow() + timedelta(days=7),
+        'kid': kid
+    }
+    access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
+    refresh = jwt.encode(refresh_payload, secret, algorithm='HS256', headers={'kid': kid})
+    redis_client.setex(f"refresh:{new_refresh_id}", timedelta(days=7), stored)
+    current_app.logger.info("refreshed token for %s", email)
+    conn.close()
+    return {'access_token': access, 'refresh_token': refresh}
 
 
 @bp.route('/choose_login', methods=['GET', 'POST'])

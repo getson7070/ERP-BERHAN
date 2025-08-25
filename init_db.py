@@ -24,7 +24,7 @@ def init_db():
     # Create users table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_type TEXT NOT NULL CHECK(user_type IN ('employee', 'client')),
         tin TEXT,
         username TEXT UNIQUE,
@@ -38,34 +38,70 @@ def init_db():
         mfa_secret TEXT,
         permissions TEXT,
         approved_by_ceo BOOLEAN DEFAULT FALSE,
-        last_login DATETIME,
+        last_login TIMESTAMP,
         hire_date DATE,
         salary REAL,
         role TEXT,
         failed_attempts INTEGER DEFAULT 0,
         account_locked BOOLEAN DEFAULT FALSE,
-        last_password_change DATETIME
+        last_password_change TIMESTAMP
+    )
+    ''')
+
+    # RBAC tables
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS organizations (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL
+    )
+    ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS roles (
+        id SERIAL PRIMARY KEY,
+        org_id INTEGER REFERENCES organizations(id),
+        name TEXT NOT NULL
+    )
+    ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS permissions (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL
+    )
+    ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS role_permissions (
+        role_id INTEGER REFERENCES roles(id),
+        permission_id INTEGER REFERENCES permissions(id),
+        PRIMARY KEY (role_id, permission_id)
+    )
+    ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS role_assignments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        role_id INTEGER REFERENCES roles(id),
+        org_id INTEGER REFERENCES organizations(id)
     )
     ''')
 
     # Create access_logs table for IP/device logging
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS access_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user TEXT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
         ip TEXT NOT NULL,
         device TEXT NOT NULL,
-        timestamp DATETIME NOT NULL
+        timestamp TIMESTAMP NOT NULL
     )
     ''')
 
     # Password reset requests
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS password_resets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         token TEXT NOT NULL UNIQUE,
-        expires_at DATETIME NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
@@ -73,17 +109,17 @@ def init_db():
     # Create other tables
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         tin TEXT,
         message TEXT NOT NULL,
-        date DATETIME NOT NULL,
+        date TIMESTAMP NOT NULL,
         status TEXT DEFAULT 'pending'
     )
     ''')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS regions_cities (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         region TEXT NOT NULL,
         city TEXT NOT NULL
     )
@@ -96,11 +132,11 @@ def init_db():
         ('Southern Nations, Nationalities, and Peoples Region', 'Arba Minch'), ('Tigray', 'Mekelle'),
         ('Addis Ababa', 'Addis Ababa'), ('Dire Dawa', 'Dire Dawa'),
     ]
-    cursor.executemany('INSERT OR IGNORE INTO regions_cities (region, city) VALUES (?, ?)', regions_cities_data)
+    cursor.executemany('INSERT INTO regions_cities (region, city) VALUES (%s, %s) ON CONFLICT DO NOTHING', regions_cities_data)
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         institution TEXT NOT NULL,
         location TEXT NOT NULL,
         owner TEXT,
@@ -117,7 +153,7 @@ def init_db():
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS inventory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         item_code TEXT NOT NULL,
         description TEXT NOT NULL,
         pack_size TEXT NOT NULL,
@@ -131,13 +167,13 @@ def init_db():
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS inventory_movements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         item_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
         action TEXT NOT NULL,
         sub_action TEXT,
-        date DATETIME NOT NULL,
-        user TEXT NOT NULL,
+        date TIMESTAMP NOT NULL,
+        username TEXT NOT NULL,
         order_id INTEGER,
         FOREIGN KEY (item_id) REFERENCES inventory(id),
         FOREIGN KEY (order_id) REFERENCES orders(id)
@@ -146,14 +182,14 @@ def init_db():
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS tender_types (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         type_name TEXT NOT NULL
     )
     ''')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS tenders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         tender_type_id INTEGER NOT NULL,
         description TEXT NOT NULL,
         due_date DATE NOT NULL,
@@ -162,7 +198,7 @@ def init_db():
         result TEXT,
         awarded_to TEXT,
         award_date DATE,
-        user TEXT NOT NULL,
+        username TEXT NOT NULL,
         institution TEXT,
         envelope_type TEXT NOT NULL,
         private_key TEXT,
@@ -172,8 +208,8 @@ def init_db():
     )
     ''')
 
-    cursor.execute("PRAGMA table_info(tenders)")
-    existing = [row['name'] for row in cursor.fetchall()]
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='tenders'")
+    existing = [row[0] for row in cursor.fetchall()]
     if 'workflow_state' not in existing:
         cursor.execute("ALTER TABLE tenders ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'advert_registered'")
     else:
@@ -189,7 +225,7 @@ def init_db():
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         item_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
         customer TEXT NOT NULL,
@@ -204,26 +240,26 @@ def init_db():
     cursor.execute('DROP TABLE IF EXISTS maintenance')
     cursor.execute('''
     CREATE TABLE maintenance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         equipment_id INTEGER NOT NULL,
-        request_date DATETIME NOT NULL,
+        request_date TIMESTAMP NOT NULL,
         type TEXT NOT NULL,
         status TEXT DEFAULT 'pending',
         report TEXT,
-        user TEXT NOT NULL
+        username TEXT NOT NULL
     )
     ''')
 
-    cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('EGP Portal',))
-    cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('Paper Tender',))
-    cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('NGO/UN Portal Tender',))
+    cursor.execute('INSERT INTO tender_types (type_name) VALUES (%s) ON CONFLICT DO NOTHING', ('EGP Portal',))
+    cursor.execute('INSERT INTO tender_types (type_name) VALUES (%s) ON CONFLICT DO NOTHING', ('Paper Tender',))
+    cursor.execute('INSERT INTO tender_types (type_name) VALUES (%s) ON CONFLICT DO NOTHING', ('NGO/UN Portal Tender',))
 
     admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
     admin_password = os.environ.get('ADMIN_PASSWORD')
     if admin_password:
         password_hash = hash_password(admin_password)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
             (
                 'employee',
                 admin_username,
@@ -241,7 +277,7 @@ def init_db():
     for phone in admin_phones:
         password_hash = hash_password(phone)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
             (
                 'employee',
                 phone,
@@ -256,7 +292,7 @@ def init_db():
     for phone in employee_phones:
         password_hash = hash_password(phone)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
             (
                 'employee',
                 phone,
@@ -267,6 +303,20 @@ def init_db():
                 'Sales Rep',
                 datetime.now(),
             ),
+        )
+
+    for table in ('orders', 'tenders', 'inventory'):
+        cursor.execute(
+            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
+        )
+        cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+        cursor.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")
+        cursor.execute(
+            f"""
+            CREATE POLICY org_rls ON {table}
+            USING (org_id = current_setting('my.org_id')::INTEGER)
+            WITH CHECK (org_id = current_setting('my.org_id')::INTEGER)
+            """
         )
 
     conn.commit()

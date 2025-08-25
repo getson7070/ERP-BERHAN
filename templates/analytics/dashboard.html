@@ -3,22 +3,29 @@
 <h2 class="mb-4">Analytics Dashboard</h2>
 <canvas id="statusChart" height="100"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 const ctx = document.getElementById('statusChart');
-new Chart(ctx, {
+const statusChart = new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: ['Pending Orders', 'Pending Maintenance', 'Expired Tenders'],
+        labels: ['Pending Orders', 'Pending Maintenance', 'Expired Tenders', 'Monthly Sales'],
         datasets: [{
             label: 'Items',
-            data: [{{ pending_orders }}, {{ pending_maintenance }}, {{ expired_tenders }}],
-            backgroundColor: ['#0d6efd', '#dc3545', '#6c757d']
+            data: [{{ pending_orders }}, {{ pending_maintenance }}, {{ expired_tenders }}, {{ monthly_sales }}],
+            backgroundColor: ['#0d6efd', '#dc3545', '#6c757d', '#198754']
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false
     }
+});
+
+const socket = io();
+socket.on('kpi_update', data => {
+    statusChart.data.datasets[0].data = [data.pending_orders, data.pending_maintenance, data.expired_tenders, data.monthly_sales];
+    statusChart.update();
 });
 </script>
 {% endblock %}
