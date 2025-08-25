@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from blueprints import register_blueprints
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect
