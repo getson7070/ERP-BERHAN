@@ -9,7 +9,14 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table('tenders') as batch:
-        batch.add_column(sa.Column('workflow_state', sa.String(), nullable=False, server_default='advertised'))
+        batch.add_column(
+            sa.Column(
+                'workflow_state',
+                sa.String(),
+                nullable=False,
+                server_default='advert_registered',
+            )
+        )
         batch.add_column(sa.Column('result', sa.String(), nullable=True))
 
 

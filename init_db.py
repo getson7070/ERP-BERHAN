@@ -157,7 +157,7 @@ def init_db():
         description TEXT NOT NULL,
         due_date DATE NOT NULL,
         status TEXT DEFAULT 'Open',
-        workflow_state TEXT NOT NULL DEFAULT 'advertised',
+        workflow_state TEXT NOT NULL DEFAULT 'advert_registered',
         result TEXT,
         user TEXT NOT NULL,
         institution TEXT,
@@ -172,7 +172,11 @@ def init_db():
     cursor.execute("PRAGMA table_info(tenders)")
     existing = [row['name'] for row in cursor.fetchall()]
     if 'workflow_state' not in existing:
-        cursor.execute("ALTER TABLE tenders ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'advertised'")
+        cursor.execute("ALTER TABLE tenders ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'advert_registered'")
+    else:
+        cursor.execute(
+            "UPDATE tenders SET workflow_state='advert_registered' WHERE workflow_state='advertised'"
+        )
     if 'result' not in existing:
         cursor.execute("ALTER TABLE tenders ADD COLUMN result TEXT")
 

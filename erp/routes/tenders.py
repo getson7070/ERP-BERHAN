@@ -9,12 +9,13 @@ from erp.utils import login_required
 
 bp = Blueprint('tenders', __name__)
 
+# ordered states reflecting the full tender lifecycle
 WORKFLOW_STATES = [
-    'advertised',
-    'decided',
+    'advert_registered',
+    'decided_to_register',
     'documents_secured',
     'preparing_documentation',
-    'document_prepared',
+    'documentation_prepared',
     'document_submitted',
     'opening_minute',
     'awaiting_result',
@@ -53,7 +54,18 @@ def add_tender():
         conn.execute(
             '''INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, user, institution, envelope_type, private_key, tech_key, fin_key)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (tender_type_id, description, due_date, 'advertised', user, institution, envelope_type, private_key, tech_key, fin_key)
+            (
+                tender_type_id,
+                description,
+                due_date,
+                'advert_registered',
+                user,
+                institution,
+                envelope_type,
+                private_key,
+                tech_key,
+                fin_key,
+            ),
         )
         conn.commit()
         conn.close()
@@ -94,7 +106,7 @@ def advance_tender(tender_id):
     tender = conn.execute('SELECT workflow_state FROM tenders WHERE id = ?', (tender_id,)).fetchone()
     if not tender:
         conn.close()
-        flash('Tender not found.')
+        flash('Tender not found.', 'danger')
         return redirect(url_for('tenders.tenders_list'))
 
     current = tender['workflow_state']
@@ -103,17 +115,29 @@ def advance_tender(tender_id):
     if idx < len(WORKFLOW_STATES) - 2:
         next_state = WORKFLOW_STATES[idx + 1]
         conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', (next_state, tender_id))
-        flash(f"Tender advanced to {next_state.replace('_', ' ').title()}.")
+        flash(
+            f"Tender advanced to {next_state.replace('_', ' ').title()}.",
+            'info',
+        )
     elif current == 'awaiting_result':
         result = request.form.get('result')
         if result not in ['won', 'defeat', 'rejected', 'cancelled']:
-            flash('Invalid result.')
+            flash('Invalid result.', 'danger')
             conn.close()
             return redirect(url_for('tenders.tenders_list'))
-        conn.execute('UPDATE tenders SET workflow_state = "completed", result = ? WHERE id = ?', (result, tender_id))
-        flash(f'Tender {result}.')
+        conn.execute(
+            'UPDATE tenders SET workflow_state = "completed", result = ? WHERE id = ?',
+            (result, tender_id),
+        )
+        category = {
+            'won': 'success',
+            'defeat': 'warning',
+            'rejected': 'danger',
+            'cancelled': 'danger',
+        }[result]
+        flash(f'Tender {result}.', category)
     else:
-        flash('Tender already completed.')
+        flash('Tender already completed.', 'info')
 
     conn.commit()
     conn.close()
