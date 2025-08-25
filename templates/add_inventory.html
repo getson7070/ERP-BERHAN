@@ -12,14 +12,17 @@
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
                 <input type="text" name="description" id="description" class="form-control" required>
+                <div class="invalid-feedback">Please enter a description.</div>
             </div>
             <div class="mb-3">
                 <label for="pack_size" class="form-label">Pack Size</label>
                 <input type="text" name="pack_size" id="pack_size" class="form-control" required>
+                <div class="invalid-feedback">Please provide the pack size.</div>
             </div>
             <div class="mb-3">
                 <label for="brand" class="form-label">Brand</label>
                 <input type="text" name="brand" id="brand" class="form-control" required>
+                <div class="invalid-feedback">Please enter the brand.</div>
             </div>
             <div class="mb-3">
                 <label for="type" class="form-label">Type</label>
@@ -27,14 +30,17 @@
                     <option value="Device">Device</option>
                     <option value="Reagent">Reagent</option>
                 </select>
+                <div class="invalid-feedback">Please choose a type.</div>
             </div>
             <div class="mb-3" id="exp_date_field" style="display: none;">
                 <label for="exp_date" class="form-label">Expiration Date</label>
                 <input type="date" name="exp_date" id="exp_date" class="form-control">
+                <div class="invalid-feedback">Please select an expiration date.</div>
             </div>
             <div class="mb-3">
                 <label for="category" class="form-label">Category</label>
                 <input type="text" name="category" id="category" class="form-control" required>
+                <div class="invalid-feedback">Please specify a category.</div>
             </div>
             <button type="submit" class="btn btn-primary">Submit</button>
             <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>

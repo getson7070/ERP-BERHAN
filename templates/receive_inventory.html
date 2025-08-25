@@ -16,10 +16,12 @@
                         <option value="{{ item['id'] }}">{{ item['item_code'] }}</option>
                     {% endfor %}
                 </select>
+                <div class="invalid-feedback">Please select an item.</div>
             </div>
             <div class="mb-3">
                 <label for="quantity" class="form-label">Quantity</label>
                 <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+                <div class="invalid-feedback">Enter a valid quantity.</div>
             </div>
             <button type="submit" class="btn btn-primary">Submit</button>
             <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
