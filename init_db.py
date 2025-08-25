@@ -35,6 +35,7 @@ def init_db():
         city TEXT,
         email TEXT UNIQUE,
         password_hash TEXT NOT NULL,
+        mfa_secret TEXT,
         permissions TEXT,
         approved_by_ceo BOOLEAN DEFAULT FALSE,
         last_login DATETIME,
@@ -159,6 +160,8 @@ def init_db():
         status TEXT DEFAULT 'Open',
         workflow_state TEXT NOT NULL DEFAULT 'advert_registered',
         result TEXT,
+        awarded_to TEXT,
+        award_date DATE,
         user TEXT NOT NULL,
         institution TEXT,
         envelope_type TEXT NOT NULL,
@@ -179,6 +182,10 @@ def init_db():
         )
     if 'result' not in existing:
         cursor.execute("ALTER TABLE tenders ADD COLUMN result TEXT")
+    if 'awarded_to' not in existing:
+        cursor.execute("ALTER TABLE tenders ADD COLUMN awarded_to TEXT")
+    if 'award_date' not in existing:
+        cursor.execute("ALTER TABLE tenders ADD COLUMN award_date DATE")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS orders (
@@ -216,11 +223,12 @@ def init_db():
     if admin_password:
         password_hash = hash_password(admin_password)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (
                 'employee',
                 admin_username,
                 password_hash,
+                'JBSWY3DPEHPK3PXP',
                 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report',
                 True,
                 'Admin',
@@ -233,11 +241,12 @@ def init_db():
     for phone in admin_phones:
         password_hash = hash_password(phone)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (
                 'employee',
                 phone,
                 password_hash,
+                'JBSWY3DPEHPK3PXP',
                 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report',
                 True,
                 'Admin',
@@ -247,11 +256,12 @@ def init_db():
     for phone in employee_phones:
         password_hash = hash_password(phone)
         cursor.execute(
-            'INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (
                 'employee',
                 phone,
                 password_hash,
+                'JBSWY3DPEHPK3PXP',
                 'add_report,put_order,view_orders',
                 True,
                 'Sales Rep',

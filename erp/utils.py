@@ -4,6 +4,32 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
 
+
+def has_permission(permission: str) -> bool:
+    """Return True if current session has a permission.
+
+    Management role automatically receives all permissions.
+    """
+    role = session.get("role")
+    if role == "Management":
+        return True
+    return permission in session.get("permissions", [])
+
+
+def roles_required(*roles):
+    """Decorator to restrict access to users with specific roles."""
+
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if session.get("role") not in roles:
+                return redirect(url_for("main.dashboard"))
+            return f(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
 ph = PasswordHasher()
 
 

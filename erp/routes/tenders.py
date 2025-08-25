@@ -5,7 +5,7 @@ from wtforms.validators import DataRequired
 from datetime import datetime
 
 from db import get_db
-from erp.utils import login_required
+from erp.utils import login_required, has_permission
 
 bp = Blueprint('tenders', __name__)
 
@@ -18,15 +18,15 @@ WORKFLOW_STATES = [
     'documentation_prepared',
     'document_submitted',
     'opening_minute',
-    'awaiting_result',
-    'completed',
+    'evaluated',
+    'awarded',
 ]
 
 
 @bp.route('/add_tender', methods=['GET', 'POST'])
 @login_required
 def add_tender():
-    if 'add_tender' not in session.get('permissions', []):
+    if not has_permission('add_tender'):
         return redirect(url_for('main.dashboard'))
     class TenderForm(FlaskForm):
         tender_type_id = SelectField('Tender Type', coerce=int, validators=[DataRequired()])
@@ -50,7 +50,7 @@ def add_tender():
         private_key = form.private_key.data if envelope_type == 'One Envelope' else None
         tech_key = form.tech_key.data if envelope_type == 'Two Envelope' else None
         fin_key = form.fin_key.data if envelope_type == 'Two Envelope' else None
-        user = session['username'] if session['role'] == 'employee' else session['tin']
+        user = session.get('username') if session.get('role') != 'Client' else session['tin']
         conn.execute(
             '''INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, user, institution, envelope_type, private_key, tech_key, fin_key)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -77,10 +77,10 @@ def add_tender():
 @bp.route('/tenders_list')
 @login_required
 def tenders_list():
-    if 'tenders_list' not in session.get('permissions', []):
+    if not has_permission('tenders_list'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
-    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
+    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
     conn.close()
     return render_template('tenders_list.html', tenders=tenders, states=WORKFLOW_STATES)
 
@@ -88,10 +88,10 @@ def tenders_list():
 @bp.route('/tenders_report')
 @login_required
 def tenders_report():
-    if 'tenders_report' not in session.get('permissions', []):
+    if not has_permission('tenders_report'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
-    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
+    tenders = conn.execute('SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.user, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC').fetchall()
     conn.close()
     return render_template('tenders_report.html', tenders=tenders, states=WORKFLOW_STATES)
 
@@ -99,7 +99,7 @@ def tenders_report():
 @bp.route('/tenders/<int:tender_id>/advance', methods=['POST'])
 @login_required
 def advance_tender(tender_id):
-    if 'tenders_list' not in session.get('permissions', []):
+    if not has_permission('tenders_list'):
         return redirect(url_for('main.dashboard'))
 
     conn = get_db()
@@ -112,32 +112,33 @@ def advance_tender(tender_id):
     current = tender['workflow_state']
     idx = WORKFLOW_STATES.index(current)
 
-    if idx < len(WORKFLOW_STATES) - 2:
+    if current not in ['opening_minute', 'evaluated', 'awarded'] and idx < len(WORKFLOW_STATES) - 1:
         next_state = WORKFLOW_STATES[idx + 1]
         conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', (next_state, tender_id))
-        flash(
-            f"Tender advanced to {next_state.replace('_', ' ').title()}.",
-            'info',
-        )
-    elif current == 'awaiting_result':
+        flash(f"Tender advanced to {next_state.replace('_', ' ').title()}.", 'info')
+    elif current == 'opening_minute':
+        if request.form.get('evaluation_complete'):
+            conn.execute('UPDATE tenders SET workflow_state = ? WHERE id = ?', ('evaluated', tender_id))
+            flash('Tender marked as Evaluated.', 'info')
+        else:
+            flash('Evaluation not complete.', 'danger')
+    elif current == 'evaluated':
         result = request.form.get('result')
-        if result not in ['won', 'defeat', 'rejected', 'cancelled']:
-            flash('Invalid result.', 'danger')
-            conn.close()
-            return redirect(url_for('tenders.tenders_list'))
-        conn.execute(
-            'UPDATE tenders SET workflow_state = "completed", result = ? WHERE id = ?',
-            (result, tender_id),
-        )
-        category = {
-            'won': 'success',
-            'defeat': 'warning',
-            'rejected': 'danger',
-            'cancelled': 'danger',
-        }[result]
-        flash(f'Tender {result}.', category)
+        awarded_to = request.form.get('awarded_to')
+        award_date = request.form.get('award_date')
+        if result == 'won' and awarded_to and award_date:
+            conn.execute(
+                'UPDATE tenders SET workflow_state = ?, result = ?, awarded_to = ?, award_date = ? WHERE id = ?',
+                ('awarded', result, awarded_to, award_date, tender_id),
+            )
+            flash('Tender awarded.', 'success')
+        elif result and result in ['defeat', 'rejected', 'cancelled']:
+            conn.execute('UPDATE tenders SET result = ? WHERE id = ?', (result, tender_id))
+            flash('Tender result recorded.', 'warning')
+        else:
+            flash('Result and award details required.', 'danger')
     else:
-        flash('Tender already completed.', 'info')
+        flash('Tender already awarded.', 'info')
 
     conn.commit()
     conn.close()
