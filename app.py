@@ -92,19 +92,31 @@ def employee_login():
         password = form.password.data
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'employee')).fetchone()
-        conn.close()
-        if user and verify_password(password, user['password_hash']):
+        if user and not user['account_locked'] and verify_password(password, user['password_hash']):
             session['logged_in'] = True
             session['role'] = 'employee'
             session['username'] = email
             session['permissions'] = user['permissions'].split(',') if user['permissions'] else []
-            conn = get_db()
-            conn.execute('UPDATE users SET last_login = ? WHERE email = ?', (datetime.now(), email))
+            conn.execute('UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?', (datetime.now(), email))
             conn.commit()
             conn.close()
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid email/password or not approved.')
+            if user:
+                if user['account_locked']:
+                    flash('Account locked due to too many failed attempts.')
+                else:
+                    conn.execute('UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?', (email,))
+                    attempts = user['failed_attempts'] + 1
+                    if attempts >= 5:
+                        conn.execute('UPDATE users SET account_locked = TRUE WHERE email = ?', (email,))
+                        flash('Account locked due to too many failed attempts.')
+                    else:
+                        flash('Invalid email/password or not approved.')
+                    conn.commit()
+            else:
+                flash('Invalid email/password or not approved.')
+            conn.close()
     return render_template('employee_login.html', form=form)
 
 @app.route('/client_login', methods=['GET', 'POST'])
@@ -119,20 +131,32 @@ def client_login():
         password = form.password.data
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'client')).fetchone()
-        conn.close()
-        if user and verify_password(password, user['password_hash']):
+        if user and not user['account_locked'] and verify_password(password, user['password_hash']):
             session['logged_in'] = True
             session['role'] = 'client'
             session['tin'] = user['tin']
             session['username'] = email
             session['permissions'] = user['permissions'].split(',') if user['permissions'] else []
-            conn = get_db()
-            conn.execute('UPDATE users SET last_login = ? WHERE email = ?', (datetime.now(), email))
+            conn.execute('UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?', (datetime.now(), email))
             conn.commit()
             conn.close()
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid email/password or not approved.')
+            if user:
+                if user['account_locked']:
+                    flash('Account locked due to too many failed attempts.')
+                else:
+                    conn.execute('UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?', (email,))
+                    attempts = user['failed_attempts'] + 1
+                    if attempts >= 5:
+                        conn.execute('UPDATE users SET account_locked = TRUE WHERE email = ?', (email,))
+                        flash('Account locked due to too many failed attempts.')
+                    else:
+                        flash('Invalid email/password or not approved.')
+                    conn.commit()
+            else:
+                flash('Invalid email/password or not approved.')
+            conn.close()
     return render_template('client_login.html', form=form)
 
 @app.route('/client_registration', methods=['GET', 'POST'])
