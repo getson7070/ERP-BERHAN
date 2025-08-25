@@ -1,0 +1,10 @@
+[
+  {
+    "csv": "Address.csv",
+    "table": "regions_cities",
+    "fields": {
+      "state": "region",
+      "city": "city"
+    }
+  }
+]
