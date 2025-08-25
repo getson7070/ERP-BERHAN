@@ -75,3 +75,9 @@ When modifying templates or front-end behavior, confirm the following:
 7. Add a storage layer (e.g., `storages/s3.py`) using boto3.
    - Update forms and routes handling uploads to persist files in S3 and store URLs in DB.
    - Configure credentials via environment variables and document in README.md.
+
+## Additional Recommendations
+1. UI/UX Review: After implementing changes, run usability tests and lint CSS/JS to ensure responsive design meets industry standards.
+2. Compatibility Checks: Update unit and integration tests for all affected modules (auth, db, templates, service worker, etc.).
+3. Security Considerations: Perform static analysis and penetration testing around token handling, RLS bypasses, and offline storage.
+4. Database Standards: Add migrations and enforce PostgreSQL best practices (constraints, indexes, retention policies); regularly back up and test restores.
