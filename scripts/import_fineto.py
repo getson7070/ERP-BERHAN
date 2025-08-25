@@ -1,9 +1,6 @@
 import csv
 import json
 from pathlib import Path
-import csv
-import json
-from pathlib import Path
 from db import get_db
 
 BASE_DIR = Path(__file__).resolve().parent
