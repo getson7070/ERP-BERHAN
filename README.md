@@ -27,11 +27,16 @@ and result backend via the following environment variables:
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
 
-### Automation & Analytics
+## Automation & Analytics
 
-- Scheduled tasks send pending order reminders and generate monthly compliance reports.
-- Management users can build custom CSV reports via `/analytics/report-builder`.
-- A lightweight forecasting engine estimates next month's sales on `/analytics/forecast`.
+Celery powers several background workflows:
+
+- Scheduled tasks send pending order reminders and generate monthly compliance
+  reports.
+- KPI materialized views refresh every 30 minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard.
+- Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
+  reports and schedule compliance exports.
 
 ## Database Migrations
 

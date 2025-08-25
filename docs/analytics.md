@@ -1,19 +1,24 @@
-# Automation & Analytics
+# Analytics & Automation
 
-The analytics blueprint exposes reporting and forecasting utilities backed by Celery.
+## Celery Workflows
+- `generate_report`: builds daily CSV summaries of orders and maintenance.
+- `expire_tenders`: closes overdue tenders every night.
+- `refresh_kpis`: refreshes the `kpi_sales` materialized view every 30 minutes.
+- `send_approval_reminders`: logs and notifies managers of pending order approvals each morning.
+- `forecast_sales`: predicts next month's sales from recent KPIs.
+- `generate_compliance_report`: exports a list of unapproved orders for auditing.
+- `build_custom_report`: creates ad-hoc CSV exports for orders or maintenance.
 
-## Celery Tasks
-- `send_order_reminders` – logs reminders for all pending orders every morning.
-- `build_report` – generates CSV summaries of field reports for a given date range.
-- `forecast_sales` – predicts next month's sales using simple trend analysis.
-- `generate_compliance_report` – aggregates orders per customer for regulatory audits.
-
-## Web Interfaces
-- `/analytics/report-builder` – management users create custom CSV exports.
-- `/analytics/forecast` – displays the upcoming month's projected sales.
-
-Ensure `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` are configured and a worker is running:
+## Report Builder
+Navigate to `/analytics/report-builder` to generate ad-hoc reports or schedule compliance exports. Ensure `CELERY_BROKER_URL`
+and `CELERY_RESULT_BACKEND` are configured and a worker is running:
 
 ```bash
 celery -A erp.routes.analytics.celery worker --beat
 ```
+
+## Forecasting
+The dashboard displays a projected next-month sales figure computed as the average of the last three months of `kpi_sales` data.
+
+## Compliance Reports
+Selecting **Compliance** in the report builder schedules a generator that scans for orders without approvals and writes a CSV report for audit review.
