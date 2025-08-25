@@ -13,6 +13,8 @@
                 <th>Due Date</th>
                 <th>State</th>
                 <th>Result</th>
+                <th>Awarded To</th>
+                <th>Award Date</th>
                 <th>User</th>
                 <th>Institution</th>
                 <th>Envelope</th>
@@ -27,6 +29,8 @@
                 <td>{{ tender['due_date'] }}</td>
                 <td>{{ tender['workflow_state'].replace('_', ' ') }}</td>
                 <td>{{ tender['result'] if tender['result'] else '—' }}</td>
+                <td>{{ tender['awarded_to'] or '—' }}</td>
+                <td>{{ tender['award_date'] or '—' }}</td>
                 <td>{{ tender['user'] }}</td>
                 <td>{{ tender['institution'] or 'N/A' }}</td>
                 <td>{{ tender['envelope_type'] }}</td>

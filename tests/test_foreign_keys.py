@@ -19,6 +19,8 @@ def test_foreign_keys_enforced(app):
         conn = get_db()
         fk = conn.execute('PRAGMA foreign_keys').fetchone()[0]
         assert fk == 1
+        conn.execute('DROP TABLE IF EXISTS child')
+        conn.execute('DROP TABLE IF EXISTS parent')
         conn.execute('CREATE TABLE parent(id INTEGER PRIMARY KEY)')
         conn.execute('CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER, FOREIGN KEY(parent_id) REFERENCES parent(id))')
         with pytest.raises(sqlite3.IntegrityError):
