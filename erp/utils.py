@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import session, redirect, url_for
 from argon2 import PasswordHasher
+import os
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
 from db import get_db
@@ -70,7 +71,11 @@ def roles_required(*roles):
 
     return decorator
 
-ph = PasswordHasher()
+ph = PasswordHasher(
+    time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
+    memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
+    parallelism=int(os.environ.get("ARGON2_PARALLELISM", "2")),
+)
 
 
 def hash_password(password: str) -> str:

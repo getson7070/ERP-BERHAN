@@ -9,6 +9,10 @@ The application pulls configuration from environment variables. Key settings inc
 - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
 - `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
 - `TOTP_ISSUER` – issuer name shown in authenticator apps for MFA codes.
+- `JWT_SECRET` – HMAC secret for signing access and refresh tokens.
+- `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
+- `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
+- `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
@@ -56,6 +60,14 @@ If connectivity issues persist, see
 Session cookies are configured with `Secure`, `HttpOnly` and `SameSite=Lax`.
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman) enforces HTTPS
 and sets modern security headers; ensure the app is served over TLS.
+
+SSO/OAuth2 login is available via the configured provider. Successful and failed
+authentication attempts are recorded in an `audit_logs` table protected by
+row-level security.
+
+For encryption at rest, deploy PostgreSQL with disk-level encryption or
+transparent data encryption and rotate `JWT_SECRET` and other credentials using a
+secrets manager.
 
 ## Backups
 

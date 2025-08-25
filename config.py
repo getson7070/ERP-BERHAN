@@ -18,3 +18,13 @@ class Config:
     SESSION_LIFETIME_MINUTES = int(os.environ.get('SESSION_LIFETIME_MINUTES', '30'))
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=SESSION_LIFETIME_MINUTES)
     WTF_CSRF_TIME_LIMIT = None
+
+    ARGON2_TIME_COST = int(os.environ.get('ARGON2_TIME_COST', '3'))
+    ARGON2_MEMORY_COST = int(os.environ.get('ARGON2_MEMORY_COST', '65536'))
+    ARGON2_PARALLELISM = int(os.environ.get('ARGON2_PARALLELISM', '2'))
+
+    OAUTH_CLIENT_ID = os.environ.get('OAUTH_CLIENT_ID')
+    OAUTH_CLIENT_SECRET = os.environ.get('OAUTH_CLIENT_SECRET')
+    OAUTH_AUTH_URL = os.environ.get('OAUTH_AUTH_URL')
+    OAUTH_TOKEN_URL = os.environ.get('OAUTH_TOKEN_URL')
+    OAUTH_USERINFO_URL = os.environ.get('OAUTH_USERINFO_URL')

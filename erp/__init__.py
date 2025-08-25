@@ -3,6 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from flask_talisman import Talisman
 from flask_socketio import SocketIO
+from authlib.integrations.flask_client import OAuth
 import logging.config
 import os
 import time
@@ -16,6 +17,7 @@ from db import get_db
 load_dotenv()
 
 socketio = SocketIO()
+oauth = OAuth()
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
 REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
@@ -35,6 +37,16 @@ def create_app():
     sentry_sdk.init(dsn=os.environ.get('SENTRY_DSN'), integrations=[FlaskIntegration()], traces_sample_rate=1.0)
 
     socketio.init_app(app, message_queue=app.config['REDIS_URL'])
+    oauth.init_app(app)
+    if app.config.get('OAUTH_CLIENT_ID'):
+        oauth.register(
+            'sso',
+            client_id=app.config['OAUTH_CLIENT_ID'],
+            client_secret=app.config.get('OAUTH_CLIENT_SECRET'),
+            access_token_url=app.config.get('OAUTH_TOKEN_URL'),
+            authorize_url=app.config.get('OAUTH_AUTH_URL'),
+            client_kwargs={'scope': 'openid email profile'},
+        )
 
     Talisman(app, content_security_policy=None, force_https=True)
 
