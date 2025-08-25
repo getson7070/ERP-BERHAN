@@ -13,3 +13,18 @@ and result backend via the following environment variables:
 
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
+
+## Database Migrations
+
+Schema changes are managed with Alembic. Apply migrations with:
+
+```
+alembic upgrade head
+```
+
+Run this command after pulling updates to keep your database schema in sync.
+
+## Security
+
+Session cookies are configured with `Secure`, `HttpOnly` and `SameSite=Lax`.
+Deploy behind HTTPS to ensure cookies are protected in transit.
