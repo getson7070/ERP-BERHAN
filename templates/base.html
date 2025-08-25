@@ -8,6 +8,17 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">BERHAN ERP</a>
+            <div class="navbar-nav">
+                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                <a class="nav-link {% if request.blueprint == 'tenders' %}active{% endif %}" href="{{ url_for('tenders.tenders_list') }}">Tenders</a>
+                <a class="nav-link {% if request.blueprint == 'orders' %}active{% endif %}" href="{{ url_for('orders.orders') }}">Orders</a>
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+            </div>
+        </div>
+    </nav>
     {% block body %}{% endblock %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
