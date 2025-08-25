@@ -44,12 +44,12 @@
                 <td>{{ tender['envelope_type'] }}</td>
                 <td>
                     {% if tender['workflow_state'] == 'opening_minute' %}
-                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}">
+                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="needs-validation" novalidate>
                         <input type="hidden" name="evaluation_complete" value="1">
                         <button type="submit" class="btn btn-sm btn-primary">Mark Evaluated</button>
                     </form>
                     {% elif tender['workflow_state'] == 'evaluated' %}
-                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="row g-1">
+                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="row g-1 needs-validation" novalidate>
                         <div class="col-auto">
                             <select name="result" class="form-select form-select-sm">
                                 <option value="won">Won</option>

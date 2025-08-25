@@ -27,6 +27,7 @@
 4. UI/UX Modernization
    - Apply industry-standard layouts and client-side validation.
    - Refactor templates to responsive Bootstrap.
+   - Ensure all templates extend `base.html` or `base_auth.html` and forms use `needs-validation` with `novalidate`.
 5. Monitoring & Reliability
    - Introduce observability, crash handling, and self-healing.
    - Add structured logging and health checks.

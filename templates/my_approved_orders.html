@@ -1,17 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Approved Orders</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        table { margin: auto; border-collapse: collapse; }
-        th, td { border: 1px solid black; padding: 5px; }
-    </style>
-</head>
-<body>
-    <h2>My Approved Orders</h2>
+{% extends "base.html" %}
+{% block title %}My Approved Orders{% endblock %}
+{% block body %}
+<div class="container py-5">
+<h2>My Approved Orders</h2>
     {% if orders %}
         <table>
             <tr>
@@ -34,5 +25,5 @@
     {% else %}
         <p>No approved orders found.</p>
     {% endif %}
-</body>
-</html>
+</div>
+{% endblock %}

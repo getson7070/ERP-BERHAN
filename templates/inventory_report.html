@@ -1,3 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Inventory Report{% endblock %}
+{% block body %}
+<div class="container py-5">
 <!doctype html>
 <html lang="en">
 <head>
@@ -164,3 +168,5 @@ body class="container">
     <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </body>
 </html>
+</div>
+{% endblock %}
