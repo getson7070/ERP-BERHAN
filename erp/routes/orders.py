@@ -22,19 +22,22 @@ def put_order():
         vat_exempt = BooleanField('VAT Exempt')
         submit = SubmitField('Submit Order')
     conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT id, item_code FROM inventory')
     form = OrderForm()
-    form.item_id.choices = [(item['id'], item['item_code']) for item in conn.execute('SELECT id, item_code FROM inventory').fetchall()]
+    form.item_id.choices = [(row[0], row[1]) for row in cur.fetchall()]
     if form.validate_on_submit():
         item_id = form.item_id.data
         quantity = form.quantity.data
         customer = form.customer.data
         vat_exempt = form.vat_exempt.data
         user = session.get('username') if session.get('role') != 'Client' else session['tin']
-        conn.execute(
-            'INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt, status) VALUES (?, ?, ?, ?, ?, "pending")',
+        cur.execute(
+            'INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt, status) VALUES (%s, %s, %s, %s, %s, "pending")',
             (item_id, quantity, customer, user, vat_exempt)
         )
         conn.commit()
+        cur.close()
         conn.close()
         return redirect(url_for('main.dashboard'))
     conn.close()
@@ -47,8 +50,13 @@ def orders():
     if not has_permission('view_orders'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
-    pending_orders = conn.execute('SELECT * FROM orders WHERE status = "pending" ORDER BY id DESC LIMIT 5').fetchall()
-    approved_orders = conn.execute('SELECT * FROM orders WHERE status = "approved" ORDER BY id DESC LIMIT 5').fetchall()
-    rejected_orders = conn.execute('SELECT * FROM orders WHERE status = "rejected" ORDER BY id DESC LIMIT 5').fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM orders WHERE status = "pending" ORDER BY id DESC LIMIT 5')
+    pending_orders = cur.fetchall()
+    cur.execute('SELECT * FROM orders WHERE status = "approved" ORDER BY id DESC LIMIT 5')
+    approved_orders = cur.fetchall()
+    cur.execute('SELECT * FROM orders WHERE status = "rejected" ORDER BY id DESC LIMIT 5')
+    rejected_orders = cur.fetchall()
+    cur.close()
     conn.close()
     return render_template('orders.html', pending_orders=pending_orders, approved_orders=approved_orders, rejected_orders=rejected_orders)

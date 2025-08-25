@@ -16,9 +16,9 @@ celery = Celery(__name__)
 def fetch_kpis():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT COUNT(*) FROM orders WHERE status = ?', ('pending',))
+    cur.execute('SELECT COUNT(*) FROM orders WHERE status = %s', ('pending',))
     pending_orders = cur.fetchone()[0]
-    cur.execute('SELECT COUNT(*) FROM maintenance WHERE status = ?', ('pending',))
+    cur.execute('SELECT COUNT(*) FROM maintenance WHERE status = %s', ('pending',))
     pending_maintenance = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
     expired_tenders = cur.fetchone()[0]
