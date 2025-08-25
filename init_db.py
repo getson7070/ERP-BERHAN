@@ -1,7 +1,9 @@
-import sqlite3
 import subprocess
 from datetime import datetime
 from argon2 import PasswordHasher
+from db import connect_db
+from config import Config
+import os
 
 
 ph = PasswordHasher()
@@ -17,8 +19,7 @@ def init_db():
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("Alembic migration skipped or failed; ensure alembic is installed and configured.")
 
-    conn = sqlite3.connect('erp.db')
-    conn.execute('PRAGMA foreign_keys = ON')
+    conn = connect_db()
     cursor = conn.cursor()
 
     # Create users table
@@ -198,10 +199,14 @@ def init_db():
     cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('Paper Tender',))
     cursor.execute('INSERT OR IGNORE INTO tender_types (type_name) VALUES (?)', ('NGO/UN Portal Tender',))
 
-    cursor.execute('DELETE FROM users WHERE username = "admin"')
-    password_hash = hash_password('admin123')
-    cursor.execute('INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                   ('employee', 'admin', password_hash, 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report', True, 'Admin', datetime.now()))
+    admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    password_hash = hash_password(admin_pass)
+    permissions = 'add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report'
+    cursor.execute('INSERT OR IGNORE INTO users (user_type, username, password_hash, permissions, approved_by_ceo, role, last_password_change) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                   ('employee', admin_user, password_hash, permissions, True, 'Admin', datetime.now()))
+    cursor.execute('UPDATE users SET password_hash = ?, permissions = ?, approved_by_ceo = ?, role = ?, last_password_change = ? WHERE username = ?',
+                   (password_hash, permissions, True, 'Admin', datetime.now(), admin_user))
 
     admin_phones = ['0946423021', '0984707070', '0969111144']
     employee_phones = ['0969351111', '0969361111', '0969371111', '0969381111', '0969161111', '0923804931', '0911183488']

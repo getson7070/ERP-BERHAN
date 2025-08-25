@@ -14,6 +14,12 @@ and result backend via the following environment variables:
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
 
+Additional configuration values:
+
+- `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
+- `DATABASE_URL` – path to the SQLite database file (default `erp.db`).
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` – credentials used for initial admin seeding in `init_db.py`.
+
 ## Database Migrations
 
 Schema changes are managed with Alembic. Apply migrations with:
@@ -23,6 +29,10 @@ alembic upgrade head
 ```
 
 Run this command after pulling updates to keep your database schema in sync.
+
+## Data Import from Odoo/Frappe
+
+Use the helper script `scripts/import_fineto.py` to import data from the CSV templates in the `fineto/` folder. Field mappings are configured in `scripts/fineto_mapping.json` and can be extended as needed.
 
 ## Security
 

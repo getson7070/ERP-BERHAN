@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from blueprints import register_blueprints
 from flask_wtf import FlaskForm
+from flask_wtf.csrf import CSRFProtect
 from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, IntegerField, FloatField, DateField, BooleanField, SelectMultipleField, FileField
 from wtforms.validators import DataRequired, Length, NumberRange
 from functools import wraps
@@ -12,7 +14,8 @@ from datetime import datetime
 import csv
 from io import TextIOWrapper
 import os
-import secrets
+from config import Config
+from db import connect_db
 
 ph = PasswordHasher()
 
@@ -30,13 +33,9 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(16))
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
-)
+app = Flask(__name__, static_folder="static")
+app.config.from_object(Config)
+csrf = CSRFProtect(app)
 register_blueprints(app)
 
 def adapt_datetime(dt):
@@ -52,10 +51,7 @@ def login_required(f):
     return wrap
 
 def get_db():
-    conn = sqlite3.connect('erp.db')
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA foreign_keys = ON')
-    return conn
+    return connect_db()
 
 @app.before_request
 def log_access():

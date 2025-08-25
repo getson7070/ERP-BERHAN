@@ -13,6 +13,7 @@
             <div class="alert alert-danger">{{ error }}</div>
         {% endif %}
         <form method="POST" action="">
+            {{ form.hidden_tag() }}
             <div class="mb-3">
                 <label for="maintenance_id" class="form-label">Maintenance ID</label>
                 <select name="maintenance_id" id="maintenance_id" class="form-select" required>
