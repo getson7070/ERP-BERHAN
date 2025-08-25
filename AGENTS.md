@@ -50,3 +50,5 @@
    - Chat/collaboration inside the ERP
    - Offline mode (mobile) with auto-sync
    - AI-powered recommendations
+
+Developers must ensure affirmative answers before merging UI or feature changes.
