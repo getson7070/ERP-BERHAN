@@ -36,20 +36,8 @@
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
 
-## UI/UX Compliance Checklist
-
-- Are all template files updated with industry-standard layouts,
-  client-side validation, and responsive Bootstrap?
-- Do templates provide a clean, modular dashboard with smart navigation,
-  ensuring consistency and familiarity across pages?
-- Is the interface fully responsive with mobile-friendly actions?
-- Are the following applied throughout the system?
-  - Task & workflow automation
-  - Data entry optimization
-  - Visualization & reports
-  - Role-based access control
-  - Error handling & guidance
-  - Calendar integration
-  - Chat/collaboration inside the ERP
-  - Offline mode (mobile) with auto-sync
-  - AI-powered recommendations
+## UI/UX & Feature Checklist
+- Verify every template uses a responsive Bootstrap layout with client-side validation.
+- Maintain a clean, modular dashboard with intuitive navigation and consistent styling.
+- Ensure mobile-friendly interactions across all pages.
+- Assess implementation of advanced features: workflow automation, data entry optimization, visualization & reports, role-based access control, error handling guidance, calendar integration, in-app chat/collaboration, offline auto-sync, and AI-driven recommendations.
