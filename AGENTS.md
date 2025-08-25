@@ -11,6 +11,22 @@
 - After running required checks, push updates to the `main` branch:
 
   `git push origin HEAD:main`
+
+## UI/UX & Feature Checklist
+When modifying templates or front-end behavior, confirm the following:
+- All templates use industry-standard Bootstrap layouts with client-side validation and responsive design.
+- Dashboards remain clean and modular with smart navigation to ensure consistency and familiarity.
+- Interfaces support responsive design and mobile-friendly actions.
+- The broader system roadmap accounts for:
+  - Task & workflow automation
+  - Data entry optimization
+  - Visualization & reports
+  - Role-based access control
+  - Error handling & guidance
+  - Calendar integration
+  - Chat/collaboration within the ERP
+  - Offline mode with automatic sync
+  - AI-powered recommendations
 ## Project Phases
 1. Foundation & Security
    - Strengthen core authentication, authorization, and data protection.
@@ -29,26 +45,9 @@
    - Refactor templates to responsive Bootstrap.
    - Ensure all templates extend `base.html` or `base_auth.html` and forms use `needs-validation` with `novalidate`.
 5. Monitoring & Reliability
-    - Introduce observability, crash handling, and self-healing.
-    - Add structured logging and health checks.
-    - Automate backups and restart policies.
+   - Introduce observability, crash handling, and self-healing.
+   - Add structured logging and health checks.
+   - Automate backups and restart policies.
 6. Feature Expansion
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
-## UI/UX Audit Checklist
-
-1. Are all the template files updated with industry-standard layouts, client-side validation, and responsive Bootstrap?
-2. Are templates clean, modular dashboards with smart navigation, consistency, and familiarity?
-3. Does the interface maintain responsive design and mobile-friendly actions?
-4. Are the following features implemented or planned?
-   - Task & workflow automation
-   - Data entry optimization
-   - Visualization & reports
-   - Role-based access control
-   - Error handling & guidance
-   - Calendar integration
-   - Chat/collaboration inside the ERP
-   - Offline mode (mobile) with auto-sync
-   - AI-powered recommendations
-
-Developers must ensure affirmative answers before merging UI or feature changes.
