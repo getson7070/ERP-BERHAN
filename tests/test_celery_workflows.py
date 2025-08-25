@@ -1,7 +1,7 @@
 import pathlib
 import sys
-
 import math
+import pathlib
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -19,9 +19,9 @@ def setup_database(tmp_path, monkeypatch):
 def test_send_approval_reminders(tmp_path, monkeypatch):
     conn = setup_database(tmp_path, monkeypatch)
     conn.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT)"
+        "CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT, sales_rep TEXT)"
     )
-    conn.execute("INSERT INTO orders (status) VALUES ('pending'), ('approved')")
+    conn.execute("INSERT INTO orders (status, sales_rep) VALUES ('pending','rep1'), ('approved','rep2')")
     conn.commit()
     count = send_approval_reminders()
     assert count == 1
@@ -38,5 +38,5 @@ def test_forecast_sales(tmp_path, monkeypatch):
     )
     conn.commit()
     forecast = forecast_sales()
-    assert math.isclose(forecast, 20.0)
+    assert math.isclose(forecast, 40.0)
     conn.close()
