@@ -52,3 +52,32 @@ When modifying templates or front-end behavior, confirm the following:
 6. Feature Expansion
    - Extend ERP functionality for broader coverage.
    - Enhance HR and document generation.
+
+## Upcoming Requests
+1. Replace SQLite usage in `db.py` with SQLAlchemy pointing to PostgreSQL.
+   - Introduce Redis connections for caching and task queues; update Celery config accordingly.
+   - Provide Alembic migrations for the new schema and update `REQUIREMENTS.txt`.
+2. Create `organizations`, `roles`, `permissions`, and `role_assignments` tables in `init_db.py`.
+   - Add `org_id` columns to business tables (`orders`, `tenders`, `inventory`, etc.).
+   - Update `erp/utils.py` decorators to check role/permission mappings per organization.
+3. Introduce an `/auth/token` endpoint in `erp/routes/auth.py` issuing JWT access/refresh tokens.
+   - Configure PostgreSQL row-level security policies tied to `org_id` and user roles.
+   - Ensure admin logins require TOTP; rotate tokens via environment-managed secrets.
+4. Add a WebSocket server (e.g., Flask-SocketIO) for pushing live KPIs.
+   - Create SQL materialized views for key metrics and schedule periodic refresh.
+   - Update dashboard templates under `templates/analytics/` to subscribe to WebSocket updates.
+5. Introduce structured logging (e.g., `logging.config.dictConfig`) in `erp/__init__.py`.
+   - Instrument metrics with a library like `prometheus_client`; expose `/metrics`.
+   - Configure error monitoring and distributed tracing (e.g., Sentry, OpenTelemetry) for API and Celery tasks.
+6. Refactor templates under `templates/` to ensure mobile-responsive design with Bootstrap.
+   - Add service worker & IndexedDB logic in `static/js/` for offline data capture and sync endpoints.
+   - Document offline sync strategy and user flow in project docs.
+7. Add a storage layer (e.g., `storages/s3.py`) using boto3.
+   - Update forms and routes handling uploads to persist files in S3 and store URLs in DB.
+   - Configure credentials via environment variables and document in README.md.
+
+## Additional Recommendations
+1. UI/UX Review: After implementing changes, run usability tests and lint CSS/JS to ensure responsive design meets industry standards.
+2. Compatibility Checks: Update unit and integration tests for all affected modules (auth, db, templates, service worker, etc.).
+3. Security Considerations: Perform static analysis and penetration testing around token handling, RLS bypasses, and offline storage.
+4. Database Standards: Add migrations and enforce PostgreSQL best practices (constraints, indexes, retention policies); regularly back up and test restores.
