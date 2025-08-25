@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField,
@@ -11,9 +11,16 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, NumberRange
 from datetime import datetime
+import pyotp
 
 from db import get_db
-from erp.utils import hash_password, verify_password, login_required
+from erp.utils import (
+    hash_password,
+    verify_password,
+    login_required,
+    has_permission,
+    roles_required,
+)
 
 bp = Blueprint('auth', __name__)
 
@@ -38,6 +45,7 @@ def employee_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
         password = PasswordField('Password', validators=[DataRequired()])
+        totp = StringField('MFA Code', validators=[DataRequired(), Length(min=6, max=6)])
         submit = SubmitField('Login')
     form = LoginForm()
     if form.validate_on_submit():
@@ -46,14 +54,25 @@ def employee_login():
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'employee')).fetchone()
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
-            session['logged_in'] = True
-            session['role'] = 'employee'
-            session['username'] = email
-            session['permissions'] = user['permissions'].split(',') if user['permissions'] else []
-            conn.execute('UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?', (datetime.now(), email))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('main.dashboard'))
+            if not user['mfa_secret']:
+                flash('MFA not configured for this account.')
+            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(form.totp.data):
+                session.permanent = True
+                session['logged_in'] = True
+                session['role'] = user['role'] or 'Employee'
+                session['username'] = email
+                session['permissions'] = (
+                    user['permissions'].split(',') if user['permissions'] else []
+                )
+                conn.execute(
+                    'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
+                    (datetime.now(), email),
+                )
+                conn.commit()
+                conn.close()
+                return redirect(url_for('main.dashboard'))
+            else:
+                flash('Invalid MFA code.')
         else:
             if user:
                 if user['account_locked']:
@@ -78,6 +97,7 @@ def client_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
         password = PasswordField('Password', validators=[DataRequired()])
+        totp = StringField('MFA Code', validators=[DataRequired(), Length(min=6, max=6)])
         submit = SubmitField('Login')
     form = LoginForm()
     if form.validate_on_submit():
@@ -86,15 +106,26 @@ def client_login():
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'client')).fetchone()
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
-            session['logged_in'] = True
-            session['role'] = 'client'
-            session['tin'] = user['tin']
-            session['username'] = email
-            session['permissions'] = user['permissions'].split(',') if user['permissions'] else []
-            conn.execute('UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?', (datetime.now(), email))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('main.dashboard'))
+            if not user['mfa_secret']:
+                flash('MFA not configured for this account.')
+            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(form.totp.data):
+                session.permanent = True
+                session['logged_in'] = True
+                session['role'] = 'Client'
+                session['tin'] = user['tin']
+                session['username'] = email
+                session['permissions'] = (
+                    user['permissions'].split(',') if user['permissions'] else []
+                )
+                conn.execute(
+                    'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
+                    (datetime.now(), email),
+                )
+                conn.commit()
+                conn.close()
+                return redirect(url_for('main.dashboard'))
+            else:
+                flash('Invalid MFA code.')
         else:
             if user:
                 if user['account_locked']:
@@ -160,11 +191,29 @@ def client_registration():
             conn.close()
             return render_template('client_registration.html', form=form)
         password_hash = hash_password(password)
-        conn.execute('''
-            INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', ('client', tin, institution_name, address, phone, region, city, email, password_hash, 'put_order,my_orders,order_status,maintenance_request,maintenance_status,message', False))
+        mfa_secret = pyotp.random_base32()
+        conn.execute(
+            '''
+            INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, mfa_secret, permissions, approved_by_ceo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+            (
+                'client',
+                tin,
+                institution_name,
+                address,
+                phone,
+                region,
+                city,
+                email,
+                password_hash,
+                mfa_secret,
+                'put_order,my_orders,order_status,maintenance_request,maintenance_status,message',
+                False,
+            ),
+        )
         conn.commit()
+        flash(f'Set up your authenticator with this secret: {mfa_secret}', 'info')
         conn.close()
         return redirect(url_for('auth.choose_login'))
     conn.close()
@@ -173,8 +222,9 @@ def client_registration():
 
 @bp.route('/employee_registration', methods=['GET', 'POST'])
 @login_required
+@roles_required('Management')
 def employee_registration():
-    if 'user_management' not in session.get('permissions', []):
+    if not has_permission('user_management'):
         return redirect(url_for('main.dashboard'))
     class EmployeeRegistrationForm(FlaskForm):
         username = StringField('Username (Phone Number)', validators=[DataRequired(), Length(min=10, max=10)])
@@ -200,11 +250,27 @@ def employee_registration():
             conn.close()
             return render_template('employee_registration.html', form=form)
         password_hash = hash_password(password)
-        conn.execute('''
-            INSERT INTO users (user_type, username, email, password_hash, permissions, approved_by_ceo, hire_date, salary, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', ('employee', username, email, password_hash, permissions, False, hire_date, salary, role))
+        mfa_secret = pyotp.random_base32()
+        conn.execute(
+            '''
+            INSERT INTO users (user_type, username, email, password_hash, mfa_secret, permissions, approved_by_ceo, hire_date, salary, role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+            (
+                'employee',
+                username,
+                email,
+                password_hash,
+                mfa_secret,
+                permissions,
+                False,
+                hire_date,
+                salary,
+                role,
+            ),
+        )
         conn.commit()
+        flash(f'Set up your authenticator with this secret: {mfa_secret}', 'info')
         conn.close()
         return redirect(url_for('main.dashboard'))
     return render_template('employee_registration.html', form=form)

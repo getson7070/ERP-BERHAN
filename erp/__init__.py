@@ -1,14 +1,20 @@
 from flask import Flask, request, session
 from datetime import datetime
 import sqlite3
+from dotenv import load_dotenv
+from flask_talisman import Talisman
 
 from config import Config
 from db import get_db
+
+load_dotenv()
 
 
 def create_app():
     app = Flask(__name__, static_folder='static')
     app.config.from_object(Config)
+
+    Talisman(app, content_security_policy=None)
 
     sqlite3.register_adapter(datetime, lambda dt: dt.isoformat(" "))
 
@@ -25,7 +31,7 @@ def create_app():
             ip = request.remote_addr
             device = request.user_agent.string
             conn = get_db()
-            user = session['username'] if session['role'] == 'employee' else session.get('tin')
+            user = session.get('username') if session.get('role') != 'Client' else session.get('tin')
             conn.execute(
                 'INSERT INTO access_logs (user, ip, device, timestamp) VALUES (?, ?, ?, ?)',
                 (user, ip, device, datetime.now())

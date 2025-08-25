@@ -10,6 +10,6 @@ def test_workflow_states_sequence():
         'documentation_prepared',
         'document_submitted',
         'opening_minute',
-        'awaiting_result',
-        'completed',
+        'evaluated',
+        'awarded',
     ]

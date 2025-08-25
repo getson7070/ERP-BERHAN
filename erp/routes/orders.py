@@ -5,7 +5,7 @@ from wtforms.validators import DataRequired, NumberRange
 from datetime import datetime
 
 from db import get_db
-from erp.utils import login_required
+from erp.utils import login_required, has_permission
 
 bp = Blueprint('orders', __name__)
 
@@ -13,7 +13,7 @@ bp = Blueprint('orders', __name__)
 @bp.route('/put_order', methods=['GET', 'POST'])
 @login_required
 def put_order():
-    if 'put_order' not in session.get('permissions', []):
+    if not has_permission('put_order'):
         return redirect(url_for('main.dashboard'))
     class OrderForm(FlaskForm):
         item_id = SelectField('Item', coerce=int, validators=[DataRequired()])
@@ -29,7 +29,7 @@ def put_order():
         quantity = form.quantity.data
         customer = form.customer.data
         vat_exempt = form.vat_exempt.data
-        user = session['username'] if session['role'] == 'employee' else session['tin']
+        user = session.get('username') if session.get('role') != 'Client' else session['tin']
         conn.execute(
             'INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt, status) VALUES (?, ?, ?, ?, ?, "pending")',
             (item_id, quantity, customer, user, vat_exempt)
@@ -44,7 +44,7 @@ def put_order():
 @bp.route('/orders')
 @login_required
 def orders():
-    if 'view_orders' not in session.get('permissions', []):
+    if not has_permission('view_orders'):
         return redirect(url_for('main.dashboard'))
     conn = get_db()
     pending_orders = conn.execute('SELECT * FROM orders WHERE status = "pending" ORDER BY id DESC LIMIT 5').fetchall()

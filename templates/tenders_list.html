@@ -20,6 +20,8 @@
                 <th>Due Date</th>
                 <th>State</th>
                 <th>Result</th>
+                <th>Awarded To</th>
+                <th>Award Date</th>
                 <th>User</th>
                 <th>Institution</th>
                 <th>Envelope</th>
@@ -35,21 +37,30 @@
                 <td>{{ tender['due_date'] }}</td>
                 <td>{{ tender['workflow_state'].replace('_', ' ') }}</td>
                 <td>{{ tender['result'] if tender['result'] else '—' }}</td>
+                <td>{{ tender['awarded_to'] or '—' }}</td>
+                <td>{{ tender['award_date'] or '—' }}</td>
                 <td>{{ tender['user'] }}</td>
                 <td>{{ tender['institution'] or 'N/A' }}</td>
                 <td>{{ tender['envelope_type'] }}</td>
                 <td>
-                    {% if tender['workflow_state'] != 'completed' %}
-                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="d-flex">
-                        {% if tender['workflow_state'] == 'awaiting_result' %}
-                        <select name="result" class="form-select form-select-sm me-2">
-                            <option value="won">Won</option>
-                            <option value="defeat">Defeat</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                        {% endif %}
-                        <button type="submit" class="btn btn-sm btn-primary">Advance</button>
+                    {% if tender['workflow_state'] == 'opening_minute' %}
+                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}">
+                        <input type="hidden" name="evaluation_complete" value="1">
+                        <button type="submit" class="btn btn-sm btn-primary">Mark Evaluated</button>
+                    </form>
+                    {% elif tender['workflow_state'] == 'evaluated' %}
+                    <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="row g-1">
+                        <div class="col-auto">
+                            <select name="result" class="form-select form-select-sm">
+                                <option value="won">Won</option>
+                                <option value="defeat">Defeat</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col"><input type="text" name="awarded_to" class="form-control form-control-sm" placeholder="Awarded To"></div>
+                        <div class="col"><input type="date" name="award_date" class="form-control form-control-sm"></div>
+                        <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Record</button></div>
                     </form>
                     {% else %}
                     —
