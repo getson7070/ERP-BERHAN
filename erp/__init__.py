@@ -33,8 +33,7 @@ babel = Babel()
 limiter = None
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
-R
-EQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
+REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
 TOKEN_ERRORS = Counter('token_errors_total', 'Invalid or expired token events')
 QUEUE_LAG = Gauge('queue_lag', 'Celery queue backlog size', ['queue'])
 
@@ -66,7 +65,11 @@ def create_app():
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 
     def select_locale():
-        return session.get('lang') or request.accept_languages.best_match(app.config['BABEL_SUPPORTED_LOCALES']) or app.config['BABEL_DEFAULT_LOCALE']
+        return (
+            session.get('lang')
+            or request.accept_languages.best_match(app.config['BABEL_SUPPORTED_LOCALES'])
+            or app.config['BABEL_DEFAULT_LOCALE']
+        )
 
     babel.init_app(app, locale_selector=select_locale)
     app.jinja_env.globals['get_locale'] = get_locale
@@ -104,7 +107,9 @@ def create_app():
         manufacturing,
         projects,
         help,
-    
+        report_builder,
+        dashboard_customize,
+        hr_workflows,
     )
     
 
@@ -123,12 +128,13 @@ def create_app():
     app.register_blueprint(hr.bp)
     app.register_blueprint(procurement.bp)
     app.register_blueprint(manufacturing.bp)
-    ap
-    p.register_blueprint(projects.bp)
+    app.register_blueprint(projects.bp)
     app.register_blueprint(help.bp)
+    app.register_blueprint(report_builder.bp)
+    app.register_blueprint(dashboard_customize.bp)
+    app.register_blueprint(hr_workflows.bp)
 
-    l
-    oad_plugins(app)
+    load_plugins(app)
 
     @socketio.on('connect')
     def _ws_connect(auth):
@@ -150,8 +156,7 @@ def create_app():
     def start_timer():
         g.start_time = time.time()
         g.correlation_id = request.headers.get('X-Correlation-ID', str(uuid.uuid4()))
-        sentr
-        y_sdk.set_tag('correlation_id', g.correlation_id)
+        sentry_sdk.set_tag('correlation_id', g.correlation_id)
         # Skip access log writes during tests to avoid unintended database access
         if app.config.get('TESTING'):
             return
