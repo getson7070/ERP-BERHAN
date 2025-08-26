@@ -3,6 +3,8 @@ from flask_login import login_required
 
 # Blueprint for report builder and reporting endpoints
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+# Alias for app factory imports
+bp = reports_bp
 
 @reports_bp.route('/builder', methods=['GET', 'POST'])
 @login_required

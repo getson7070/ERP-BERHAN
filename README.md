@@ -1,6 +1,10 @@
 # ERP-BERHAN
 BERHAN PHARMA
 
+An initial audit of the repository rated the project **2/10** overall,
+highlighting that many features remain as plans. The detailed findings and
+improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
+
 ## Environment Variables
 
 The application pulls configuration from environment variables. Key settings include:
@@ -102,6 +106,12 @@ secrets manager.
 ## UI/UX
 
 All templates leverage Bootstrap 5 for responsive design and mobile parity. `Flask-Babel` powers multi-language support; set `BABEL_DEFAULT_LOCALE` and `BABEL_SUPPORTED_LOCALES` to expose additional translations. A global search bar in the navbar queries CRM, inventory, HR, and finance records. A dark-mode toggle with accessible contrast ratios is persisted in `localStorage`. A service worker (`static/js/sw.js`) ensures offline access and queues actions for sync when the connection restores. The `/dashboard` route delivers role-based views for employees, clients, and admins.
+
+## Blueprints & Templates
+
+Blueprint modules exposing a module-level `bp` are auto-registered from `erp/` and `plugins/`.
+See [docs/blueprints.md](docs/blueprints.md) for details. All HTML pages extend `templates/base.html` and share a navbar partial; see [docs/templates.md](docs/templates.md).
+
 
 ## Integration & Ecosystem
 
