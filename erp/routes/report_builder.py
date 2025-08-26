@@ -2,11 +2,9 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 
 # Blueprint for report builder and reporting endpoints
-reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
-# Alias for app factory imports
-bp = reports_bp
+bp = Blueprint('reports', __name__, url_prefix='/reports')
 
-@reports_bp.route('/builder', methods=['GET', 'POST'])
+@bp.route('/builder', methods=['GET', 'POST'])
 @login_required
 def builder():
     """Render a simple report builder UI and handle saving report configurations.
@@ -24,7 +22,7 @@ def builder():
     return render_template('report_builder.html')
 
 
-@reports_bp.route('/run', methods=['POST'])
+@bp.route('/run', methods=['POST'])
 @login_required
 def run_report():
     """Execute a report based on a saved configuration.

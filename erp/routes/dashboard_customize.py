@@ -3,11 +3,9 @@ from flask_login import login_required
 
 # Blueprint for dashboard customization
 # Allows users to access a page where they can customize their dashboard layout.
-dashboard_custom_bp = Blueprint('dashboard_custom', __name__, url_prefix='/dashboard')
-# Alias for app factory imports
-bp = dashboard_custom_bp
+bp = Blueprint('dashboard_custom', __name__, url_prefix='/dashboard')
 
-@dashboard_custom_bp.route('/customize', methods=['GET'])
+@bp.route('/customize', methods=['GET'])
 @login_required
 def customize():
     """Render the dashboard customization interface.
