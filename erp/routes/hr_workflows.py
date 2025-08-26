@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required
 
-bp = Blueprint('hr_workflows', __name__, url_prefix='/hr')
+hr_workflows_bp = Blueprint('hr_workflows', __name__, url_prefix='/hr')
+# Alias for app factory imports
+bp = hr_workflows_bp
 
 @bp.route('/recruitment')
 @login_required

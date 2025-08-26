@@ -13,6 +13,9 @@
 - Update all affected files and tests to keep modules compatible.
 - Guard against security vulnerabilities; enforce HTTPS, OAuth/SSO, RLS, audit logging, and encryption.
 - Keep the database at high standards using migrations, constraints, indexes, backups, and tested restores.
+- Blueprints exposing a module-level `bp` under `erp/` and `plugins/` are auto-registered; see `docs/blueprints.md`.
+- Templates must extend `base.html` and include `_navbar.html`; see `docs/templates.md`.
+- Consult `docs/audit_summary.md` for current development gaps and planned improvements.
 ### Current Key Action Items
 - Add missing ERP modules under `erp/routes` with `org_id` schemas and role-based navigation.
 - Expand `docs/` with migration guides, training tutorials, and onboarding checklists.
