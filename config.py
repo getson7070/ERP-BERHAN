@@ -53,3 +53,23 @@ class Config:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     AWS_REGION = os.environ.get('AWS_REGION')
+    # --- Additional security, plugin, and support configuration ---
+    # Enable encryption at rest (True/False). When True, the system should integrate with
+    # database/disk encryption mechanisms provided by the deployment environment.
+    ENCRYPTION_AT_REST_ENABLED = os.environ.get('ENCRYPTION_AT_REST_ENABLED', 'False').lower() == 'true'
+    # Path to the encryption key or key management service identifier
+    ENCRYPTION_KEY_PATH = os.environ.get('ENCRYPTION_KEY_PATH', '/path/to/encryption/key')
+    # Enable multi-factor authentication for all users
+    MFA_ENABLED = os.environ.get('MFA_ENABLED', 'False').lower() == 'true'
+    # MFA provider (e.g., totp, sms, email)
+    MFA_PROVIDER = os.environ.get('MFA_PROVIDER', 'totp')
+    # Issuer name for MFA tokens (used by authenticator apps)
+    MFA_ISSUER = os.environ.get('MFA_ISSUER', 'ERP-BERHAN')
+    # Enable sandboxing for plugins to isolate third-party extensions
+    PLUGIN_SANDBOX_ENABLED = os.environ.get('PLUGIN_SANDBOX_ENABLED', 'False').lower() == 'true'
+    # URLs for support portal and community forum
+    SUPPORT_PORTAL_URL = os.environ.get('SUPPORT_PORTAL_URL', 'https://support.example.com')
+    COMMUNITY_FORUM_URL = os.environ.get('COMMUNITY_FORUM_URL', 'https://community.example.com')
+    # Licensing and cost model configuration
+    LICENSE_MODEL = os.environ.get('LICENSE_MODEL', 'MIT')
+    COST_MODEL_URL = os.environ.get('COST_MODEL_URL', '')
