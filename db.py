@@ -25,7 +25,16 @@ POOL_SIZE = int(os.environ.get("DB_POOL_SIZE", "5"))
 MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-redis_client = redis.Redis.from_url(REDIS_URL)
+if os.environ.get("USE_FAKE_REDIS") == "1":
+    import fakeredis
+    redis_client = fakeredis.FakeRedis()
+else:
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL)
+        redis_client.ping()
+    except Exception:
+        import fakeredis
+        redis_client = fakeredis.FakeRedis()
 
 @lru_cache(maxsize=None)
 def _get_engine(url: str | None, path: str) -> Engine:

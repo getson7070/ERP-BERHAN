@@ -50,12 +50,14 @@ def create_app():
 
     sentry_sdk.init(dsn=os.environ.get('SENTRY_DSN'), integrations=[FlaskIntegration()], traces_sample_rate=1.0)
 
-    socketio.init_app(app, message_queue=app.config['REDIS_URL'])
+    use_fake = os.environ.get('USE_FAKE_REDIS') == '1'
+    socketio.init_app(app, message_queue=None if use_fake else app.config['REDIS_URL'])
     oauth.init_app(app)
     global limiter
+    storage_uri = 'memory://' if use_fake else app.config['REDIS_URL']
     limiter = Limiter(
         key_func=rate_limit_key,
-        storage_uri=app.config['REDIS_URL'],
+        storage_uri=storage_uri,
         default_limits=[app.config.get('RATE_LIMIT_DEFAULT', '100 per minute')],
     )
     limiter.init_app(app)

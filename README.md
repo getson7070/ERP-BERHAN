@@ -23,6 +23,7 @@ The application pulls configuration from environment variables. Key settings inc
 - `API_TOKEN` – bearer token used to authorize REST and GraphQL requests.
 - `ACCOUNTING_URL` – base URL for the accounting connector.
 - `S3_RETENTION_DAYS` – optional lifecycle policy for object storage.
+- `USE_FAKE_REDIS` – set to `1` during testing to use an in-memory Redis emulator.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
@@ -33,7 +34,8 @@ and result backend via the following environment variables:
   `redis://localhost:6379/0`)
 
 Set these variables in your deployment environment to point Celery to your
-Redis instance.
+Redis instance. During local testing you may set `USE_FAKE_REDIS=1` to avoid
+running a dedicated Redis server.
 
 ## Automation & Analytics
 

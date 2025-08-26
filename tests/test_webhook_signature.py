@@ -9,7 +9,25 @@ def test_webhook_hmac(monkeypatch):
     client = app.test_client()
     payload = b'{"a":1}'
     sig = hmac.new(b'secret', payload, hashlib.sha256).hexdigest()
-    resp = client.post('/api/webhook/test', data=payload, headers={'Authorization':'Bearer tok','X-Signature':sig,'Content-Type':'application/json'})
+    resp = client.post(
+        '/api/webhook/test',
+        data=payload,
+        headers={
+            'Authorization':'Bearer tok',
+            'X-Signature':sig,
+            'Content-Type':'application/json',
+            'Idempotency-Key':'abc'
+        }
+    )
     assert resp.status_code==200
-    bad = client.post('/api/webhook/test', data=payload, headers={'Authorization':'Bearer tok','X-Signature':'bad','Content-Type':'application/json'})
+    bad = client.post(
+        '/api/webhook/test',
+        data=payload,
+        headers={
+            'Authorization':'Bearer tok',
+            'X-Signature':'bad',
+            'Content-Type':'application/json',
+            'Idempotency-Key':'other'
+        }
+    )
     assert bad.status_code==401

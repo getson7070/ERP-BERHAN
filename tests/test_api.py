@@ -48,5 +48,14 @@ def test_webhook_requires_token(monkeypatch, tmp_path):
     sig = hmac.new(b'secret', payload, hashlib.sha256).hexdigest()
     resp = client.post('/api/webhook/source', data=payload, headers={'X-Signature':sig,'Content-Type':'application/json'})
     assert resp.status_code == 401
-    resp = client.post('/api/webhook/source', data=payload, headers={'Authorization': 'Bearer webhooktoken','X-Signature':sig,'Content-Type':'application/json'})
+    resp = client.post(
+        '/api/webhook/source',
+        data=payload,
+        headers={
+            'Authorization': 'Bearer webhooktoken',
+            'X-Signature': sig,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': 'key123'
+        }
+    )
     assert resp.status_code == 200
