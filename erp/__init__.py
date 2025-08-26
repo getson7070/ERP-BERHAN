@@ -1,5 +1,6 @@
 from flask import Flask, request, session, Response, g
 import uuid
+
 from datetime import datetime
 from dotenv import load_dotenv
 from flask_talisman import Talisman
@@ -32,7 +33,8 @@ babel = Babel()
 limiter = None
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
-REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
+R
+EQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
 TOKEN_ERRORS = Counter('token_errors_total', 'Invalid or expired token events')
 QUEUE_LAG = Gauge('queue_lag', 'Celery queue backlog size', ['queue'])
 
@@ -73,6 +75,7 @@ def create_app():
             'sso',
             client_id=app.config['OAUTH_CLIENT_ID'],
             client_secret=app.config.get('OAUTH_CLIENT_SECRET'),
+        
             access_token_url=app.config.get('OAUTH_TOKEN_URL'),
             authorize_url=app.config.get('OAUTH_AUTH_URL'),
             client_kwargs={'scope': 'openid email profile'},
@@ -101,9 +104,12 @@ def create_app():
         manufacturing,
         projects,
         help,
+    
     )
+    
 
     app.register_blueprint(auth.bp)
+    
     app.register_blueprint(orders.bp)
     app.register_blueprint(tenders.bp)
     app.register_blueprint(analytics.bp)
@@ -117,10 +123,12 @@ def create_app():
     app.register_blueprint(hr.bp)
     app.register_blueprint(procurement.bp)
     app.register_blueprint(manufacturing.bp)
-    app.register_blueprint(projects.bp)
+    ap
+    p.register_blueprint(projects.bp)
     app.register_blueprint(help.bp)
 
-    load_plugins(app)
+    l
+    oad_plugins(app)
 
     @socketio.on('connect')
     def _ws_connect(auth):
@@ -132,6 +140,7 @@ def create_app():
             return False
         join_room(f"org_{int(org)}")
 
+    
 
     @app.context_processor
     def inject_now():
@@ -141,7 +150,8 @@ def create_app():
     def start_timer():
         g.start_time = time.time()
         g.correlation_id = request.headers.get('X-Correlation-ID', str(uuid.uuid4()))
-        sentry_sdk.set_tag('correlation_id', g.correlation_id)
+        sentr
+        y_sdk.set_tag('correlation_id', g.correlation_id)
         # Skip access log writes during tests to avoid unintended database access
         if app.config.get('TESTING'):
             return
@@ -176,3 +186,5 @@ def create_app():
         return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     return app
+
+
