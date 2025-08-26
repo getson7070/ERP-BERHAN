@@ -1,0 +1,35 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light" role="navigation">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">{{ _('BERHAN ERP') }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="{{ _('Toggle navigation') }}">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-nav me-auto">
+                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
+                {% if session.get('role') != 'Client' %}
+                <a class="nav-link {% if request.blueprint == 'tenders' %}active{% endif %}" href="{{ url_for('tenders.tenders_list') }}">{{ _('Tenders') }}</a>
+                {% endif %}
+                <a class="nav-link {% if request.blueprint == 'orders' %}active{% endif %}" href="{{ url_for('orders.orders') }}">{{ _('Orders') }}</a>
+                {% if session.get('role') != 'Client' %}
+                <a class="nav-link {% if request.blueprint == 'crm' %}active{% endif %}" href="{{ url_for('crm.index') }}">{{ _('CRM') }}</a>
+                <a class="nav-link {% if request.blueprint == 'hr' %}active{% endif %}" href="{{ url_for('hr.index') }}">{{ _('HR') }}</a>
+                <a class="nav-link {% if request.blueprint == 'procurement' %}active{% endif %}" href="{{ url_for('procurement.index') }}">{{ _('Procurement') }}</a>
+                <a class="nav-link {% if request.blueprint == 'manufacturing' %}active{% endif %}" href="{{ url_for('manufacturing.index') }}">{{ _('Manufacturing') }}</a>
+                <a class="nav-link {% if request.blueprint == 'projects' %}active{% endif %}" href="{{ url_for('projects.index') }}">{{ _('Projects') }}</a>
+                {% endif %}
+                <a class="nav-link {% if request.blueprint == 'plugins' %}active{% endif %}" href="{{ url_for('plugins.index') }}">{{ _('Plugins') }}</a>
+                <a class="nav-link {% if request.blueprint == 'help' %}active{% endif %}" href="{{ url_for('help.help_page') }}">{{ _('Help') }}</a>
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">{{ _('Logout') }}</a>
+            </div>
+            <form class="d-flex" role="search" action="{{ url_for('main.global_search') }}" method="get">
+                <input class="form-control me-2" type="search" placeholder="{{ _('Search') }}" aria-label="{{ _('Search') }}" name="q">
+            </form>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('main.set_language', lang='en') }}">EN</a>
+                <a class="nav-link" href="{{ url_for('main.set_language', lang='am') }}">AM</a>
+                <a class="nav-link" href="#" id="themeToggle" aria-label="{{ _('Toggle dark mode') }}">{{ _('Dark Mode') }}</a>
+            </div>
+        </div>
+    </div>
+</nav>
