@@ -1,0 +1,13 @@
+{% extends 'dashboard.html' %}
+{% block content %}
+<h2>Inventory</h2>
+<table class="table table-striped">
+<thead><tr><th>ID</th><th>Name</th><th>Quantity</th></tr></thead>
+<tbody>
+{% for i in items %}
+<tr><td>{{i[0]}}</td><td>{{i[1]}}</td><td>{{i[2]}}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<a href="{{ url_for('inventory.add_item') }}" class="btn btn-primary">Add Item</a>
+{% endblock %}

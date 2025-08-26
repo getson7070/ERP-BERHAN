@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Plugins{% endblock %}
+{% block body %}
+<div class="container mt-4">
+  <h3>{{ _('Installed Plugins') }}</h3>
+  <ul class="list-group">
+    {% for p in plugins %}
+    <li class="list-group-item">{{ p }}</li>
+    {% else %}
+    <li class="list-group-item">{{ _('No plugins installed.') }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

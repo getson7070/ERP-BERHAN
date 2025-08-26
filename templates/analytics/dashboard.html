@@ -1,6 +1,19 @@
 {% extends "dashboard.html" %}
 {% block content %}
-<h2 class="mb-4">Analytics Dashboard</h2>
+<h2 class="mb-4">{{ _('Analytics Dashboard') }}</h2>
+<div class="mb-3">
+  <form method="post" action="{{ url_for('main.save_search') }}" class="d-flex">
+    <input name="name" class="form-control me-2" placeholder="Search name">
+    <input name="query" class="form-control me-2" placeholder="Query">
+    <button class="btn btn-primary">Save</button>
+  </form>
+</div>
+<ul id="saved-searches" class="list-group mb-3">
+{% for s in saved_searches %}
+<li class="list-group-item">{{ s[0] }}</li>
+{% endfor %}
+</ul>
+<div id="widget-area" class="row"></div>
 <canvas id="statusChart" height="100"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -9,7 +22,7 @@ const ctx = document.getElementById('statusChart');
 const statusChart = new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: ['Pending Orders', 'Pending Maintenance', 'Expired Tenders', 'Monthly Sales'],
+        labels: ["{{ _('Pending Orders') }}", "{{ _('Pending Maintenance') }}", "{{ _('Expired Tenders') }}", "{{ _('Monthly Sales') }}"],
         datasets: [{
             label: 'Items',
             data: [{{ pending_orders }}, {{ pending_maintenance }}, {{ expired_tenders }}, {{ monthly_sales }}],
@@ -22,10 +35,15 @@ const statusChart = new Chart(ctx, {
     }
 });
 
+document.querySelectorAll('#widget-area .widget').forEach(w=>{w.draggable=true;});
 const socket = io();
 socket.on('kpi_update', data => {
     statusChart.data.datasets[0].data = [data.pending_orders, data.pending_maintenance, data.expired_tenders, data.monthly_sales];
     statusChart.update();
 });
 </script>
+<div class="mt-3">
+  <p>Projected next-month sales: <strong>{{ sales_forecast }}</strong></p>
+  <a href="{{ url_for('analytics.report_builder') }}" class="btn btn-secondary">Report Builder</a>
+</div>
 {% endblock %}

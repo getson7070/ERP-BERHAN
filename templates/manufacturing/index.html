@@ -1,0 +1,12 @@
+{% extends 'dashboard.html' %}
+{% block content %}
+<h2>Manufacturing Jobs</h2>
+<ul class="list-group mb-3">
+  {% for j in jobs %}
+    <li class="list-group-item">{{ j[1] }}</li>
+  {% else %}
+    <li class="list-group-item">No jobs</li>
+  {% endfor %}
+</ul>
+<a href="{{ url_for('manufacturing.add_job') }}" class="btn btn-primary">Add Job</a>
+{% endblock %}

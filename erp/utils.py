@@ -1,9 +1,11 @@
 from functools import wraps
-from flask import session, redirect, url_for
+from flask import session, redirect, url_for, request, abort
 from argon2 import PasswordHasher
+import os
 from argon2.exceptions import VerifyMismatchError
 import bcrypt
 from db import get_db
+from erp.cache import cache_get, cache_set
 
 
 def has_permission(permission: str) -> bool:
@@ -24,13 +26,17 @@ def has_permission(permission: str) -> bool:
         return permission in session.get("permissions", [])
 
     conn = get_db()
+    placeholder = '%s'
+    dialect = getattr(conn, '_dialect', None)
+    if dialect and dialect.name == 'sqlite':
+        placeholder = '?'
     cur = conn.execute(
-        """
+        f"""
         SELECT 1
         FROM role_assignments ra
         JOIN role_permissions rp ON ra.role_id = rp.role_id
         JOIN permissions p ON rp.permission_id = p.id
-        WHERE ra.user_id = %s AND ra.org_id = %s AND p.name = %s
+        WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder} AND p.name = {placeholder}
         """,
         (user_id, org_id, permission),
     )
@@ -51,11 +57,15 @@ def roles_required(*roles):
                 return redirect(url_for("main.dashboard"))
 
             conn = get_db()
+            placeholder = '%s'
+            dialect = getattr(conn, '_dialect', None)
+            if dialect and dialect.name == 'sqlite':
+                placeholder = '?'
             cur = conn.execute(
-                """
+                f"""
                 SELECT r.name FROM role_assignments ra
                 JOIN roles r ON ra.role_id = r.id
-                WHERE ra.user_id = %s AND ra.org_id = %s
+                WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder}
                 """,
                 (user_id, org_id),
             )
@@ -70,7 +80,11 @@ def roles_required(*roles):
 
     return decorator
 
-ph = PasswordHasher()
+ph = PasswordHasher(
+    time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
+    memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
+    parallelism=int(os.environ.get("ARGON2_PARALLELISM", "2")),
+)
 
 
 def hash_password(password: str) -> str:
@@ -93,3 +107,20 @@ def login_required(f):
             return redirect(url_for('auth.choose_login'))
         return f(*args, **kwargs)
     return wrap
+
+
+def idempotency_key_required(f):
+    """Ensure requests with the same Idempotency-Key are processed once."""
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        key = request.headers.get("Idempotency-Key")
+        if not key:
+            abort(400, "Missing Idempotency-Key")
+        cache_key = f"idempotency:{key}"
+        if cache_get(cache_key):
+            abort(409, "Duplicate request")
+        cache_set(cache_key, 1, ttl=86400)
+        return f(*args, **kwargs)
+
+    return wrapper

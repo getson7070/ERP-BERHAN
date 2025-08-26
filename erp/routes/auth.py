@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app, jsonify
 from flask_wtf import FlaskForm
 from wtforms import (
     StringField,
@@ -16,6 +16,7 @@ import jwt
 import pyotp
 import uuid
 import json
+import secrets
 
 from db import get_db, redis_client
 from erp.utils import (
@@ -25,8 +26,28 @@ from erp.utils import (
     has_permission,
     roles_required,
 )
+from erp.audit import log_audit
+from erp import oauth
 
 bp = Blueprint('auth', __name__)
+
+
+def _decode_jwt(token: str):
+    """Decode a JWT, trying all known secrets with kid support."""
+    secrets_map = current_app.config['JWT_SECRETS']
+    try:
+        header = jwt.get_unverified_header(token)
+        secret = secrets_map.get(header.get('kid'))
+        if secret:
+            return jwt.decode(token, secret, algorithms=['HS256'])
+    except Exception:
+        pass
+    for secret in secrets_map.values():
+        try:
+            return jwt.decode(token, secret, algorithms=['HS256'])
+        except jwt.InvalidTokenError:
+            continue
+    raise jwt.InvalidTokenError
 
 
 @bp.route('/auth/token', methods=['POST'])
@@ -72,9 +93,8 @@ def issue_token():
 def refresh_token():
     data = request.get_json() or {}
     token = data.get('refresh_token')
-    secret = current_app.config['JWT_SECRET']
     try:
-        payload = jwt.decode(token, secret, algorithms=['HS256'])
+        payload = _decode_jwt(token)
     except jwt.InvalidTokenError:
         return {'error': 'invalid_token'}, 401
     jti = payload.get('jti')
@@ -113,6 +133,21 @@ def refresh_token():
     return {'access_token': access, 'refresh_token': refresh}
 
 
+@bp.post('/auth/socket-token')
+@login_required
+def socket_token():
+    """Issue a short-lived token for WebSocket authentication."""
+    user_id = session.get('user_id')
+    org_id = session.get('org_id')
+    old = redis_client.get(f"socket_user:{user_id}")
+    if old:
+        redis_client.delete(f"socket_token:{old.decode()}")
+    token = secrets.token_urlsafe(16)
+    redis_client.setex(f"socket_token:{token}", 60, org_id)
+    redis_client.setex(f"socket_user:{user_id}", 60, token)
+    return jsonify({'token': token})
+
+
 @bp.route('/choose_login', methods=['GET', 'POST'])
 def choose_login():
     class ChooseLoginForm(FlaskForm):
@@ -126,6 +161,42 @@ def choose_login():
         elif login_type == 'client':
             return redirect(url_for('auth.client_login'))
     return render_template('choose_login.html', form=form)
+
+
+@bp.route('/oauth_login')
+def oauth_login():
+    redirect_uri = url_for('auth.oauth_callback', _external=True)
+    return oauth.sso.authorize_redirect(redirect_uri)
+
+
+@bp.route('/oauth_callback')
+def oauth_callback():
+    token = oauth.sso.authorize_access_token()
+    resp = oauth.sso.get(current_app.config['OAUTH_USERINFO_URL'], token=token)
+    profile = resp.json()
+    email = profile.get('email')
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    if not user:
+        conn.close()
+        flash('Unauthorized user')
+        return redirect(url_for('auth.choose_login'))
+    session.permanent = True
+    session['logged_in'] = True
+    session['role'] = user['role'] or 'Employee'
+    session['username'] = email
+    session['permissions'] = (
+        user['permissions'].split(',') if user['permissions'] else []
+    )
+    session['org_id'] = user.get('org_id')
+    log_audit(user['id'], user.get('org_id'), 'login', 'SSO')
+    conn.execute(
+        'UPDATE users SET last_login = ? WHERE email = ?',
+        (datetime.now(), email),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for('main.dashboard'))
 
 
 @bp.route('/employee_login', methods=['GET', 'POST'])
@@ -149,6 +220,7 @@ def employee_login():
                 session['logged_in'] = True
                 session['role'] = user['role'] or 'Employee'
                 session['username'] = email
+                session['org_id'] = user.get('org_id')
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
@@ -156,6 +228,7 @@ def employee_login():
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
                 )
+                log_audit(user['id'], user.get('org_id'), 'login', 'employee password')
                 conn.commit()
                 conn.close()
                 return redirect(url_for('main.dashboard'))
@@ -202,6 +275,7 @@ def client_login():
                 session['role'] = 'Client'
                 session['tin'] = user['tin']
                 session['username'] = email
+                session['org_id'] = user.get('org_id')
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
@@ -209,6 +283,7 @@ def client_login():
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
                 )
+                log_audit(user['id'], user.get('org_id'), 'login', 'client password')
                 conn.commit()
                 conn.close()
                 return redirect(url_for('main.dashboard'))

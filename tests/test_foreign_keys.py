@@ -4,6 +4,7 @@ import sys
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+import sqlite3
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from erp import create_app  # noqa: E402
@@ -28,7 +29,7 @@ def test_foreign_keys_enforced(app):
                 "CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))"
             )
         )
-        with pytest.raises(IntegrityError):
+        with pytest.raises((IntegrityError, sqlite3.IntegrityError)):
             conn.execute(text("INSERT INTO child (parent_id) VALUES (999)"))
         conn.rollback()
         conn.close()

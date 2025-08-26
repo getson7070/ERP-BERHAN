@@ -1,0 +1,138 @@
+msgid ""
+msgstr ""
+"Language: am\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "BERHAN ERP"
+msgstr "ብርሃን ኢርፒ"
+
+msgid "Dashboard"
+msgstr "ዳሽቦርድ"
+
+msgid "Tenders"
+msgstr "ጨረታዎች"
+
+msgid "Orders"
+msgstr "ትእዛዞች"
+
+msgid "Logout"
+msgstr "ውጣ"
+
+msgid "Employee Dashboard"
+msgstr "የሰራተኛ ዳሽቦርድ"
+
+msgid "Client Dashboard"
+msgstr "የተከራዩ ዳሽቦርድ"
+
+msgid "Analytics Dashboard"
+msgstr "የትንተና ዳሽቦርድ"
+
+msgid "Pending Orders"
+msgstr "በመጠባበቅ ላይ ያሉ ትእዛዞች"
+
+msgid "Pending Maintenance"
+msgstr "በመጠባበቅ ላይ ያለ ጥገና"
+
+msgid "Expired Tenders"
+msgstr "ጨረታዎች ጊዜያቸው አልፏል"
+
+msgid "Monthly Sales"
+msgstr "ወርሃዊ ሽያጭ"
+
+msgid "Add Report"
+msgstr "ሪፖርት ያክሉ"
+
+msgid "My Report"
+msgstr "የኔ ሪፖርት"
+
+msgid "Marketing Report"
+msgstr "የገበያ ሪፖርት"
+
+msgid "Promotion Report"
+msgstr "የሽልማት ሪፖርት"
+
+msgid "Add Inventory"
+msgstr "መጋዘን ያክሉ"
+
+msgid "Receive Inventory"
+msgstr "መጋዘን ይቀበሉ"
+
+msgid "Inventory Out"
+msgstr "መጋዘን ወጭ"
+
+msgid "Inventory Report"
+msgstr "የመጋዘን ሪፖርት"
+
+msgid "Add Tender"
+msgstr "ጨረታ ያክሉ"
+
+msgid "Tenders List"
+msgstr "የጨረታዎች ዝርዝር"
+
+msgid "Tenders Report"
+msgstr "የጨረታ ሪፖርት"
+
+msgid "Maintenance Report"
+msgstr "የጥገና ሪፖርት"
+
+msgid "Maintenance Followup"
+msgstr "የጥገና ተከታታይ"
+
+msgid "User Management"
+msgstr "የተጠቃሚ አስተዳደር"
+
+msgid "Put Order"
+msgstr "ትእዛዝ ያድርጉ"
+
+msgid "My Approved Orders"
+msgstr "የተፈቀዱ ትእዛዞቼ"
+
+msgid "Order Status"
+msgstr "የትእዛዝ ሁኔታ"
+
+msgid "Maintenance Request"
+msgstr "ጥገና ጥያቄ"
+
+msgid "Maintenance Status"
+msgstr "የጥገና ሁኔታ"
+
+msgid "Message Support"
+msgstr "የድጋፍ መልዕክት"
+
+msgid "Choose Login"
+msgstr "መግቢያ ይምረጡ"
+
+msgid "Choose Login Type"
+msgstr "የመግቢያ አይነት ይምረጡ"
+
+msgid "Please select a login type."
+msgstr "እባኮትን የመግቢያ አይነት ይምረጡ።"
+
+msgid "Back"
+msgstr "ተመለስ"
+
+msgid "Login with SSO"
+msgstr "በSSO ይግቡ"
+
+msgid "Login"
+msgstr "ይግቡ"
+
+msgid "Username"
+msgstr "የተጠቃሚ ስም"
+
+msgid "Please enter your username."
+msgstr "እባክዎ የተጠቃሚ ስምዎን ያስገቡ።"
+
+msgid "Password"
+msgstr "የይለፍ ቃል"
+
+msgid "Please enter your password."
+msgstr "እባክዎ የይለፍ ቃልዎን ያስገቡ።"
+
+
+msgid "Toggle navigation"
+msgstr "አሰሳ ቀይር"
+
+msgid "Submit"
+msgstr "አስገባ"

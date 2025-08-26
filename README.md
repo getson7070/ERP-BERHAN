@@ -6,9 +6,21 @@ BERHAN PHARMA
 The application pulls configuration from environment variables. Key settings include:
 
 - `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
-- `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
+ - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
+ - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
+   knobs for high‑load deployments.
 - `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
 - `TOTP_ISSUER` – issuer name shown in authenticator apps for MFA codes.
+- `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
+- `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
+- `GRAPHQL_MAX_DEPTH` – maximum allowed GraphQL query depth.
+- `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
+- `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
+- `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
+- `BABEL_DEFAULT_LOCALE`/`BABEL_SUPPORTED_LOCALES` – default and available locales for UI translations.
+- `API_TOKEN` – bearer token used to authorize REST and GraphQL requests.
+- `ACCOUNTING_URL` – base URL for the accounting connector.
+- `S3_RETENTION_DAYS` – optional lifecycle policy for object storage.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
@@ -20,6 +32,24 @@ and result backend via the following environment variables:
 
 Set these variables in your deployment environment to point Celery to your
 Redis instance.
+
+## Automation & Analytics
+
+Celery powers several background workflows:
+
+- Scheduled tasks send pending order reminders and generate monthly compliance
+  reports.
+- KPI materialized views refresh every 30 minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard.
+- Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
+  reports and schedule compliance exports.
+- Monitor Celery backlog with `python scripts/monitor_queue.py` to detect stuck tasks.
+
+## Caching
+
+List pages in CRM and inventory cache results in Redis to reduce database load.
+Mutating routes invalidate the relevant `<module>:<org_id>` key to keep data
+consistent. See `docs/cache_invalidation.md` for details.
 
 ## Database Migrations
 
@@ -57,11 +87,32 @@ Session cookies are configured with `Secure`, `HttpOnly` and `SameSite=Lax`.
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman) enforces HTTPS
 and sets modern security headers; ensure the app is served over TLS.
 
+SSO/OAuth2 login is available via the configured provider. Successful and failed
+authentication attempts are recorded in an `audit_logs` table protected by
+row-level security.
+
+For encryption at rest, deploy PostgreSQL with disk-level encryption or
+transparent data encryption and rotate `JWT_SECRET` and other credentials using a
+secrets manager.
+
+## UI/UX
+
+All templates leverage Bootstrap 5 for responsive design and mobile parity. `Flask-Babel` powers multi-language support; set `BABEL_DEFAULT_LOCALE` and `BABEL_SUPPORTED_LOCALES` to expose additional translations. A global search bar in the navbar queries CRM, inventory, HR, and finance records. A dark-mode toggle with accessible contrast ratios is persisted in `localStorage`. A service worker (`static/js/sw.js`) ensures offline access and queues actions for sync when the connection restores. The `/dashboard` route delivers role-based views for employees, clients, and admins.
+
+## Integration & Ecosystem
+
+- `GET /api/ping` and `POST /api/graphql` expose REST and GraphQL access.
+- Webhooks forward events to the configured `WEBHOOK_URL`.
+- Plugins in the `plugins/` directory auto-register and are listed at `/plugins`.
+- Connectors under `erp/connectors` push invoices or fetch products.
+- `sdk.client.ERPClient` provides a lightweight Python SDK.
+
 ## Backups
 
 The `backup.py` helper creates timestamped database backups. PostgreSQL and
 MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
-to be used for replication or off-site disaster recovery.
+to be used for replication or off-site disaster recovery. See
+`docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
 ### Multi-Factor Authentication
 
@@ -96,6 +147,15 @@ view. A Celery beat job periodically executes `REFRESH MATERIALIZED VIEW
 CONCURRENTLY kpi_sales` and pushes updates to connected dashboards over
 WebSockets for near real-time visibility.
 
+## Automation & Analytics
+
+Background jobs expand automation and insight capabilities:
+
+- `send_approval_reminders` notifies sales representatives of pending orders.
+- `forecast_sales` computes a naive monthly projection of sales trends.
+- `generate_compliance_report` writes weekly CSV reports of orders missing status.
+- `/analytics/reports` offers a simple report builder for orders and tenders.
+
 ## Tender Lifecycle
 
 Tenders progress through defined workflow states culminating in automatic
@@ -108,7 +168,8 @@ status becomes *Evaluated*; recording a winning supplier and date moves it to
 A production-ready WSGI entrypoint (`wsgi.py`), `Dockerfile`, and `.env.example`
 are provided for running the application in a Gunicorn-backed container. Configure
 environment variables as needed and build the container with Docker for
-consistent deployments.
+consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
+high‑availability setup with readiness probes and horizontal pod autoscaling.
 
 ## Observability & Offline Use
 
@@ -119,3 +180,23 @@ output to aid in tracing and alerting.
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
 the API once connectivity returns, providing a more resilient mobile experience.
+
+## Security & Load Testing
+
+Run `scripts/security_scan.sh` for static analysis and dependency checks.
+Use `scripts/load_test.sh` or a preferred tool to validate performance at target
+concurrency levels.
+
+## Performance Benchmarking
+
+Run `python scripts/benchmark.py` against a target URL to measure request
+throughput and validate connection pool tuning or scaling changes.
+
+## Governance & Roadmap
+
+- Refer to `docs/versioning.md` for release numbering and branching conventions.
+- Quarterly access recertification steps are outlined in `docs/access_recerts.md`.
+- Detailed migration procedures live in `docs/migration_guide.md`.
+- User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
+- Planned milestones are tracked in `docs/roadmap.md`.
+- An in-app `/help` page links to documentation and discussion forums.

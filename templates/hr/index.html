@@ -1,0 +1,12 @@
+{% extends 'dashboard.html' %}
+{% block content %}
+<h2>Employees</h2>
+<ul class="list-group mb-3">
+  {% for e in employees %}
+    <li class="list-group-item">{{ e[1] }}</li>
+  {% else %}
+    <li class="list-group-item">No employees</li>
+  {% endfor %}
+</ul>
+<a href="{{ url_for('hr.add_employee') }}" class="btn btn-primary">Add Employee</a>
+{% endblock %}

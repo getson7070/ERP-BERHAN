@@ -1,0 +1,173 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ERP-BERHAN\n"
+"Language: am\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "BERHAN ERP"
+msgstr "ብርሃን ERP"
+
+msgid "Dashboard"
+msgstr "ዳሽቦርድ"
+
+msgid "Tenders"
+msgstr "ጨረታዎች"
+
+msgid "Orders"
+msgstr "ትዕዛዞች"
+
+msgid "Logout"
+msgstr "ውጣ"
+
+msgid "Toggle navigation"
+msgstr "አሰሳን ቀይር"
+
+msgid "BERHAN ERP Dashboard"
+msgstr "ብርሃን ERP ዳሽቦርድ"
+
+msgid "User Management"
+msgstr "የተጠቃሚ አስተዳደር"
+
+msgid "Manage Users"
+msgstr "ተጠቃሚዎችን አስተዳድር"
+
+msgid "Register Employee"
+msgstr "ሰራተኛ መመዝገብ"
+
+msgid "Register Client"
+msgstr "ደንበኛ መመዝገብ"
+
+msgid "Marketing"
+msgstr "ማስታወቂያ"
+
+msgid "Promotion Report (Sales)"
+msgstr "የሽያጭ ማስታወቂያ ሪፖርት"
+
+msgid "Promotion Report (Activities)"
+msgstr "የእንቅስቃሴ ማስታወቂያ ሪፖርት"
+
+msgid "Add Report"
+msgstr "ሪፖርት ጨምር"
+
+msgid "My Report"
+msgstr "የኔ ሪፖርት"
+
+msgid "Inventory"
+msgstr "እቃ ቁጥር"
+
+msgid "Add Inventory"
+msgstr "እቃ ጨምር"
+
+msgid "Receive Inventory"
+msgstr "እቃ ተቀብል"
+
+msgid "Inventory Out"
+msgstr "እቃ ውጣ"
+
+msgid "Inventory Report"
+msgstr "የእቃ ሪፖርት"
+
+msgid "Add Tender"
+msgstr "ጨረታ ጨምር"
+
+msgid "Tenders List"
+msgstr "የጨረታዎች ዝርዝር"
+
+msgid "Tenders Report"
+msgstr "የጨረታዎች ሪፖርት"
+
+msgid "Search"
+msgstr "ፈልግ"
+
+msgid "Search Results"
+msgstr "የፍለጋ ውጤቶች"
+
+msgid "No results found"
+msgstr "ምንም ውጤት አልተገኘም"
+
+msgid "Dark Mode"
+msgstr "ጨለማ ሁኔታ"
+
+msgid "Light Mode"
+msgstr "ብርሃን ሁኔታ"
+
+msgid "Toggle dark mode"
+msgstr "ጨለማ/ብርሃን ሁኔታ ቀይር"
+
+msgid "CRM"
+msgstr "CRM"
+
+msgid "HR"
+msgstr "ሀ.ሀ"
+
+msgid "Finance"
+msgstr "ፋይናንስ"
+
+msgid "Procurement"
+msgstr "ግዢ"
+
+msgid "Manufacturing"
+msgstr "ማኑፋክቸሪንግ"
+
+msgid "Projects"
+msgstr "ፕሮጀክቶች"
+
+msgid "Plugins"
+msgstr "ተጨማሪዎች"
+
+msgid "Put Order"
+msgstr "ትዕዛዝ አድርግ"
+
+msgid "View Orders"
+msgstr "ትዕዛዞችን እይ"
+
+msgid "Approve/Reject Orders"
+msgstr "ትዕዛዞችን አጽድቅ/አልቅ"
+
+msgid "My Orders"
+msgstr "የኔ ትዕዛዞች"
+
+msgid "Maintenance"
+msgstr "ጥገና"
+
+msgid "Request Maintenance"
+msgstr "ጥገና ጠይቅ"
+
+msgid "Maintenance Status"
+msgstr "የጥገና ሁኔታ"
+
+msgid "Maintenance Followup"
+msgstr "ጥገና ተከታታይ"
+
+msgid "Maintenance Report"
+msgstr "የጥገና ሪፖርት"
+
+msgid "Approve/Reject Maintenance"
+msgstr "ጥገናን አጽድቅ/አልቅ"
+
+msgid "Menu"
+msgstr "ሜኑ"
+
+msgid "Choose Login"
+msgstr "መግቢያ ምረጡ"
+
+msgid "Choose Login Type"
+msgstr "የመግቢያ አይነት ይምረጡ"
+
+msgid "Please select a login type."
+msgstr "እባክዎ የመግቢያ አይነት ይምረጡ"
+
+msgid "Submit"
+msgstr "አስገባ"
+
+msgid "Back"
+msgstr "ተመለስ"
+
+msgid "Login with SSO"
+msgstr "በSSO ይግቡ"
+
+msgid "Analytics Dashboard"
+msgstr "የትንታኔ ዳሽቦርድ"
+

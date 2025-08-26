@@ -1,7 +1,7 @@
 {% extends "base_auth.html" %}
-{% block title %}Choose Login{% endblock %}
+{% block title %}{{ _('Choose Login') }}{% endblock %}
 {% block content %}
-<h2 class="mb-4 text-center">Choose Login Type</h2>
+<h2 class="mb-4 text-center">{{ _('Choose Login Type') }}</h2>
 {% with messages = get_flashed_messages() %}
   {% if messages %}
     {% for message in messages %}
@@ -17,9 +17,10 @@
     {% for error in form.login_type.errors %}
       <div class="text-danger">{{ error }}</div>
     {% endfor %}
-    <div class="invalid-feedback">Please select a login type.</div>
+    <div class="invalid-feedback">{{ _('Please select a login type.') }}</div>
   </div>
-  {{ form.submit(class="btn btn-primary w-100") }}
+  {{ form.submit(class="btn btn-primary w-100", value=_('Submit')) }}
 </form>
-<a href="{{ url_for('index') }}" class="btn btn-secondary w-100 mt-2">Back</a>
+<a href="{{ url_for('main.index') }}" class="btn btn-secondary w-100 mt-2">{{ _('Back') }}</a>
+<a href="{{ url_for('auth.oauth_login') }}" class="btn btn-outline-primary w-100 mt-2">{{ _('Login with SSO') }}</a>
 {% endblock %}

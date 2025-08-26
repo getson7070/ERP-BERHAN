@@ -1,0 +1,10 @@
+# Training Tutorials
+
+Provide these tutorials to onboard staff:
+
+- **Module Navigation:** Demonstrates accessing CRM, HR, procurement, manufacturing, and project sections.
+- **Data Entry:** Shows creating records and respecting required `org_id` fields.
+- **Security Practices:** Highlights password policies and multi-factor authentication.
+- **Reporting:** Generate custom reports and export to PDF or Excel.
+- **Forecasting:** Interpret KPI forecast charts for strategic planning.
+- **Access Reviews:** Walk-through of quarterly access recertification.

@@ -1,0 +1,12 @@
+{% extends 'dashboard.html' %}
+{% block content %}
+<h2>Customers</h2>
+<ul class="list-group mb-3">
+  {% for c in customers %}
+    <li class="list-group-item">{{ c[1] }}</li>
+  {% else %}
+    <li class="list-group-item">No customers</li>
+  {% endfor %}
+</ul>
+<a href="{{ url_for('crm.add_customer') }}" class="btn btn-primary">Add Customer</a>
+{% endblock %}

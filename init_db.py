@@ -5,7 +5,11 @@ import os
 from db import get_db
 
 
-ph = PasswordHasher()
+ph = PasswordHasher(
+    time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
+    memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
+    parallelism=int(os.environ.get("ARGON2_PARALLELISM", "2")),
+)
 
 
 def hash_password(password: str) -> str:
@@ -92,6 +96,17 @@ def init_db():
         ip TEXT NOT NULL,
         device TEXT NOT NULL,
         timestamp TIMESTAMP NOT NULL
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        org_id INTEGER REFERENCES organizations(id),
+        action TEXT NOT NULL,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
 
@@ -305,7 +320,7 @@ def init_db():
             ),
         )
 
-    for table in ('orders', 'tenders', 'inventory'):
+    for table in ('orders', 'tenders', 'inventory', 'audit_logs'):
         cursor.execute(
             f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
         )

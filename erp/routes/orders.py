@@ -5,13 +5,14 @@ from wtforms.validators import DataRequired, NumberRange
 from datetime import datetime
 
 from db import get_db
-from erp.utils import login_required, has_permission
+from erp.utils import login_required, has_permission, idempotency_key_required
 
 bp = Blueprint('orders', __name__)
 
 
 @bp.route('/put_order', methods=['GET', 'POST'])
 @login_required
+@idempotency_key_required
 def put_order():
     if not has_permission('put_order'):
         return redirect(url_for('main.dashboard'))
