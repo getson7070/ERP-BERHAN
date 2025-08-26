@@ -124,3 +124,19 @@ def idempotency_key_required(f):
         return f(*args, **kwargs)
 
     return wrapper
+
+
+def task_idempotent(func):
+    """Prevent duplicate Celery task execution using an idempotency key."""
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        key = kwargs.pop("idempotency_key", None)
+        if key:
+            cache_key = f"task:{func.__name__}:{key}"
+            if cache_get(cache_key):
+                return
+            cache_set(cache_key, 1, ttl=86400)
+        return func(*args, **kwargs)
+
+    return wrapped

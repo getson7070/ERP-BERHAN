@@ -3,6 +3,8 @@ import secrets
 import json
 from datetime import timedelta
 
+from erp.secrets import get_secret
+
 class Config:
     SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
     DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/erp')
@@ -16,9 +18,9 @@ class Config:
     DB_POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', '30'))
     PREFERRED_URL_SCHEME = 'https'
     TOTP_ISSUER = os.environ.get('TOTP_ISSUER', 'ERP-BERHAN')
-    _default_secret = os.environ.get('JWT_SECRET', secrets.token_hex(32))
-    JWT_SECRETS = json.loads(os.environ.get('JWT_SECRETS', json.dumps({'v1': _default_secret})))
-    JWT_SECRET_ID = os.environ.get('JWT_SECRET_ID', 'v1')
+    _default_secret = get_secret('JWT_SECRET') or secrets.token_hex(32)
+    JWT_SECRETS = json.loads(get_secret('JWT_SECRETS') or json.dumps({'v1': _default_secret}))
+    JWT_SECRET_ID = get_secret('JWT_SECRET_ID') or 'v1'
     JWT_SECRET = JWT_SECRETS[JWT_SECRET_ID]
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
@@ -31,8 +33,8 @@ class Config:
     ARGON2_MEMORY_COST = int(os.environ.get('ARGON2_MEMORY_COST', '65536'))
     ARGON2_PARALLELISM = int(os.environ.get('ARGON2_PARALLELISM', '2'))
 
-    OAUTH_CLIENT_ID = os.environ.get('OAUTH_CLIENT_ID')
-    OAUTH_CLIENT_SECRET = os.environ.get('OAUTH_CLIENT_SECRET')
+    OAUTH_CLIENT_ID = get_secret('OAUTH_CLIENT_ID')
+    OAUTH_CLIENT_SECRET = get_secret('OAUTH_CLIENT_SECRET')
     OAUTH_AUTH_URL = os.environ.get('OAUTH_AUTH_URL')
     OAUTH_TOKEN_URL = os.environ.get('OAUTH_TOKEN_URL')
     OAUTH_USERINFO_URL = os.environ.get('OAUTH_USERINFO_URL')
@@ -42,10 +44,10 @@ class Config:
     LANGUAGES = BABEL_SUPPORTED_LOCALES
     BABEL_DEFAULT_TIMEZONE = 'UTC'
     WEBHOOK_URL = os.environ.get('WEBHOOK_URL')
-    API_TOKEN = os.environ.get('API_TOKEN')
+    API_TOKEN = get_secret('API_TOKEN')
     ACCOUNTING_URL = os.environ.get('ACCOUNTING_URL')
     PLUGIN_PATH = os.environ.get('PLUGIN_PATH', 'plugins')
-    WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET')
+    WEBHOOK_SECRET = get_secret('WEBHOOK_SECRET')
     S3_ENDPOINT = os.environ.get('S3_ENDPOINT')
     S3_BUCKET = os.environ.get('S3_BUCKET')
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')

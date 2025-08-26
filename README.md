@@ -14,6 +14,8 @@ The application pulls configuration from environment variables. Key settings inc
 - `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
 - `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
 - `GRAPHQL_MAX_DEPTH` – maximum allowed GraphQL query depth.
+- `GRAPHQL_MAX_COMPLEXITY` – maximum allowed GraphQL query complexity.
+- `VAULT_FILE` – optional JSON file providing secrets for automated rotation.
 - `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
 - `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
 - `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
@@ -89,7 +91,7 @@ and sets modern security headers; ensure the app is served over TLS.
 
 SSO/OAuth2 login is available via the configured provider. Successful and failed
 authentication attempts are recorded in an `audit_logs` table protected by
-row-level security.
+row-level security and hash-chained for tamper evidence.
 
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
@@ -145,7 +147,7 @@ secret rotation.
 Key performance indicators are pre-aggregated in the `kpi_sales` materialized
 view. A Celery beat job periodically executes `REFRESH MATERIALIZED VIEW
 CONCURRENTLY kpi_sales` and pushes updates to connected dashboards over
-WebSockets for near real-time visibility.
+WebSockets for near real-time visibility with short-lived per-tenant tokens.
 
 ## Automation & Analytics
 

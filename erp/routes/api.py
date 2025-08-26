@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request, abort, current_app
 from functools import wraps
+import re
 from db import get_db
 import os
 import hmac
 import hashlib
-from erp import TOKEN_ERRORS
+from erp import TOKEN_ERRORS, limiter
 from erp.utils import idempotency_key_required
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -22,6 +23,7 @@ def token_required(f):
 
 @bp.get('/orders')
 @token_required
+@limiter.limit('50 per minute')
 def list_orders():
     conn = get_db()
     cur = conn.cursor()
@@ -67,6 +69,7 @@ schema = graphene.Schema(query=Query)
 
 @bp.post('/graphql')
 @token_required
+@limiter.limit('50 per minute')
 def graphql_endpoint():
     data = request.get_json() or {}
     query = data.get('query', '')
@@ -81,6 +84,9 @@ def graphql_endpoint():
             depth -= 1
     if deepest > max_depth:
         abort(400, 'query too deep')
+    max_complexity = current_app.config.get('GRAPHQL_MAX_COMPLEXITY', 1000)
+    if len(re.findall(r"[A-Za-z0-9_]+", query)) > max_complexity:
+        abort(400, 'query too complex')
     result = schema.execute(query)
     if result.errors:
         return jsonify({'errors': [str(e) for e in result.errors]}), 400
@@ -89,6 +95,7 @@ def graphql_endpoint():
 @bp.post('/webhook/<source>')
 @token_required
 @idempotency_key_required
+@limiter.limit('20 per minute')
 def webhook(source):
     secret = current_app.config.get('WEBHOOK_SECRET')
     signature = request.headers.get('X-Signature', '')

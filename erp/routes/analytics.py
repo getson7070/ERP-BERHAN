@@ -7,7 +7,7 @@ from flask import request
 # Forecasting uses simple averages; avoid heavy ML deps for lightweight installs
 
 from db import get_db
-from erp.utils import login_required, roles_required
+from erp.utils import login_required, roles_required, task_idempotent
 from erp import socketio
 from flask_socketio import emit
 
@@ -146,7 +146,8 @@ def refresh_kpis():
 
 
 @celery.task
-def send_approval_reminders():
+@task_idempotent
+def send_approval_reminders(idempotency_key=None):
     """Notify sales reps of orders awaiting approval."""
     conn = get_db()
     cur = conn.cursor()
@@ -160,7 +161,8 @@ def send_approval_reminders():
 
 
 @celery.task
-def forecast_sales():
+@task_idempotent
+def forecast_sales(idempotency_key=None):
     """Naive monthly sales forecast using average trend."""
     conn = get_db()
     cur = conn.cursor()
@@ -175,7 +177,8 @@ def forecast_sales():
 
 
 @celery.task
-def generate_compliance_report():
+@task_idempotent
+def generate_compliance_report(idempotency_key=None):
     """Produce a simple CSV listing orders missing status."""
     conn = get_db()
     cur = conn.cursor()

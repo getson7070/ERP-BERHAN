@@ -21,9 +21,15 @@ from db import get_db, redis_client
 
 load_dotenv()
 
+def rate_limit_key():
+    user = session.get('user_id')
+    token = request.headers.get('Authorization', '')
+    return user or token or get_remote_address()
+
 socketio = SocketIO()
 oauth = OAuth()
 babel = Babel()
+limiter = None
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
 REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
@@ -46,7 +52,12 @@ def create_app():
 
     socketio.init_app(app, message_queue=app.config['REDIS_URL'])
     oauth.init_app(app)
-    limiter = Limiter(key_func=get_remote_address, storage_uri=app.config['REDIS_URL'], default_limits=[app.config.get('RATE_LIMIT_DEFAULT', '100 per minute')])
+    global limiter
+    limiter = Limiter(
+        key_func=rate_limit_key,
+        storage_uri=app.config['REDIS_URL'],
+        default_limits=[app.config.get('RATE_LIMIT_DEFAULT', '100 per minute')],
+    )
     limiter.init_app(app)
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 
