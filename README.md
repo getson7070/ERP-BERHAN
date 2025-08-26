@@ -1,6 +1,10 @@
 # ERP-BERHAN
 BERHAN PHARMA
 
+An initial audit of the repository rated the project **2/10** overall,
+highlighting that many features remain as plans. The detailed findings and
+improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
+
 ## Environment Variables
 
 The application pulls configuration from environment variables. Key settings include:
