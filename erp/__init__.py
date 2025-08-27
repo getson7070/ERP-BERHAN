@@ -65,8 +65,6 @@ celery = Celery(__name__)
 limiter = Limiter(key_func=rate_limit_key)
 
 
-
-
 @signals.task_failure.connect
 def _dead_letter_handler(
     sender: Any | None = None,
