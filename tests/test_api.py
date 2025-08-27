@@ -69,3 +69,17 @@ def test_webhook_requires_token(monkeypatch, tmp_path):
         }
     )
     assert resp.status_code == 200
+
+
+def test_graphql_depth_limit(monkeypatch, tmp_path):
+    monkeypatch.setenv("API_TOKEN", "limit")
+    setup_db(tmp_path, monkeypatch)
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['GRAPHQL_MAX_DEPTH'] = 2
+    client = app.test_client()
+    deep_query = "{{{{}}}}"
+    resp = client.post('/api/graphql', json={'query': deep_query}, headers={'Authorization': 'Bearer limit'})
+    assert resp.status_code == 400
+    metrics = client.get('/metrics')
+    assert b'graphql_depth_rejections_total 1.0' in metrics.data

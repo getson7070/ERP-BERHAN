@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}{{ _('Feedback') }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1>{{ _('Feedback') }}</h1>
+  <form id="feedback-form" class="needs-validation" novalidate>
+    <div class="mb-3">
+      <label for="message" class="form-label">{{ _('Message') }}</label>
+      <textarea id="message" class="form-control" required></textarea>
+      <div class="invalid-feedback">{{ _('Please enter feedback.') }}</div>
+    </div>
+    <button class="btn btn-primary" type="submit">{{ _('Submit') }}</button>
+  </form>
+</div>
+<script>
+document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('message').value;
+  await fetch('/feedback/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg})});
+  e.target.reset();
+});
+</script>
+{% endblock %}

@@ -20,7 +20,15 @@ flask run
 - SQLAlchemy
 - Celery
 - Redis
+- PgBouncer
 - Bootstrap 5
+
+## CI Pipeline
+
+Every push and pull request runs ruff, flake8, mypy, pytest with coverage,
+Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
+OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
+all checks to pass before merging.
 
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
@@ -69,8 +77,8 @@ Celery powers several background workflows:
 
 - Scheduled tasks send pending order reminders and generate monthly compliance
   reports.
-- KPI materialized views refresh every 30 minutes and a simple forecast of next
-  month's sales is displayed on the analytics dashboard.
+- KPI materialized views refresh every five minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard. A nightly export pushes KPIs to a Timescale/ClickHouse warehouse, and staleness is tracked via the `kpi_sales_mv_age_seconds` metric.
 - Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
   reports and schedule compliance exports.
 - Monitor Celery backlog with `python scripts/monitor_queue.py` to detect stuck tasks.
@@ -236,3 +244,6 @@ throughput and validate connection pool tuning or scaling changes.
 - User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
 - Planned milestones are tracked in `docs/roadmap.md`.
 - An in-app `/help` page links to documentation and discussion forums.
+- Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
+- Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
+- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.

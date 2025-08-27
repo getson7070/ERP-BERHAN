@@ -20,9 +20,8 @@ def _get_fernet() -> Fernet:
     """
 
     key = os.environ.get("FERNET_KEY")
-    if not key:
-        key = Fernet.generate_key()
-    return Fernet(key)
+    key_bytes = key.encode() if key else Fernet.generate_key()
+    return Fernet(key_bytes)
 
 
 def encrypt(value: str) -> str:
