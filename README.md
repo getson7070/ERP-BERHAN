@@ -30,6 +30,9 @@ Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
 
+Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
+Run `flake8` and `mypy erp` locally to catch issues before pushing.
+
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and

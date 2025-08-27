@@ -60,10 +60,8 @@ def rate_limit_key():
 socketio = SocketIO()
 oauth = OAuth()
 babel = Babel()
-
 celery = Celery(__name__)
-limiter = None
-
+limiter = Limiter(key_func=rate_limit_key)
 
 @signals.task_failure.connect
 def _dead_letter_handler(
@@ -298,6 +296,7 @@ def create_app():
 
     user_datastore = init_security(app)
     init_celery(app)
+<<<<<<< HEAD
     global limiter
     storage_uri = "memory://" if use_fake else app.config["REDIS_URL"]
     limiter = Limiter(
@@ -306,6 +305,12 @@ def create_app():
         default_limits=[
             app.config.get("RATE_LIMIT_DEFAULT", "100 per minute")
         ],
+=======
+    storage_uri = "memory://" if use_fake else app.config["REDIS_URL"]
+    app.config["RATELIMIT_STORAGE_URI"] = storage_uri
+    app.config["RATELIMIT_DEFAULT"] = app.config.get(
+        "RATE_LIMIT_DEFAULT", "100 per minute"
+>>>>>>> work
     )
     limiter.init_app(app)
     app.config["BABEL_TRANSLATION_DIRECTORIES"] = "translations"
