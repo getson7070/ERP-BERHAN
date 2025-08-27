@@ -25,6 +25,8 @@ def test_blueprints_autoregister(tmp_path, monkeypatch):
 
     routes = {rule.rule for rule in app.url_map.iter_rules()}
     assert "/dashboard" in routes
+    assert "/dashboard/customize" in routes
     assert "/analytics/dashboard" in routes
     assert "/reports/builder" in routes
     assert "/plugins/sample/" in routes
+    assert "/feedback/" in routes

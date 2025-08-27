@@ -9,3 +9,4 @@ bandit
 safety
 types-requests
 boto3-stubs[s3]
+ruff

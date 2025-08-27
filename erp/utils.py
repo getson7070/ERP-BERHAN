@@ -7,6 +7,8 @@ import bcrypt
 from db import get_db
 from erp.cache import cache_get, cache_set
 from sqlalchemy import text
+from sqlalchemy.orm import selectinload
+from erp.models import User
 
 
 def has_permission(permission: str) -> bool:
@@ -158,3 +160,8 @@ def task_idempotent(func):
         return func(*args, **kwargs)
 
     return wrapped
+
+
+def load_users_with_roles():
+    """Return users with roles preloaded to avoid N+1 queries."""
+    return User.query.options(selectinload(User.roles)).all()

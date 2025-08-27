@@ -10,6 +10,8 @@
 - `forecast_sales`: predicts next month's sales from recent KPIs.
 - `generate_compliance_report`: exports a list of unapproved orders for auditing.
 - `build_custom_report`: creates ad-hoc CSV exports for orders or maintenance.
+- `collect_feedback`: stores optional usage feedback from `/feedback/` and
+  front-end telemetry for future analysis.
 
 ## Report Builder
 Navigate to `/analytics/report-builder` to assemble ad-hoc reports using a drag-and-drop interface. Outputs can be exported to PDF or Excel. Ensure `CELERY_BROKER_URL`

@@ -20,7 +20,15 @@ flask run
 - SQLAlchemy
 - Celery
 - Redis
+- PgBouncer
 - Bootstrap 5
+
+## CI Pipeline
+
+Every push and pull request runs ruff, flake8, mypy, pytest with coverage,
+Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
+OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
+all checks to pass before merging.
 
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
@@ -236,3 +244,6 @@ throughput and validate connection pool tuning or scaling changes.
 - User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
 - Planned milestones are tracked in `docs/roadmap.md`.
 - An in-app `/help` page links to documentation and discussion forums.
+- Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
+- Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
+- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.

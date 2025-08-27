@@ -7,4 +7,8 @@ Periodic access reviews ensure least-privilege access across tenants. Administra
 3. Remove or downgrade accounts that are unused for 90 days.
 4. Log recertification results in the audit log for traceability.
 
+Use `scripts/access_recert_export.py` to generate an immutable (read-only) CSV
+export of current assignments. Store exports in WORM-capable storage such as S3
+Object Lock for tamper evidence.
+
 Automating these steps via scheduled tasks is recommended; see `docs/automation_analytics.md` for guidance on Celery jobs.
