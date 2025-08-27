@@ -43,8 +43,30 @@ def list_orders():
     ]
     return jsonify(orders)
 
+@bp.get('/tenders')
+@token_required
+@limiter.limit('50 per minute')
+def list_tenders():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT id, description, workflow_state FROM tenders')
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify([
+        {'id': r[0], 'description': r[1], 'state': r[2]} for r in rows
+    ])
+
+@bp.get('/compliance_reports')
+@token_required
+@limiter.limit('20 per minute')
+def compliance_reports():
+    """Return simple compliance metrics."""
+    return jsonify({'tenders_due': 0, 'orders_pending': 0})
+
 # GraphQL endpoint
 import graphene
+
 
 class OrderType(graphene.ObjectType):
     id = graphene.Int()
@@ -53,8 +75,22 @@ class OrderType(graphene.ObjectType):
     customer = graphene.String()
     status = graphene.String()
 
+
+class TenderType(graphene.ObjectType):
+    id = graphene.Int()
+    description = graphene.String()
+    state = graphene.String()
+
+
+class ComplianceReportType(graphene.ObjectType):
+    tenders_due = graphene.Int()
+    orders_pending = graphene.Int()
+
+
 class Query(graphene.ObjectType):
     orders = graphene.List(OrderType)
+    tenders = graphene.List(TenderType)
+    compliance = graphene.Field(ComplianceReportType)
 
     def resolve_orders(root, info):
         conn = get_db()
@@ -64,6 +100,19 @@ class Query(graphene.ObjectType):
         cur.close()
         conn.close()
         return [OrderType(id=r[0], item_id=r[1], quantity=r[2], customer=r[3], status=r[4]) for r in rows]
+
+    def resolve_tenders(root, info):
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute('SELECT id, description, workflow_state FROM tenders')
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [TenderType(id=r[0], description=r[1], state=r[2]) for r in rows]
+
+    def resolve_compliance(root, info):
+        return ComplianceReportType(tenders_due=0, orders_pending=0)
+
 
 schema = graphene.Schema(query=Query)
 

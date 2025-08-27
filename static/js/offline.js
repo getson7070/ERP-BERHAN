@@ -4,45 +4,21 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-const DB_NAME = 'erp-offline';
-const STORE = 'actions';
-
-function dbPromise() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE, { autoIncrement: true });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 async function queueAction(action) {
-  const db = await dbPromise();
-  const tx = db.transaction(STORE, 'readwrite');
-  tx.objectStore(STORE).add(action);
-  return tx.complete;
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  reg.active?.postMessage({ type: 'QUEUE_ACTION', payload: action });
+  if ('sync' in reg) {
+    try { await reg.sync.register('flush-actions'); } catch (e) { /* ignore */ }
+  }
 }
 
-async function flushActions() {
-  const db = await dbPromise();
-  const tx = db.transaction(STORE, 'readwrite');
-  const store = tx.objectStore(STORE);
-  const all = store.getAll();
-  all.onsuccess = async () => {
-    const items = all.result || [];
-    for (const item of items) {
-      try {
-        await fetch(item.url, item.options);
-      } catch (e) {
-        console.error('sync failed', e);
-        return;
-      }
+window.addEventListener('online', () => {
+  navigator.serviceWorker.ready.then(reg => {
+    if ('sync' in reg) {
+      reg.sync.register('flush-actions');
     }
-    store.clear();
-  };
-}
+  });
+});
 
-window.addEventListener('online', flushActions);
 window.queueAction = queueAction;
