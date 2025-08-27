@@ -36,7 +36,7 @@ The application pulls configuration from environment variables. Key settings inc
  - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
    knobs for high‑load deployments.
 - `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
-- `TOTP_ISSUER` – issuer name shown in authenticator apps for MFA codes.
+- `MFA_ISSUER` – issuer name shown in authenticator apps for MFA codes.
 - `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
 - `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
 - `GRAPHQL_MAX_DEPTH` – maximum allowed GraphQL query depth.

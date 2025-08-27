@@ -7,4 +7,9 @@ The following milestones outline upcoming development:
 3. **Q3:** Launch plugin marketplace and additional bot adapters.
 4. **Q4:** Achieve ISO 27001 alignment and conduct external security audit.
 
+## Completed
+
+- Containerisation with Docker Compose and Kubernetes manifests
+- CI/CD pipeline with automated testing and blueprint validation
+
 Progress is tracked in the issue tracker; update this roadmap each quarter for transparency.
