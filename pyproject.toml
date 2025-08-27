@@ -1,14 +1,20 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "your-project"
+name = "erp-berhan"
 version = "0.1.0"
-description = "Your app packaged by AI Overseer"
+description = "Berhan ERP"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [{name="Your Name", email="you@example.com"}]
-dependencies = []
-[project.scripts]
-your-cli = "your_package.cli:main"
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+license = { text = "MIT" }
+authors = [{ name = "Berhan Pharma", email = "getson.ind@gmail.com" }]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["erp*", "sdk*", "deploy*", "plugins*"]
+exclude = ["static*", "templates*", "migrations*", "translations*", "scripts*", "docs*", "deploy/k8s*"]
