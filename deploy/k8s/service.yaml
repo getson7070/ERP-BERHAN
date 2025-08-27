@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-berhan
+spec:
+  selector:
+    app: erp-berhan
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
