@@ -12,11 +12,17 @@ from wtforms import (
 from wtforms.validators import DataRequired, Length, NumberRange
 from datetime import datetime, UTC, timedelta
 import os
-import jwt
 import pyotp
-import uuid
 import json
 import secrets
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    jwt_required,
+    get_jwt_identity,
+    get_jwt,
+    decode_token,
+)
 
 from db import get_db, redis_client
 from erp.utils import (
@@ -32,24 +38,6 @@ from erp import oauth
 bp = Blueprint('auth', __name__)
 
 
-def _decode_jwt(token: str):
-    """Decode a JWT, trying all known secrets with kid support."""
-    secrets_map = current_app.config['JWT_SECRETS']
-    try:
-        header = jwt.get_unverified_header(token)
-        secret = secrets_map.get(header.get('kid'))
-        if secret:
-            return jwt.decode(token, secret, algorithms=['HS256'])
-    except Exception:
-        pass
-    for secret in secrets_map.values():
-        try:
-            return jwt.decode(token, secret, algorithms=['HS256'])
-        except jwt.InvalidTokenError:
-            continue
-    raise jwt.InvalidTokenError
-
-
 @bp.route('/auth/token', methods=['POST'])
 def issue_token():
     data = request.get_json() or {}
@@ -62,74 +50,40 @@ def issue_token():
         conn.close()
         return {'error': 'invalid_credentials'}, 401
     if user['role'] in ('Admin', 'Management'):
-        if not user['mfa_secret'] or not pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(totp_code or ''):
+        if not user['mfa_secret'] or not pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['MFA_ISSUER']).verify(totp_code or ''):
             conn.close()
             return {'error': 'mfa_required'}, 401
-    secret = current_app.config['JWT_SECRET']
-    kid = current_app.config['JWT_SECRET_ID']
-    refresh_id = str(uuid.uuid4())
-    access_payload = {
-        'sub': email,
-        'org_id': user.get('org_id'),
-        'exp': datetime.now(UTC) + timedelta(minutes=15),
-        'kid': kid
-    }
-    refresh_payload = {
-        'sub': email,
-        'org_id': user.get('org_id'),
-        'jti': refresh_id,
-        'exp': datetime.now(UTC) + timedelta(days=7),
-        'kid': kid
-    }
-    access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
-    refresh = jwt.encode(refresh_payload, secret, algorithm='HS256', headers={'kid': kid})
-    redis_client.setex(f"refresh:{refresh_id}", timedelta(days=7), json.dumps({'email': email, 'org_id': user.get('org_id')}))
+    additional_claims = {'org_id': user.get('org_id')}
+    access = create_access_token(identity=email, additional_claims=additional_claims)
+    refresh = create_refresh_token(identity=email, additional_claims=additional_claims)
+    refresh_jti = decode_token(refresh)['jti']
+    redis_client.setex(
+        f"refresh:{refresh_jti}", timedelta(days=7), json.dumps({'email': email, 'org_id': user.get('org_id')})
+    )
     current_app.logger.info("issued tokens for %s", email)
     conn.close()
     return {'access_token': access, 'refresh_token': refresh}
 
 
 @bp.route('/auth/refresh', methods=['POST'])
+@jwt_required(refresh=True)
 def refresh_token():
-    data = request.get_json() or {}
-    token = data.get('refresh_token')
-    try:
-        payload = _decode_jwt(token)
-    except jwt.InvalidTokenError:
-        return {'error': 'invalid_token'}, 401
-    jti = payload.get('jti')
+    jti = get_jwt()['jti']
     key = f"refresh:{jti}"
     stored = redis_client.get(key)
     if not stored:
         return {'error': 'invalid_token'}, 401
     redis_client.delete(key)
-    email = payload['sub']
-    org_id = payload.get('org_id')
-    conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
-    if not user:
-        conn.close()
-        return {'error': 'unknown_user'}, 401
-    kid = current_app.config['JWT_SECRET_ID']
-    new_refresh_id = str(uuid.uuid4())
-    access_payload = {
-        'sub': email,
-        'org_id': org_id,
-        'exp': datetime.now(UTC) + timedelta(minutes=15),
-        'kid': kid
-    }
-    refresh_payload = {
-        'sub': email,
-        'org_id': org_id,
-        'jti': new_refresh_id,
-        'exp': datetime.now(UTC) + timedelta(days=7),
-        'kid': kid
-    }
-    access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
-    refresh = jwt.encode(refresh_payload, secret, algorithm='HS256', headers={'kid': kid})
-    redis_client.setex(f"refresh:{new_refresh_id}", timedelta(days=7), stored)
-    current_app.logger.info("refreshed token for %s", email)
-    conn.close()
+    identity = get_jwt_identity()
+    org_id = get_jwt().get('org_id')
+    additional_claims = {'org_id': org_id}
+    access = create_access_token(identity=identity, additional_claims=additional_claims)
+    refresh = create_refresh_token(identity=identity, additional_claims=additional_claims)
+    new_jti = decode_token(refresh)['jti']
+    redis_client.setex(
+        f"refresh:{new_jti}", timedelta(days=7), json.dumps({'email': identity, 'org_id': org_id})
+    )
+    current_app.logger.info("refreshed token for %s", identity)
     return {'access_token': access, 'refresh_token': refresh}
 
 
@@ -215,7 +169,7 @@ def employee_login():
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
             if not user['mfa_secret']:
                 flash('MFA not configured for this account.')
-            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(form.totp.data):
+            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['MFA_ISSUER']).verify(form.totp.data):
                 session.permanent = True
                 session['logged_in'] = True
                 session['role'] = user['role'] or 'Employee'
@@ -269,7 +223,7 @@ def client_login():
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
             if not user['mfa_secret']:
                 flash('MFA not configured for this account.')
-            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['TOTP_ISSUER']).verify(form.totp.data):
+            elif pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['MFA_ISSUER']).verify(form.totp.data):
                 session.permanent = True
                 session['logged_in'] = True
                 session['role'] = 'Client'

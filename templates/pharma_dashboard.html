@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Pharma Dashboard') }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">{{ _('Pharmaceutical KPIs') }}</h1>
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ _('Total Prescriptions') }}</h5>
+          <p class="display-6 placeholder-glow">0</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ _('Pending Refill Orders') }}</h5>
+          <p class="display-6 placeholder-glow">0</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ _('Inventory Stockouts') }}</h5>
+          <p class="display-6 placeholder-glow">0</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ _('Adverse Event Reports') }}</h5>
+          <p class="display-6 placeholder-glow">0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-4">
+    <div class="card">
+      <div class="card-header">{{ _('Materialized Views') }}</div>
+      <div class="card-body">
+        <p class="placeholder-glow">{{ _('Visualisations coming soon...') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
