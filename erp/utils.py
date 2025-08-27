@@ -26,20 +26,22 @@ def has_permission(permission: str) -> bool:
         return permission in session.get("permissions", [])
 
     conn = get_db()
-    placeholder = '%s'
     dialect = getattr(conn, '_dialect', None)
     if dialect and dialect.name == 'sqlite':
-        placeholder = '?'
-    cur = conn.execute(
-        f"""
-        SELECT 1
-        FROM role_assignments ra
-        JOIN role_permissions rp ON ra.role_id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.id
-        WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder} AND p.name = {placeholder}
-        """,
-        (user_id, org_id, permission),
-    )
+        query = (
+            "SELECT 1 FROM role_assignments ra "
+            "JOIN role_permissions rp ON ra.role_id = rp.role_id "
+            "JOIN permissions p ON rp.permission_id = p.id "
+            "WHERE ra.user_id = ? AND ra.org_id = ? AND p.name = ?"
+        )
+    else:
+        query = (
+            "SELECT 1 FROM role_assignments ra "
+            "JOIN role_permissions rp ON ra.role_id = rp.role_id "
+            "JOIN permissions p ON rp.permission_id = p.id "
+            "WHERE ra.user_id = %s AND ra.org_id = %s AND p.name = %s"
+        )
+    cur = conn.execute(query, (user_id, org_id, permission))
     has_perm = cur.fetchone() is not None
     conn.close()
     return has_perm
@@ -64,18 +66,20 @@ def roles_required(*roles):
                 return redirect(url_for("main.dashboard"))
 
             conn = get_db()
-            placeholder = '%s'
             dialect = getattr(conn, '_dialect', None)
             if dialect and dialect.name == 'sqlite':
-                placeholder = '?'
-            cur = conn.execute(
-                f"""
-                SELECT r.name FROM role_assignments ra
-                JOIN roles r ON ra.role_id = r.id
-                WHERE ra.user_id = {placeholder} AND ra.org_id = {placeholder}
-                """,
-                (user_id, org_id),
-            )
+                query = (
+                    "SELECT r.name FROM role_assignments ra "
+                    "JOIN roles r ON ra.role_id = r.id "
+                    "WHERE ra.user_id = ? AND ra.org_id = ?"
+                )
+            else:
+                query = (
+                    "SELECT r.name FROM role_assignments ra "
+                    "JOIN roles r ON ra.role_id = r.id "
+                    "WHERE ra.user_id = %s AND ra.org_id = %s"
+                )
+            cur = conn.execute(query, (user_id, org_id))
             rows = cur.fetchall()
             conn.close()
             user_roles = [row[0] for row in rows]
