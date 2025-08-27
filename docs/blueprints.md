@@ -1,6 +1,6 @@
 # Blueprints
 
-The application auto-discovers Flask blueprints exposed as a module-level `bp` under the `erp` package and the `plugins` directory.
+The application auto-discovers Flask blueprints exposed as a module-level `bp` under the `erp.routes`, `erp.blueprints`, and `plugins` packages.
 
 ```python
 from flask import Blueprint
@@ -12,4 +12,4 @@ def index():
     ...
 ```
 
-Any module following this pattern is registered automatically at startup. See `register_blueprints` in `erp/__init__.py` for implementation details.
+Any module following this pattern is registered automatically at startup. See `register_blueprints` in `erp/app.py` for implementation details.

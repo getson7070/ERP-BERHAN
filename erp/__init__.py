@@ -1,7 +1,5 @@
 from flask import Flask, request, session, Response, g, render_template
 import uuid
-import importlib
-import pkgutil
 
 from datetime import datetime, UTC
 from dotenv import load_dotenv
@@ -9,6 +7,8 @@ from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
 from authlib.integrations.flask_client import OAuth
 from flask_babel import Babel, _, get_locale
+from flask_sqlalchemy import SQLAlchemy
+from celery import Celery
 import logging.config
 import os
 import time
@@ -18,6 +18,7 @@ from flask_limiter.util import get_remote_address
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from erp.plugins import load_plugins
+from .app import register_blueprints
 
 from config import Config
 from db import get_db, redis_client
@@ -32,6 +33,8 @@ def rate_limit_key():
 socketio = SocketIO()
 oauth = OAuth()
 babel = Babel()
+db = SQLAlchemy()
+celery = Celery(__name__)
 limiter = None
 
 REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status'])
@@ -82,6 +85,9 @@ def _ensure_base_tables() -> None:
 def create_app():
     app = Flask(__name__, static_folder='../static', template_folder='../templates')
     app.config.from_object(Config)
+    db_url = os.environ.get('DATABASE_URL')
+    db_path = os.environ.get('DATABASE_PATH', 'erp.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url or f'sqlite:///{db_path}'
     # Enable Flask testing mode automatically when running under pytest to
     # simplify conditional logic inside views and avoid noisy side effects.
     if os.environ.get('PYTEST_CURRENT_TEST'):
@@ -99,6 +105,8 @@ def create_app():
     use_fake = os.environ.get('USE_FAKE_REDIS') == '1'
     socketio.init_app(app, message_queue=None if use_fake else app.config['REDIS_URL'])
     oauth.init_app(app)
+    db.init_app(app)
+    init_celery(app)
     global limiter
     storage_uri = 'memory://' if use_fake else app.config['REDIS_URL']
     limiter = Limiter(
@@ -137,6 +145,8 @@ def create_app():
 
     load_plugins(app)
     register_blueprints(app)
+    with app.app_context():
+        db.create_all()
     _ensure_base_tables()
 
     @socketio.on('connect')
@@ -212,27 +222,16 @@ def create_app():
     return app
 
 
-def register_blueprints(app):
-    """Auto-discover and register blueprints exposed as `bp`."""
+def init_celery(app):
+    """Configure Celery to run tasks within app context."""
+    celery.conf.broker_url = app.config.get('CELERY_BROKER_URL')
+    celery.conf.result_backend = app.config.get('CELERY_RESULT_BACKEND')
 
-    def _scan(package: str):
-        try:
-            pkg = importlib.import_module(package)
-        except ModuleNotFoundError:
-            return
-        for _, modname, ispkg in pkgutil.iter_modules(pkg.__path__, pkg.__name__ + '.'):
-            if ispkg:
-                _scan(modname)
-            else:
-                try:
-                    mod = importlib.import_module(modname)
-                    bp = getattr(mod, 'bp', None)
-                    if bp is not None:
-                        app.register_blueprint(bp)
-                except Exception:
-                    continue
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return super().__call__(*args, **kwargs)
 
-    _scan('erp.routes')
-    _scan('plugins')
+    celery.Task = ContextTask
 
 

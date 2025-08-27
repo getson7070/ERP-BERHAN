@@ -8,6 +8,7 @@ from erp.secrets import get_secret
 class Config:
     SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
     DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/erp')
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', REDIS_URL)
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', REDIS_URL)
