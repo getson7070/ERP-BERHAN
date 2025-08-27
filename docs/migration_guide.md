@@ -7,6 +7,12 @@ This guide outlines steps to migrate database schema when new modules are introd
 3. Verify new tables contain `org_id` and appropriate indexes.
 4. Test row-level security policies using multiple tenant sessions.
 
+## Upgrading Plugins
+
+New connector plugins may ship with their own database tables. Run the
+associated migrations and ensure plugin blueprints register correctly by
+executing `scripts/check_blueprints.py` after upgrade.
+
 ## Rollback Procedure
 
 If a migration fails:
