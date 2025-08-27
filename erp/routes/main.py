@@ -17,6 +17,8 @@ def dashboard():
         return render_template('client_dashboard.html')
     if role == 'Employee':
         return render_template('employee_dashboard.html')
+    if role == 'pharmacist':
+        return render_template('pharma_dashboard.html')
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT name, query FROM saved_searches WHERE user_id = %s', (session.get("user_id"),))
     saved = cur.fetchall()

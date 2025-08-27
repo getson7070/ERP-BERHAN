@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    command: gunicorn --bind 0.0.0.0:8000 wsgi:app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+  celery:
+    build: .
+    command: celery -A erp.app.celery worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+volumes:
+  pgdata:
