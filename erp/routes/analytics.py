@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, session, Response
 from celery import Celery
 from celery.schedules import crontab
-from datetime import datetime
+from datetime import datetime, UTC
 from flask import request
 
 # Forecasting uses simple averages; avoid heavy ML deps for lightweight installs
@@ -112,7 +112,7 @@ def generate_report():
     cur = conn.cursor()
     orders = cur.execute('SELECT status, COUNT(*) FROM orders GROUP BY status').fetchall()
     maintenance = cur.execute('SELECT status, COUNT(*) FROM maintenance GROUP BY status').fetchall()
-    filename = f"report_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    filename = f"report_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, 'w') as f:
         f.write('Orders\n')
         for status, count in orders:
@@ -186,7 +186,7 @@ def generate_compliance_report(idempotency_key=None):
     missing = [r[0] for r in cur.fetchall()]
     cur.close()
     conn.close()
-    filename = f"compliance_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.csv"
+    filename = f"compliance_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, 'w') as f:
         f.write('order_id\n')
         for oid in missing:

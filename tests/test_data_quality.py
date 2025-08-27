@@ -1,6 +1,6 @@
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from erp.data_quality import deduplicate, detect_conflict
 from db import get_db
 
@@ -16,6 +16,6 @@ def test_deduplicate():
 
 
 def test_detect_conflict():
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     assert detect_conflict(now, now - timedelta(seconds=10)) is True
     assert detect_conflict(now, now + timedelta(seconds=10)) is False

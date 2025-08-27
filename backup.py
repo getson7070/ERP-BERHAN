@@ -1,7 +1,7 @@
 import os
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 def create_backup(db_url, backup_dir="backups"):
@@ -11,7 +11,7 @@ def create_backup(db_url, backup_dir="backups"):
     URLs, ``pg_dump`` or ``mysqldump`` are executed to generate SQL dumps.
     Returns the path to the created backup file.
     """
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 

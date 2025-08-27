@@ -3,7 +3,7 @@ import uuid
 import importlib
 import pkgutil
 
-from datetime import datetime
+from datetime import datetime, UTC
 from dotenv import load_dotenv
 from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
@@ -153,7 +153,7 @@ def create_app():
 
     @app.context_processor
     def inject_now():
-        return {'current_year': datetime.utcnow().year}
+        return {'current_year': datetime.now(UTC).year}
 
     @app.before_request
     def start_timer():

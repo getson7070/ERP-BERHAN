@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 import hashlib
 from db import get_db
 
@@ -10,7 +10,7 @@ def log_audit(user_id: int | None, org_id: int | None, action: str, details: str
     cur.execute("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1")
     prev = cur.fetchone()
     prev_hash = prev[0] if prev else ""
-    timestamp = datetime.utcnow()
+    timestamp = datetime.now(UTC)
     record = f"{prev_hash}{user_id}{org_id}{action}{details}{timestamp.isoformat()}"
     current_hash = hashlib.sha256(record.encode()).hexdigest()
     try:

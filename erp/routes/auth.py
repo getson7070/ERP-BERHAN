@@ -10,7 +10,7 @@ from wtforms import (
     SelectMultipleField,
 )
 from wtforms.validators import DataRequired, Length, NumberRange
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 import os
 import jwt
 import pyotp
@@ -71,14 +71,14 @@ def issue_token():
     access_payload = {
         'sub': email,
         'org_id': user.get('org_id'),
-        'exp': datetime.utcnow() + timedelta(minutes=15),
+        'exp': datetime.now(UTC) + timedelta(minutes=15),
         'kid': kid
     }
     refresh_payload = {
         'sub': email,
         'org_id': user.get('org_id'),
         'jti': refresh_id,
-        'exp': datetime.utcnow() + timedelta(days=7),
+        'exp': datetime.now(UTC) + timedelta(days=7),
         'kid': kid
     }
     access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
@@ -115,14 +115,14 @@ def refresh_token():
     access_payload = {
         'sub': email,
         'org_id': org_id,
-        'exp': datetime.utcnow() + timedelta(minutes=15),
+        'exp': datetime.now(UTC) + timedelta(minutes=15),
         'kid': kid
     }
     refresh_payload = {
         'sub': email,
         'org_id': org_id,
         'jti': new_refresh_id,
-        'exp': datetime.utcnow() + timedelta(days=7),
+        'exp': datetime.now(UTC) + timedelta(days=7),
         'kid': kid
     }
     access = jwt.encode(access_payload, secret, algorithm='HS256', headers={'kid': kid})
