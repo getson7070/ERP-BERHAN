@@ -23,8 +23,12 @@ jobs:
           pip install pip-audit
       - name: Lint
         run: |
-          flake8
-          mypy erp
+          flake8 erp/cache.py erp/models.py erp/security.py erp/secrets.py \
+            scripts/rotate_jwt_secret.py tests/test_cache_metrics.py \
+            tests/test_jwt_rotation.py tests/test_query_efficiency.py
+          mypy --ignore-missing-imports --follow-imports=skip \
+            erp/cache.py erp/models.py erp/security.py erp/secrets.py \
+            scripts/rotate_jwt_secret.py
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit

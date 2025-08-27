@@ -24,7 +24,9 @@ def init_cache(app) -> None:
     """
     config = {
         "CACHE_TYPE": "RedisCache",
-        "CACHE_REDIS_URL": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        "CACHE_REDIS_URL": os.environ.get(
+            "REDIS_URL", "redis://localhost:6379/0"
+        ),
     }
     if app.config.get("TESTING"):
         config = {"CACHE_TYPE": "SimpleCache"}

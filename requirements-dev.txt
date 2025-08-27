@@ -3,3 +3,5 @@ pytest-cov
 locust
 coverage
 pip-audit
+flake8
+mypy
