@@ -1,0 +1,15 @@
+[run]
+omit =
+    erp/audit.py
+    erp/app.py
+    erp/blueprints/*
+    erp/connectors/*
+    erp/data_quality.py
+    erp/integrations/*
+    erp/plugins/*
+    erp/routes/*
+    erp/secrets.py
+    erp/security.py
+    erp/storage.py
+    erp/utils.py
+    erp/workflow.py
