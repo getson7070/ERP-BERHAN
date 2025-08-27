@@ -31,10 +31,21 @@ jwt = JWTManager()
 def init_security(app):
     """Configure Flask-Security and JWT extensions."""
 
-    app.config.setdefault("SECURITY_PASSWORD_SALT", os.environ.get("SECURITY_PASSWORD_SALT", "changeme"))
+    salt = app.config.get("SECURITY_PASSWORD_SALT") or os.environ.get("SECURITY_PASSWORD_SALT")
+    if not salt:
+        raise RuntimeError("SECURITY_PASSWORD_SALT environment variable is required")
+    app.config["SECURITY_PASSWORD_SALT"] = salt
     app.config.setdefault("SECURITY_TWO_FACTOR_ENABLED_METHODS", ["authenticator"])
     app.config.setdefault("SECURITY_TOTP_ISSUER", app.config.get("MFA_ISSUER", "ERP-BERHAN"))
-    app.config.setdefault("JWT_SECRET_KEY", app.config.get("JWT_SECRET"))
+    jwt_secret = (
+        app.config.get("JWT_SECRET")
+        or app.config.get("JWT_SECRET_KEY")
+        or os.environ.get("JWT_SECRET")
+        or os.environ.get("JWT_SECRET_KEY")
+    )
+    if not jwt_secret:
+        raise RuntimeError("JWT_SECRET or JWT_SECRET_KEY environment variable is required")
+    app.config["JWT_SECRET_KEY"] = jwt_secret
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, datastore=user_datastore)
     jwt.init_app(app)

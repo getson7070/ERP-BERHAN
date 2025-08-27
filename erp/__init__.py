@@ -56,14 +56,15 @@ def _ensure_base_tables() -> None:
 
     The repository relies on migrations for full schema management, but the
     test suite uses a lightweight SQLite database. To keep tests hermetic and
-    enforce row-level security expectations, we create the ``inventory_items``
-    table on startup if it is missing. This covers both SQLite and PostgreSQL
+    enforce row-level security expectations, we create essential tables on
+    startup if they are missing. This covers both SQLite and PostgreSQL
     backends without requiring a running migration step."""
 
     conn = get_db()
     cur = conn.cursor()
     try:
-        if getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite":
+        sqlite = getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite"
+        if sqlite:
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS inventory_items (
@@ -71,6 +72,50 @@ def _ensure_base_tables() -> None:
                     org_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     quantity INTEGER NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    org_id INTEGER NOT NULL,
+                    number TEXT UNIQUE NOT NULL,
+                    total NUMERIC NOT NULL DEFAULT 0,
+                    issued_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE,
+                    description TEXT
+                )
+                """
+            )
+            cur.execute("PRAGMA table_info(roles)")
+            cols = [r[1] for r in cur.fetchall()]
+            if "description" not in cols:
+                cur.execute("ALTER TABLE roles ADD COLUMN description TEXT")
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    active BOOLEAN DEFAULT 1,
+                    fs_uniquifier TEXT UNIQUE NOT NULL,
+                    mfa_secret TEXT
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles_users (
+                    user_id INTEGER REFERENCES users(id),
+                    role_id INTEGER REFERENCES roles(id)
                 )
                 """
             )
@@ -85,6 +130,49 @@ def _ensure_base_tables() -> None:
                 )
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id SERIAL PRIMARY KEY,
+                    org_id INTEGER NOT NULL,
+                    number VARCHAR(64) UNIQUE NOT NULL,
+                    total NUMERIC NOT NULL DEFAULT 0,
+                    issued_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(80) UNIQUE,
+                    description VARCHAR(255)
+                )
+                """
+            )
+            cur.execute(
+                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS description VARCHAR(255)"
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    active BOOLEAN DEFAULT TRUE,
+                    fs_uniquifier VARCHAR(64) UNIQUE NOT NULL,
+                    mfa_secret VARCHAR(32)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles_users (
+                    user_id INTEGER REFERENCES users(id),
+                    role_id INTEGER REFERENCES roles(id)
+                )
+                """
+            )
         conn.commit()
     finally:
         cur.close()
@@ -94,7 +182,6 @@ def create_app():
     # Import inside the factory to avoid circular dependencies during
     # application initialisation where ``app`` imports models which in turn
     # rely on the ``db`` object defined in this module.
-    from .app import register_blueprints, init_security
 
     app = Flask(__name__, static_folder='../static', template_folder='../templates')
     app.config.from_object(Config)
@@ -153,7 +240,7 @@ def create_app():
             client_kwargs={'scope': 'openid email profile'},
         )
 
-    Talisman(app, content_security_policy=None, force_https=True)
+    Talisman(app, content_security_policy={"default-src": "'self'"}, force_https=True)
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
@@ -161,20 +248,14 @@ def create_app():
 
     load_plugins(app)
     register_blueprints(app)
+    _ensure_base_tables()
     with app.app_context():
-        db.create_all()
-        # Ensure legacy databases gain the ``description`` column introduced
-        # in the Role model to keep tests and runtime schema consistent.
-        inspector = db.inspect(db.engine)
-        role_cols = [c['name'] for c in inspector.get_columns('roles')]
-        if 'description' not in role_cols:
-            db.session.execute(db.text('ALTER TABLE roles ADD COLUMN description VARCHAR(255)'))
-            db.session.commit()
+        if app.config.get('TESTING'):
+            db.create_all()
         for role in ("admin", "pharmacist"):
             if not user_datastore.find_role(role):
                 user_datastore.create_role(name=role)
         db.session.commit()
-    _ensure_base_tables()
 
     @socketio.on('connect')
     def _ws_connect(auth):

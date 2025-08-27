@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Run static and dependency security checks. Fails if issues are detected.
+# Usage: ./scripts/security_scan.sh
 set -euo pipefail
 
 # Ensure required tools are available
@@ -13,11 +16,11 @@ if ! command -v safety >/dev/null 2>&1; then
 fi
 
 # Static analysis for common Python security issues
-bandit -r erp || true
+bandit -r erp
 
 # Dependency vulnerability audit
 if [[ -f requirements.txt ]]; then
-    safety check -r requirements.txt --full-report || true
+    safety check -r requirements.txt --full-report
 else
-    safety check --full-report || true
+    safety check --full-report
 fi
