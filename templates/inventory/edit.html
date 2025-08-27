@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Edit Item{% endblock %}
+{% block content %}
+<h2>Edit Item</h2>
+<form method="post" class="needs-validation" novalidate>
+  <div class="mb-3">
+    <label class="form-label">Name</label>
+    <input type="text" name="name" class="form-control" value="{{ item.name }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Quantity</label>
+    <input type="number" name="quantity" class="form-control" value="{{ item.quantity }}" required>
+  </div>
+  <button type="submit" class="btn btn-success">Update</button>
+  <a href="{{ url_for('inventory.index') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

@@ -46,7 +46,7 @@ body class="container">
                         </a>
                         <ul class="dropdown-menu">
                             {% if session.role in ['Storekeeper', 'Accountant', 'Management'] %}
-                            <li><a class="dropdown-item" href="{{ url_for('add_inventory') }}"><i class="fas fa-plus"></i> Add Inventory</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('inventory.add_inventory') }}"><i class="fas fa-plus"></i> Add Inventory</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('receive_inventory') }}"><i class="fas fa-download"></i> Receive Inventory</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('inventory_out') }}"><i class="fas fa-upload"></i> Inventory Out</a></li>
                             {% endif %}

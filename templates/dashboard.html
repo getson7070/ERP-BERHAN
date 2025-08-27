@@ -40,7 +40,7 @@
             <span class="nav-link text-secondary">{{ _('Inventory') }}</span>
             <ul class="nav flex-column ms-3">
               {% if 'add_inventory' in permissions %}
-              <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('add_inventory') }}">{{ _('Add Inventory') }}</a></li>
+              <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('inventory.add_inventory') }}">{{ _('Add Inventory') }}</a></li>
               {% endif %}
               {% if 'receive_inventory' in permissions %}
               <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('receive_inventory') }}">{{ _('Receive Inventory') }}</a></li>
