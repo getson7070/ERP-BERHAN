@@ -1,7 +1,5 @@
 import os
 import uuid
-from urllib.parse import quote
-
 import boto3
 
 

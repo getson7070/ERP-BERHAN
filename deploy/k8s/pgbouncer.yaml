@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: erp
+  labels:
+    app: pgbouncer
+data:
+  pgbouncer.ini: |
+    [databases]
+    erp = host=postgres port=5432 dbname=erp
+    [pgbouncer]
+    max_client_conn = 100
+    default_pool_size = 20
+    pool_mode = transaction
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.23.0
+          args: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pgbouncer
+      volumes:
+        - name: config
+          configMap:
+            name: pgbouncer-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: erp
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+    - port: 5432
+      targetPort: 5432

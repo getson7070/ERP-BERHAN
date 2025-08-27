@@ -178,6 +178,7 @@ def employee_login():
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
+                session['mfa_verified'] = True
                 conn.execute(
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
@@ -233,6 +234,7 @@ def client_login():
                 session['permissions'] = (
                     user['permissions'].split(',') if user['permissions'] else []
                 )
+                session['mfa_verified'] = True
                 conn.execute(
                     'UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?',
                     (datetime.now(), email),
