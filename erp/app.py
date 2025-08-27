@@ -11,6 +11,7 @@ See ``docs/blueprints.md`` for a high level overview of the discovery strategy.
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import pkgutil
 from types import ModuleType
@@ -78,14 +79,16 @@ def _blueprints_from(pkg: ModuleType) -> Iterable[Blueprint]:
         yield bp
 
     prefix = pkg.__name__ + "."
+    logger = logging.getLogger(__name__)
     for _, modname, _ in pkgutil.walk_packages(pkg.__path__, prefix):
         try:
             module = importlib.import_module(modname)
-        except Exception:  # pragma: no cover - best effort discovery
-            continue
-        bp = getattr(module, "bp", None)
-        if isinstance(bp, Blueprint):
-            yield bp
+        except (ImportError, AttributeError) as exc:  # pragma: no cover - best effort discovery
+            logger.warning("Failed to import %s: %s", modname, exc)
+        else:
+            bp = getattr(module, "bp", None)
+            if isinstance(bp, Blueprint):
+                yield bp
 
 
 def register_blueprints(app) -> None:
