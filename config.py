@@ -6,7 +6,7 @@ from datetime import timedelta
 from erp.secrets import get_secret
 
 class Config:
-    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
+    SECRET_KEY = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
     DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/erp')
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
@@ -18,7 +18,6 @@ class Config:
     DB_MAX_OVERFLOW = int(os.environ.get('DB_MAX_OVERFLOW', '10'))
     DB_POOL_TIMEOUT = int(os.environ.get('DB_POOL_TIMEOUT', '30'))
     PREFERRED_URL_SCHEME = 'https'
-    TOTP_ISSUER = os.environ.get('TOTP_ISSUER', 'ERP-BERHAN')
     _default_secret = get_secret('JWT_SECRET') or secrets.token_hex(32)
     JWT_SECRETS = json.loads(get_secret('JWT_SECRETS') or json.dumps({'v1': _default_secret}))
     JWT_SECRET_ID = get_secret('JWT_SECRET_ID') or 'v1'

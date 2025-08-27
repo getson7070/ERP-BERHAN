@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
-# Simple load test using wrk if available
-if ! command -v wrk >/dev/null; then
-  echo "wrk not installed" >&2
+HOST=${LOADTEST_HOST:-http://localhost:5000}
+if ! command -v locust >/dev/null; then
+  echo "locust not installed" >&2
   exit 1
 fi
-wrk -t4 -c100 -d30s http://localhost:5000/
+locust -f "$(dirname "$0")/locustfile.py" --headless --host "$HOST" -u 100 -r 20 -t 1m
