@@ -1,6 +1,28 @@
-# ERP-BERHAN
-BERHAN PHARMA
+# BERHAN PHARMA
 
+[![CI](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+
+BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
+
+## Setup
+
+```bash
+git clone https://github.com/getson7070/ERP-BERHAN.git
+cd ERP-BERHAN
+pip install -r requirements.txt
+flask run
+```
+
+## Tech Stack
+
+- Flask
+- PostgreSQL
+- SQLAlchemy
+- Celery
+- Redis
+- Bootstrap 5
+
+## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
 improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
