@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: erp-berhan
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: erp-berhan
+  endpoints:
+    - port: http
+      path: /metrics

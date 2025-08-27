@@ -1,4 +1,13 @@
-from flask import Flask, request, session, Response, g, render_template
+"""Application factory for BERHAN ERP.
+
+This module initialises the core Flask application and wires up common
+extensions such as SQLAlchemy for models, Celery for asynchronous tasks and
+Flask-Babel for multi-language support.  Blueprints are registered lazily via
+``register_blueprints`` to keep the core lightweight.  See
+``docs/blueprints.md`` for additional background on the discovery strategy.
+"""
+
+from flask import Flask, request, session, Response, g, render_template, current_app
 import uuid
 
 from datetime import datetime, UTC
@@ -7,7 +16,6 @@ from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
 from authlib.integrations.flask_client import OAuth
 from flask_babel import Babel, _, get_locale
-from flask_sqlalchemy import SQLAlchemy
 from celery import Celery
 import logging.config
 import os
@@ -18,7 +26,7 @@ from flask_limiter.util import get_remote_address
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from erp.plugins import load_plugins
-from .app import register_blueprints
+from .cache import init_cache
 
 from config import Config
 from db import get_db, redis_client
@@ -33,7 +41,7 @@ def rate_limit_key():
 socketio = SocketIO()
 oauth = OAuth()
 babel = Babel()
-db = SQLAlchemy()
+from .extensions import db
 celery = Celery(__name__)
 limiter = None
 
@@ -48,14 +56,15 @@ def _ensure_base_tables() -> None:
 
     The repository relies on migrations for full schema management, but the
     test suite uses a lightweight SQLite database. To keep tests hermetic and
-    enforce row-level security expectations, we create the ``inventory_items``
-    table on startup if it is missing. This covers both SQLite and PostgreSQL
+    enforce row-level security expectations, we create essential tables on
+    startup if they are missing. This covers both SQLite and PostgreSQL
     backends without requiring a running migration step."""
 
     conn = get_db()
     cur = conn.cursor()
     try:
-        if getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite":
+        sqlite = getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite"
+        if sqlite:
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS inventory_items (
@@ -63,6 +72,50 @@ def _ensure_base_tables() -> None:
                     org_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     quantity INTEGER NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    org_id INTEGER NOT NULL,
+                    number TEXT UNIQUE NOT NULL,
+                    total NUMERIC NOT NULL DEFAULT 0,
+                    issued_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE,
+                    description TEXT
+                )
+                """
+            )
+            cur.execute("PRAGMA table_info(roles)")
+            cols = [r[1] for r in cur.fetchall()]
+            if "description" not in cols:
+                cur.execute("ALTER TABLE roles ADD COLUMN description TEXT")
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    active BOOLEAN DEFAULT 1,
+                    fs_uniquifier TEXT UNIQUE NOT NULL,
+                    mfa_secret TEXT
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles_users (
+                    user_id INTEGER REFERENCES users(id),
+                    role_id INTEGER REFERENCES roles(id)
                 )
                 """
             )
@@ -77,12 +130,59 @@ def _ensure_base_tables() -> None:
                 )
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS invoices (
+                    id SERIAL PRIMARY KEY,
+                    org_id INTEGER NOT NULL,
+                    number VARCHAR(64) UNIQUE NOT NULL,
+                    total NUMERIC NOT NULL DEFAULT 0,
+                    issued_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(80) UNIQUE,
+                    description VARCHAR(255)
+                )
+                """
+            )
+            cur.execute(
+                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS description VARCHAR(255)"
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    active BOOLEAN DEFAULT TRUE,
+                    fs_uniquifier VARCHAR(64) UNIQUE NOT NULL,
+                    mfa_secret VARCHAR(32)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS roles_users (
+                    user_id INTEGER REFERENCES users(id),
+                    role_id INTEGER REFERENCES roles(id)
+                )
+                """
+            )
         conn.commit()
     finally:
         cur.close()
         conn.close()
 
 def create_app():
+    # Import inside the factory to avoid circular dependencies during
+    # application initialisation where ``app`` imports models which in turn
+    # rely on the ``db`` object defined in this module.
+
     app = Flask(__name__, static_folder='../static', template_folder='../templates')
     app.config.from_object(Config)
     db_url = os.environ.get('DATABASE_URL')
@@ -106,6 +206,9 @@ def create_app():
     socketio.init_app(app, message_queue=None if use_fake else app.config['REDIS_URL'])
     oauth.init_app(app)
     db.init_app(app)
+    init_cache(app)
+    from .app import register_blueprints, init_security  # deferred to avoid circular import
+    user_datastore = init_security(app)
     init_celery(app)
     global limiter
     storage_uri = 'memory://' if use_fake else app.config['REDIS_URL']
@@ -137,7 +240,7 @@ def create_app():
             client_kwargs={'scope': 'openid email profile'},
         )
 
-    Talisman(app, content_security_policy=None, force_https=True)
+    Talisman(app, content_security_policy={"default-src": "'self'"}, force_https=True)
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
@@ -145,9 +248,14 @@ def create_app():
 
     load_plugins(app)
     register_blueprints(app)
-    with app.app_context():
-        db.create_all()
     _ensure_base_tables()
+    with app.app_context():
+        if app.config.get('TESTING'):
+            db.create_all()
+        for role in ("admin", "pharmacist"):
+            if not user_datastore.find_role(role):
+                user_datastore.create_role(name=role)
+        db.session.commit()
 
     @socketio.on('connect')
     def _ws_connect(auth):
@@ -158,6 +266,15 @@ def create_app():
             disconnect()
             return False
         join_room(f"org_{int(org)}")
+
+    @socketio.on('analytics_ping')
+    def _analytics_ping():
+        """Emit placeholder analytics to the requester."""
+        socketio.emit('analytics_update', {'active_users': 0}, to=request.sid)
+
+    @socketio.on('voice_command')
+    def _voice_command(data):
+        current_app.logger.info("voice command: %s", data.get('command'))
 
     
 
@@ -217,6 +334,7 @@ def create_app():
 
     @app.errorhandler(500)
     def _500(error):
+        current_app.logger.exception("Unhandled exception", exc_info=error)
         return render_template('errors/500.html', code=500, message=getattr(error, 'description', None)), 500
 
     return app
