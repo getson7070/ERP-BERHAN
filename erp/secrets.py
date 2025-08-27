@@ -1,14 +1,17 @@
 import json
 import os
 from threading import RLock
+from typing import Any
 
-_cache = {}
+_cache: dict[str, Any] = {}
 _lock = RLock()
+
 
 def get_secret(key: str) -> str | None:
     """Return secret value from a JSON vault file or environment variable.
 
-    The vault file path is supplied via the ``VAULT_FILE`` environment variable.
+    The vault file path is supplied via the ``VAULT_FILE`` environment
+    variable.
     Secrets are reloaded automatically if the file changes to support rotation
     without restarting the application.
     """

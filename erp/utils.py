@@ -33,10 +33,13 @@ def has_permission(permission: str) -> bool:
         FROM role_assignments ra
         JOIN role_permissions rp ON ra.role_id = rp.role_id
         JOIN permissions p ON rp.permission_id = p.id
-        WHERE ra.user_id = :user_id AND ra.org_id = :org_id AND p.name = :permission
+        WHERE ra.user_id = :user_id AND ra.org_id = :org_id
+        AND p.name = :permission
         """
     )
-    cur = conn.execute(sql, {"user_id": user_id, "org_id": org_id, "permission": permission})
+    cur = conn.execute(
+        sql, {"user_id": user_id, "org_id": org_id, "permission": permission}
+    )
     has_perm = cur.fetchone() is not None
     conn.close()
     return has_perm
@@ -80,6 +83,7 @@ def roles_required(*roles):
 
     return decorator
 
+
 ph = PasswordHasher(
     time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
     memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
@@ -97,7 +101,9 @@ def verify_password(password: str, password_hash: str) -> bool:
             return ph.verify(password_hash, password)
         except VerifyMismatchError:
             return False
-    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    return bcrypt.checkpw(
+        password.encode("utf-8"), password_hash.encode("utf-8")
+    )
 
 
 def login_required(f):
@@ -107,6 +113,18 @@ def login_required(f):
             return redirect(url_for('auth.choose_login'))
         return f(*args, **kwargs)
     return wrap
+
+
+def mfa_required(f):
+    """Ensure the user has completed MFA before accessing a route."""
+
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not session.get("mfa_verified"):
+            abort(403)
+        return f(*args, **kwargs)
+
+    return wrapped
 
 
 def idempotency_key_required(f):

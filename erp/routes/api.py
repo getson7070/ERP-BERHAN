@@ -5,7 +5,12 @@ from db import get_db
 import os
 import hmac
 import hashlib
-from erp import TOKEN_ERRORS, limiter
+from erp import (
+    TOKEN_ERRORS,
+    limiter,
+    GRAPHQL_DEPTH_REJECTIONS,
+    GRAPHQL_COMPLEXITY_REJECTIONS,
+)
 from erp.utils import idempotency_key_required
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -132,9 +137,11 @@ def graphql_endpoint():
         elif ch == '}':
             depth -= 1
     if deepest > max_depth:
+        GRAPHQL_DEPTH_REJECTIONS.inc()
         abort(400, 'query too deep')
     max_complexity = current_app.config.get('GRAPHQL_MAX_COMPLEXITY', 1000)
     if len(re.findall(r"[A-Za-z0-9_]+", query)) > max_complexity:
+        GRAPHQL_COMPLEXITY_REJECTIONS.inc()
         abort(400, 'query too complex')
     result = schema.execute(query)
     if result.errors:

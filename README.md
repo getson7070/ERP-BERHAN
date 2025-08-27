@@ -69,8 +69,8 @@ Celery powers several background workflows:
 
 - Scheduled tasks send pending order reminders and generate monthly compliance
   reports.
-- KPI materialized views refresh every 30 minutes and a simple forecast of next
-  month's sales is displayed on the analytics dashboard.
+- KPI materialized views refresh every five minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard. A nightly export pushes KPIs to a Timescale/ClickHouse warehouse, and staleness is tracked via the `kpi_sales_mv_age_seconds` metric.
 - Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
   reports and schedule compliance exports.
 - Monitor Celery backlog with `python scripts/monitor_queue.py` to detect stuck tasks.

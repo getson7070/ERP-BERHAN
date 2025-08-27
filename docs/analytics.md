@@ -3,7 +3,9 @@
 ## Celery Workflows
 - `generate_report`: builds daily CSV summaries of orders and maintenance.
 - `expire_tenders`: closes overdue tenders every night.
-- `refresh_kpis`: refreshes the `kpi_sales` materialized view every 30 minutes.
+- `refresh_kpis`: refreshes the `kpi_sales` materialized view every five minutes.
+- `check_kpi_staleness`: warns if `kpi_sales` is stale for more than ten minutes; staleness is tracked via the `kpi_sales_mv_age_seconds` gauge in `/metrics`.
+- `export_kpis_to_olap`: nightly export of KPIs to a TimescaleDB or ClickHouse warehouse for long-range analytics.
 - `send_approval_reminders`: logs and notifies managers of pending order approvals each morning.
 - `forecast_sales`: predicts next month's sales from recent KPIs.
 - `generate_compliance_report`: exports a list of unapproved orders for auditing.
