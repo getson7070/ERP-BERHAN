@@ -296,21 +296,10 @@ def create_app():
 
     user_datastore = init_security(app)
     init_celery(app)
-<<<<<<< HEAD
-    global limiter
-    storage_uri = "memory://" if use_fake else app.config["REDIS_URL"]
-    limiter = Limiter(
-        key_func=rate_limit_key,
-        storage_uri=storage_uri,
-        default_limits=[
-            app.config.get("RATE_LIMIT_DEFAULT", "100 per minute")
-        ],
-=======
     storage_uri = "memory://" if use_fake else app.config["REDIS_URL"]
     app.config["RATELIMIT_STORAGE_URI"] = storage_uri
     app.config["RATELIMIT_DEFAULT"] = app.config.get(
         "RATE_LIMIT_DEFAULT", "100 per minute"
->>>>>>> work
     )
     limiter.init_app(app)
     app.config["BABEL_TRANSLATION_DIRECTORIES"] = "translations"
