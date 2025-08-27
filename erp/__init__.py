@@ -49,6 +49,7 @@ REQUEST_COUNT = Counter('request_count', 'HTTP Request Count', ['method', 'endpo
 REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency', ['endpoint'])
 TOKEN_ERRORS = Counter('token_errors_total', 'Invalid or expired token events')
 QUEUE_LAG = Gauge('queue_lag', 'Celery queue backlog size', ['queue'])
+RATE_LIMIT_REJECTIONS = Counter('rate_limit_rejections_total', 'Requests rejected due to rate limiting')
 
 
 def _ensure_base_tables() -> None:
@@ -313,6 +314,8 @@ def create_app():
         endpoint = request.endpoint or 'unknown'
         REQUEST_LATENCY.labels(endpoint).observe(time.time() - g.start_time)
         REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
+        if response.status_code == 429:
+            RATE_LIMIT_REJECTIONS.inc()
         response.headers['X-Correlation-ID'] = g.get('correlation_id', '')
         return response
 

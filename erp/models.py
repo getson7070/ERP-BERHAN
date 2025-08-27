@@ -58,3 +58,13 @@ class User(db.Model, UserMixin):
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     mfa_secret = db.Column(db.String(32))
     roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
+
+
+class DataLineage(db.Model):
+    __tablename__ = 'data_lineage'
+
+    id = db.Column(db.Integer, primary_key=True)
+    table_name = db.Column(db.String(128), nullable=False)
+    column_name = db.Column(db.String(128), nullable=False)
+    source = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

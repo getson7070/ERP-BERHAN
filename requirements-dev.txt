@@ -2,3 +2,4 @@ pytest
 pytest-cov
 locust
 coverage
+pip-audit

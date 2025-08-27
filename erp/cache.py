@@ -8,6 +8,10 @@ from __future__ import annotations
 import os
 import fnmatch
 from flask_caching import Cache
+from prometheus_client import Counter
+
+CACHE_HITS = Counter('cache_hits_total', 'Number of cache hits')
+CACHE_MISSES = Counter('cache_misses_total', 'Number of cache misses')
 
 cache = Cache()
 
@@ -34,7 +38,12 @@ def cache_set(key: str, value, ttl: int | None = None) -> None:
 
 def cache_get(key: str):
     """Return cached value for *key* if present."""
-    return cache.get(key)
+    value = cache.get(key)
+    if value is None:
+        CACHE_MISSES.inc()
+    else:
+        CACHE_HITS.inc()
+    return value
 
 
 def cache_invalidate(pattern: str) -> None:
