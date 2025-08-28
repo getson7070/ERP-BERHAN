@@ -12,12 +12,9 @@ from erp.utils import hash_password  # noqa: E402
 def test_lockout_and_unlock(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "lock.db"))
     monkeypatch.setenv("USE_FAKE_REDIS", "1")
+    monkeypatch.setenv("RATELIMIT_ENABLED", "0")
     app = create_app()
     app.config.update(TESTING=True, LOCK_THRESHOLD=2, ACCOUNT_LOCK_SECONDS=1)
-    app.config['RATELIMIT_ENABLED'] = False
-    from erp import limiter
-
-    limiter.enabled = False
     client = app.test_client()
 
     def get_db():  # pragma: no cover - test helper
@@ -68,10 +65,16 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
 
     payload = {"email": "a@example.com", "password": "bad"}
     for i in range(2):
-        client.post("/auth/token", json=payload)
+        client.post(
+            "/auth/token",
+            json=payload,
+            headers={"Authorization": f"Bearer t{i}"},
+        )
         if i == 0:
             time.sleep(2)
-    resp = client.post("/auth/token", json=payload)
+    resp = client.post(
+        "/auth/token", json=payload, headers={"Authorization": "Bearer t2"}
+    )
     assert resp.status_code == 403
     assert resp.json["error"] == "account_locked"
 

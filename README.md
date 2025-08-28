@@ -1,9 +1,6 @@
 # BERHAN PHARMA
 
-[![Build](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=build)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
-[![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
-[![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
-[![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![CI](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
 
@@ -35,20 +32,7 @@ all checks to pass before merging.
 
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
-<<<<<<< HEAD
-### Pre-commit hooks
 
-Install and enable the pre-commit hooks to mirror CI checks:
-
-```bash
-pip install -r requirements-dev.txt
-pre-commit install
-```
-
-Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
-=======
-
->>>>>>> 0b17f49 (Applying previous commit)
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
@@ -158,6 +142,13 @@ Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
 JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
 `JWT_SECRET_ID` and records each rotation for audit purposes.
 
+Edge rate limiting is applied at the NGINX ingress and within Flask-Limiter.
+Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
+429 rejections counted via the `rate_limit_rejections_total` metric.
+
+JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
+`JWT_SECRET_ID` and persists an audit trail of rotations.
+
 SSO/OAuth2 login is available via the configured provider. Successful and failed
 authentication attempts are recorded in an `audit_logs` table protected by
 row-level security and hash-chained for tamper evidence.
@@ -165,6 +156,18 @@ row-level security and hash-chained for tamper evidence.
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
 secrets manager; see [docs/security/secret_rotation.md](docs/security/secret_rotation.md).
+
+## Disaster Recovery & Data Governance
+
+Recovery objectives target an **RPO of 15 minutes** and **RTO of 1 hour**.
+Weekly drills restore the latest backup via
+[`scripts/restore_latest_backup.sh`](scripts/restore_latest_backup.sh) and log
+measured times; see [docs/dr_plan.md](docs/dr_plan.md).
+
+Data retention windows and column-level lineage are documented in
+[docs/data_retention.md](docs/data_retention.md). The `data_lineage` table tracks
+analytics sources, and exports to TimescaleDB/ClickHouse apply the same
+retention and PII-masking rules.
 
 ## UI/UX
 
@@ -190,20 +193,6 @@ The `backup.py` helper creates timestamped database backups. PostgreSQL and
 MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
 to be used for replication or off-site disaster recovery. See
 `docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
-
-## Disaster Recovery
-
-Weekly restore drills validate a **15‑minute RPO** and **one‑hour RTO**. The
-process is documented in [docs/dr_plan.md](docs/dr_plan.md) and executed via
-`scripts/restore_latest_backup.py`, which restores the most recent dump to a
-staging database and records the elapsed time for each run.
-
-## Data Governance
-
-Table‑level retention windows and column lineage are defined in
-[docs/data_retention.md](docs/data_retention.md). The `DataLineage` model tracks
-the origin of analytics fields, and exports mask PII to meet Ethiopian privacy
-requirements.
 
 ### Multi-Factor Authentication
 
@@ -273,15 +262,6 @@ collection by a monitoring system. Structured logs are emitted to standard
 output to aid in tracing and alerting.
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
-<<<<<<< HEAD
-<<<<<<< HEAD
-Database efficiency is monitored through `db_query_count` tests that guard
-against N+1 patterns. Cache performance is tracked with `cache_hits_total`,
-`cache_misses_total`, and the `cache_hit_ratio` gauge.
-=======
->>>>>>> 520f972 (Applying previous commit)
-=======
->>>>>>> 0b17f49 (Applying previous commit)
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
@@ -297,22 +277,6 @@ concurrency levels.
 
 Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
-
-## Current Audit Priorities
-- Recent audits highlighted several cross-cutting gaps. The project is
-actively addressing the following items:
-
-- Enforce reverse-proxy rate limiting and publish 429 metrics.
-- Expand the CI pipeline so every push or pull request runs linting,
-  type checks, tests, dependency and container scans.
-- Document recovery objectives and perform regular restore drills to
-  validate backups.
-- Maintain data retention rules and column-level lineage for analytical
-  exports.
-- Monitor cache hit rate and query counts to flag inefficient
-  database access.
-- Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
-  rollover.
 
 ## Governance & Roadmap
 
