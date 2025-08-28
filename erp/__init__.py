@@ -89,9 +89,7 @@ REQUEST_COUNT = Counter(
     "HTTP Request Count",
     ["method", "endpoint", "http_status"],
 )
-REQUEST_LATENCY = Histogram(
-    "request_latency_seconds", "Request latency", ["endpoint"]
-)
+REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endpoint"])
 TOKEN_ERRORS = Counter("token_errors_total", "Invalid or expired token events")
 QUEUE_LAG = Gauge("queue_lag", "Celery queue backlog size", ["queue"])
 KPI_SALES_MV_AGE = Gauge(
@@ -127,9 +125,7 @@ def _ensure_base_tables() -> None:
     conn = get_db()
     cur = conn.cursor()
     try:
-        sqlite = (
-            getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite"
-        )
+        sqlite = getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite"
         if sqlite:
             cur.execute(
                 """
@@ -148,7 +144,8 @@ def _ensure_base_tables() -> None:
                     org_id INTEGER NOT NULL,
                     number TEXT UNIQUE NOT NULL,
                     total NUMERIC NOT NULL DEFAULT 0,
-                    issued_at TIMESTAMP NOT NULL
+                    issued_at TIMESTAMP NOT NULL,
+                    delete_after TIMESTAMP
                 )
                 """
             )
@@ -173,7 +170,8 @@ def _ensure_base_tables() -> None:
                     password TEXT NOT NULL,
                     active BOOLEAN DEFAULT 1,
                     fs_uniquifier TEXT UNIQUE NOT NULL,
-                    mfa_secret TEXT
+                    mfa_secret TEXT,
+                    anonymized BOOLEAN DEFAULT 0
                 )
                 """
             )
@@ -203,7 +201,8 @@ def _ensure_base_tables() -> None:
                     org_id INTEGER NOT NULL,
                     number VARCHAR(64) UNIQUE NOT NULL,
                     total NUMERIC NOT NULL DEFAULT 0,
-                    issued_at TIMESTAMP NOT NULL
+                    issued_at TIMESTAMP NOT NULL,
+                    delete_after TIMESTAMP
                 )
                 """
             )
@@ -217,8 +216,7 @@ def _ensure_base_tables() -> None:
                 """
             )
             cur.execute(
-                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS "
-                "description VARCHAR(255)"
+                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS " "description VARCHAR(255)"
             )
             cur.execute(
                 """
@@ -228,7 +226,8 @@ def _ensure_base_tables() -> None:
                     password VARCHAR(255) NOT NULL,
                     active BOOLEAN DEFAULT TRUE,
                     fs_uniquifier VARCHAR(64) UNIQUE NOT NULL,
-                    mfa_secret VARCHAR(32)
+                    mfa_secret VARCHAR(32),
+                    anonymized BOOLEAN DEFAULT FALSE
                 )
                 """
             )
@@ -251,9 +250,7 @@ def create_app():
     # application initialisation where ``app`` imports models which in turn
     # rely on the ``db`` object defined in this module.
 
-    app = Flask(
-        __name__, static_folder="../static", template_folder="../templates"
-    )
+    app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config.from_object(Config)
     db_url = os.environ.get("DATABASE_URL")
     db_path = os.environ.get("DATABASE_PATH", "erp.db")
@@ -267,9 +264,7 @@ def create_app():
         {
             "version": 1,
             "formatters": {
-                "default": {
-                    "format": "%(asctime)s %(levelname)s %(name)s %(message)s"
-                }
+                "default": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}
             },
             "handlers": {
                 "console": {
@@ -288,9 +283,7 @@ def create_app():
     )
 
     use_fake = os.environ.get("USE_FAKE_REDIS") == "1"
-    socketio.init_app(
-        app, message_queue=None if use_fake else app.config["REDIS_URL"]
-    )
+    socketio.init_app(app, message_queue=None if use_fake else app.config["REDIS_URL"])
     oauth.init_app(app)
     db.init_app(app)
     init_cache(app)
@@ -301,6 +294,8 @@ def create_app():
 
     user_datastore = init_security(app)
     init_celery(app)
+    import erp.data_retention  # noqa: F401 - ensure tasks are registered
+
     storage_uri = "memory://" if use_fake else app.config["REDIS_URL"]
     app.config["RATELIMIT_STORAGE_URI"] = storage_uri
     app.config["RATELIMIT_DEFAULT"] = app.config.get(
@@ -377,9 +372,7 @@ def create_app():
     @app.before_request
     def start_timer():
         g.start_time = time.time()
-        g.correlation_id = request.headers.get(
-            "X-Correlation-ID", str(uuid.uuid4())
-        )
+        g.correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
         sentry_sdk.set_tag("correlation_id", g.correlation_id)
         # Skip access logs during tests to avoid unintended DB access
         if app.config.get("TESTING"):
@@ -414,9 +407,7 @@ def create_app():
     def record_metrics(response):
         endpoint = request.endpoint or "unknown"
         REQUEST_LATENCY.labels(endpoint).observe(time.time() - g.start_time)
-        REQUEST_COUNT.labels(
-            request.method, endpoint, response.status_code
-        ).inc()
+        REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
         if response.status_code == 429:
             RATE_LIMIT_REJECTIONS.inc()
         response.headers["X-Correlation-ID"] = g.get("correlation_id", "")

@@ -11,4 +11,9 @@ Use `scripts/access_recert_export.py` to generate an immutable (read-only) CSV
 export of current assignments. Store exports in WORM-capable storage such as S3
 Object Lock for tamper evidence.
 
-Automating these steps via scheduled tasks is recommended; see `docs/automation_analytics.md` for guidance on Celery jobs.
+The export runs automatically on the first day of each quarter at 05:00 UTC via
+Celery beat (`data_retention.run_access_recert_export`). Results are written to
+write-once storage and retained for audit purposes.
+
+Automating these steps via scheduled tasks is recommended; see
+`docs/automation_analytics.md` for guidance on Celery jobs.

@@ -14,7 +14,7 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
     monkeypatch.setenv("USE_FAKE_REDIS", "1")
     app = create_app()
     app.config.update(TESTING=True, LOCK_THRESHOLD=2, ACCOUNT_LOCK_SECONDS=1)
-    app.config['RATELIMIT_ENABLED'] = False
+    app.config["RATELIMIT_ENABLED"] = False
     from erp import limiter
 
     limiter.enabled = False
@@ -23,12 +23,12 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
     def get_db():  # pragma: no cover - test helper
         conn = real_get_db()
         try:
-            conn._raw.connection.row_factory = __import__('sqlite3').Row  # type: ignore[attr-defined]
+            conn._raw.connection.row_factory = __import__("sqlite3").Row  # type: ignore[attr-defined]
         except Exception:
             pass
         return conn
 
-    monkeypatch.setattr('db.get_db', get_db)
+    monkeypatch.setattr("db.get_db", get_db)
     conn = get_db()
     conn.execute("DROP TABLE IF EXISTS users")
     conn.execute(
@@ -41,7 +41,8 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
             mfa_secret TEXT,
             approved_by_ceo BOOLEAN DEFAULT TRUE,
             org_id INTEGER,
-            user_type TEXT
+            user_type TEXT,
+            anonymized BOOLEAN DEFAULT 0
         )
         """
     )
@@ -79,6 +80,8 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
     resp = client.post("/auth/token", json={"email": "a@example.com", "password": "pw"})
     assert resp.status_code == 200
     conn = get_db()
-    actions = [row[0] for row in conn.execute("SELECT action FROM audit_logs").fetchall()]
+    actions = [
+        row[0] for row in conn.execute("SELECT action FROM audit_logs").fetchall()
+    ]
     conn.close()
     assert "account_lock" in actions and "account_unlock" in actions

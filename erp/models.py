@@ -35,6 +35,7 @@ class Invoice(db.Model):  # type: ignore[name-defined]
     number = db.Column(db.String(64), unique=True, nullable=False)
     total = db.Column(db.Numeric(scale=2), nullable=False, default=Decimal("0.00"))
     issued_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    delete_after = db.Column(db.DateTime)
 
     def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
         return f"<Invoice {self.number} total={self.total}>"
@@ -57,6 +58,7 @@ class User(db.Model, UserMixin):  # type: ignore[name-defined]
     active = db.Column(db.Boolean(), default=True)
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     mfa_secret = db.Column(db.String(32))
+    anonymized = db.Column(db.Boolean, default=False, nullable=False)
     roles = db.relationship(
         "Role",
         secondary=roles_users,

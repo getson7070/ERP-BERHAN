@@ -25,7 +25,8 @@ def test_token_rate_limit(tmp_path, monkeypatch):
             password_hash TEXT NOT NULL,
             role TEXT,
             mfa_secret TEXT,
-            approved_by_ceo BOOLEAN DEFAULT TRUE
+            approved_by_ceo BOOLEAN DEFAULT TRUE,
+            anonymized BOOLEAN DEFAULT 0
         )
         """
     )
