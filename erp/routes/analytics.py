@@ -19,7 +19,7 @@ from sqlalchemy import create_engine, text
 # Forecasting uses simple averages to avoid heavy ML dependencies.
 
 from db import get_db
-from erp import socketio
+from erp import socketio, KPI_SALES_MV_AGE
 from erp.utils import login_required, roles_required, task_idempotent
 
 bp = Blueprint("analytics", __name__)
@@ -167,7 +167,35 @@ def expire_tenders(idempotency_key=None):
 def refresh_kpis(idempotency_key=None):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY kpi_sales")
+    dialect = conn._dialect.name
+    placeholder = "?" if dialect == "sqlite" else "%s"
+    date_expr = (
+        "strftime('%Y-%m-01', order_date)"
+        if dialect == "sqlite"
+        else "DATE_TRUNC('month', order_date)"
+    )
+    cur.execute("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)")
+    cur.execute(
+        "SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log"
+    )
+    last_refresh = cur.fetchone()[0]
+    cur.execute(
+        f"""
+        INSERT INTO kpi_sales (month, total_sales)
+        SELECT {date_expr} AS month, SUM(total_amount) AS total_sales
+        FROM orders
+        WHERE order_date >= {placeholder}
+        GROUP BY 1
+        ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
+        """,
+        (last_refresh,),
+    )
+    cur.execute("SELECT MAX(order_date) FROM orders")
+    new_last = cur.fetchone()[0] or last_refresh
+    cur.execute(
+        f"INSERT INTO kpi_refresh_log (last_refresh) VALUES ({placeholder})",
+        (new_last,),
+    )
     conn.commit()
     cur.close()
     conn.close()
@@ -175,23 +203,24 @@ def refresh_kpis(idempotency_key=None):
 
 
 def kpi_staleness_seconds() -> float:
-    """Return age of the kpi_sales materialized view in seconds."""
+    """Return age of the kpi_sales dataset in seconds and update gauge."""
     conn = get_db()
     cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            SELECT EXTRACT(EPOCH FROM NOW() - last_refresh)
-            FROM pg_matviews
-            WHERE matviewname = 'kpi_sales'
-            """
-        )
-        age = float(cur.fetchone()[0] or 0)
-    except Exception:
+    cur.execute("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)")
+    cur.execute("SELECT MAX(last_refresh) FROM kpi_refresh_log")
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row or row[0] is None:
         age = 0.0
-    finally:
-        cur.close()
-        conn.close()
+    else:
+        last = row[0]
+        if isinstance(last, str):
+            last_dt = datetime.fromisoformat(last)
+        else:
+            last_dt = last
+        age = (datetime.now(UTC) - last_dt).total_seconds()
+    KPI_SALES_MV_AGE.set(age)
     return age
 
 
@@ -200,6 +229,10 @@ def check_kpi_staleness():
     age = kpi_staleness_seconds()
     if age > 600:
         current_app.logger.warning("kpi_sales MV staleness %.0fs", age)
+        socketio.emit(
+            "alert",
+            {"metric": "kpi_sales_mv_age_seconds", "age": age},
+        )
 
 
 @celery.task
