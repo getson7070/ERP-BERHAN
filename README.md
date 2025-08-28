@@ -1,6 +1,9 @@
 # BERHAN PHARMA
 
-[![CI](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Build](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=build)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
 
