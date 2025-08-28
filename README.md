@@ -76,6 +76,13 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
+## Capabilities Matrix
+A high-level overview of module features is available in [docs/capabilities_matrix.md](docs/capabilities_matrix.md).
+
+## Community
+- [Issue Tracker](https://github.com/getson7070/ERP-BERHAN/issues)
+- [Roadmap Board](https://github.com/getson7070/ERP-BERHAN/projects)
+
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
