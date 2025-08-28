@@ -40,7 +40,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [Control matrix](docs/control_matrix.md)
 - [Access recertification guide](docs/access_recerts.md)
 - [Design system tokens](docs/design_system.md)
- - [JWT secret rotation runbook](docs/security/secret_rotation.md)
+- [JWT secret rotation runbook](docs/security/secret_rotation.md)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
@@ -71,7 +71,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 
 Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
-OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires signed commits, CODEOWNERS approval, and all checks to pass before merging.
+OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires all checks to pass before merging. Commits must be GPG-signed and [CODEOWNERS](.github/CODEOWNERS) approval is enforced.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions. The CI job also emits a
