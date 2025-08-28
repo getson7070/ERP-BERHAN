@@ -190,6 +190,20 @@ MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
 to be used for replication or off-site disaster recovery. See
 `docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
+## Disaster Recovery
+
+Weekly restore drills validate a **15‑minute RPO** and **one‑hour RTO**. The
+process is documented in [docs/dr_plan.md](docs/dr_plan.md) and executed via
+`scripts/restore_latest_backup.py`, which restores the most recent dump to a
+staging database and records the elapsed time for each run.
+
+## Data Governance
+
+Table‑level retention windows and column lineage are defined in
+[docs/data_retention.md](docs/data_retention.md). The `DataLineage` model tracks
+the origin of analytics fields, and exports mask PII to meet Ethiopian privacy
+requirements.
+
 ### Multi-Factor Authentication
 
 Both employee and client accounts are protected with TOTP based multi-factor
@@ -273,6 +287,22 @@ concurrency levels.
 
 Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
+
+## Current Audit Priorities
+- Recent audits highlighted several cross-cutting gaps. The project is
+actively addressing the following items:
+
+- Enforce reverse-proxy rate limiting and publish 429 metrics.
+- Expand the CI pipeline so every push or pull request runs linting,
+  type checks, tests, dependency and container scans.
+- Document recovery objectives and perform regular restore drills to
+  validate backups.
+- Maintain data retention rules and column-level lineage for analytical
+  exports.
+- Monitor cache hit rate and query counts to flag inefficient
+  database access.
+- Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
+  rollover.
 
 ## Governance & Roadmap
 
