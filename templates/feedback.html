@@ -16,8 +16,17 @@
 document.getElementById('feedback-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('message').value;
-  await fetch('/feedback/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg})});
-  e.target.reset();
+  try {
+    const resp = await fetch('/feedback/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg})});
+    if (resp.ok) {
+      showMessage('success', '{{ _('Feedback submitted') }}');
+      e.target.reset();
+    } else {
+      showMessage('danger', '{{ _('Submission failed') }}');
+    }
+  } catch (err) {
+    showMessage('danger', '{{ _('Submission failed') }}');
+  }
 });
 </script>
 {% endblock %}

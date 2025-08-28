@@ -32,24 +32,24 @@ if os.environ.get("USE_FAKE_REDIS") == "1":
 
     redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
+    redis_client = redis.Redis.from_url(REDIS_URL)
     try:
-        redis_client = redis.Redis.from_url(REDIS_URL)
         redis_client.ping()
-    except Exception:
-        import fakeredis
-
-        redis_client = cast(redis.Redis, fakeredis.FakeRedis())
+    except Exception as exc:
+        raise RuntimeError("Redis connection failed") from exc
 
 
 @lru_cache(maxsize=None)
 def _get_engine(url: str | None, path: str) -> Engine:
     """Create and cache a SQLAlchemy engine for the given configuration."""
 
-    pool_args = dict(pool_size=POOL_SIZE,
-                     max_overflow=MAX_OVERFLOW,
-                     pool_timeout=POOL_TIMEOUT,
-                     pool_pre_ping=True,
-                     future=True)
+    pool_args = dict(
+        pool_size=POOL_SIZE,
+        max_overflow=MAX_OVERFLOW,
+        pool_timeout=POOL_TIMEOUT,
+        pool_pre_ping=True,
+        future=True,
+    )
     if url:
         return create_engine(url, **pool_args)
     if path:
@@ -108,10 +108,7 @@ def get_db():
     engine = _get_engine(url, path)
     raw = engine.raw_connection()
     # Only attempt to set tenant context when using PostgreSQL.
-    if (
-        engine.url.get_backend_name().startswith("postgres")
-        and has_request_context()
-    ):
+    if engine.url.get_backend_name().startswith("postgres") and has_request_context():
         org_id = session.get("org_id")
         if org_id is not None:
             cur = raw.cursor()

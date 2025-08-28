@@ -54,6 +54,8 @@ jobs:
           retention-days: 30
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
+      - name: DB migration smoke
+        run: flask db upgrade
       - name: Tests
         run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-report=html --cov-fail-under=80
       - name: Upload coverage XML
