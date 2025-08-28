@@ -12,5 +12,7 @@ requirements.
 | Encryption at rest & key rotation | A.10.1.1 | Article 32 |
 | Incident response & breach notice | A.16.1.5 | Article 35 |
 | Network segmentation & firewalls | A.13.1.3 | Article 26 |
+| Row-level security | A.9.4.1 | Article 26 |
+| Idempotent task queue with DLQ | A.12.4.3 | Article 31 |
 
 Review quarterly and extend as additional controls are implemented.

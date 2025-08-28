@@ -1,6 +1,6 @@
 """Database models for core ERP entities."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from flask_security import RoleMixin, UserMixin
@@ -59,6 +59,11 @@ class User(db.Model, UserMixin):  # type: ignore[name-defined]
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     mfa_secret = db.Column(db.String(32))
     anonymized = db.Column(db.Boolean, default=False, nullable=False)
+    retain_until = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.utcnow() + timedelta(days=365 * 7),
+    )
     roles = db.relationship(
         "Role",
         secondary=roles_users,

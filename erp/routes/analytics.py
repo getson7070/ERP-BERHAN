@@ -57,6 +57,7 @@ def init_celery(state):
     celery.conf.broker_url = app.config["CELERY_BROKER_URL"]
     celery.conf.result_backend = app.config["CELERY_RESULT_BACKEND"]
     celery.conf.update(app.config)
+    celery.conf.imports = ["erp.data_retention"]
 
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
