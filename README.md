@@ -36,6 +36,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [templates/base.html](templates/base.html)
 - [templates/partials/navbar.html](templates/partials/navbar.html)
 - [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
+- [JWT secret rotation runbook](docs/security/secret_rotation.md)
 - [Onboarding tour](docs/onboarding_tour.md)
 - [Control matrix](docs/control_matrix.md)
 - [Access recertification guide](docs/access_recerts.md)
