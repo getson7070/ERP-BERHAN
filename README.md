@@ -20,6 +20,7 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 | Audit chain verification | [audit-chain-log](https://github.com/getson7070/ERP-BERHAN/actions/workflows/audit-chain.yml?query=branch%3Amain) |
 | Access recert export | [access-recert-export](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | DR Drill (RPO/RTO) | [dr-drill-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| Soak Test | [soak-test-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/soak.yml?query=branch%3Amain) |
 
 ### Auditor Quick Links
 
@@ -33,6 +34,8 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 - [templates/base.html](templates/base.html)
 - [templates/partials/navbar.html](templates/partials/navbar.html)
 - [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
+- [templates/partials/saved_views.html](templates/partials/saved_views.html) and [static/js/saved_views.js](static/js/saved_views.js)
+- [Daily audit chain verifier](docs/security/testing.md#daily-audit-chain-verification)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
