@@ -2,8 +2,11 @@
 
 [![Build](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=build)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Bandit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=bandit)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![pip-audit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=pip-audit)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![pa11y](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=pa11y)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
 
@@ -41,6 +44,8 @@ Download detailed reports from the workflow artifacts:
 - [Trivy container scan](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`trivy-report`)
 - [OWASP ZAP baseline](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`zap-report`)
 - [pa11y accessibility audit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`pa11y-report`)
+
+Artifacts are retained for 30 days to provide CI evidence.
 
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
