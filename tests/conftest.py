@@ -10,3 +10,8 @@ sys.path.insert(0, str(ROOT_DIR))
 os.environ.setdefault("USE_FAKE_REDIS", "1")
 os.environ.setdefault("SECURITY_PASSWORD_SALT", "test-salt")
 os.environ.setdefault("JWT_SECRET", "test-secret")
+
+# Ensure tests can import the local `erp` package
+root_path = Path(__file__).resolve().parent.parent
+if str(root_path) not in sys.path:
+    sys.path.insert(0, str(root_path))

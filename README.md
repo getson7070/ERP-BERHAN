@@ -285,3 +285,7 @@ throughput and validate connection pool tuning or scaling changes.
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
 - Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
+- UX and accessibility guidelines, including WCAG checks and user-customizable dashboards, are documented in `docs/accessibility_and_ux.md`.
+- Plugin API, compatibility policy, and connector coverage are defined in `docs/plugin_policy.md`.
+- Incremental refresh and lineage tracking are covered in `docs/data_lineage.md`.
+- Container hardening, tracing, and other operational safeguards live in `docs/devops_hardening.md`.
