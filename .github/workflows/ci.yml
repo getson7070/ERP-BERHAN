@@ -27,6 +27,7 @@ jobs:
         run: |
           ruff .
           flake8
+          black --check .
           MYPYPATH=erp mypy --ignore-missing-imports --explicit-package-bases \
             db.py erp/cache.py erp/models.py erp/security.py erp/secrets.py \
             scripts/rotate_jwt_secret.py erp/routes/feedback.py
@@ -41,7 +42,12 @@ jobs:
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
       - name: Tests
-        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-fail-under=80
+        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=term --cov-report=html --cov-fail-under=80
+      - name: Upload coverage HTML
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-html
+          path: htmlcov
       - name: Build Docker image
         run: docker build -t erp-berhan .
       - name: Trivy scan

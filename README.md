@@ -33,6 +33,17 @@ all checks to pass before merging.
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
 
+### Pre-commit hooks
+
+Install and enable the pre-commit hooks to mirror CI checks:
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
+
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
