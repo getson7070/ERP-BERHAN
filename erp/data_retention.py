@@ -2,6 +2,7 @@
 
 Scheduled Celery jobs to purge expired data, anonymize PII and export
 quarterly access recertification reports."""
+
 from __future__ import annotations
 
 import hashlib
