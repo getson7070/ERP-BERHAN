@@ -33,12 +33,13 @@ from erp.utils import (
     roles_required,
 )
 from erp.audit import log_audit
-from erp import oauth
+from erp import oauth, limiter
 
 bp = Blueprint('auth', __name__)
 
 
 @bp.route('/auth/token', methods=['POST'])
+@limiter.limit('2 per minute')
 def issue_token():
     data = request.get_json() or {}
     email = data.get('email')
@@ -154,6 +155,7 @@ def oauth_callback():
 
 
 @bp.route('/employee_login', methods=['GET', 'POST'])
+@limiter.limit('5 per minute')
 def employee_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
@@ -209,6 +211,7 @@ def employee_login():
 
 
 @bp.route('/client_login', methods=['GET', 'POST'])
+@limiter.limit('5 per minute')
 def client_login():
     class LoginForm(FlaskForm):
         email = StringField('Email', validators=[DataRequired()])
