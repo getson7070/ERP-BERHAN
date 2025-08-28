@@ -1,0 +1,17 @@
+name: soak-test
+
+on:
+  schedule:
+    - cron: '30 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/soak_test.sh > soak.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soak-test-log
+          path: soak.log
