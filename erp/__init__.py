@@ -39,6 +39,7 @@ from prometheus_client import (
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from erp.plugins import load_plugins
@@ -62,6 +63,7 @@ oauth = OAuth()
 babel = Babel()
 celery = Celery(__name__)
 limiter = Limiter(key_func=rate_limit_key)
+csrf = CSRFProtect()
 
 
 @signals.task_failure.connect
@@ -287,6 +289,7 @@ def create_app():
     oauth.init_app(app)
     db.init_app(app)
     init_cache(app)
+    csrf.init_app(app)
     from .app import (
         register_blueprints,
         init_security,

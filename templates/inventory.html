@@ -15,10 +15,7 @@
     </tbody>
   </table>
 </div>
-<meta name="csrf-token" content="{{ csrf_token }}">
 <script>
-const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
 document.querySelectorAll('.save').forEach(btn => {
   btn.addEventListener('click', async e => {
     const row = e.target.closest('tr');
@@ -28,12 +25,19 @@ document.querySelectorAll('.save').forEach(btn => {
     const form = new FormData();
     form.append('name', name);
     form.append('quantity', quantity);
-    await fetch(`/inventory/${id}`, {
-      method: 'POST',
-      headers: {'X-CSRFToken': token},
-      body: form
-    });
-    alert('Saved');
+    try {
+      const resp = await fetch(`/inventory/${id}`, {
+        method: 'POST',
+        body: form
+      });
+      if (resp.ok) {
+        showMessage('success', '{{ _('Saved') }}');
+      } else {
+        showMessage('danger', '{{ _('Save failed') }}');
+      }
+    } catch (err) {
+      showMessage('danger', '{{ _('Save failed') }}');
+    }
   });
 });
 </script>

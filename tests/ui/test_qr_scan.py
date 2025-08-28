@@ -12,7 +12,7 @@ def setup_app():
     with app.app_context():
         db.drop_all()
         db.create_all()
-        user = User(email="b@example.com", password="x", fs_uniquifier="u4")
+        user = User(email="c@example.com", password="x", fs_uniquifier="u5")
         db.session.add(user)
         db.session.commit()
         return app, user.id
@@ -24,12 +24,12 @@ def login(client, user_id):
         sess["logged_in"] = True
 
 
-def test_verify_barcode_endpoint():
+def test_verify_qr_endpoint():
     app, user_id = setup_app()
     client = app.test_client()
     login(client, user_id)
     resp = client.post(
-        "/inventory/receive/verify",
-        json={"barcode": "ITEM123"},
+        "/inventory/receive/verify_qr",
+        json={"qr_data": "ITEM123"},
     )
     assert resp.json["valid"] is True
