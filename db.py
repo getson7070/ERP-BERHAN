@@ -14,8 +14,10 @@ via environment variables to support high-concurrency deployments.
 
 import os
 from functools import lru_cache
+from typing import cast
+
 import redis
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql.elements import TextClause
 from flask import has_request_context, session
@@ -27,14 +29,17 @@ POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 if os.environ.get("USE_FAKE_REDIS") == "1":
     import fakeredis
-    redis_client = fakeredis.FakeRedis()
+
+    redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
     try:
         redis_client = redis.Redis.from_url(REDIS_URL)
         redis_client.ping()
     except Exception:
         import fakeredis
-        redis_client = fakeredis.FakeRedis()
+
+        redis_client = cast(redis.Redis, fakeredis.FakeRedis())
+
 
 @lru_cache(maxsize=None)
 def _get_engine(url: str | None, path: str) -> Engine:
@@ -49,7 +54,11 @@ def _get_engine(url: str | None, path: str) -> Engine:
         return create_engine(url, **pool_args)
     if path:
         return create_engine(f"sqlite:///{path}", future=True)
-    return create_engine("postgresql://postgres:postgres@127.0.0.1:5432/erp", **pool_args)
+    return create_engine(
+        "postgresql://postgres:postgres@127.0.0.1:5432/erp",
+        **pool_args,
+    )
+
 
 class _ConnectionWrapper:
     """Bridge SQLite-style helpers with SQLAlchemy engines.
@@ -99,7 +108,10 @@ def get_db():
     engine = _get_engine(url, path)
     raw = engine.raw_connection()
     # Only attempt to set tenant context when using PostgreSQL.
-    if engine.url.get_backend_name().startswith("postgres") and has_request_context():
+    if (
+        engine.url.get_backend_name().startswith("postgres")
+        and has_request_context()
+    ):
         org_id = session.get("org_id")
         if org_id is not None:
             cur = raw.cursor()

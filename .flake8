@@ -1,0 +1,4 @@
+[flake8]
+max-line-length = 200
+exclude = tests,migrations,erp/routes/*,erp/domains/*,plugins/*,scripts/*,config.py,init_db.py,generate_hash.py
+extend-ignore = E203,W503
