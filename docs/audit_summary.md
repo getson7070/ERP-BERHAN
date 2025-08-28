@@ -35,14 +35,21 @@ The scores will be revisited as development progresses.
 ## Recent Audits (Aug 2025)
 Two independent audits produced diverging results:
 
-- **ChatGPT audit:** Recognized implemented modules, tests and CI workflows but flagged missing reverse-proxy rate limiting, full CI coverage, disaster-recovery drills, data-governance policies, query-efficiency metrics and automated JWT secret rotation.
-- **Grok audit:** Reported an empty repository, likely due to inspection failure; its findings do not reflect the current codebase.
+- **ChatGPT audit:** Recognized implemented modules, tests and CI workflows but
+  flagged missing reverse-proxy rate limiting, full CI coverage,
+  disaster-recovery drills, data-governance policies, query-efficiency metrics
+  and automated JWT secret rotation.
+- **Grok audit:** Reported an empty repository, likely due to inspection
+  failure; its findings do not reflect the current codebase.
 
 ### Remediation Priorities
 1. Enforce rate limiting in the ingress layer and export 429 counters.
-2. Expand CI to run ruff/flake8, black check, mypy, pytest (≥80% coverage), bandit, pip-audit, secret scan, Docker build + Trivy, kube-linter and ZAP baseline on every push/PR.
+2. Expand CI to run ruff/flake8, black check, mypy, pytest (≥80% coverage),
+   bandit, pip-audit, secret scan, Docker build + Trivy, kube-linter and ZAP
+   baseline on every push/PR.
 3. Document RPO/RTO targets and schedule periodic restore drills.
-4. Publish data retention and PII lineage policy and integrate masking into analytics exports.
+4. Publish data retention and PII lineage policy and integrate masking into
+   analytics exports.
 5. Instrument query-count and cache hit/miss gauges for performance monitoring.
 6. Automate JWT secret rotation keyed by `JWT_SECRET_ID` with audit logging.
 
@@ -50,11 +57,20 @@ Two independent audits produced diverging results:
 
 The repository has since implemented several of the planned controls:
 
-- Reverse-proxy and Flask rate limiting with `rate_limit_rejections_total` metrics.
-- A full CI pipeline running linting, typing, tests with coverage, dependency and secret scans, Docker/Kubernetes validation, and ZAP/pa11y checks on every push or pull request.
-- Disaster-recovery runbooks with weekly restore drills meeting a 15‑minute RPO and one‑hour RTO.
-- A data-retention matrix and `DataLineage` model tracking column origins and PII masking requirements.
-- Query efficiency tests and cache hit‑rate gauges to detect N+1 patterns and performance regressions.
-- Automated JWT secret rotation via `scripts/rotate_jwt_secret.py` with audit logging.
+- Reverse-proxy and Flask rate limiting with `rate_limit_rejections_total`
+  metrics.
+- A full CI pipeline running linting, typing, tests with coverage, dependency
+  and secret scans, Docker/Kubernetes validation, and ZAP/pa11y checks on every
+  push or pull request.
+- Disaster-recovery runbooks with weekly restore drills meeting a 15‑minute RPO
+  and one‑hour RTO.
+- A data-retention matrix and `DataLineage` model tracking column origins and
+  PII masking requirements.
+- Query efficiency tests and cache hit‑rate gauges to detect N+1 patterns and
+  performance regressions.
+- Automated JWT secret rotation via `scripts/rotate_jwt_secret.py` with audit
+  logging.
 
-These changes significantly raise the project’s maturity relative to the initial audit and address many of the highlighted gaps.
+These changes significantly raise the project’s maturity, strengthening
+security, reliability, and governance while laying the groundwork for future
+expansion.
