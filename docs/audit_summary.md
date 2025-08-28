@@ -30,4 +30,34 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 - Define security hardening steps: OAuth2, MFA, row-level security.
 - Expand documentation for deployment, backups, and training.
 
-The scores will be revisited as development progresses.
+The scores were intended to be revisited as development progressed.
+
+## August 2025 Audit Review
+
+Recent independent audits produced conflicting views of the project. A
+ChatGPT inspection confirmed that the repository now contains a working
+Flask application with tests, migrations, CI workflows and security
+controls. A parallel Grok scan, however, reported an empty repository.
+The discrepancy was traced to a stale checkout on the Grok side rather
+than missing code.
+
+### Prioritized Gap Remediation
+
+The ChatGPT audit highlighted several areas that still require focused
+improvement. Work on the following items has been prioritised:
+
+1. **Edge rate limiting** – ensure reverse proxies enforce limits and
+   export `rate_limit_rejections_total` for observability.
+2. **Complete CI coverage** – run linting, type‑checking, tests,
+   dependency and container scans on every push or pull request.
+3. **Disaster‑recovery drills** – document RPO/RTO targets and perform
+   regular restore exercises.
+4. **Data governance** – maintain retention policies and column‑level
+   lineage for analytical exports.
+5. **Query efficiency metrics** – monitor cache hit rate and detect
+   N+1 query patterns in tests.
+6. **Automated JWT secret rotation** – rotate signing keys via
+   `JWT_SECRET_ID` and record rotations for audit.
+
+Progress against these items will be tracked in subsequent audits.
+

@@ -260,8 +260,7 @@ Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
 
 ## Current Audit Priorities
-
-Recent audits highlighted several cross-cutting gaps. The project is
+- Recent audits highlighted several cross-cutting gaps. The project is
 actively addressing the following items:
 
 - Enforce reverse-proxy rate limiting and publish 429 metrics.

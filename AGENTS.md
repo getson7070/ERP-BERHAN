@@ -20,6 +20,9 @@
 - Templates must extend `base.html` and include `partials/navbar.html`; see `docs/templates.md`.
 - Consult `docs/audit_summary.md` for current development gaps and planned improvements.
 ### Current Key Action Items
+- Enforce reverse-proxy rate limiting, expand CI coverage, document
+  restore drills, formalize data retention and lineage, monitor query
+  efficiency/cache hit rate, and automate JWT secret rotation.
 - Add missing ERP modules under `erp/routes` with `org_id` schemas and role-based navigation.
 - Expand `docs/` with migration guides, training tutorials, and onboarding checklists.
 - Build a plugin registry with chatbot/RPA hooks and starter ML forecasting features.
