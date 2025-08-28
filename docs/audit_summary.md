@@ -30,34 +30,20 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 - Define security hardening steps: OAuth2, MFA, row-level security.
 - Expand documentation for deployment, backups, and training.
 
-The scores were intended to be revisited as development progressed.
+The scores will be revisited as development progresses.
 
-## August 2025 Audit Review
+## Recent Audits (Aug 2025)
+The repository has since evolved substantially. Two independent audits produced diverging results:
 
-Recent independent audits produced conflicting views of the project. A
-ChatGPT inspection confirmed that the repository now contains a working
-Flask application with tests, migrations, CI workflows and security
-controls. A parallel Grok scan, however, reported an empty repository.
-The discrepancy was traced to a stale checkout on the Grok side rather
-than missing code.
+- **ChatGPT audit:** Recognized implemented Flask modules, tests, and CI workflows, but flagged gaps in reverse-proxy rate limiting, comprehensive CI coverage, disaster-recovery drills, data-governance policies, query-efficiency metrics, and automated JWT secret rotation.
+- **Grok audit:** Reported an empty or missing codebase, likely due to inspection errors. Its findings do not match the current repository state.
 
-### Prioritized Gap Remediation
+### Outstanding Gaps
+1. Enforce edge rate limiting and track 429 metrics for REST, GraphQL, and webhook endpoints.
+2. Extend CI to run lint, type checks, tests with coverage, dependency and container scans, and K8s validations on every push/PR.
+3. Document RPO/RTO targets and schedule regular backup restore drills.
+4. Finalize data-retention rules with column-level lineage and OLAP export paths.
+5. Add query-count tests/N+1 guards and expose cache hit-rate gauges.
+6. Automate JWT secret rotation via `JWT_SECRET_ID` with audited scripts.
 
-The ChatGPT audit highlighted several areas that still require focused
-improvement. Work on the following items has been prioritised:
-
-1. **Edge rate limiting** – ensure reverse proxies enforce limits and
-   export `rate_limit_rejections_total` for observability.
-2. **Complete CI coverage** – run linting, type‑checking, tests,
-   dependency and container scans on every push or pull request.
-3. **Disaster‑recovery drills** – document RPO/RTO targets and perform
-   regular restore exercises.
-4. **Data governance** – maintain retention policies and column‑level
-   lineage for analytical exports.
-5. **Query efficiency metrics** – monitor cache hit rate and detect
-   N+1 query patterns in tests.
-6. **Automated JWT secret rotation** – rotate signing keys via
-   `JWT_SECRET_ID` and record rotations for audit.
-
-Progress against these items will be tracked in subsequent audits.
-
+These items should be prioritized in upcoming sprints to close the precision gaps identified by the audit.
