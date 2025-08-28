@@ -4,8 +4,11 @@
 [![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![SLSA](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml/badge.svg?label=SLSA)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain)
 
-BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
+BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance. Core security features include universal CSRF protection, rate limiting and a lightweight WAF that blocks obvious injection attempts.
+
+Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
 
 | Report | Artifact |
 |--------|---------|
@@ -13,8 +16,29 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 | Bandit | [bandit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | pip-audit | [pip-audit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | Trivy | [trivy-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| SBOM | [sbom](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain) |
 | ZAP | [zap-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | Pa11y | [pa11y-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| DR Drill (RPO/RTO) | [dr-drill-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| Access Recert Export | [access-recert-export](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+
+### Auditor Quick Links
+- [Daily audit chain verifier](https://github.com/getson7070/ERP-BERHAN/actions/workflows/audit-chain.yml?query=branch%3Amain)
+- [templates/partials/saved_views.html](templates/partials/saved_views.html) & [static/js/saved_views.js](static/js/saved_views.js)
+
+- [app.py](app.py)
+- [security.py](security.py) – JWT, Talisman, rate limiting, and GraphQL caps
+- [erp/audit.py](erp/audit.py#L1-L67) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py#L1-L18)
+- [static/js/sw.js](static/js/sw.js)
+- [deploy/k8s/](deploy/k8s)
+- [Dockerfile](Dockerfile)
+- [GraphQL complexity guard](erp/routes/api.py#L140-L150)
+- [templates/base.html](templates/base.html)
+- [templates/partials/navbar.html](templates/partials/navbar.html)
+- [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
+- [Onboarding tour](docs/onboarding_tour.md)
+
+Latest operational metrics are published in the [status page](docs/status.md).
 
 ## Setup
 
@@ -22,8 +46,12 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 git clone https://github.com/getson7070/ERP-BERHAN.git
 cd ERP-BERHAN
 pip install -r requirements.txt
+docker compose up -d db redis
+flask db upgrade
+python init_db.py  # seeds initial admin
 flask run
 ```
+See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample data and first-run tips.
 
 ## Tech Stack
 
@@ -37,13 +65,20 @@ flask run
 
 ## CI Pipeline
 
-Every push and pull request runs ruff, flake8, mypy, pytest with coverage,
+Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
+Database migrations are smoke-tested with `flask db upgrade`, and a separate
+performance workflow runs N+1 query guards under `tests/perf`. A Selenium smoke
+test exercises the homepage to catch gross browser regressions.
 
+## Performance Targets
+- API p95 latency < 500ms
+- Background jobs sustain 100 tasks/min with <1 min queue lag
+Nightly [soak tests](scripts/soak_test.sh) run via the [performance workflow](https://github.com/getson7070/ERP-BERHAN/actions/workflows/perf.yml?query=branch%3Amain).
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
-Run `flake8` and `mypy erp` locally to catch issues before pushing.
+Run `ruff` and `mypy erp` locally to catch issues before pushing.
 
 ### Pre-commit hooks
 
@@ -55,10 +90,25 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
+## Dependency Updates
+Dependencies are pinned for reproducibility. Update checks run monthly and patches are applied during the first week of each month.
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
 improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
+
+## Code of Conduct
+
+Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) when interacting with the project.
+
+## Design System
+
+See [docs/style_guide.md](docs/style_guide.md) for component and accessibility guidelines.
+Spacing and typography tokens are documented in [docs/design_system.md](docs/design_system.md) to keep layouts consistent.
+
+## Onboarding Tour
+
+A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboarding_tour.md).
 
 ## Environment Variables
 

@@ -1,0 +1,22 @@
+name: selenium
+on:
+  push:
+  pull_request:
+jobs:
+  selenium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Run Selenium smoke
+        env:
+          CI: '1'
+        run: pytest tests/selenium/test_homepage.py

@@ -19,6 +19,7 @@
                 <a class="nav-link {% if request.blueprint == 'projects' %}active{% endif %}" href="{{ url_for('projects.index') }}">{{ _('Projects') }}</a>
                 {% endif %}
                 <a class="nav-link {% if request.blueprint == 'plugins' %}active{% endif %}" href="{{ url_for('plugins.index') }}">{{ _('Plugins') }}</a>
+                <a class="nav-link {% if request.endpoint == 'main.status_page' %}active{% endif %}" href="{{ url_for('main.status_page') }}">{{ _('Status') }}</a>
                 <a class="nav-link {% if request.blueprint == 'help' %}active{% endif %}" href="{{ url_for('help.help_page') }}">{{ _('Help') }}</a>
                 <a class="nav-link" href="{{ url_for('auth.logout') }}">{{ _('Logout') }}</a>
             </div>
