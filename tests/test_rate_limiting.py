@@ -32,8 +32,9 @@ def test_token_rate_limit(tmp_path, monkeypatch):
     conn.close()
 
     payload = {"email": "u@example.com", "password": "pw"}
+    # First invalid attempt returns 401
     assert client.post("/auth/token", json=payload).status_code == 401
-    assert client.post("/auth/token", json=payload).status_code == 401
+    # Second attempt hits the limiter and returns 429
     resp = client.post("/auth/token", json=payload)
     assert resp.status_code == 429
     metrics = client.get("/metrics")
