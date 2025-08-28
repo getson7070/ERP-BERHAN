@@ -176,6 +176,20 @@ MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
 to be used for replication or off-site disaster recovery. See
 `docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
+## Disaster Recovery
+
+Weekly restore drills validate a **15‑minute RPO** and **one‑hour RTO**. The
+process is documented in [docs/dr_plan.md](docs/dr_plan.md) and executed via
+`scripts/restore_latest_backup.py`, which restores the most recent dump to a
+staging database and records the elapsed time for each run.
+
+## Data Governance
+
+Table‑level retention windows and column lineage are defined in
+[docs/data_retention.md](docs/data_retention.md). The `DataLineage` model tracks
+the origin of analytics fields, and exports mask PII to meet Ethiopian privacy
+requirements.
+
 ### Multi-Factor Authentication
 
 Both employee and client accounts are protected with TOTP based multi-factor
@@ -244,6 +258,9 @@ collection by a monitoring system. Structured logs are emitted to standard
 output to aid in tracing and alerting.
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
+Database efficiency is monitored through `db_query_count` tests that guard against
+N+1 patterns. Cache performance is tracked with `cache_hits_total`,
+`cache_misses_total`, and the `cache_hit_ratio` gauge.
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to

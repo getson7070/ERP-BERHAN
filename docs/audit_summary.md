@@ -31,6 +31,7 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 - Expand documentation for deployment, backups, and training.
 
 The scores will be revisited as development progresses.
+
 ## Recent Audits (Aug 2025)
 Two independent audits produced diverging results:
 
@@ -44,3 +45,16 @@ Two independent audits produced diverging results:
 4. Publish data retention and PII lineage policy and integrate masking into analytics exports.
 5. Instrument query-count and cache hit/miss gauges for performance monitoring.
 6. Automate JWT secret rotation keyed by `JWT_SECRET_ID` with audit logging.
+
+## Current Status
+
+The repository has since implemented several of the planned controls:
+
+- Reverse-proxy and Flask rate limiting with `rate_limit_rejections_total` metrics.
+- A full CI pipeline running linting, typing, tests with coverage, dependency and secret scans, Docker/Kubernetes validation, and ZAP/pa11y checks on every push or pull request.
+- Disaster-recovery runbooks with weekly restore drills meeting a 15‑minute RPO and one‑hour RTO.
+- A data-retention matrix and `DataLineage` model tracking column origins and PII masking requirements.
+- Query efficiency tests and cache hit‑rate gauges to detect N+1 patterns and performance regressions.
+- Automated JWT secret rotation via `scripts/rotate_jwt_secret.py` with audit logging.
+
+These changes significantly raise the project’s maturity relative to the initial audit and address many of the highlighted gaps.
