@@ -1,43 +1,71 @@
-"""Scheduled data retention and anonymization tasks."""
+"""Retention and anonymization tasks.
 
+Scheduled Celery jobs to purge expired data, anonymize PII and export
+quarterly access recertification reports."""
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime, UTC
 
-from erp import celery
+from celery.schedules import crontab
+
+from erp.routes.analytics import celery  # reuse analytics Celery instance
 from erp.utils import task_idempotent
 from db import get_db
+from scripts.access_recert_export import export as export_recert
 
 
-@celery.task(name="data_retention.purge_expired_rows")
+@celery.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    """Register periodic jobs."""
+    sender.add_periodic_task(
+        crontab(hour=3, minute=0),
+        purge_expired_records.s(),
+        name="purge-expired-records",
+    )
+    sender.add_periodic_task(
+        crontab(hour=2, minute=0), anonymize_users.s(), name="anonymize-old-users"
+    )
+    sender.add_periodic_task(
+        crontab(month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0),
+        run_access_recert_export.s(),
+        name="quarterly-access-recert-export",
+    )
+
+
+@celery.task(name="data_retention.purge_expired_records")
 @task_idempotent
-def purge_expired_rows(idempotency_key: str | None = None) -> int:
+def purge_expired_records(idempotency_key: str | None = None) -> int:
     """Delete rows past their retention window."""
+    now = datetime.now(UTC)
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
-        "DELETE FROM audit_logs WHERE delete_after IS NOT NULL AND delete_after < ?",
-        (datetime.now(UTC),),
+        "DELETE FROM audit_logs WHERE retain_until < ?",
+        (now,),
     )
     purged_logs = cur.rowcount
     cur.execute(
-        "DELETE FROM invoices WHERE delete_after IS NOT NULL AND delete_after < ?",
-        (datetime.now(UTC),),
+        "DELETE FROM users WHERE retain_until < ?",
+        (now,),
     )
-    purged_invoices = cur.rowcount
+    purged_users = cur.rowcount
     conn.commit()
     conn.close()
-    return purged_logs + purged_invoices
+    return purged_logs + purged_users
 
 
 @celery.task(name="data_retention.anonymize_users")
 @task_idempotent
 def anonymize_users(idempotency_key: str | None = None) -> int:
     """Hash email addresses for inactive users marked for anonymization."""
+    now = datetime.now(UTC)
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, email FROM users WHERE active = 0 AND anonymized = 0")
+    cur.execute(
+        "SELECT id, email FROM users WHERE active = 0 AND anonymized = 0 AND retain_until < ?",
+        (now,),
+    )
     rows = cur.fetchall()
     for user_id, email in rows:
         digest = hashlib.sha256(email.encode()).hexdigest()
@@ -54,7 +82,5 @@ def anonymize_users(idempotency_key: str | None = None) -> int:
 @task_idempotent
 def run_access_recert_export(idempotency_key: str | None = None) -> str:
     """Generate and persist an immutable access recertification export."""
-    from scripts.access_recert_export import export
-
-    output = export()
+    output = export_recert()
     return str(output)

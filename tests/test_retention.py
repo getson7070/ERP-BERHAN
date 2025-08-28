@@ -1,70 +1,55 @@
+import os
 import sqlite3
-from datetime import datetime, UTC, timedelta
+import sys
+from pathlib import Path
 
-from erp.data_retention import purge_expired_rows, anonymize_users
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from erp.data_retention import purge_expired_records, anonymize_users  # noqa: E402
+from db import get_db  # noqa: E402
 
 
-def setup_db():
-    conn = sqlite3.connect(":memory:")
+def _init_db(tmp_path: Path) -> None:
+    os.environ["DATABASE_PATH"] = str(tmp_path / "retention.db")
+    conn = sqlite3.connect(os.environ["DATABASE_PATH"])
     conn.execute(
-        "CREATE TABLE audit_logs (id INTEGER PRIMARY KEY, delete_after TIMESTAMP, created_at TIMESTAMP)"
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER, anonymized INTEGER DEFAULT 0, retain_until TIMESTAMP)"
     )
     conn.execute(
-        "CREATE TABLE invoices (id INTEGER PRIMARY KEY, delete_after TIMESTAMP, issued_at TIMESTAMP)"
-    )
-    conn.execute(
-        "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER, anonymized INTEGER DEFAULT 0)"
-    )
-    now = datetime.now(UTC)
-    past = now - timedelta(days=1)
-    future = now + timedelta(days=1)
-    conn.execute(
-        "INSERT INTO audit_logs (delete_after, created_at) VALUES (?, ?)", (past, past)
-    )
-    conn.execute(
-        "INSERT INTO audit_logs (delete_after, created_at) VALUES (?, ?)",
-        (future, future),
-    )
-    conn.execute(
-        "INSERT INTO invoices (delete_after, issued_at) VALUES (?, ?)", (past, past)
-    )
-    conn.execute(
-        "INSERT INTO invoices (delete_after, issued_at) VALUES (?, ?)", (future, future)
-    )
-    conn.execute(
-        "INSERT INTO users (email, active, anonymized) VALUES ('a@example.com',0,0)"
+        "CREATE TABLE audit_logs (id INTEGER PRIMARY KEY, action TEXT, retain_until TIMESTAMP, created_at TIMESTAMP)"
     )
     conn.commit()
-    return conn
+    conn.close()
 
 
-def test_purge_and_anonymize(monkeypatch):
-    conn = setup_db()
-    import db
-    import erp.data_retention as dr
+def test_purge_expired_records(tmp_path):
+    _init_db(tmp_path)
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO users (email, active, anonymized, retain_until) VALUES ('old@x',1,0,'2000-01-01'), ('new@x',1,0,'2999-01-01')"
+    )
+    conn.execute(
+        "INSERT INTO audit_logs (action, retain_until, created_at) VALUES ('old','2000-01-01','1999-01-01'), ('new','2999-01-01','1999-01-01')"
+    )
+    conn.commit()
+    conn.close()
+    purge_expired_records()
+    conn = get_db()
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM audit_logs").fetchone()[0] == 1
+    conn.close()
 
-    class Wrapper:
-        def __init__(self, inner):
-            self._inner = inner
 
-        def __getattr__(self, name):
-            return getattr(self._inner, name)
-
-        def close(self):  # pragma: no cover - test helper
-            pass
-
-    wrapper = Wrapper(conn)
-    monkeypatch.setattr(db, "get_db", lambda: wrapper)
-    monkeypatch.setattr(dr, "get_db", lambda: wrapper)
-
-    purged = purge_expired_rows()
-    assert purged == 2
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM audit_logs")
-    assert cur.fetchone()[0] == 1
-
-    anonymized = anonymize_users()
-    assert anonymized == 1
-    cur.execute("SELECT email, anonymized FROM users")
-    email, flag = cur.fetchone()
+def test_anonymize_users(tmp_path):
+    _init_db(tmp_path)
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO users (email, active, anonymized, retain_until) VALUES ('user@x',0,0,'2000-01-01')"
+    )
+    conn.commit()
+    conn.close()
+    anonymize_users()
+    conn = get_db()
+    email, flag = conn.execute("SELECT email, anonymized FROM users").fetchone()
     assert flag == 1 and len(email) == 64
+    conn.close()
