@@ -15,6 +15,8 @@
 - JWT secrets rotate via `scripts/rotate_jwt_secret.py` and
   account logins use Redis-backed backoff with temporary locks.
 - Keep the database at high standards using migrations, constraints, indexes, backups, and tested restores.
+- Edge rate limiting is enforced at the NGINX ingress and within Flask-Limiter;
+  track rejections through the `rate_limit_rejections_total` metric.
 - Respect the repository's lint and type configurations in `.flake8` and `mypy.ini`.
 - Blueprints exposing a module-level `bp` under `erp/` and `plugins/` are auto-registered; see `docs/blueprints.md`.
 - Templates must extend `base.html` and include `partials/navbar.html`; see `docs/templates.md`.
@@ -27,6 +29,8 @@
 - Expand `docs/` with migration guides, training tutorials, and onboarding checklists.
 - Build a plugin registry with chatbot/RPA hooks and starter ML forecasting features.
 - Document failover procedures, rolling upgrades, and load-testing for Kubernetes manifests.
+- Review `docs/dr_plan.md` and `docs/data_retention.md` for current RPO/RTO
+  targets and data lineage policies.
 
 
 ## Phase-by-Phase Update & Implementation Plan

@@ -1,3 +1,4 @@
+
 from erp.audit import log_audit, check_audit_chain
 from db import get_db
 from erp import create_app
@@ -34,8 +35,8 @@ def test_audit_chain_checker(monkeypatch, tmp_path):
     breaks = check_audit_chain()
     assert breaks == 1
     app = create_app()
-    app.config["TESTING"] = True
+    app.config['TESTING'] = True
     client = app.test_client()
-    metrics = client.get("/metrics")
-    assert b"audit_chain_broken_total 1.0" in metrics.data
+    metrics = client.get('/metrics')
+    assert b'audit_chain_broken_total 1.0' in metrics.data
     conn.close()

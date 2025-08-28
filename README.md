@@ -35,6 +35,7 @@ all checks to pass before merging.
 
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
+<<<<<<< HEAD
 ### Pre-commit hooks
 
 Install and enable the pre-commit hooks to mirror CI checks:
@@ -45,6 +46,9 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
+=======
+
+>>>>>>> 0b17f49 (Applying previous commit)
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
@@ -107,7 +111,9 @@ Celery powers several background workflows:
 
 List pages in CRM and inventory cache results in Redis to reduce database load.
 Mutating routes invalidate the relevant `<module>:<org_id>` key to keep data
-consistent. See `docs/cache_invalidation.md` for details.
+consistent. Prometheus counters `cache_hits_total` and `cache_misses_total`
+feed a real-time hit-rate gauge at `/metrics` to monitor lookup efficiency.
+See `docs/cache_invalidation.md` for details.
 
 ## Database Migrations
 
@@ -144,6 +150,13 @@ If connectivity issues persist, see
 Session cookies are configured with `Secure`, `HttpOnly` and `SameSite=Lax`.
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman) enforces HTTPS
 and sets modern security headers; ensure the app is served over TLS.
+
+Edge rate limiting is applied at the NGINX ingress and within Flask-Limiter.
+Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
+429 rejections counted via the `rate_limit_rejections_total` metric.
+
+JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
+`JWT_SECRET_ID` and records each rotation for audit purposes.
 
 SSO/OAuth2 login is available via the configured provider. Successful and failed
 authentication attempts are recorded in an `audit_logs` table protected by
@@ -261,11 +274,14 @@ output to aid in tracing and alerting.
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
 <<<<<<< HEAD
+<<<<<<< HEAD
 Database efficiency is monitored through `db_query_count` tests that guard
 against N+1 patterns. Cache performance is tracked with `cache_hits_total`,
 `cache_misses_total`, and the `cache_hit_ratio` gauge.
 =======
 >>>>>>> 520f972 (Applying previous commit)
+=======
+>>>>>>> 0b17f49 (Applying previous commit)
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
