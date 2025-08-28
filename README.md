@@ -142,13 +142,6 @@ Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
 JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
 `JWT_SECRET_ID` and records each rotation for audit purposes.
 
-Edge rate limiting is applied at the NGINX ingress and within Flask-Limiter.
-Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
-429 rejections counted via the `rate_limit_rejections_total` metric.
-
-JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
-`JWT_SECRET_ID` and persists an audit trail of rotations.
-
 SSO/OAuth2 login is available via the configured provider. Successful and failed
 authentication attempts are recorded in an `audit_logs` table protected by
 row-level security and hash-chained for tamper evidence.
