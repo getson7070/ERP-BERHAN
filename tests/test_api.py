@@ -1,10 +1,9 @@
-import os
+import json
+import hmac
+import hashlib
 import pathlib
-import os, pathlib, sys, hmac, hashlib
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
-
-from erp import create_app
+from erp import create_app, GRAPHQL_REJECTS
 from db import get_db
 
 
@@ -56,7 +55,11 @@ def test_webhook_requires_token(monkeypatch, tmp_path):
 
     payload = b'{"a":1}'
     sig = hmac.new(b'secret', payload, hashlib.sha256).hexdigest()
-    resp = client.post('/api/webhook/source', data=payload, headers={'X-Signature':sig,'Content-Type':'application/json'})
+    resp = client.post(
+        '/api/webhook/source',
+        data=payload,
+        headers={'X-Signature': sig, 'Content-Type': 'application/json'},
+    )
     assert resp.status_code == 401
     resp = client.post(
         '/api/webhook/source',
@@ -72,6 +75,7 @@ def test_webhook_requires_token(monkeypatch, tmp_path):
 
 
 def test_graphql_depth_limit(monkeypatch, tmp_path):
+    GRAPHQL_REJECTS._value.set(0)  # reset counter for isolated testing
     monkeypatch.setenv("API_TOKEN", "limit")
     setup_db(tmp_path, monkeypatch)
     app = create_app()
@@ -81,5 +85,26 @@ def test_graphql_depth_limit(monkeypatch, tmp_path):
     deep_query = "{{{{}}}}"
     resp = client.post('/api/graphql', json={'query': deep_query}, headers={'Authorization': 'Bearer limit'})
     assert resp.status_code == 400
+    with open(pathlib.Path(__file__).parent / "snapshots" / "graphql_depth_error.json") as f:
+        expected = json.load(f)
+    assert resp.get_json() == expected
     metrics = client.get('/metrics')
-    assert b'graphql_depth_rejections_total 1.0' in metrics.data
+    assert b'graphql_rejects_total 1.0' in metrics.data
+
+
+def test_graphql_complexity_limit(monkeypatch, tmp_path):
+    GRAPHQL_REJECTS._value.set(0)
+    monkeypatch.setenv("API_TOKEN", "limit")
+    setup_db(tmp_path, monkeypatch)
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['GRAPHQL_MAX_COMPLEXITY'] = 5
+    client = app.test_client()
+    complex_query = '{ ' + ' '.join([f'a{i}' for i in range(10)]) + ' }'
+    resp = client.post('/api/graphql', json={'query': complex_query}, headers={'Authorization': 'Bearer limit'})
+    assert resp.status_code == 400
+    with open(pathlib.Path(__file__).parent / "snapshots" / "graphql_complexity_error.json") as f:
+        expected = json.load(f)
+    assert resp.get_json() == expected
+    metrics = client.get('/metrics')
+    assert b'graphql_rejects_total 1.0' in metrics.data

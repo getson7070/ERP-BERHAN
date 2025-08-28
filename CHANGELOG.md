@@ -7,3 +7,5 @@
 - Document control matrix and access recertification exports
 - Provide feedback endpoint and customizable dashboard route checks
 - Refine coverage configuration so targeted tests meet the 80% threshold
+- Enforce GraphQL depth and complexity limits with `graphql_rejects_total` metric
+- Add tamper‑evident audit log chain checker emitting `audit_chain_broken_total`

@@ -227,6 +227,8 @@ high‑availability setup with readiness probes and horizontal pod autoscaling.
 Requests are instrumented with Prometheus metrics and exposed at `/metrics` for
 collection by a monitoring system. Structured logs are emitted to standard
 output to aid in tracing and alerting.
+Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
+violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to

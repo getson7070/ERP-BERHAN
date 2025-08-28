@@ -8,8 +8,7 @@ import hashlib
 from erp import (
     TOKEN_ERRORS,
     limiter,
-    GRAPHQL_DEPTH_REJECTIONS,
-    GRAPHQL_COMPLEXITY_REJECTIONS,
+    GRAPHQL_REJECTS,
 )
 from erp.utils import idempotency_key_required
 
@@ -137,12 +136,12 @@ def graphql_endpoint():
         elif ch == '}':
             depth -= 1
     if deepest > max_depth:
-        GRAPHQL_DEPTH_REJECTIONS.inc()
-        abort(400, 'query too deep')
+        GRAPHQL_REJECTS.inc()
+        return jsonify({'errors': ['query too deep']}), 400
     max_complexity = current_app.config.get('GRAPHQL_MAX_COMPLEXITY', 1000)
     if len(re.findall(r"[A-Za-z0-9_]+", query)) > max_complexity:
-        GRAPHQL_COMPLEXITY_REJECTIONS.inc()
-        abort(400, 'query too complex')
+        GRAPHQL_REJECTS.inc()
+        return jsonify({'errors': ['query too complex']}), 400
     result = schema.execute(query)
     if result.errors:
         return jsonify({'errors': [str(e) for e in result.errors]}), 400

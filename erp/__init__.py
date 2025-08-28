@@ -101,13 +101,13 @@ KPI_SALES_MV_AGE = Gauge(
 RATE_LIMIT_REJECTIONS = Counter(
     "rate_limit_rejections_total", "Requests rejected due to rate limiting"
 )
-GRAPHQL_DEPTH_REJECTIONS = Counter(
-    "graphql_depth_rejections_total",
-    "GraphQL queries rejected for exceeding depth limits",
+GRAPHQL_REJECTS = Counter(
+    "graphql_rejects_total",
+    "GraphQL queries rejected for depth or complexity limits",
 )
-GRAPHQL_COMPLEXITY_REJECTIONS = Counter(
-    "graphql_complexity_rejections_total",
-    "GraphQL queries rejected for exceeding complexity limits",
+AUDIT_CHAIN_BROKEN = Counter(
+    "audit_chain_broken_total",
+    "Detected breaks in the audit log hash chain",
 )
 
 
