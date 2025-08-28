@@ -105,3 +105,8 @@ generated/
 *.sqlite3
 *.csv
 *.xlsx
+
+dist/
+*.whl
+*.tar.gz
+
