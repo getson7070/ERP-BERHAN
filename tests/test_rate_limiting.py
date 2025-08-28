@@ -4,7 +4,7 @@ import sys
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
 
 from erp import create_app, RATE_LIMIT_REJECTIONS  # noqa: E402
-from db import get_db, redis_client  # noqa: E402
+from db import get_db  # noqa: E402
 
 
 def test_token_rate_limit(tmp_path, monkeypatch):
@@ -13,7 +13,6 @@ def test_token_rate_limit(tmp_path, monkeypatch):
     app = create_app()
     app.config["TESTING"] = True
     client = app.test_client()
-    redis_client.flushall()
     RATE_LIMIT_REJECTIONS._value.set(0)
 
     conn = get_db()
@@ -34,8 +33,9 @@ def test_token_rate_limit(tmp_path, monkeypatch):
     conn.close()
 
     payload = {"email": "u@example.com", "password": "pw"}
-    for _ in range(3):
-        resp = client.post("/auth/token", json=payload)
+    assert client.post("/auth/token", json=payload).status_code == 401
+    assert client.post("/auth/token", json=payload).status_code == 401
+    resp = client.post("/auth/token", json=payload)
     assert resp.status_code == 429
     metrics = client.get("/metrics")
-    assert b"rate_limit_rejections_total" in metrics.data
+    assert b"rate_limit_rejections_total 1.0" in metrics.data
