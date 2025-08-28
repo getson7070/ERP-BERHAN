@@ -17,6 +17,8 @@
 - All configuration is supplied via environment variables to keep dev/stage/prod environments in parity.
 - Feature flags can be toggled via the `feature_flags` table allowing safe rollouts and quick reversions.
 - Secrets should be stored in a vault such as HashiCorp Vault and injected at runtime.
+- Docker images are hardened: base layers are pinned to immutable digests, the runtime executes as a non-root `appuser`, and
+  a `HEALTHCHECK` probes `/health` every 30 seconds.
 
 ## Disaster Recovery
 - The `docs/deployment/failover.md` and `docs/deployment/upgrade_rollback.md` outlines a full DR runbook.

@@ -27,3 +27,15 @@ print(client.ping())
 
 ## Plugin Marketplace
 Modules placed in the `plugins/` folder with a `register(app)` function are auto-discovered on startup. Visit `/plugins/` to view installed plugins.
+
+### Plugin API & Versioning
+- Plugins must expose a `metadata()` function describing name, version, and compatibility range.
+- Semantic versioning applies; breaking API changes bump the MAJOR version and are recorded in `CHANGELOG.md`.
+- Sandbox plugins by running untrusted code in isolated Celery workers and restricting filesystem access.
+
+### Connector Coverage Matrix
+| Connector | Read | Write |
+|-----------|------|-------|
+| Accounting | ✔️ | ✔️ |
+| E-Commerce | ✔️ | ❌ |
+| Inventory Scanner | ✔️ | ✔️ |

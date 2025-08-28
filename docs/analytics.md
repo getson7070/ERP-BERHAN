@@ -5,6 +5,7 @@
 - `expire_tenders`: closes overdue tenders every night.
 - `refresh_kpis`: refreshes the `kpi_sales` materialized view every five minutes.
 - `check_kpi_staleness`: warns if `kpi_sales` is stale for more than ten minutes; staleness is tracked via the `kpi_sales_mv_age_seconds` gauge in `/metrics`.
+- `refresh_kpis_incremental`: incrementally refreshes KPIs based on the last processed timestamp to reduce load during busy periods.
 - `export_kpis_to_olap`: nightly export of KPIs to a TimescaleDB or
   ClickHouse warehouse for long-range analytics. The `scripts/olap_export.py`
   helper drives this process and increments the
