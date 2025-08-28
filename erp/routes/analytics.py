@@ -32,9 +32,7 @@ def fetch_kpis():
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM orders WHERE status = %s", ("pending",))
     pending_orders = cur.fetchone()[0]
-    cur.execute(
-        "SELECT COUNT(*) FROM maintenance WHERE status = %s", ("pending",)
-    )
+    cur.execute("SELECT COUNT(*) FROM maintenance WHERE status = %s", ("pending",))
     pending_maintenance = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
     expired_tenders = cur.fetchone()[0]
@@ -130,7 +128,8 @@ def push_kpis():
 
 
 @celery.task
-def generate_report():
+@task_idempotent
+def generate_report(idempotency_key=None):
     conn = get_db()
     cur = conn.cursor()
     orders = cur.execute(
@@ -152,7 +151,8 @@ def generate_report():
 
 
 @celery.task
-def expire_tenders():
+@task_idempotent
+def expire_tenders(idempotency_key=None):
     conn = get_db()
     conn.execute(
         "UPDATE tenders SET status = 'expired' "
@@ -163,7 +163,8 @@ def expire_tenders():
 
 
 @celery.task
-def refresh_kpis():
+@task_idempotent
+def refresh_kpis(idempotency_key=None):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY kpi_sales")
@@ -202,7 +203,8 @@ def check_kpi_staleness():
 
 
 @celery.task
-def export_kpis_to_olap():
+@task_idempotent
+def export_kpis_to_olap(idempotency_key=None):
     dsn = os.environ.get("OLAP_DSN")
     if not dsn:
         return 0
@@ -217,10 +219,7 @@ def export_kpis_to_olap():
     with engine.begin() as conn:
         for month, total in rows:
             conn.execute(
-                text(
-                    "INSERT INTO kpi_sales (month, total_sales) "
-                    "VALUES (:m, :t)"
-                ),
+                text("INSERT INTO kpi_sales (month, total_sales) " "VALUES (:m, :t)"),
                 {"m": month, "t": total},
             )
             inserted += 1
@@ -248,9 +247,7 @@ def forecast_sales(idempotency_key=None):
     """Naive monthly sales forecast using average trend."""
     conn = get_db()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2"
-    )
+    cur.execute("SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2")
     rows = [r[0] for r in cur.fetchall()]
     cur.close()
     conn.close()
@@ -279,7 +276,8 @@ def generate_compliance_report(idempotency_key=None):
 
 
 @celery.task
-def deduplicate_customers():
+@task_idempotent
+def deduplicate_customers(idempotency_key=None):
     from erp.data_quality import deduplicate
 
     return deduplicate("crm_customers", ["org_id", "name"])
@@ -342,9 +340,7 @@ def export_report(fmt):
         out = io.BytesIO()
         wb.save(out)
         data = out.getvalue()
-        ct = (
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         ext = "xlsx"
     else:
         from reportlab.platypus import SimpleDocTemplate, Table

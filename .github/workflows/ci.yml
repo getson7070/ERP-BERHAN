@@ -33,15 +33,43 @@ jobs:
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.txt -f json -o pip-audit.json
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+          retention-days: 30
       - name: Secret scan
         uses: zricethezav/gitleaks-action@v1
       - name: Bandit
-        run: bandit -q -r erp scripts db.py
+        run: bandit -q -r erp scripts db.py -f json -o bandit-report.json
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          retention-days: 30
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
       - name: Tests
-        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-fail-under=80
+        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-report=html --cov-fail-under=80
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 30
+      - name: Upload coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-html
+          path: htmlcov
+          retention-days: 30
       - name: Build Docker image
         run: docker build -t erp-berhan .
       - name: Trivy scan
@@ -49,7 +77,16 @@ jobs:
         with:
           image-ref: erp-berhan
           severity: 'CRITICAL,HIGH'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           exit-code: '1'
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-report
+          path: trivy-results.sarif
+          retention-days: 30
       - name: Kube-linter
         run: docker run --rm -v ${{ github.workspace }}/deploy/k8s:/k8s docker.io/stackrox/kube-linter:v0.6.7 lint /k8s
       - name: Kube-score manifests
@@ -62,5 +99,22 @@ jobs:
         uses: zaproxy/action-baseline@v0.9.0
         with:
           target: 'http://localhost:5000'
+          cmd_options: '-w zap-report.html -J zap-report.json'
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: |
+            zap-report.html
+            zap-report.json
+          retention-days: 30
       - name: Accessibility audit
-        run: pa11y-ci http://localhost:5000
+        run: pa11y-ci http://localhost:5000 --json > pa11y-report.json
+      - name: Upload pa11y report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pa11y-report
+          path: pa11y-report.json
+          retention-days: 30

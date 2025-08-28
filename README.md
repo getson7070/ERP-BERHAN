@@ -1,8 +1,20 @@
 # BERHAN PHARMA
 
-[![CI](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Build](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=build)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
+
+| Report | Artifact |
+|--------|---------|
+| Coverage HTML | [coverage-html](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| Bandit | [bandit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| pip-audit | [pip-audit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| Trivy | [trivy-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| ZAP | [zap-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| Pa11y | [pa11y-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 
 ## Setup
 

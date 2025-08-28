@@ -7,6 +7,13 @@ if [[ -z "${LATEST:-}" ]]; then
   echo "No backup files found in $BACKUP_DIR" >&2
   exit 1
 fi
-psql "${DATABASE_URL}" -f "$LATEST"
 mkdir -p logs
-echo "$(date -u) restored $LATEST" >> logs/restore_drill.log
+start_ts=$(date -u +%s)
+start_iso=$(date -u --iso-8601=seconds)
+psql "${DATABASE_URL}" -f "$LATEST"
+end_ts=$(date -u +%s)
+end_iso=$(date -u --iso-8601=seconds)
+rto=$((end_ts - start_ts))
+backup_ts=$(stat -c %Y "$LATEST")
+rpo=$((start_ts - backup_ts))
+echo "$start_iso,$end_iso,$rpo,$rto,$LATEST" >> logs/restore_drill.log

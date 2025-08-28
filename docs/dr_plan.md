@@ -11,7 +11,7 @@ This document outlines recovery objectives and drill procedures.
 - Off‑site copies replicated to S3 with 30‑day retention.
 
 ## Restore Drill
-Run `scripts/restore_latest_backup.sh` weekly. The script restores the most
+Run `scripts/restore_latest_backup.sh` **monthly**. The script restores the most
 recent dump into a staging database and logs the result to `logs/restore_drill.log`.
 
 1. Provision a staging database and set `DATABASE_URL`.
@@ -24,5 +24,11 @@ recent dump into a staging database and logs the result to `logs/restore_drill.l
    **RPO ≤ 15 minutes**.
 5. Verify application health checks and record completion time.
 
-Results of each drill are reviewed and the measured RPO/RTO values are logged
-to ensure objectives remain achievable.
+Each log entry follows:
+
+```
+start_iso,end_iso,rpo_seconds,rto_seconds,backup_file
+```
+
+Results of each drill are reviewed monthly to ensure the measured RPO/RTO
+values remain within objectives.
