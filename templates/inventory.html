@@ -2,6 +2,10 @@
 {% block title %}Inventory{% endblock %}
 {% block body %}
 <div class="container py-5">
+  {% set crumbs=[{'title': _('Home'), 'url': url_for('dashboard')}, {'title': _('Inventory')}] %}
+  {% include 'partials/breadcrumbs.html' %}
+  <h2>Inventory {% include 'partials/help_tooltip.html' %}</h2>
+  {% include 'partials/saved_views.html' %}
   <table class="table table-striped">
     <thead><tr><th>Name</th><th>Quantity</th><th></th></tr></thead>
     <tbody>
@@ -15,30 +19,34 @@
     </tbody>
   </table>
 </div>
-<script>
-document.querySelectorAll('.save').forEach(btn => {
-  btn.addEventListener('click', async e => {
-    const row = e.target.closest('tr');
-    const id = row.getAttribute('data-id');
-    const name = row.querySelector('.name').value;
-    const quantity = row.querySelector('.quantity').value;
-    const form = new FormData();
-    form.append('name', name);
-    form.append('quantity', quantity);
-    try {
-      const resp = await fetch(`/inventory/${id}`, {
-        method: 'POST',
-        body: form
-      });
-      if (resp.ok) {
-        showMessage('success', '{{ _('Saved') }}');
-      } else {
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/saved_views.js') }}"></script>
+  <script>
+  document.querySelectorAll('.save').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const row = e.target.closest('tr');
+      const id = row.getAttribute('data-id');
+      const name = row.querySelector('.name').value;
+      const quantity = row.querySelector('.quantity').value;
+      const form = new FormData();
+      form.append('name', name);
+      form.append('quantity', quantity);
+      try {
+        const resp = await fetch(`/inventory/${id}`, {
+          method: 'POST',
+          body: form
+        });
+        if (resp.ok) {
+          showMessage('success', '{{ _('Saved') }}');
+        } else {
+          showMessage('danger', '{{ _('Save failed') }}');
+        }
+      } catch (err) {
         showMessage('danger', '{{ _('Save failed') }}');
       }
-    } catch (err) {
-      showMessage('danger', '{{ _('Save failed') }}');
-    }
+    });
   });
-});
-</script>
+  </script>
 {% endblock %}

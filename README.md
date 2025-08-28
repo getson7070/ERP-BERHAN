@@ -21,10 +21,14 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 
 - [app.py](app.py)
 - [security.py](security.py) – JWT, Talisman, rate limiting, and GraphQL caps
-- [erp/audit.py](erp/audit.py) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py)
+- [erp/audit.py](erp/audit.py#L1-L67) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py#L1-L18)
 - [static/js/sw.js](static/js/sw.js)
 - [deploy/k8s/](deploy/k8s)
 - [Dockerfile](Dockerfile)
+- [GraphQL complexity guard](erp/routes/api.py#L140-L150)
+- [templates/base.html](templates/base.html)
+- [templates/partials/navbar.html](templates/partials/navbar.html)
+- [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
@@ -56,6 +60,8 @@ Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
+Database migrations are smoke-tested with `flask db upgrade`, and a separate
+performance workflow runs N+1 query guards under `tests/perf`.
 
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `ruff` and `mypy erp` locally to catch issues before pushing.
@@ -78,6 +84,14 @@ improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
 ## Code of Conduct
 
 Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) when interacting with the project.
+
+## Design System
+
+Spacing and typography tokens are documented in [docs/design_system.md](docs/design_system.md) to keep layouts consistent.
+
+## Onboarding Tour
+
+A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboarding_tour.md).
 
 ## Environment Variables
 
