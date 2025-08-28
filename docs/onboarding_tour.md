@@ -7,7 +7,7 @@ New users can follow this short tour to become familiar with the system:
 3. **Customize Dashboard** – Drag widgets and save your layout for quick
    access to frequent tasks.
 4. **Inventory Walkthrough** – Visit the inventory list and try the
-   inline edit feature with saved views.
+   inline edit feature with saved views (see [templates/partials/saved_views.html](../templates/partials/saved_views.html) and [static/js/saved_views.js](../static/js/saved_views.js)).
 5. **Need Help?** – Click any `?` icon in the interface to reach the help
    page or relevant documentation.
 

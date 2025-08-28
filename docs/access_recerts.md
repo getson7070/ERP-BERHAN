@@ -14,3 +14,5 @@ Object Lock for tamper evidence.
 Automating these steps via scheduled tasks is recommended; see `docs/automation_analytics.md` for guidance on Celery jobs.
 
 The `data_retention.export_access_recert` Celery task runs automatically on the first day of each quarter at 05:00 UTC via Celery beat and writes the CSV export to write-once storage.
+
+The latest quarterly export is published as a CI artifact named `access-recert-export` on the [main workflow](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain).
