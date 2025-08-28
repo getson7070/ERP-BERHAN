@@ -74,9 +74,8 @@ OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
-test exercises the homepage to catch gross browser regressions.
-The CI job also emits a CycloneDX SBOM and uploads disaster-recovery drill timing
-artifacts for auditors.
+test exercises the homepage to catch gross browser regressions. The CI job also emits a
+CycloneDX SBOM and uploads disaster-recovery drill timing artifacts for auditors.
 
 ## Performance Targets
 - API p95 latency < 500ms

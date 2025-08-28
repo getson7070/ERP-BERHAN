@@ -15,7 +15,6 @@ from flask import (
     g,
     render_template,
     current_app,
-    abort,
 )
 import uuid
 
@@ -30,7 +29,6 @@ import logging.config
 import os
 import time
 import json
-import re
 from typing import Any
 from prometheus_client import (
     Counter,
@@ -115,25 +113,6 @@ OLAP_EXPORT_SUCCESS = Counter(
     "olap_export_success_total",
     "Number of successful OLAP exports",
 )
-
-# Basic Web Application Firewall patterns for common injection vectors.
-# This is not a substitute for a dedicated WAF but blocks obvious attacks
-# before they reach deeper layers. Front deployments with a real WAF for
-# comprehensive protection.
-SUSPECT_PATTERNS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (r"<script", r"union\s+select", r"\.\./", r"%3cscript")
-]
-
-
-def _basic_waf() -> None:
-    """Abort requests containing simplistic attack signatures."""
-    data = request.query_string.decode(errors="ignore").lower()
-    data += request.get_data(as_text=True, cache=False).lower()
-    for pattern in SUSPECT_PATTERNS:
-        if pattern.search(data):
-            current_app.logger.warning("WAF blocked pattern %s", pattern.pattern)
-            abort(403)
 
 
 def _ensure_base_tables() -> None:
@@ -311,7 +290,6 @@ def create_app():
     db.init_app(app)
     init_cache(app)
     csrf.init_app(app)
-    app.before_request(_basic_waf)
     from .app import (
         register_blueprints,
         init_security,
@@ -431,8 +409,7 @@ def create_app():
     @app.after_request
     def record_metrics(response):
         endpoint = request.endpoint or "unknown"
-        start = getattr(g, "start_time", time.time())
-        REQUEST_LATENCY.labels(endpoint).observe(time.time() - start)
+        REQUEST_LATENCY.labels(endpoint).observe(time.time() - g.start_time)
         REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
         if response.status_code == 429:
             RATE_LIMIT_REJECTIONS.inc()
