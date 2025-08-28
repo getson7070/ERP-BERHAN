@@ -1,10 +1,5 @@
-import pathlib
-import sys
-
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
-
-from erp import create_app, RATE_LIMIT_REJECTIONS  # noqa: E402
-from db import get_db  # noqa: E402
+from erp import create_app, RATE_LIMIT_REJECTIONS
+from db import get_db
 
 
 def test_token_rate_limit(tmp_path, monkeypatch):

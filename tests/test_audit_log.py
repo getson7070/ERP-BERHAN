@@ -1,7 +1,3 @@
-import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from erp.audit import log_audit, check_audit_chain
 from db import get_db
 from erp import create_app
