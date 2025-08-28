@@ -32,7 +32,6 @@ all checks to pass before merging.
 
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
-
 ### Pre-commit hooks
 
 Install and enable the pre-commit hooks to mirror CI checks:
@@ -43,7 +42,6 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
-
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
@@ -260,6 +258,23 @@ concurrency levels.
 
 Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
+
+## Current Audit Priorities
+
+Recent audits highlighted several cross-cutting gaps. The project is
+actively addressing the following items:
+
+- Enforce reverse-proxy rate limiting and publish 429 metrics.
+- Expand the CI pipeline so every push or pull request runs linting,
+  type checks, tests, dependency and container scans.
+- Document recovery objectives and perform regular restore drills to
+  validate backups.
+- Maintain data retention rules and column-level lineage for analytical
+  exports.
+- Monitor cache hit rate and query counts to flag inefficient
+  database access.
+- Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
+  rollover.
 
 ## Governance & Roadmap
 

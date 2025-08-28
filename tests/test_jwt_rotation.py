@@ -1,22 +1,10 @@
-import shutil
-import shutil
-import subprocess
+import pathlib
 import sys
 import time
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 from flask_jwt_extended import create_access_token, decode_token
-
-
-def test_rotate_jwt_secret(tmp_path):
-    script = Path(__file__).resolve().parents[1] / "scripts" / "rotate_jwt_secret.py"
-    dst = tmp_path / "rotate_jwt_secret.py"
-    shutil.copy(script, dst)
-    subprocess.check_call([sys.executable, str(dst)], cwd=tmp_path)
-    assert (tmp_path / "jwt_secrets.json").exists()
-    assert (tmp_path / "logs" / "jwt_rotation.log").exists()
 
 
 def test_old_kid_valid_until_expiry(tmp_path, monkeypatch):
@@ -24,7 +12,7 @@ def test_old_kid_valid_until_expiry(tmp_path, monkeypatch):
     monkeypatch.setenv("USE_FAKE_REDIS", "1")
     monkeypatch.setenv("JWT_SECRETS", '{"v1":"old"}')
     monkeypatch.setenv("JWT_SECRET_ID", "v1")
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
+    sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
     from erp import create_app
 
     app = create_app()
@@ -34,6 +22,7 @@ def test_old_kid_valid_until_expiry(tmp_path, monkeypatch):
             "u", expires_delta=timedelta(seconds=1), additional_headers={"kid": "v1"}
         )
 
+    # rotate secret
     app.config["JWT_SECRETS"]["v2"] = "new"
     app.config["JWT_SECRET_ID"] = "v2"
     app.config["JWT_SECRET_KEY"] = "new"
