@@ -43,7 +43,6 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
-
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
 highlighting that many features remain as plans. The detailed findings and
