@@ -28,8 +28,12 @@ def test_verify_barcode_endpoint():
     app, user_id = setup_app()
     client = app.test_client()
     login(client, user_id)
+    with client.session_transaction() as sess:
+        sess["csrf_token"] = "testtoken"
+        token = sess["csrf_token"]
     resp = client.post(
         "/inventory/receive/verify",
         json={"barcode": "ITEM123"},
+        headers={"X-CSRFToken": token},
     )
     assert resp.json["valid"] is True

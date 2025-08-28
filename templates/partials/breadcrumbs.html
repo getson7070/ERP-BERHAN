@@ -1,9 +1,14 @@
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-3">
-    {% for crumb in crumbs %}
-    <li class="breadcrumb-item {% if loop.last %}active{% endif %}" {% if loop.last %}aria-current="page"{% endif %}>
-      {% if not loop.last %}<a href="{{ crumb.url }}">{{ crumb.title }}</a>{% else %}{{ crumb.title }}{% endif %}
-    </li>
+{% set segments = request.path.strip('/').split('/') if request.path != '/' else [] %}
+<nav aria-label="breadcrumb" class="bg-light px-3 py-2 border-bottom">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">{{ _('Home') }}</a></li>
+    {% for segment in segments if segment %}
+      {% set url = '/' + '/'.join(segments[:loop.index]) %}
+      {% if loop.last %}
+        <li class="breadcrumb-item active" aria-current="page">{{ segment.replace('_', ' ')|title }}</li>
+      {% else %}
+        <li class="breadcrumb-item"><a href="{{ url }}">{{ segment.replace('_', ' ')|title }}</a></li>
+      {% endif %}
     {% endfor %}
   </ol>
 </nav>

@@ -1,10 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Receive Inventory{% endblock %}
 {% block body %}
-{% include "partials/navbar.html" %}
 <div class="container py-5">
-  {% set crumbs=[{'title': _('Home'), 'url': url_for('dashboard')}, {'title': _('Receive Inventory')}] %}
-  {% include 'partials/breadcrumbs.html' %}
   <h2>Receive Inventory {% include 'partials/help_tooltip.html' %}</h2>
   {% if error %}
     <div class="alert alert-danger">{{ error }}</div>
@@ -32,7 +29,7 @@
 {% endblock %}
 {% block scripts %}
   {{ super() }}
-  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js" integrity="sha384-sl2LNalPRD3qrS3TKmINXWwRcQKf9cUlNZGd8pqjlpzwbzgMsFgE+133u4kM32IR" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js" integrity="sha384-sl2LNalPRD3qrS3TKmINXWwRcQKf9cUlNZGd8pqjlpzbzgMsFgE+133u4kM32IR" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js" integrity="sha384-esTT3pUoxT1ABdxNxbMOglzErtD7TMAJIeNSgB/6zIc15mCDJBQ47WIQWsP6v+Pb" crossorigin="anonymous"></script>
   <script>
   const scanner = document.getElementById('scanner');
