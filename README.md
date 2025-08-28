@@ -1,6 +1,12 @@
 # BERHAN PHARMA
 
-[![CI](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Build](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=build)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Bandit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=bandit)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![pip-audit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=pip-audit)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![pa11y](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=pa11y)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
 
@@ -20,7 +26,29 @@ flask run
 - SQLAlchemy
 - Celery
 - Redis
+- PgBouncer
 - Bootstrap 5
+
+## CI Pipeline
+
+Every push and pull request runs ruff, flake8, mypy, pytest with coverage,
+Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
+OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
+all checks to pass before merging.
+
+Download detailed reports from the workflow artifacts:
+
+- [Coverage HTML](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`coverage-report`)
+- [Bandit security scan](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`bandit-report`)
+- [pip-audit dependency report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`pip-audit-report`)
+- [Trivy container scan](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`trivy-report`)
+- [OWASP ZAP baseline](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`zap-report`)
+- [pa11y accessibility audit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`pa11y-report`)
+
+Artifacts are retained for 30 days to provide CI evidence.
+
+Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
+Run `flake8` and `mypy erp` locally to catch issues before pushing.
 
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
@@ -39,6 +67,8 @@ The application pulls configuration from environment variables. Key settings inc
 - `MFA_ISSUER` – issuer name shown in authenticator apps for MFA codes.
 - `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
 - `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
+- `LOCK_THRESHOLD`/`ACCOUNT_LOCK_SECONDS` – progressive backoff and
+  temporary account lock settings.
 - `GRAPHQL_MAX_DEPTH` – maximum allowed GraphQL query depth.
 - `GRAPHQL_MAX_COMPLEXITY` – maximum allowed GraphQL query complexity.
 - `VAULT_FILE` – optional JSON file providing secrets for automated rotation.
@@ -69,8 +99,11 @@ Celery powers several background workflows:
 
 - Scheduled tasks send pending order reminders and generate monthly compliance
   reports.
-- KPI materialized views refresh every 30 minutes and a simple forecast of next
-  month's sales is displayed on the analytics dashboard.
+- KPI materialized views refresh every five minutes and a simple forecast of next
+  month's sales is displayed on the analytics dashboard. A nightly export pushes
+  KPIs to a Timescale/ClickHouse warehouse, incrementing the
+  `olap_export_success_total` counter, and staleness is tracked via the
+  `kpi_sales_mv_age_seconds` metric.
 - Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
   reports and schedule compliance exports.
 - Monitor Celery backlog with `python scripts/monitor_queue.py` to detect stuck tasks.
@@ -79,7 +112,9 @@ Celery powers several background workflows:
 
 List pages in CRM and inventory cache results in Redis to reduce database load.
 Mutating routes invalidate the relevant `<module>:<org_id>` key to keep data
-consistent. See `docs/cache_invalidation.md` for details.
+consistent. Prometheus counters `cache_hits_total` and `cache_misses_total`
+feed a real-time hit-rate gauge at `/metrics` to monitor lookup efficiency.
+See `docs/cache_invalidation.md` for details.
 
 ## Database Migrations
 
@@ -117,13 +152,32 @@ Session cookies are configured with `Secure`, `HttpOnly` and `SameSite=Lax`.
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman) enforces HTTPS
 and sets modern security headers; ensure the app is served over TLS.
 
+Edge rate limiting is applied at the NGINX ingress and within Flask-Limiter.
+Per-route limits protect `/auth/login`, `/auth/token`, and `/api/graphql` with
+429 rejections counted via the `rate_limit_rejections_total` metric.
+
+JWT keys rotate via `scripts/rotate_jwt_secret.py`, which flips
+`JWT_SECRET_ID` and records each rotation for audit purposes.
+
 SSO/OAuth2 login is available via the configured provider. Successful and failed
 authentication attempts are recorded in an `audit_logs` table protected by
 row-level security and hash-chained for tamper evidence.
 
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
-secrets manager.
+secrets manager; see [docs/security/secret_rotation.md](docs/security/secret_rotation.md).
+
+## Disaster Recovery & Data Governance
+
+Recovery objectives target an **RPO of 15 minutes** and **RTO of 1 hour**.
+Weekly drills restore the latest backup via
+[`scripts/restore_latest_backup.sh`](scripts/restore_latest_backup.sh) and log
+measured times; see [docs/dr_plan.md](docs/dr_plan.md).
+
+Data retention windows and column-level lineage are documented in
+[docs/data_retention.md](docs/data_retention.md). The `data_lineage` table tracks
+analytics sources, and exports to TimescaleDB/ClickHouse apply the same
+retention and PII-masking rules.
 
 ## UI/UX
 
@@ -150,6 +204,20 @@ MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
 to be used for replication or off-site disaster recovery. See
 `docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
+## Disaster Recovery
+
+Weekly restore drills validate a **15‑minute RPO** and **one‑hour RTO**. The
+process is documented in [docs/dr_plan.md](docs/dr_plan.md) and executed via
+`scripts/restore_latest_backup.py`, which restores the most recent dump to a
+staging database and records the elapsed time for each run.
+
+## Data Governance
+
+Table‑level retention windows and column lineage are defined in
+[docs/data_retention.md](docs/data_retention.md). The `DataLineage` model tracks
+the origin of analytics fields, and exports mask PII to meet Ethiopian privacy
+requirements.
+
 ### Multi-Factor Authentication
 
 Both employee and client accounts are protected with TOTP based multi-factor
@@ -174,7 +242,11 @@ The `/auth/token` and `/auth/refresh` endpoints issue short-lived access tokens
 and rotating refresh tokens. Refresh tokens are stored in Redis with their
 `org_id` and user mapping so compromised tokens can be revoked. Tokens include a
 `kid` header tied to the `JWT_SECRET_ID` environment variable, enabling seamless
-secret rotation.
+secret rotation. These authentication endpoints are protected by strict per-route
+rate limits to mitigate brute-force attempts, with rejections surfaced through
+the `rate_limit_rejections_total` Prometheus counter. A k6 smoke script
+(`scripts/k6_rate_limit.js`) can be run to stress authentication and verify 429
+responses under load.
 
 ### Materialized Views
 
@@ -212,6 +284,8 @@ high‑availability setup with readiness probes and horizontal pod autoscaling.
 Requests are instrumented with Prometheus metrics and exposed at `/metrics` for
 collection by a monitoring system. Structured logs are emitted to standard
 output to aid in tracing and alerting.
+Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
+violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
@@ -228,6 +302,22 @@ concurrency levels.
 Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
 
+## Current Audit Priorities
+- Recent audits highlighted several cross-cutting gaps. The project is
+actively addressing the following items:
+
+- Enforce reverse-proxy rate limiting and publish 429 metrics.
+- Expand the CI pipeline so every push or pull request runs linting,
+  type checks, tests, dependency and container scans.
+- Document recovery objectives and perform regular restore drills to
+  validate backups.
+- Maintain data retention rules and column-level lineage for analytical
+  exports.
+- Monitor cache hit rate and query counts to flag inefficient
+  database access.
+- Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
+  rollover.
+
 ## Governance & Roadmap
 
 - Refer to `docs/versioning.md` for release numbering and branching conventions.
@@ -236,3 +326,10 @@ throughput and validate connection pool tuning or scaling changes.
 - User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
 - Planned milestones are tracked in `docs/roadmap.md`.
 - An in-app `/help` page links to documentation and discussion forums.
+- Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
+- Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
+- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
+- UX and accessibility guidelines, including WCAG checks and user-customizable dashboards, are documented in `docs/accessibility_and_ux.md`.
+- Plugin API, compatibility policy, and connector coverage are defined in `docs/plugin_policy.md`.
+- Incremental refresh and lineage tracking are covered in `docs/data_lineage.md`.
+- Container hardening, tracing, and other operational safeguards live in `docs/devops_hardening.md`.

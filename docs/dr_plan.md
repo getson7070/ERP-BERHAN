@@ -19,6 +19,10 @@ recent dump into a staging database and logs the result to `logs/restore_drill.l
    ```bash
    ./scripts/restore_latest_backup.sh
    ```
-3. Verify application health checks and record completion time.
+3. Measure start and end times to confirm the **RTO ≤ 1 hour**.
+4. Compare the backup timestamp against the drill time to validate the
+   **RPO ≤ 15 minutes**.
+5. Verify application health checks and record completion time.
 
-Results of each drill are reviewed to ensure RPO/RTO targets are met.
+Results of each drill are reviewed and the measured RPO/RTO values are logged
+to ensure objectives remain achievable.

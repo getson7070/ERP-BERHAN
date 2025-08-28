@@ -62,3 +62,7 @@ statistics to watch for saturation and adjust limits before hitting caps.
 Use `scripts/benchmark.py` to issue concurrent requests against a deployed
 instance and measure throughput. Results help validate tuning and autoscaling
 configurations.
+
+### Soak & N+1 Query Tests
+- Run `scripts/benchmark.py --soak` for multi-hour stress tests; upload logs as CI artifacts for traceability.
+- `tests/test_nplus1.py` asserts that ORM patterns avoid N+1 queries and fail the build if regressions are detected.

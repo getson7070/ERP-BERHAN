@@ -1,9 +1,9 @@
 import json
 import os
 from threading import RLock
-from typing import Any, Dict
+from typing import Any
 
-_cache: Dict[str, Any] = {}
+_cache: dict[str, Any] = {}
 _lock = RLock()
 
 

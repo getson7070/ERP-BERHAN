@@ -1,17 +1,21 @@
-"""Caching utilities backed by Redis.
+"""Cache utilities.
 
 Provides a :class:`flask_caching.Cache` instance and helpers to invalidate
 keys following the conventions documented in ``docs/cache_invalidation.md``.
 """
+
 from __future__ import annotations
 
 import os
 import fnmatch
 from flask_caching import Cache
-from prometheus_client import Counter
+from prometheus_client import Counter, Gauge
 
 CACHE_HITS = Counter('cache_hits_total', 'Number of cache hits')
 CACHE_MISSES = Counter('cache_misses_total', 'Number of cache misses')
+CACHE_HIT_RATE = Gauge(
+    'cache_hit_rate', 'Ratio of cache hits to total lookups'
+)
 
 cache = Cache()
 
@@ -45,6 +49,9 @@ def cache_get(key: str):
         CACHE_MISSES.inc()
     else:
         CACHE_HITS.inc()
+    total = CACHE_HITS._value.get() + CACHE_MISSES._value.get()
+    if total:
+        CACHE_HIT_RATE.set(CACHE_HITS._value.get() / total)
     return value
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Rotate JWT secrets using KID playbook with audit logging."""
+
 import datetime
 import json
 import os
 import pathlib
 import secrets
-
 SECRETS_FILE = pathlib.Path("jwt_secrets.json")
 LOG_FILE = pathlib.Path("logs/jwt_rotation.log")
 
@@ -31,7 +31,7 @@ def log_rotation(kid: str) -> None:
 
 secrets_map = load_secrets()
 new_id = f"v{len(secrets_map)+1}"
-secrets_map[new_id] = secrets.token_hex(32)
+secrets_map[new_id] = secrets.token_hex(32)  # type: ignore[attr-defined]
 save_secrets(secrets_map)
 os.environ['JWT_SECRET_ID'] = new_id
 log_rotation(new_id)

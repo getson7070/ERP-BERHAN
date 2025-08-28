@@ -50,6 +50,16 @@ def init_security(app):
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, datastore=user_datastore)
     jwt.init_app(app)
+
+    @jwt.encode_key_loader
+    def _encode_key(_: str) -> str:
+        return app.config["JWT_SECRET_KEY"]
+
+    @jwt.decode_key_loader
+    def _decode_key(headers, payload) -> str:  # pragma: no cover - simple mapping
+        kid = headers.get("kid")
+        secrets_map = app.config.get("JWT_SECRETS", {})
+        return secrets_map.get(kid, app.config["JWT_SECRET_KEY"])
     return user_datastore
 
 
@@ -61,9 +71,12 @@ def generate_totp_uri(user: User) -> str:
 
 
 def issue_api_token(identity: str) -> str:
-    """Create a JWT for *identity*."""
+    """Create a JWT for *identity* with ``kid`` header."""
 
-    return create_access_token(identity=identity)
+    return create_access_token(
+        identity=identity,
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
 
 
 def _blueprints_from(pkg: ModuleType) -> Iterable[Blueprint]:
