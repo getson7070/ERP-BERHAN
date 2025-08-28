@@ -109,6 +109,7 @@ AUDIT_CHAIN_BROKEN = Counter(
     "audit_chain_broken_total",
     "Detected breaks in the audit log hash chain",
 )
+OLAP_EXPORT_SUCCESS = Counter("olap_export_success_total", "Number of successful OLAP exports")
 
 
 def _ensure_base_tables() -> None:
