@@ -258,8 +258,8 @@ collection by a monitoring system. Structured logs are emitted to standard
 output to aid in tracing and alerting.
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
-Database efficiency is monitored through `db_query_count` tests that guard against
-N+1 patterns. Cache performance is tracked with `cache_hits_total`,
+Database efficiency is monitored through `db_query_count` tests that guard
+against N+1 patterns. Cache performance is tracked with `cache_hits_total`,
 `cache_misses_total`, and the `cache_hit_ratio` gauge.
 
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
