@@ -185,7 +185,9 @@ The `/auth/token` and `/auth/refresh` endpoints issue short-lived access tokens
 and rotating refresh tokens. Refresh tokens are stored in Redis with their
 `org_id` and user mapping so compromised tokens can be revoked. Tokens include a
 `kid` header tied to the `JWT_SECRET_ID` environment variable, enabling seamless
-secret rotation.
+secret rotation. These authentication endpoints are protected by strict per-route
+rate limits to mitigate brute-force attempts, with rejections surfaced through
+the `rate_limit_rejections_total` Prometheus counter.
 
 ### Materialized Views
 
