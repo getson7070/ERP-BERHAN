@@ -151,3 +151,124 @@ row-level security and hash-chained for tamper evidence.
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
 secrets manager; see [docs/security/secret_rotation.md](docs/security/secret_rotation.md).
+
+## UI/UX
+
+All templates leverage Bootstrap 5 for responsive design and mobile parity. `Flask-Babel` powers multi-language support; set `BABEL_DEFAULT_LOCALE` and `BABEL_SUPPORTED_LOCALES` to expose additional translations. A global search bar in the navbar queries CRM, inventory, HR, and finance records. A dark-mode toggle with accessible contrast ratios is persisted in `localStorage`. A service worker (`static/js/sw.js`) ensures offline access and queues actions for sync when the connection restores. The `/dashboard` route delivers role-based views for employees, clients, and admins.
+
+## Blueprints & Templates
+
+Blueprint modules exposing a module-level `bp` are auto-registered from `erp/` and `plugins/`.
+See [docs/blueprints.md](docs/blueprints.md) for details. All HTML pages extend `templates/base.html` and share a navbar partial; see [docs/templates.md](docs/templates.md).
+
+
+## Integration & Ecosystem
+
+- `GET /api/ping` and `POST /api/graphql` expose REST and GraphQL access.
+- Webhooks forward events to the configured `WEBHOOK_URL`.
+- Plugins in the `plugins/` directory auto-register and are listed at `/plugins`.
+- Connectors under `erp/connectors` push invoices or fetch products.
+- `sdk.client.ERPClient` provides a lightweight Python SDK.
+
+## Backups
+
+The `backup.py` helper creates timestamped database backups. PostgreSQL and
+MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
+to be used for replication or off-site disaster recovery. See
+`docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
+
+### Multi-Factor Authentication
+
+Both employee and client accounts are protected with TOTP based multi-factor
+authentication. During registration an MFA secret is generated and must be
+configured in an authenticator application. Logins require the 6-digit code in
+addition to the password.
+
+### Role-Based Access
+
+User roles and permissions are loaded into the session at authentication. The
+`roles_required` decorator can be used on management-only routes to enforce role
+checks, while `has_permission()` centralizes permission validation and
+automatically grants access to users with the *Management* role.
+
+Row level security is enabled on core tables. Each request sets a
+`my.org_id` session variable, ensuring queries are transparently filtered to the
+tenant’s organization.
+
+### Token-Based Authentication
+
+The `/auth/token` and `/auth/refresh` endpoints issue short-lived access tokens
+and rotating refresh tokens. Refresh tokens are stored in Redis with their
+`org_id` and user mapping so compromised tokens can be revoked. Tokens include a
+`kid` header tied to the `JWT_SECRET_ID` environment variable, enabling seamless
+secret rotation. These authentication endpoints are protected by strict per-route
+rate limits to mitigate brute-force attempts, with rejections surfaced through
+the `rate_limit_rejections_total` Prometheus counter. A k6 smoke script
+(`scripts/k6_rate_limit.js`) can be run to stress authentication and verify 429
+responses under load.
+
+### Materialized Views
+
+Key performance indicators are pre-aggregated in the `kpi_sales` materialized
+view. A Celery beat job periodically executes `REFRESH MATERIALIZED VIEW
+CONCURRENTLY kpi_sales` and pushes updates to connected dashboards over
+WebSockets for near real-time visibility with short-lived per-tenant tokens.
+
+## Automation & Analytics
+
+Background jobs expand automation and insight capabilities:
+
+- `send_approval_reminders` notifies sales representatives of pending orders.
+- `forecast_sales` computes a naive monthly projection of sales trends.
+- `generate_compliance_report` writes weekly CSV reports of orders missing status.
+- `/analytics/reports` offers a simple report builder for orders and tenders.
+
+## Tender Lifecycle
+
+Tenders progress through defined workflow states culminating in automatic
+transitions to **Evaluated** and **Awarded**. When a tender is evaluated the
+status becomes *Evaluated*; recording a winning supplier and date moves it to
+*Awarded* and stores the `awarded_to` and `award_date` fields.
+
+## Deployment
+
+A production-ready WSGI entrypoint (`wsgi.py`), `Dockerfile`, and `.env.example`
+are provided for running the application in a Gunicorn-backed container. Configure
+environment variables as needed and build the container with Docker for
+consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
+high‑availability setup with readiness probes and horizontal pod autoscaling.
+
+## Observability & Offline Use
+
+Requests are instrumented with Prometheus metrics and exposed at `/metrics` for
+collection by a monitoring system. Structured logs are emitted to standard
+output to aid in tracing and alerting.
+Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
+violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
+
+The UI registers a service worker (`static/js/sw.js`) to cache core assets and
+API responses. User actions are queued in IndexedDB when offline and replayed to
+the API once connectivity returns, providing a more resilient mobile experience.
+
+## Security & Load Testing
+
+Run `scripts/security_scan.sh` for static analysis and dependency checks.
+Use `scripts/load_test.sh` or a preferred tool to validate performance at target
+concurrency levels.
+
+## Performance Benchmarking
+
+Run `python scripts/benchmark.py` against a target URL to measure request
+throughput and validate connection pool tuning or scaling changes.
+
+## Governance & Roadmap
+
+- Refer to `docs/versioning.md` for release numbering and branching conventions.
+- Quarterly access recertification steps are outlined in `docs/access_recerts.md`.
+- Detailed migration procedures live in `docs/migration_guide.md`.
+- User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
+- Planned milestones are tracked in `docs/roadmap.md`.
+- An in-app `/help` page links to documentation and discussion forums.
+- Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
+- Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
+- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.

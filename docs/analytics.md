@@ -5,12 +5,16 @@
 - `expire_tenders`: closes overdue tenders every night.
 - `refresh_kpis`: refreshes the `kpi_sales` materialized view every five minutes.
 - `check_kpi_staleness`: warns if `kpi_sales` is stale for more than ten minutes; staleness is tracked via the `kpi_sales_mv_age_seconds` gauge in `/metrics`.
-- `export_kpis_to_olap`: nightly export of KPIs to a TimescaleDB or ClickHouse warehouse for long-range analytics. The `scripts/olap_export.py` helper drives this process and increments the `olap_export_success_total` counter on each successful run.
+- `export_kpis_to_olap`: nightly export of KPIs to a TimescaleDB or
+  ClickHouse warehouse for long-range analytics. The `scripts/olap_export.py`
+  helper drives this process and increments the
+  `olap_export_success_total` counter on each successful run.
 - `send_approval_reminders`: logs and notifies managers of pending order approvals each morning.
 - `forecast_sales`: predicts next month's sales from recent KPIs.
 - `generate_compliance_report`: exports a list of unapproved orders for auditing.
 - `build_custom_report`: creates ad-hoc CSV exports for orders or maintenance.
-- `collect_feedback`: stores optional usage feedback from `/feedback/` and front-end telemetry for future analysis.
+- `collect_feedback`: stores optional usage feedback from `/feedback/` and
+  front-end telemetry for future analysis.
 
 ## Report Builder
 Navigate to `/analytics/report-builder` to assemble ad-hoc reports using a drag-and-drop interface. Outputs can be exported to PDF or Excel. Ensure `CELERY_BROKER_URL`
