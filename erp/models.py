@@ -9,9 +9,9 @@ from .extensions import db
 
 # Association table for many-to-many user/role relationship
 roles_users = db.Table(
-    'roles_users',
-    db.Column('user_id', db.Integer(), db.ForeignKey('users.id')),
-    db.Column('role_id', db.Integer(), db.ForeignKey('roles.id')),
+    "roles_users",
+    db.Column("user_id", db.Integer(), db.ForeignKey("users.id")),
+    db.Column("role_id", db.Integer(), db.ForeignKey("roles.id")),
 )
 
 
@@ -33,9 +33,7 @@ class Invoice(db.Model):  # type: ignore[name-defined]
     id = db.Column(db.Integer, primary_key=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
     number = db.Column(db.String(64), unique=True, nullable=False)
-    total = db.Column(
-        db.Numeric(scale=2), nullable=False, default=Decimal("0.00")
-    )
+    total = db.Column(db.Numeric(scale=2), nullable=False, default=Decimal("0.00"))
     issued_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
@@ -43,7 +41,7 @@ class Invoice(db.Model):  # type: ignore[name-defined]
 
 
 class Role(db.Model, RoleMixin):  # type: ignore[name-defined]
-    __tablename__ = 'roles'
+    __tablename__ = "roles"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True)
@@ -51,7 +49,7 @@ class Role(db.Model, RoleMixin):  # type: ignore[name-defined]
 
 
 class User(db.Model, UserMixin):  # type: ignore[name-defined]
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
@@ -60,19 +58,32 @@ class User(db.Model, UserMixin):  # type: ignore[name-defined]
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     mfa_secret = db.Column(db.String(32))
     roles = db.relationship(
-        'Role',
+        "Role",
         secondary=roles_users,
-        backref=db.backref('users', lazy='dynamic'),
+        backref=db.backref("users", lazy="dynamic"),
     )  # type: ignore[assignment]
 
 
 class DataLineage(db.Model):  # type: ignore[name-defined]
-    __tablename__ = 'data_lineage'
+    __tablename__ = "data_lineage"
 
     id = db.Column(db.Integer, primary_key=True)
     table_name = db.Column(db.String(128), nullable=False)
     column_name = db.Column(db.String(128), nullable=False)
     source = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=datetime.utcnow, nullable=False
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UserDashboard(db.Model):  # type: ignore[name-defined]
+    """Persist user-specific dashboard layouts."""
+
+    __tablename__ = "user_dashboards"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True
+    )
+    layout = db.Column(db.Text, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )

@@ -1,5 +1,19 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Customize Dashboard</h2>
-<p>This is a placeholder page for customizing dashboard widgets.</p>
+<div class="container py-4">
+  <h2>Customize Dashboard</h2>
+  <div id="layout" class="border p-3" contenteditable="true">{{ layout }}</div>
+  <button id="save" class="btn btn-primary mt-3">Save Layout</button>
+</div>
+<script>
+  document.getElementById('save').addEventListener('click', async () => {
+    const layout = document.getElementById('layout').innerText;
+    await fetch("/dashboard/customize", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({layout})
+    });
+    alert('Layout saved');
+  });
+</script>
 {% endblock %}

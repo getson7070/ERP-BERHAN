@@ -1,20 +1,28 @@
-from flask import Blueprint, render_template
-from flask_login import login_required
+from flask import Blueprint, render_template, request, jsonify, session
+from erp.utils import login_required
+from erp.models import UserDashboard, db
 
-# Blueprint for dashboard customization
-# Allows users to access a page where they can customize their dashboard layout.
-dashboard_custom_bp = Blueprint('dashboard_custom', __name__, url_prefix='/dashboard')
-# Alias for app factory imports
-bp = dashboard_custom_bp
+bp = Blueprint("dashboard_custom", __name__, url_prefix="/dashboard")
 
-@bp.route('/customize', methods=['GET'])
+
+@bp.route("/customize", methods=["GET", "POST"])
 @login_required
 def customize():
-    """Render the dashboard customization interface.
+    """Render or persist the dashboard customization interface."""
 
-    This view renders a template with placeholder content for a drag-and-drop
-    dashboard builder. In a full implementation, this would load the user's
-    existing widget layout and provide controls for adding, removing and
-    arranging dashboard widgets.
-    """
-    return render_template('customize_dashboard.html')
+    user_id = session.get("user_id")
+    if request.method == "POST":
+        payload = request.get_json() or {}
+        layout = payload.get("layout", "{}")
+        dash = UserDashboard.query.filter_by(user_id=user_id).first()
+        if dash is None:
+            dash = UserDashboard(user_id=user_id, layout=layout)
+            db.session.add(dash)
+        else:
+            dash.layout = layout
+        db.session.commit()
+        return jsonify({"status": "ok"})
+
+    dash = UserDashboard.query.filter_by(user_id=user_id).first()
+    layout = dash.layout if dash else "{}"
+    return render_template("customize_dashboard.html", layout=layout)

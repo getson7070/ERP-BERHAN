@@ -2,3 +2,39 @@
 {% block title %}Inventory{% endblock %}
 {% block body %}
 <div class="container py-5">
+  <table class="table table-striped">
+    <thead><tr><th>Name</th><th>Quantity</th><th></th></tr></thead>
+    <tbody>
+      {% for item in items %}
+      <tr data-id="{{ item.id }}">
+        <td><input class="form-control name" value="{{ item.name }}"></td>
+        <td><input class="form-control quantity" type="number" value="{{ item.quantity }}"></td>
+        <td><button class="btn btn-sm btn-primary save">Save</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<meta name="csrf-token" content="{{ csrf_token }}">
+<script>
+const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+document.querySelectorAll('.save').forEach(btn => {
+  btn.addEventListener('click', async e => {
+    const row = e.target.closest('tr');
+    const id = row.getAttribute('data-id');
+    const name = row.querySelector('.name').value;
+    const quantity = row.querySelector('.quantity').value;
+    const form = new FormData();
+    form.append('name', name);
+    form.append('quantity', quantity);
+    await fetch(`/inventory/${id}`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': token},
+      body: form
+    });
+    alert('Saved');
+  });
+});
+</script>
+{% endblock %}

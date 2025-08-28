@@ -1,0 +1,41 @@
+from erp import create_app
+from erp.models import db, User, Inventory
+
+
+def setup_app():
+    app = create_app()
+    app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+        user = User(email="i@example.com", password="x", fs_uniquifier="u2")
+        item = Inventory(name="Widget", quantity=5, org_id=1)
+        db.session.add_all([user, item])
+        db.session.commit()
+        return app, user.id, item.id
+
+
+def login(client, user_id):
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user_id)
+        sess["org_id"] = 1
+        sess["logged_in"] = True
+
+
+def test_inline_edit_updates_item():
+    app, user_id, item_id = setup_app()
+    client = app.test_client()
+    login(client, user_id)
+
+    resp = client.get("/inventory/")
+    assert resp.status_code == 200
+    with client.session_transaction() as sess:
+        token = sess["csrf_token"]
+
+    resp = client.post(
+        f"/inventory/{item_id}",
+        data={"name": "Gadget", "quantity": "7"},
+        headers={"X-CSRFToken": token},
+    )
+    assert resp.json["name"] == "Gadget"
+    with app.app_context():
+        assert Inventory.query.get(item_id).name == "Gadget"
