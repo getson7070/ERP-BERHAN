@@ -31,19 +31,16 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 - Expand documentation for deployment, backups, and training.
 
 The scores will be revisited as development progresses.
-
 ## Recent Audits (Aug 2025)
-The repository has since evolved substantially. Two independent audits produced diverging results:
+Two independent audits produced diverging results:
 
-- **ChatGPT audit:** Recognized implemented Flask modules, tests, and CI workflows, but flagged gaps in reverse-proxy rate limiting, comprehensive CI coverage, disaster-recovery drills, data-governance policies, query-efficiency metrics, and automated JWT secret rotation.
-- **Grok audit:** Reported an empty or missing codebase, likely due to inspection errors. Its findings do not match the current repository state.
+- **ChatGPT audit:** Recognized implemented modules, tests and CI workflows but flagged missing reverse-proxy rate limiting, full CI coverage, disaster-recovery drills, data-governance policies, query-efficiency metrics and automated JWT secret rotation.
+- **Grok audit:** Reported an empty repository, likely due to inspection failure; its findings do not reflect the current codebase.
 
-### Outstanding Gaps
-1. Enforce edge rate limiting and track 429 metrics for REST, GraphQL, and webhook endpoints.
-2. Extend CI to run lint, type checks, tests with coverage, dependency and container scans, and K8s validations on every push/PR.
-3. Document RPO/RTO targets and schedule regular backup restore drills.
-4. Finalize data-retention rules with column-level lineage and OLAP export paths.
-5. Add query-count tests/N+1 guards and expose cache hit-rate gauges.
-6. Automate JWT secret rotation via `JWT_SECRET_ID` with audited scripts.
-
-These items should be prioritized in upcoming sprints to close the precision gaps identified by the audit.
+### Remediation Priorities
+1. Enforce rate limiting in the ingress layer and export 429 counters.
+2. Expand CI to run ruff/flake8, black check, mypy, pytest (≥80% coverage), bandit, pip-audit, secret scan, Docker build + Trivy, kube-linter and ZAP baseline on every push/PR.
+3. Document RPO/RTO targets and schedule periodic restore drills.
+4. Publish data retention and PII lineage policy and integrate masking into analytics exports.
+5. Instrument query-count and cache hit/miss gauges for performance monitoring.
+6. Automate JWT secret rotation keyed by `JWT_SECRET_ID` with audit logging.
