@@ -19,6 +19,16 @@ environment variables through `erp.secrets.get_secret`.
    Tokens signed with the previous key remain valid until their TTL expires.
    The unit test [`tests/test_jwt_rotation.py`](../../tests/test_jwt_rotation.py) verifies this behaviour.
 
+## Continuous Verification
+
+CI runs `tests/test_jwt_rotation.py` on every push and publishes the
+`jwt-rotation.log` artifact so auditors can review recent rotations.  To
+manually exercise the check:
+
+```bash
+pytest tests/test_jwt_rotation.py -k rotate
+```
+
 4. **Cleanup**
    After all tokens issued with the old key expire, remove the obsolete
    entry from `jwt_secrets.json` and the `JWT_SECRETS` variable.
