@@ -105,3 +105,4 @@ generated/
 *.sqlite3
 *.csv
 *.xlsx
+!docs/access_recert_sample.csv

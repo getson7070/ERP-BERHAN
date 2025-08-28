@@ -16,7 +16,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 | Bandit | [bandit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | pip-audit | [pip-audit-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | Trivy | [trivy-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
-| SBOM | [sbom](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain) |
+| SBOM | [sbom](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | ZAP | [zap-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | Pa11y | [pa11y-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | DR Drill (RPO/RTO) | [dr-drill-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
@@ -37,6 +37,9 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [templates/partials/navbar.html](templates/partials/navbar.html)
 - [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
 - [Onboarding tour](docs/onboarding_tour.md)
+- [Control matrix](docs/control_matrix.md)
+- [Access recertification guide](docs/access_recerts.md)
+- [Design system tokens](docs/design_system.md)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
@@ -70,8 +73,10 @@ Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
-performance workflow runs N+1 query guards under `tests/perf`. A Selenium smoke
+performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions.
+The CI job also emits a CycloneDX SBOM and uploads disaster-recovery drill timing
+artifacts for auditors.
 
 ## Performance Targets
 - API p95 latency < 500ms
