@@ -53,6 +53,10 @@ class Config:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     AWS_REGION = os.environ.get('AWS_REGION')
+    LOCK_THRESHOLD = int(os.environ.get('LOCK_THRESHOLD', '5'))
+    LOCK_WINDOW = int(os.environ.get('LOCK_WINDOW', '300'))
+    ACCOUNT_LOCK_SECONDS = int(os.environ.get('ACCOUNT_LOCK_SECONDS', '900'))
+    MAX_BACKOFF = int(os.environ.get('MAX_BACKOFF', '60'))
     # --- Additional security, plugin, and support configuration ---
     # Enable encryption at rest (True/False). When True, the system should integrate with
     # database/disk encryption mechanisms provided by the deployment environment.

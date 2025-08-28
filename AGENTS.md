@@ -12,6 +12,8 @@
 - Maintain UI/UX to industry standards with responsive Bootstrap layouts, multilingual support, and role-based dashboards.
 - Update all affected files and tests to keep modules compatible.
 - Guard against security vulnerabilities; enforce HTTPS, OAuth/SSO, RLS, audit logging, and encryption.
+- JWT secrets rotate via `scripts/rotate_jwt_secret.py` and
+  account logins use Redis-backed backoff with temporary locks.
 - Keep the database at high standards using migrations, constraints, indexes, backups, and tested restores.
 - Respect the repository's lint and type configurations in `.flake8` and `mypy.ini`.
 - Blueprints exposing a module-level `bp` under `erp/` and `plugins/` are auto-registered; see `docs/blueprints.md`.

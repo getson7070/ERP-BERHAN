@@ -15,6 +15,7 @@ import os
 import pyotp
 import json
 import secrets
+from typing import cast
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -38,6 +39,53 @@ from erp import oauth, limiter
 bp = Blueprint('auth', __name__)
 
 
+def _check_backoff(email: str) -> tuple[str, int]:
+    lock_ttl = cast(int, redis_client.ttl(f"lock:{email}") or 0)
+    if lock_ttl > 0:
+        return "locked", lock_ttl
+    backoff_ttl = cast(int, redis_client.ttl(f"backoff:{email}") or 0)
+    if backoff_ttl > 0:
+        return "backoff", backoff_ttl
+    return "ok", 0
+
+
+def _record_failure(email: str, user) -> None:
+    attempts = cast(int, redis_client.incr(f"fail:{email}") or 0)
+    redis_client.expire(
+        f"fail:{email}", current_app.config.get("LOCK_WINDOW", 300)
+    )
+    delay = min(2 ** attempts, current_app.config.get("MAX_BACKOFF", 60))
+    redis_client.setex(f"backoff:{email}", delay, 1)
+    if attempts >= current_app.config.get("LOCK_THRESHOLD", 5):
+        redis_client.setex(
+            f"lock:{email}",
+            current_app.config.get("ACCOUNT_LOCK_SECONDS", 900),
+            1,
+        )
+        if user:
+            user_id = user["id"] if isinstance(user, dict) else user["id"]
+            org_id = user.get("org_id") if isinstance(user, dict) else user["org_id"]
+            log_audit(
+                user_id,
+                org_id,
+                "account_lock",
+                f"failed_logins={attempts}",
+            )
+
+
+def _clear_failures(email: str, user) -> None:
+    fail_count = redis_client.get(f"fail:{email}")
+    was_locked = redis_client.delete(f"lock:{email}")
+    redis_client.delete(f"fail:{email}")
+    redis_client.delete(f"backoff:{email}")
+    if user and (
+        was_locked or (fail_count and int(cast(int, fail_count)) >= current_app.config.get("LOCK_THRESHOLD", 5))
+    ):
+        user_id = user["id"] if isinstance(user, dict) else user["id"]
+        org_id = user.get("org_id") if isinstance(user, dict) else user["org_id"]
+        log_audit(user_id, org_id, "account_unlock", "")
+
+
 @bp.route('/auth/token', methods=['POST'])
 @limiter.limit('2 per minute')
 def issue_token():
@@ -45,24 +93,40 @@ def issue_token():
     email = data.get('email')
     password = data.get('password')
     totp_code = data.get('totp')
+    status, ttl = _check_backoff(email)
+    if status == 'locked':
+        return {'error': 'account_locked', 'retry_after': ttl}, 403
+    if status == 'backoff':
+        return {'error': 'retry_later', 'retry_after': ttl}, 429
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    row = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    user = dict(row) if row is not None else None
     if not user or not verify_password(password, user['password_hash']):
         conn.close()
+        _record_failure(email, user)
         return {'error': 'invalid_credentials'}, 401
     if user['role'] in ('Admin', 'Management'):
         if not user['mfa_secret'] or not pyotp.TOTP(user['mfa_secret'], issuer=current_app.config['MFA_ISSUER']).verify(totp_code or ''):
             conn.close()
             return {'error': 'mfa_required'}, 401
     additional_claims = {'org_id': user.get('org_id')}
-    access = create_access_token(identity=email, additional_claims=additional_claims)
-    refresh = create_refresh_token(identity=email, additional_claims=additional_claims)
+    access = create_access_token(
+        identity=email,
+        additional_claims=additional_claims,
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
+    refresh = create_refresh_token(
+        identity=email,
+        additional_claims=additional_claims,
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
     refresh_jti = decode_token(refresh)['jti']
     redis_client.setex(
         f"refresh:{refresh_jti}", timedelta(days=7), json.dumps({'email': email, 'org_id': user.get('org_id')})
     )
     current_app.logger.info("issued tokens for %s", email)
     conn.close()
+    _clear_failures(email, user)
     return {'access_token': access, 'refresh_token': refresh}
 
 
@@ -78,8 +142,16 @@ def refresh_token():
     identity = get_jwt_identity()
     org_id = get_jwt().get('org_id')
     additional_claims = {'org_id': org_id}
-    access = create_access_token(identity=identity, additional_claims=additional_claims)
-    refresh = create_refresh_token(identity=identity, additional_claims=additional_claims)
+    access = create_access_token(
+        identity=identity,
+        additional_claims=additional_claims,
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
+    refresh = create_refresh_token(
+        identity=identity,
+        additional_claims=additional_claims,
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
     new_jti = decode_token(refresh)['jti']
     redis_client.setex(
         f"refresh:{new_jti}", timedelta(days=7), json.dumps({'email': identity, 'org_id': org_id})
@@ -166,6 +238,13 @@ def employee_login():
     if form.validate_on_submit():
         email = form.email.data
         password = form.password.data
+        status, ttl = _check_backoff(email)
+        if status == 'locked':
+            flash('Account temporarily locked. Try again later.')
+            return render_template('employee_login.html', form=form)
+        if status == 'backoff':
+            flash(f'Too many attempts. Retry after {ttl} seconds.')
+            return render_template('employee_login.html', form=form)
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'employee')).fetchone()
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
@@ -188,6 +267,7 @@ def employee_login():
                 log_audit(user['id'], user.get('org_id'), 'login', 'employee password')
                 conn.commit()
                 conn.close()
+                _clear_failures(email, user)
                 return redirect(url_for('main.dashboard'))
             else:
                 flash('Invalid MFA code.')
@@ -197,13 +277,9 @@ def employee_login():
                     flash('Account locked due to too many failed attempts.')
                 else:
                     conn.execute('UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?', (email,))
-                    attempts = user['failed_attempts'] + 1
-                    if attempts >= 5:
-                        conn.execute('UPDATE users SET account_locked = TRUE WHERE email = ?', (email,))
-                        flash('Account locked due to too many failed attempts.')
-                    else:
-                        flash('Invalid email/password or not approved.')
                     conn.commit()
+                    _record_failure(email, user)
+                    flash('Invalid email/password or not approved.')
             else:
                 flash('Invalid email/password or not approved.')
             conn.close()
@@ -222,6 +298,13 @@ def client_login():
     if form.validate_on_submit():
         email = form.email.data
         password = form.password.data
+        status, ttl = _check_backoff(email)
+        if status == 'locked':
+            flash('Account temporarily locked. Try again later.')
+            return render_template('client_login.html', form=form)
+        if status == 'backoff':
+            flash(f'Too many attempts. Retry after {ttl} seconds.')
+            return render_template('client_login.html', form=form)
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE', (email, 'client')).fetchone()
         if user and not user['account_locked'] and verify_password(password, user['password_hash']):
@@ -245,6 +328,7 @@ def client_login():
                 log_audit(user['id'], user.get('org_id'), 'login', 'client password')
                 conn.commit()
                 conn.close()
+                _clear_failures(email, user)
                 return redirect(url_for('main.dashboard'))
             else:
                 flash('Invalid MFA code.')
@@ -254,13 +338,9 @@ def client_login():
                     flash('Account locked due to too many failed attempts.')
                 else:
                     conn.execute('UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?', (email,))
-                    attempts = user['failed_attempts'] + 1
-                    if attempts >= 5:
-                        conn.execute('UPDATE users SET account_locked = TRUE WHERE email = ?', (email,))
-                        flash('Account locked due to too many failed attempts.')
-                    else:
-                        flash('Invalid email/password or not approved.')
                     conn.commit()
+                    _record_failure(email, user)
+                    flash('Invalid email/password or not approved.')
             else:
                 flash('Invalid email/password or not approved.')
             conn.close()

@@ -50,6 +50,8 @@ The application pulls configuration from environment variables. Key settings inc
 - `MFA_ISSUER` – issuer name shown in authenticator apps for MFA codes.
 - `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
 - `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
+- `LOCK_THRESHOLD`/`ACCOUNT_LOCK_SECONDS` – progressive backoff and
+  temporary account lock settings.
 - `GRAPHQL_MAX_DEPTH` – maximum allowed GraphQL query depth.
 - `GRAPHQL_MAX_COMPLEXITY` – maximum allowed GraphQL query complexity.
 - `VAULT_FILE` – optional JSON file providing secrets for automated rotation.
@@ -134,7 +136,7 @@ row-level security and hash-chained for tamper evidence.
 
 For encryption at rest, deploy PostgreSQL with disk-level encryption or
 transparent data encryption and rotate `JWT_SECRET` and other credentials using a
-secrets manager.
+secrets manager; see [docs/security/secret_rotation.md](docs/security/secret_rotation.md).
 
 ## UI/UX
 

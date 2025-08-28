@@ -9,3 +9,5 @@
 - Refine coverage configuration so targeted tests meet the 80% threshold
 - Enforce GraphQL depth and complexity limits with `graphql_rejects_total` metric
 - Add tamper‑evident audit log chain checker emitting `audit_chain_broken_total`
+- Document JWT secret rotation runbook and verify old keys until expiry
+- Implement progressive login backoff with temporary account lock and audit logging
