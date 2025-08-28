@@ -17,7 +17,7 @@ environment variables through `erp.secrets.get_secret`.
 
 3. **Validation**
    Tokens signed with the previous key remain valid until their TTL expires.
-   The unit test `tests/test_jwt_rotation.py` verifies this behaviour.
+   The unit test [`tests/test_jwt_rotation.py`](../../tests/test_jwt_rotation.py) verifies this behaviour.
 
 4. **Cleanup**
    After all tokens issued with the old key expire, remove the obsolete

@@ -371,3 +371,8 @@ actively addressing the following items:
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
 - Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
+
+## Contributing
+
+- All commits **must** be GPG-signed; unsigned commits fail verification.
+- Reviews from maintainers listed in [CODEOWNERS](.github/CODEOWNERS) are required before merge.
