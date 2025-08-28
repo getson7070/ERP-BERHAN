@@ -9,7 +9,8 @@ Periodic access reviews ensure least-privilege access across tenants. Administra
 
 Use `scripts/access_recert_export.py` to generate an immutable (read-only) CSV
 export of current assignments. Store exports in WORM-capable storage such as S3
-Object Lock for tamper evidence.
+Object Lock for tamper evidence. The latest automated export is available as a
+[CI artifact](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain).
 
 Automating these steps via scheduled tasks is recommended; see `docs/automation_analytics.md` for guidance on Celery jobs.
 

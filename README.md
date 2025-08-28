@@ -4,6 +4,7 @@
 [![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![SLSA](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml/badge.svg?branch=main)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance.
 
@@ -15,6 +16,9 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 | Trivy | [trivy-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | ZAP | [zap-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | Pa11y | [pa11y-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
+| SLSA/SBOM | [slsa3+sbom](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain) |
+| Audit chain verification | [audit-chain-log](https://github.com/getson7070/ERP-BERHAN/actions/workflows/audit-chain.yml?query=branch%3Amain) |
+| Access recert export | [access-recert-export](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 | DR Drill (RPO/RTO) | [dr-drill-report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
 
 ### Auditor Quick Links
@@ -43,6 +47,7 @@ flask db upgrade
 python init_db.py  # seeds initial admin
 flask run
 ```
+For a walkthrough with seed data and a sample organization, see [docs/guided_setup.md](docs/guided_setup.md).
 
 ## Tech Stack
 
@@ -63,6 +68,12 @@ all checks to pass before merging.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 query guards under `tests/perf`.
 
+## Performance Targets
+
+Typical user actions should stay under **200 ms** latency with at least **100 req/s** sustained.
+A weekly soak test runs [`scripts/soak_test.sh`](scripts/soak_test.sh); see the [workflow](https://github.com/getson7070/ERP-BERHAN/actions/workflows/soak.yml) for artifacts and latencies.
+The N+1 guard results are published from [`perf.yml`](https://github.com/getson7070/ERP-BERHAN/actions/workflows/perf.yml).
+
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `ruff` and `mypy erp` locally to catch issues before pushing.
 
@@ -76,12 +87,18 @@ pre-commit install
 ```
 
 Running `pre-commit run --files <files>` will execute ruff, black, and mypy on the staged changes.
+
 ## Capabilities Matrix
 A high-level overview of module features is available in [docs/capabilities_matrix.md](docs/capabilities_matrix.md).
 
 ## Community
 - [Issue Tracker](https://github.com/getson7070/ERP-BERHAN/issues)
 - [Roadmap Board](https://github.com/getson7070/ERP-BERHAN/projects)
+
+## Dependency Updates
+
+All production dependencies are pinned in `requirements.txt` and updated on a monthly cadence.
+Run `pip install -r requirements.txt` after pulling to ensure the pinned set is installed.
 
 ## Project Status
 An initial audit of the repository rated the project **2/10** overall,
@@ -95,10 +112,15 @@ Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) when interacting with th
 ## Design System
 
 Spacing and typography tokens are documented in [docs/design_system.md](docs/design_system.md) to keep layouts consistent.
+See the expanded [UI style guide](docs/style_guide.md) for component rules and accessibility tips.
 
 ## Onboarding Tour
 
 A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboarding_tour.md).
+## Power User Features
+
+- Saved views let you store filters on list pages. See [templates/partials/saved_views.html](templates/partials/saved_views.html) and [static/js/saved_views.js](static/js/saved_views.js).
+
 
 ## Environment Variables
 
