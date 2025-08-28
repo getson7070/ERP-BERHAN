@@ -33,21 +33,38 @@ jobs:
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit
-        run: pip-audit -r requirements.txt
+        run: pip-audit -r requirements.txt -f json -o pip-audit-report.json
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          retention-days: 30
       - name: Secret scan
         uses: zricethezav/gitleaks-action@v1
       - name: Bandit
-        run: bandit -q -r erp scripts db.py
+        run: bandit -r erp scripts db.py -f json -o bandit-report.json
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json
+          retention-days: 30
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
       - name: Tests
-        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-fail-under=80
+        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-report=html --cov-fail-under=80
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report
-          path: coverage.xml
+          path: |
+            coverage.xml
+            htmlcov
+          retention-days: 30
       - name: Build Docker image
         run: docker build -t erp-berhan .
       - name: Trivy scan
@@ -64,6 +81,7 @@ jobs:
         with:
           name: trivy-report
           path: trivy-results.sarif
+          retention-days: 30
       - name: Kube-linter
         run: docker run --rm -v ${{ github.workspace }}/deploy/k8s:/k8s docker.io/stackrox/kube-linter:v0.6.7 lint /k8s
       - name: Kube-score manifests
@@ -85,5 +103,13 @@ jobs:
           path: |
             zap-report.html
             zap-report.json
+          retention-days: 30
       - name: Accessibility audit
-        run: pa11y-ci http://localhost:5000
+        run: pa11y-ci http://localhost:5000 --json > pa11y-report.json
+      - name: Upload pa11y report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pa11y-report
+          path: pa11y-report.json
+          retention-days: 30

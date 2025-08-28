@@ -33,6 +33,15 @@ Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging.
 
+Download detailed reports from the workflow artifacts:
+
+- [Coverage HTML](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`coverage-report`)
+- [Bandit security scan](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`bandit-report`)
+- [pip-audit dependency report](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`pip-audit-report`)
+- [Trivy container scan](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`trivy-report`)
+- [OWASP ZAP baseline](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`zap-report`)
+- [pa11y accessibility audit](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) (`pa11y-report`)
+
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `flake8` and `mypy erp` locally to catch issues before pushing.
 
