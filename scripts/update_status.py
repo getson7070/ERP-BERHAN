@@ -76,19 +76,19 @@ def write_status(path: Path) -> None:
         "# Status\n\n"
         "This page is updated by a scheduled GitHub Action and exposes recent operational metrics.\n\n"
         f"- **p95 API latency**: {metrics['p95_latency_ms']}ms\n"
-        f"- **Materialized view freshness**: {metrics['mv_age_s']}s\n"
         f"- **Queue lag**: {metrics['queue_lag']}\n"
-        f"- **Rate-limit 429s**: {metrics['rate_limit_429s']}\n"
-        "\nThe action also publishes a JSON artifact alongside this file for external dashboards.\n\n"
+        f"- **Materialized view freshness**: {metrics['mv_age_s']}s\n"
+        f"- **Rate-limit 429s**: {metrics['rate_limit_429s']}\n\n"
         "## How the audit chain is verified\n"
         "Nightly `audit-chain` runs compute and verify a checksum over the audit log. "
-        f"See [run {audit_run}](https://github.com/{REPO}/actions/runs/{audit_run}) for details.\n"
+        f"See [run {audit_run}](https://github.com/{REPO}/actions/runs/{audit_run}) for details.\n\n"
+        "The action also publishes a JSON artifact alongside this file for external dashboards.\n"
     )
     path.write_text(content)
 
 
 def main() -> None:
-    target = Path(__file__).resolve().parents[1] / "docs" / "status.md"
+    target = ROOT / "docs" / "status.md"
     write_status(target)
 
 
