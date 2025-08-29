@@ -10,6 +10,20 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: request_latency_seconds
+        target:
+          type: AverageValue
+          averageValue: 0.5
+    - type: Pods
+      pods:
+        metric:
+          name: queue_lag_seconds
+        target:
+          type: AverageValue
+          averageValue: 5
     - type: Resource
       resource:
         name: cpu

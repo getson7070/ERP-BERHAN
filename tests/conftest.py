@@ -14,8 +14,6 @@ import pytest
 XFAIL_TESTS = {
     "tests/test_api.py::test_rest_and_graphql": "API endpoints not implemented",
     "tests/test_api.py::test_webhook_requires_token": "Webhook auth pending",
-    "tests/test_api.py::test_graphql_depth_limit": "GraphQL depth limit not enforced",
-    "tests/test_api.py::test_graphql_complexity_limit": "GraphQL complexity limit not enforced",
     "tests/test_audit_log.py::test_audit_chain_checker": "Audit chain checker pending",
     "tests/test_i18n.py::test_language_switch": "Language switch endpoint missing",
     "tests/test_idempotency_and_dlq.py::test_idempotency_decorator_blocks_duplicates": "Idempotency not wired",
@@ -33,7 +31,9 @@ XFAIL_TESTS = {
 }
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     for item in items:
         reason = XFAIL_TESTS.get(item.nodeid)
         if reason:

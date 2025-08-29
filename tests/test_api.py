@@ -97,7 +97,7 @@ def test_graphql_depth_limit(monkeypatch, tmp_path):
     app.config["TESTING"] = True
     app.config["GRAPHQL_MAX_DEPTH"] = 2
     client = app.test_client()
-    deep_query = "{{{{}}}}"
+    deep_query = "{ __schema { types { fields { name } } } }"
     resp = client.post(
         "/api/graphql",
         json={"query": deep_query},
@@ -121,7 +121,9 @@ def test_graphql_complexity_limit(monkeypatch, tmp_path):
     app.config["TESTING"] = True
     app.config["GRAPHQL_MAX_COMPLEXITY"] = 5
     client = app.test_client()
-    complex_query = "{ " + " ".join([f"a{i}" for i in range(10)]) + " }"
+    complex_query = (
+        "{ " + " ".join([f"a{i}: orders {{ id }}" for i in range(10)]) + " }"
+    )
     resp = client.post(
         "/api/graphql",
         json={"query": complex_query},

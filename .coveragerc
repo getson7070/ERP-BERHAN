@@ -1,35 +1,8 @@
 [run]
 omit =
-    erp/__init__.py
-    erp/app.py
-    erp/audit.py
-    erp/blueprints/*
-    erp/cache.py
-    erp/connectors/*
-    erp/data_quality.py
-    erp/integrations/*
-    erp/models.py
     erp/plugins/*
-    erp/routes/admin.py
-    erp/routes/analytics.py
-    erp/routes/api.py
-    erp/routes/auth.py
-    erp/routes/crm.py
-    erp/routes/dashboard_customize.py
-    erp/routes/finance.py
-    erp/routes/help.py
-    erp/routes/hr.py
-    erp/routes/hr_workflows.py
-    erp/routes/main.py
-    erp/routes/manufacturing.py
-    erp/routes/orders.py
-    erp/routes/plugins.py
-    erp/routes/procurement.py
-    erp/routes/projects.py
-    erp/routes/report_builder.py
-    erp/routes/tenders.py
+    erp/integrations/*
     erp/secrets.py
-    erp/security.py
-    erp/storage.py
-    erp/utils.py
-    erp/workflow.py
+
+[report]
+fail_under = 85

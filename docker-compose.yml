@@ -2,7 +2,7 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn --bind 0.0.0.0:8000 wsgi:app
+    command: gunicorn --config gunicorn.conf.py wsgi:app
     ports:
       - "8000:8000"
     environment:
@@ -10,6 +10,13 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      WEB_CONCURRENCY: 2
+      GUNICORN_THREADS: 2
+      GUNICORN_TIMEOUT: 30
+      STATSD_HOST: statsd
+      STATSD_PORT: 8125
+      STATSD_PREFIX: erp
+      PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
     depends_on:
       - db
       - redis
