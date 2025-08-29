@@ -23,7 +23,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
       - name: Install Node tools
-        run: npm install -g pa11y-ci
+        run: npm install -g pa11y-ci @axe-core/cli
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -125,6 +125,15 @@ jobs:
         with:
           name: pa11y-report
           path: pa11y-report.json
+          retention-days: 30
+      - name: Axe accessibility checks
+        run: axe http://localhost:5000 --timeout 30000 --exit 0 | tee axe-report.json
+      - name: Upload axe report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: axe-report
+          path: axe-report.json
           retention-days: 30
       - name: Generate SBOM
         run: |
