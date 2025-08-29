@@ -25,7 +25,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 ### Auditor Quick Links
 - [Daily audit chain verifier](https://github.com/getson7070/ERP-BERHAN/actions/workflows/audit-chain.yml?query=branch%3Amain)
 - [templates/partials/saved_views.html](templates/partials/saved_views.html) & [static/js/saved_views.js](static/js/saved_views.js)
-- [JWT secret rotation runbook](docs/security/secret_rotation.md)
+- [JWT secret rotation runbook](docs/security/secret_rotation.md) and [test](tests/test_jwt_rotation.py)
 - [app.py](app.py)
 - [security.py](security.py) – JWT, Talisman, rate limiting, and GraphQL caps
 - [erp/audit.py](erp/audit.py#L1-L67) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py#L1-L18)
