@@ -8,6 +8,11 @@
 - Apply updates with `kubectl rollout restart deployment/erp-berhan`.
 - Monitor rollout status and use `kubectl rollout undo` to roll back if necessary.
 
+## Canary & Blue-Green
+- For higher confidence releases, deploy a small canary slice or a full
+blue-green environment before shifting all traffic. Monitor metrics and roll
+forward or back based on health.
+
 ## Load Testing
 - Execute `python scripts/benchmark.py` against the service URL to measure throughput.
 - Scale test by adjusting `deploy/k8s/hpa.yaml` thresholds and replicas.

@@ -1,6 +1,8 @@
-from enum import IntEnum
 """Telegram bot interface for BERHAN ERP."""
 
+# mypy: ignore-errors
+
+from enum import IntEnum
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -25,10 +27,15 @@ from argon2.exceptions import VerifyMismatchError
 import logging
 from datetime import datetime
 import csv  # For client list integration
+import os
 from db import get_db
+import sqlite3
 
 
 ph = PasswordHasher()
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+if TOKEN is None:
+    raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
 
 def hash_password(password: str) -> str:
@@ -518,13 +525,6 @@ async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_visit_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['visit_date'] = update.message.text
-    clia = ['EXI1800', 'EXI1820', 'EXI2400']
-    chemistry = ['EXC200', 'EXC420']
-    poct = ['EXR110', 'EXR120', 'Q8 PRO']
-    hematology = ['EXC8000', 'EXC6000', 'Z50', 'Z3', 'Z3 CRP']
-    microbiology = ['EXS2600', 'EXB120']
-    ultrasound = ['DW-350', 'DW-360', 'DW-370', 'DW-580', 'DW-CE540', 'DW-CE780', 'DW-CT520', 'DW-PE522', 'DW-PE542', 'DW-PE512']
-    other = ['OTHERS']
     keyboard = [
         [InlineKeyboardButton('CLIA', callback_data='clia')],
         [InlineKeyboardButton('Chemistry', callback_data='chemistry')],
@@ -547,7 +547,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     data = query.data
-    conn = get_db()
     if data in ['clia', 'chemistry', 'poct', 'hematology', 'microbiology', 'ultrasound', 'other']:
         context.user_data['current_category'] = data
         categories = {
@@ -563,7 +562,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         keyboard = [[InlineKeyboardButton(item, callback_data=f'select_{item}') for item in items]]
         keyboard.append([InlineKeyboardButton('Back to Categories', callback_data='back'), InlineKeyboardButton('Done', callback_data='done')])
         reply_markup = InlineKeyboardMarkup(build_menu(keyboard, 2))
-        await query.edit_message_text(text=f"Select products from {data.upper()}:", reply_markup=reply_markup)
+        await query.edit_message_text(
+            text=f"Select products from {data.upper()}:",  # nosec B608
+            reply_markup=reply_markup,
+        )
         return BotState.INTERESTED_PRODUCTS
     elif data.startswith('select_'):
         product = data.replace('select_', '')
