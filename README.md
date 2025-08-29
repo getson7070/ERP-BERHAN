@@ -25,7 +25,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 ### Auditor Quick Links
 - [Daily audit chain verifier](https://github.com/getson7070/ERP-BERHAN/actions/workflows/audit-chain.yml?query=branch%3Amain)
 - [templates/partials/saved_views.html](templates/partials/saved_views.html) & [static/js/saved_views.js](static/js/saved_views.js)
-- [Key rotation runbook](docs/security/secret_rotation.md)
+- [JWT secret rotation runbook](docs/security/secret_rotation.md)
 - [app.py](app.py)
 - [security.py](security.py) – JWT, Talisman, rate limiting, and GraphQL caps
 - [erp/audit.py](erp/audit.py#L1-L67) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py#L1-L18)
@@ -71,12 +71,8 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
-<<<<<<< HEAD
-all checks to pass before merging, commits to be GPG-signed, and changes touching
-protected paths to obtain CODEOWNERS review.
-=======
-all checks to pass before merging.
->>>>>>> 7d5c8e9 (Applying previous commit)
+all checks to pass before merging. Commits must be GPG-signed and changes touching
+protected paths require CODEOWNERS review.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions. The CI job also emits a
