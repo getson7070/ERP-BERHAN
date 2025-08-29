@@ -3,7 +3,11 @@ import time
 import os
 
 import pytest
-from selenium import webdriver
+
+pytest.importorskip("selenium")
+pytest.importorskip("webdriver_manager")
+
+import selenium.webdriver as webdriver
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -30,6 +34,6 @@ def test_homepage_loads(tmp_path):
         pytest.skip(f"Chrome not available: {exc}")
     try:
         driver.get("http://localhost:5001/")
-        assert "BERHAN" in driver.title
+        assert "BERHAN" in driver.title  # nosec B101
     finally:
         driver.quit()

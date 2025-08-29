@@ -1,4 +1,7 @@
 from pathlib import Path
+import pytest
+
+pytest.importorskip("playwright")
 from playwright.sync_api import Page
 
 HTML = """
@@ -32,4 +35,4 @@ def test_dark_mode_toggle(page: Page) -> None:
     if not baseline.exists():
         baseline.write_bytes(screenshot)
         raise AssertionError("baseline created; rerun test")
-    assert screenshot == baseline.read_bytes()
+    assert screenshot == baseline.read_bytes()  # nosec B101
