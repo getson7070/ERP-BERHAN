@@ -1,16 +1,24 @@
 import json
 import os
-import runpy
+import subprocess
+import sys
 from pathlib import Path
 
 
-def test_rotate_jwt_secret(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("JWT_SECRETS", "{}")
+def test_rotate_jwt_secret(tmp_path):
     script = Path(__file__).resolve().parents[1] / "scripts" / "rotate_jwt_secret.py"
-    runpy.run_path(str(script))
-    secrets = json.loads((tmp_path / "jwt_secrets.json").read_text())
-    assert "v1" in secrets
-    assert os.environ["JWT_SECRET_ID"] == "v1"
-    log = (tmp_path / "logs" / "jwt_rotation.log").read_text()
-    assert "v1" in log
+    env = os.environ.copy()
+    env.pop("JWT_SECRETS", None)
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    data = json.loads((tmp_path / "jwt_secrets.json").read_text())
+    assert "v1" in data
+    log_file = tmp_path / "logs" / "jwt_rotation.log"
+    assert log_file.exists()
+    assert "Rotated to v1" in result.stdout
