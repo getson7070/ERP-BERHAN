@@ -21,13 +21,16 @@ def upgrade():
         sa.Column('org_id', sa.Integer, sa.ForeignKey('organizations.id')),
         sa.Column('action', sa.String(), nullable=False),
         sa.Column('details', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
     )
+    op.create_index('ix_audit_logs_created_at', 'audit_logs', ['created_at'])
+    op.execute("UPDATE audit_logs SET created_at = timezone('utc', created_at)")
     for table in ('orders', 'tenders', 'inventory', 'audit_logs'):
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")
         op.execute(
-            f"CREATE POLICY org_rls ON {table} USING (org_id = current_setting('my.org_id')::int) WITH CHECK (org_id = current_setting('my.org_id')::int)"
+            f"CREATE POLICY org_rls ON {table} USING (org_id = current_setting('my.org_id')::int) "
+            f"WITH CHECK (org_id = current_setting('my.org_id')::int)"
         )
 
 

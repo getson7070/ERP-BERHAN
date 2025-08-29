@@ -11,3 +11,8 @@ Error pages live under `templates/errors/` and provide basic 401, 403, 404, and 
 Templates should use spacing and typography tokens defined in
 [docs/design_system.md](design_system.md) to maintain consistent UI and
 responsive layouts.
+
+Inline scripts and styles must include
+`nonce="{{ csp_nonce() }}"` to comply with the Content Security Policy.
+External assets loaded from approved CDNs should include Subresource
+Integrity hashes.

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Security
+- Pin Docker base image to `python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7` to ensure supply-chain integrity
+- Harden Kubernetes deployment with pod `securityContext` and outbound-only NetworkPolicies
+
+### UX
+- Document accessibility and responsive design standards in `docs/ux_guidelines.md` with reference snapshots
+
 ## [0.1.0] - 2025-08-28
 - Add PgBouncer deployment manifests
 - Track cache hit rate with Prometheus gauge

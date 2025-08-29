@@ -7,21 +7,23 @@ recertification and periodic reviews see ``docs/access_recerts.md``.
 
 from __future__ import annotations
 
-import os
 from cryptography.fernet import Fernet
+
+from .secrets import get_secret
 
 
 def _get_fernet() -> Fernet:
     """Return a Fernet instance configured from ``FERNET_KEY``.
 
-    A random key is generated the first time if the environment variable is not
-    set, allowing the application to operate in development environments while
-    encouraging explicit key management in production.
+    The key must be supplied via the environment or secret store.  A missing
+    key indicates misconfiguration and will abort application start-up instead
+    of generating an ephemeral key that would break cross-process decryption.
     """
 
-    key = os.environ.get("FERNET_KEY")
-    key_bytes = key.encode() if key else Fernet.generate_key()
-    return Fernet(key_bytes)
+    key = get_secret("FERNET_KEY")
+    if not key:
+        raise RuntimeError("FERNET_KEY is required")
+    return Fernet(key.encode())
 
 
 def encrypt(value: str) -> str:

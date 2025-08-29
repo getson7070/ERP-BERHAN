@@ -29,6 +29,14 @@ async function storeResponse(url, data) {
   return tx.complete;
 }
 
+const sanitizeHeadersPlugin = {
+  requestWillEnqueue: async ({request}) => {
+    const headers = new Headers(request.headers);
+    ['Authorization', 'Cookie'].forEach((h) => headers.delete(h));
+    return {request: new Request(request, {headers})};
+  }
+};
+
 const bgSyncPlugin = new workbox.backgroundSync.BackgroundSyncPlugin('apiQueue', {
   maxRetentionTime: 24 * 60
 });
@@ -38,7 +46,7 @@ const apiStrategy = new workbox.strategies.NetworkFirst({
   plugins: [
     {
       fetchDidSucceed: async ({request, response}) => {
-        if (request.method === 'GET') {
+        if (request.method === 'GET' && !request.headers.has('Authorization')) {
           const clone = response.clone();
           try {
             const data = await clone.json();
@@ -48,6 +56,7 @@ const apiStrategy = new workbox.strategies.NetworkFirst({
         return response;
       }
     },
+    sanitizeHeadersPlugin,
     bgSyncPlugin
   ]
 });
