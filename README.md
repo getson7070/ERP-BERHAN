@@ -360,6 +360,11 @@ actively addressing the following items:
 - Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
   rollover.
 
+## Contributing
+
+All commits must be GPG signed and pull requests require CODEOWNERS
+approval before merging to `main`.
+
 ## Governance & Roadmap
 
 - Refer to `docs/versioning.md` for release numbering and branching conventions.
