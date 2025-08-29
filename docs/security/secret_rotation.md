@@ -10,6 +10,7 @@ environment variables through `erp.secrets.get_secret`.
    ```
    The script appends a new random key to `jwt_secrets.json`, flips
    `JWT_SECRET_ID` and records the rotation in `logs/jwt_rotation.log`.
+   The unit test `tests/test_jwt_rotation.py` verifies these artefacts.
 
 2. **Validate in CI**
    ```bash

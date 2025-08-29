@@ -36,6 +36,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [templates/base.html](templates/base.html)
 - [templates/partials/navbar.html](templates/partials/navbar.html)
 - [templates/partials/breadcrumbs.html](templates/partials/breadcrumbs.html)
+- [Key rotation runbook](docs/security/secret_rotation.md)
 - [Onboarding tour](docs/onboarding_tour.md)
 - [Control matrix](docs/control_matrix.md)
 - [Access recertification guide](docs/access_recerts.md)
@@ -380,3 +381,8 @@ approval before merging to `main`.
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
 - Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
+
+## Contributing
+
+- All commits must be GPG-signed.
+- Pull requests require approval from owners listed in `.github/CODEOWNERS`.
