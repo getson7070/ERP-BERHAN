@@ -11,24 +11,27 @@ environment variables through `erp.secrets.get_secret`.
    The script appends a new random key to `jwt_secrets.json`, flips
    `JWT_SECRET_ID` and records the rotation in `logs/jwt_rotation.log`.
 
-2. **Deploy application**
+2. **Validate in CI**
+   ```bash
+   pytest tests/test_jwt_rotation.py
+   ```
+   The test ensures tokens signed with the previous key remain valid until
+   expiry and that the rotation log contains the new secret id.
+
+3. **Deploy application**
    Redeploy services so all instances pick up the updated secret map and
    `JWT_SECRET_ID` value.
 
-3. **Validation**
-   Tokens signed with the previous key remain valid until their TTL expires.
-   The unit test [`tests/test_jwt_rotation.py`](../../tests/test_jwt_rotation.py) verifies this behaviour.
+4. **Cleanup**
+   After all tokens issued with the old key expire, remove the obsolete
+   entry from `jwt_secrets.json` and the `JWT_SECRETS` variable.
 
 ## Continuous Verification
 
 CI runs `tests/test_jwt_rotation.py` on every push and publishes the
-`jwt-rotation.log` artifact so auditors can review recent rotations.  To
+`jwt-rotation.log` artifact so auditors can review recent rotations. To
 manually exercise the check:
 
 ```bash
 pytest tests/test_jwt_rotation.py -k rotate
 ```
-
-4. **Cleanup**
-   After all tokens issued with the old key expire, remove the obsolete
-   entry from `jwt_secrets.json` and the `JWT_SECRETS` variable.

@@ -1,0 +1,21 @@
+name: Verify Signed Commits
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Require signed commits
+        run: |
+          status=$(git log -1 --pretty='%G?')
+          if [ "$status" = "N" ] || [ "$status" = "B" ]; then
+            echo "Commit is not signed or has bad signature"
+            exit 1
+          fi

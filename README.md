@@ -71,7 +71,8 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
-all checks to pass before merging.
+all checks to pass before merging, commits to be GPG-signed, and changes touching
+protected paths to obtain CODEOWNERS review.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions. The CI job also emits a
