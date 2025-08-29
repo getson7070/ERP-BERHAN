@@ -40,6 +40,7 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [Control matrix](docs/control_matrix.md)
 - [Access recertification guide](docs/access_recerts.md)
 - [Design system tokens](docs/design_system.md)
+- [JWT secret rotation runbook](docs/security/secret_rotation.md) and [test](tests/test_jwt_rotation.py)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 

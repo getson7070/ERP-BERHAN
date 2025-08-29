@@ -23,7 +23,6 @@ environment variables through `erp.secrets.get_secret`.
 3. **Deploy application**
    Redeploy services so all instances pick up the updated secret map and
    `JWT_SECRET_ID` value.
-
 4. **Cleanup**
    After all tokens issued with the old key expire, remove the obsolete
    entry from `jwt_secrets.json` and the `JWT_SECRETS` variable.
