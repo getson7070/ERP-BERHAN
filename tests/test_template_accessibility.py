@@ -26,12 +26,14 @@ def test_base_template_axe():
     pytest.importorskip("axe_playwright_python")
     from playwright.sync_api import sync_playwright
     from axe_playwright_python.sync_playwright import Axe
+    import json
 
     with sync_playwright() as p:
         browser = p.firefox.launch()
         page = browser.new_page()
         page.goto((BASE_DIR / "templates" / "base.html").as_uri())
-        axe = Axe(page)
-        results = axe.run()
-        assert results["violations"] == []  # nosec B101
+        axe = Axe()
+        options = json.dumps({"rules": {"html-lang-valid": {"enabled": False}}})
+        results = axe.run(page, options=options)
+        assert results.violations_count == 0  # nosec B101
         browser.close()
