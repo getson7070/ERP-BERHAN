@@ -77,7 +77,7 @@ jobs:
       - name: Build Docker image
         run: docker build -t erp-berhan .
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808
+        uses: aquasecurity/trivy-action@v0.11.3
         with:
           image-ref: erp-berhan
           severity: 'CRITICAL,HIGH'
