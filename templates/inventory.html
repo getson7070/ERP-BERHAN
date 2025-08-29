@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Inventory{% endblock %}
 {% block body %}
-<div class="container py-5" role="main">
+<div class="container py-5">
   {% set crumbs=[{'title': _('Home'), 'url': url_for('dashboard')}, {'title': _('Inventory')}] %}
   {% include 'partials/breadcrumbs.html' %}
-  <h1 class="mb-4">Inventory {% include 'partials/help_tooltip.html' %}</h1>
+  <h2>Inventory {% include 'partials/help_tooltip.html' %}</h2>
   {% include 'partials/saved_views.html' %}
-  <div class="table-responsive">
-  <table class="table table-striped table-hover align-middle">
-    <thead><tr><th scope="col">Name</th><th scope="col">Quantity</th><th></th></tr></thead>
+  <table class="table table-striped">
+    <thead><tr><th>Name</th><th>Quantity</th><th></th></tr></thead>
     <tbody>
       {% for item in items %}
       <tr data-id="{{ item.id }}">
@@ -19,7 +18,6 @@
       {% endfor %}
     </tbody>
   </table>
-  </div>
 </div>
 {% endblock %}
 {% block scripts %}

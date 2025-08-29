@@ -1,34 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Receive Inventory{% endblock %}
 {% block body %}
-<div class="container py-5" role="main">
-  <div class="row">
-    <div class="col-md-8 offset-md-2">
-      <h1 class="mb-4">Receive Inventory {% include 'partials/help_tooltip.html' %}</h1>
-      {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
-      {% endif %}
-      <div id="scanner" class="mb-3"></div>
-      <div id="qr-reader" class="mb-3"></div>
-      <form method="POST" action="" class="needs-validation" novalidate>
-        {{ form.hidden_tag() }}
-        <div class="mb-3">
-          <label for="item_id" class="form-label">Item</label>
-          <select name="item_id" id="item_id" class="form-select" required>
-            {% for item in items %}
-              <option value="{{ item['id'] }}">{{ item['item_code'] }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label for="quantity" class="form-label">Quantity</label>
-          <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Submit</button>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
-      </form>
+<div class="container py-5">
+  <h2>Receive Inventory {% include 'partials/help_tooltip.html' %}</h2>
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  <div id="scanner" class="mb-3"></div>
+  <div id="qr-reader" class="mb-3"></div>
+  <form method="POST" action="" class="needs-validation" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      <label for="item_id" class="form-label">Item</label>
+      <select name="item_id" id="item_id" class="form-select" required>
+        {% for item in items %}
+          <option value="{{ item['id'] }}">{{ item['item_code'] }}</option>
+        {% endfor %}
+      </select>
     </div>
-  </div>
+    <div class="mb-3">
+      <label for="quantity" class="form-label">Quantity</label>
+      <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
+  </form>
 </div>
 {% endblock %}
 {% block scripts %}
