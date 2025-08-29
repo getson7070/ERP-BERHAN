@@ -69,19 +69,42 @@ def fetch_audit_run_id() -> str:
     return str(run_id) if run_id else "unknown"
 
 
-def write_status(path: Path) -> None:
-    metrics = fetch_metrics()
-    audit_run = fetch_audit_run_id()
+def load_metrics() -> Dict[str, int]:
+    artifact = os.environ.get("STATUS_ARTIFACT")
+    if not artifact:
+        return {
+            "p95_latency_ms": 0,
+            "queue_lag": 0,
+            "mv_age_s": 0,
+            "rl_429s": 0,
+            "audit_chain_run_id": 0,
+        }
+    with open(artifact, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    return {
+        "p95_latency_ms": int(data.get("p95_latency_ms", 0)),
+        "queue_lag": int(data.get("queue_lag", 0)),
+        "mv_age_s": int(data.get("mv_age_s", 0)),
+        "rl_429s": int(data.get("rl_429s", data.get("rate_limit_429s", 0))),
+        "audit_chain_run_id": int(data.get("audit_chain_run_id", 0)),
+    }
+
+
+def write_status(path: Path, metrics: Dict[str, int] | None = None) -> None:
+    if metrics is None:
+        metrics = fetch_metrics()
+        metrics["audit_chain_run_id"] = int(fetch_audit_run_id())
+        metrics["rl_429s"] = metrics.pop("rate_limit_429s", 0)
     content = (
         "# Status\n\n"
         "This page is updated by a scheduled GitHub Action and exposes recent operational metrics.\n\n"
         f"- **p95 API latency**: {metrics['p95_latency_ms']}ms\n"
         f"- **Queue lag**: {metrics['queue_lag']}\n"
         f"- **Materialized view freshness**: {metrics['mv_age_s']}s\n"
-        f"- **Rate-limit 429s**: {metrics['rate_limit_429s']}\n\n"
+        f"- **Rate-limit 429s**: {metrics['rl_429s']}\n\n"
         "## How the audit chain is verified\n"
         "Nightly `audit-chain` runs compute and verify a checksum over the audit log. "
-        f"See [run {audit_run}](https://github.com/{REPO}/actions/runs/{audit_run}) for details.\n\n"
+        f"See [run {metrics['audit_chain_run_id']}](https://github.com/{REPO}/actions/runs/{metrics['audit_chain_run_id']}) for details.\n\n"
         "The action also publishes a JSON artifact alongside this file for external dashboards.\n"
     )
     path.write_text(content)

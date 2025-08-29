@@ -23,9 +23,10 @@ from dotenv import load_dotenv
 from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
 from authlib.integrations.flask_client import OAuth
+from typing import Any, Awaitable, cast
 
 try:
-    from flask_babel import Babel, get_locale
+    from flask_babel import Babel, get_locale, gettext as _
 except Exception:  # pragma: no cover - optional dependency fallback
 
     class Babel:  # type: ignore[override, no-redef]
@@ -35,13 +36,15 @@ except Exception:  # pragma: no cover - optional dependency fallback
     def get_locale() -> str:
         return "en"
 
+    def _(text: str, *args: Any, **kwargs: Any) -> str:
+        return text
+
 
 from celery import Celery, signals
 import logging.config
 import os
 import time
 import json
-from typing import Any
 from prometheus_client import (
     Counter,
     Histogram,
@@ -102,8 +105,14 @@ def _dead_letter_handler(
 def _record_queue_depth(*args: Any, **kwargs: Any) -> None:
     """Update queue backlog gauge after each task completes."""
     try:
-        backlog = redis_client.llen("celery")
-        QUEUE_LAG.labels("celery").set(backlog)
+        import asyncio
+
+        raw = redis_client.llen("celery")
+        if isinstance(raw, Awaitable):
+            backlog = asyncio.get_event_loop().run_until_complete(raw)
+        else:
+            backlog = cast(int, raw)
+        QUEUE_LAG.labels("celery").set(float(backlog))
     except Exception:
         # Logging is avoided here to keep signal lightweight; failures are non-fatal.
         pass
@@ -371,6 +380,7 @@ def create_app():
 
     babel.init_app(app, locale_selector=select_locale)
     app.jinja_env.globals["get_locale"] = get_locale
+    app.jinja_env.globals.setdefault("_", _)
     if app.config.get("OAUTH_CLIENT_ID"):
         oauth.register(
             "sso",
@@ -462,7 +472,9 @@ def create_app():
     @app.after_request
     def record_metrics(response):
         endpoint = request.endpoint or "unknown"
-        REQUEST_LATENCY.labels(endpoint).observe(time.time() - g.start_time)
+        start = getattr(g, "start_time", None)
+        if start is not None:
+            REQUEST_LATENCY.labels(endpoint).observe(time.time() - start)
         REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
         if response.status_code == 429:
             RATE_LIMIT_REJECTIONS.inc()
