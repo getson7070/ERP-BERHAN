@@ -159,14 +159,17 @@ def graphql_endpoint():
 @idempotency_key_required
 @limiter.limit("20 per minute")
 def webhook(source):
+    secret = current_app.config.get("WEBHOOK_SECRET")
+    signature = request.headers.get("X-Signature")
+    if not secret:
+        current_app.logger.error("WEBHOOK_SECRET not configured")
+        abort(500)
+    if not signature:
+        abort(401)
+    expected = hmac.new(secret.encode(), request.data, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        abort(401)
     try:
-        secret = current_app.config.get("WEBHOOK_SECRET")
-        signature = request.headers.get("X-Signature", "")
-        expected = hmac.new(
-            (secret or "").encode(), request.data, hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            abort(401)
         payload = request.get_json() or {}
         if payload.get("simulate_failure"):
             raise RuntimeError("simulated failure")
