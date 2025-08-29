@@ -1,4 +1,8 @@
-# JWT Secret Rotation Runbook
+# Secret Rotation Runbook
+
+This document outlines rotation procedures for encryption-related secrets.
+
+## JWT Secret Rotation
 
 JWT secrets are versioned using a `JWT_SECRETS` map and the active key is
 selected via `JWT_SECRET_ID`.  Secrets are loaded from a vault file or
@@ -26,6 +30,26 @@ environment variables through `erp.secrets.get_secret`.
 4. **Cleanup**
    After all tokens issued with the old key expire, remove the obsolete
    entry from `jwt_secrets.json` and the `JWT_SECRETS` variable.
+
+## Fernet Encryption Key Rotation
+
+`FERNET_KEY` secures tokens and other sensitive fields.  The key is stored in
+the secret vault and referenced by the application via `erp.security`.
+
+1. **Generate new key**
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+   Store the printed value as the new `FERNET_KEY` in the secret manager.
+
+2. **Deploy application**
+   Restart or redeploy all services so the new key is loaded.  All encrypted
+   data should be re-encrypted using the new key as part of the deployment
+   process.
+
+3. **Cleanup**
+   Remove the old key from the secret store once all data has been re-encrypted
+   and verified.
 
 ## Continuous Verification
 

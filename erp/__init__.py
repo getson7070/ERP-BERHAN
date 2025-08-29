@@ -81,6 +81,44 @@ limiter = Limiter(key_func=rate_limit_key)
 csrf = CSRFProtect()
 
 
+@celery.task(name="erp.log_access")
+def log_access(
+    username: str,
+    ip: str,
+    device: str,
+    timestamp: str,
+    correlation_id: str,
+) -> None:
+    """Persist access log entries asynchronously.
+
+    Failures are logged with the provided ``correlation_id`` instead of
+    surfacing to the request cycle.
+    """
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            (
+                "INSERT INTO access_logs "
+                "(username, ip, device, timestamp) "
+                "VALUES (%s, %s, %s, %s)"
+            ),
+            (username, ip, device, timestamp),
+        )
+        conn.commit()
+    except Exception as exc:  # pragma: no cover - best-effort logging
+        current_app.logger.warning(
+            "failed to record access log",
+            extra={"correlation_id": correlation_id, "error": str(exc)},
+        )
+    finally:
+        try:
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
+
+
 @signals.task_failure.connect
 def _dead_letter_handler(
     sender: Any | None = None,
@@ -316,6 +354,9 @@ def create_app():
 
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config.from_object(Config)
+    debug_templates = os.getenv("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.config["TEMPLATES_AUTO_RELOAD"] = debug_templates
+
     db_url = os.environ.get("DATABASE_URL")
     db_path = os.environ.get("DATABASE_PATH", "erp.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url or f"sqlite:///{db_path}"
@@ -391,9 +432,28 @@ def create_app():
             client_kwargs={"scope": "openid email profile"},
         )
 
+    csp = {
+        "default-src": "'self'",
+        "script-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "https://cdn.socket.io",
+            "https://cdnjs.cloudflare.com",
+            "https://unpkg.com",
+        ],
+        "style-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "https://cdnjs.cloudflare.com",
+        ],
+        "img-src": ["'self'", "data:"],
+        "connect-src": ["'self'"],
+        "frame-ancestors": "'none'",
+    }
     Talisman(
         app,
-        content_security_policy={"default-src": "'self'"},
+        content_security_policy=csp,
+        content_security_policy_nonce_in=["script-src", "style-src"],
         force_https=True,
     )
 
@@ -444,30 +504,26 @@ def create_app():
         if app.config.get("TESTING"):
             return
         if "logged_in" in session and session["logged_in"]:
-            ip = request.remote_addr
+            ip = request.remote_addr or ""
             device = request.user_agent.string
-            conn = get_db()
-            cur = conn.cursor()
             user = (
                 session.get("username")
                 if session.get("role") != "Client"
                 else session.get("tin")
             )
             try:
-                cur.execute(
-                    (
-                        "INSERT INTO access_logs "
-                        "(username, ip, device, timestamp) "
-                        "VALUES (%s, %s, %s, %s)"
-                    ),
-                    (user, ip, device, datetime.now()),
+                log_access.delay(
+                    user,
+                    ip,
+                    device,
+                    datetime.now(UTC).isoformat(),
+                    g.correlation_id,
                 )
-                conn.commit()
-            except Exception:
-                conn.rollback()
-            finally:
-                cur.close()
-                conn.close()
+            except Exception as exc:  # pragma: no cover - queueing best effort
+                current_app.logger.warning(
+                    "failed to enqueue access log",
+                    extra={"correlation_id": g.correlation_id, "error": str(exc)},
+                )
 
     @app.after_request
     def record_metrics(response):

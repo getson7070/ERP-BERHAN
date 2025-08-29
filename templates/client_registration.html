@@ -56,7 +56,7 @@
 </form>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
     function loadCities(region) {
         fetch(`/get_cities?region=${encodeURIComponent(region)}`)
             .then(response => response.json())

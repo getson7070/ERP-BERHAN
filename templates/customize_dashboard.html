@@ -5,7 +5,7 @@
   <div id="layout" class="border p-3" contenteditable="true">{{ layout }}</div>
   <button id="save" class="btn btn-primary mt-3">Save Layout</button>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.getElementById('save').addEventListener('click', async () => {
     const layout = document.getElementById('layout').innerText;
     await fetch("/dashboard/customize", {

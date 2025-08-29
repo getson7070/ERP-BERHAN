@@ -52,7 +52,7 @@
   </div>
   {% endif %}
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.querySelectorAll('.draggable').forEach(el=>{
   el.addEventListener('dragstart', e=>{e.dataTransfer.setData('text/plain', e.target.textContent);});
 });
