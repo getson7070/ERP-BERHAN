@@ -22,8 +22,8 @@
 {% endblock %}
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/saved_views.js') }}"></script>
-  <script>
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/saved_views.js') }}"></script>
+  <script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.save').forEach(btn => {
     btn.addEventListener('click', async e => {
       const row = e.target.closest('tr');

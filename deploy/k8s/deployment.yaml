@@ -12,6 +12,12 @@ spec:
       labels:
         app: erp-berhan
     spec:
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: web
           image: erp-berhan:latest

@@ -5,6 +5,7 @@ Follow these steps to bring up a demo environment with sample data.
 1. **Install dependencies**
    ```bash
    pip install -r requirements.txt
+   # Optional: tools for tests and linting
    pip install -r requirements-dev.txt
    ```
 2. **Start services**
@@ -22,7 +23,7 @@ Follow these steps to bring up a demo environment with sample data.
    ```
 5. **Launch the app**
    ```bash
-   flask run
+   FLASK_DEBUG=1 flask run  # auto-reloads templates during development
    ```
 6. **First-run tour**
    Log in with the seeded admin account and follow the [onboarding tour](onboarding_tour.md) to explore saved views, breadcrumbs, and other power-user features.

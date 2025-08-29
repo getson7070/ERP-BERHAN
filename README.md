@@ -8,6 +8,8 @@
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance. Core security features include universal CSRF protection, rate limiting and a lightweight WAF that blocks obvious injection attempts.
 
+Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
+
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
 
 | Report | Artifact |
@@ -56,11 +58,18 @@ for reviewer assignments.
 git clone https://github.com/getson7070/ERP-BERHAN.git
 cd ERP-BERHAN
 pip install -r requirements.txt
+# For tests and linting
+pip install -r requirements-dev.txt
+# Enable template auto-reload during development
+export FLASK_DEBUG=1
 docker compose up -d db redis
 flask db upgrade
 python init_db.py  # seeds initial admin
 flask run
 ```
+
+`FLASK_DEBUG` controls template auto-reload. Leave it unset in production to
+avoid unnecessary file-system checks.
 See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample data and first-run tips.
 
 ## Tech Stack

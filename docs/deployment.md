@@ -22,6 +22,9 @@ forward or back based on health.
 - All configuration is supplied via environment variables to keep dev/stage/prod environments in parity.
 - Feature flags can be toggled via the `feature_flags` table allowing safe rollouts and quick reversions.
 - Secrets should be stored in a vault such as HashiCorp Vault and injected at runtime.
+- The `FERNET_KEY` used for application encryption must be managed in the
+  secret store and rotated regularly; see
+  [security/secret_rotation.md](security/secret_rotation.md).
 
 ## Disaster Recovery
 - The `docs/deployment/failover.md` and `docs/deployment/upgrade_rollback.md` outlines a full DR runbook.
