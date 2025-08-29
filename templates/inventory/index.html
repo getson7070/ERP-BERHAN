@@ -1,24 +1,36 @@
 {% extends 'base.html' %}
 {% block title %}Inventory{% endblock %}
 {% block content %}
-<h2>Inventory</h2>
-<table class="table table-striped">
-  <thead>
-    <tr><th>ID</th><th>Name</th><th>Quantity</th><th>Actions</th></tr>
-  </thead>
-  <tbody>
-  {% for i in items %}
-  <tr>
-    <td>{{ i.id }}</td>
-    <td>{{ i.name }}</td>
-    <td>{{ i.quantity }}</td>
-    <td>
-      <a href="{{ url_for('inventory.edit_item', item_id=i.id) }}" class="btn btn-sm btn-secondary">Edit</a>
-      <a href="{{ url_for('inventory.delete_item', item_id=i.id) }}" class="btn btn-sm btn-danger">Delete</a>
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-<a href="{{ url_for('inventory.add_inventory') }}" class="btn btn-primary">Add Item</a>
+<div class="container py-5">
+  <h2>Inventory</h2>
+  <table class="table table-striped">
+    <thead>
+      <tr><th>ID</th><th>SKU</th><th>Name</th><th>Quantity</th></tr>
+    </thead>
+    <tbody>
+      {% for i in items %}
+      <tr>
+        <td>{{ i.id }}</td>
+        <td>{{ i.sku }}</td>
+        <td>{{ i.name }}</td>
+        <td>{{ i.quantity }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <nav>
+    <ul class="pagination">
+      {% if prev_offset is not none %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=prev_offset, limit=limit, sku=sku) }}">Previous</a></li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      {% endif %}
+      {% if next_offset is not none %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=next_offset, limit=limit, sku=sku) }}">Next</a></li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
 {% endblock %}

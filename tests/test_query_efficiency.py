@@ -6,10 +6,14 @@ from erp import utils
 
 
 def test_inventory_query_count(tmp_path, monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path/'test.db'}")
+    db_path = tmp_path / 'test.db'
+    if db_path.exists():
+        db_path.unlink()
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     app = create_app()
     with app.app_context():
-        db.session.add(Inventory(org_id=1, name="Item", quantity=1))
+        db.create_all()
+        db.session.add(Inventory(org_id=1, name="Item", sku="I1", quantity=1))
         db.session.commit()
         counts = {'n': 0}
 
@@ -25,9 +29,13 @@ def test_inventory_query_count(tmp_path, monkeypatch):
 
 
 def test_user_role_query_count(tmp_path, monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path/'user.db'}")
+    user_db = tmp_path / 'user.db'
+    if user_db.exists():
+        user_db.unlink()
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{user_db}")
     app = create_app()
     with app.app_context():
+        db.create_all()
         role = Role(name="manager")
         user = User(
             email="u@example.com",

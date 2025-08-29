@@ -135,9 +135,17 @@ def _ensure_base_tables() -> None:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     org_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
+                    sku TEXT NOT NULL UNIQUE,
                     quantity INTEGER NOT NULL
                 )
                 """
+            )
+            cur.execute("PRAGMA table_info(inventory_items)")
+            cols = [r[1] for r in cur.fetchall()]
+            if "sku" not in cols:
+                cur.execute("ALTER TABLE inventory_items ADD COLUMN sku TEXT")
+            cur.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_inventory_items_sku ON inventory_items (sku)"
             )
             cur.execute(
                 """
@@ -173,10 +181,15 @@ def _ensure_base_tables() -> None:
                     active BOOLEAN DEFAULT 1,
                     fs_uniquifier TEXT UNIQUE NOT NULL,
                     mfa_secret TEXT,
-                    anonymized BOOLEAN DEFAULT 0
+                    anonymized BOOLEAN DEFAULT 0,
+                    retain_until TIMESTAMP
                 )
                 """
             )
+            cur.execute("PRAGMA table_info(users)")
+            cols = [r[1] for r in cur.fetchall()]
+            if "retain_until" not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN retain_until TIMESTAMP")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS roles_users (
@@ -192,9 +205,19 @@ def _ensure_base_tables() -> None:
                     id SERIAL PRIMARY KEY,
                     org_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
+                    sku TEXT NOT NULL UNIQUE,
                     quantity INTEGER NOT NULL
                 )
                 """
+            )
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='inventory_items'"
+            )
+            cols = [r[0] for r in cur.fetchall()]
+            if "sku" not in cols:
+                cur.execute("ALTER TABLE inventory_items ADD COLUMN sku TEXT UNIQUE")
+            cur.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_inventory_items_sku ON inventory_items (sku)"
             )
             cur.execute(
                 """
@@ -229,10 +252,17 @@ def _ensure_base_tables() -> None:
                     active BOOLEAN DEFAULT TRUE,
                     fs_uniquifier VARCHAR(64) UNIQUE NOT NULL,
                     mfa_secret VARCHAR(32),
-                    anonymized BOOLEAN DEFAULT FALSE
+                    anonymized BOOLEAN DEFAULT FALSE,
+                    retain_until TIMESTAMP
                 )
                 """
             )
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='users'"
+            )
+            cols = [r[0] for r in cur.fetchall()]
+            if "retain_until" not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN retain_until TIMESTAMP")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS roles_users (

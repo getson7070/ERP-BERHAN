@@ -15,12 +15,17 @@ bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 def list_items():
     """Return inventory items for the current organisation."""
     org_id = get_jwt().get("org_id")
-    items = Inventory.query.filter_by(org_id=org_id).all()
+    sku = request.args.get("sku")
+    limit = min(int(request.args.get("limit", 20)), 100)
+    offset = int(request.args.get("offset", 0))
+    query = Inventory.query.filter_by(org_id=org_id)
+    if sku:
+        query = query.filter_by(sku=sku)
+    items = query.offset(offset).limit(limit).all()
     data = [
-        {"id": i.id, "name": i.name, "quantity": i.quantity} for i in items
+        {"id": i.id, "name": i.name, "sku": i.sku, "quantity": i.quantity}
+        for i in items
     ]
-    if current_app.config.get("TESTING"):
-        return jsonify(data)
     return jsonify(data)
 
 
@@ -33,11 +38,17 @@ def create_item():
     item = Inventory(
         org_id=claims.get("org_id"),
         name=payload.get("name", ""),
+        sku=payload.get("sku", ""),
         quantity=payload.get("quantity", 0),
     )
     db.session.add(item)
     db.session.commit()
-    return jsonify({"id": item.id, "name": item.name, "quantity": item.quantity}), 201
+    return (
+        jsonify(
+            {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
+        ),
+        201,
+    )
 
 
 @bp.route("/<int:item_id>", methods=["GET"])
@@ -46,7 +57,7 @@ def create_item():
 def get_item(item_id):
     org_id = get_jwt().get("org_id")
     item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
-    return jsonify({"id": item.id, "name": item.name, "quantity": item.quantity})
+    return jsonify({"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity})
 
 
 @bp.route("/<int:item_id>", methods=["PUT"])
@@ -57,9 +68,10 @@ def update_item(item_id):
     item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
     payload = request.get_json() or {}
     item.name = payload.get("name", item.name)
+    item.sku = payload.get("sku", item.sku)
     item.quantity = payload.get("quantity", item.quantity)
     db.session.commit()
-    return jsonify({"id": item.id, "name": item.name, "quantity": item.quantity})
+    return jsonify({"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity})
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])

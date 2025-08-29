@@ -21,6 +21,7 @@ class Inventory(db.Model):  # type: ignore[name-defined]
     id = db.Column(db.Integer, primary_key=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
     name = db.Column(db.String(128), nullable=False)
+    sku = db.Column(db.String(64), nullable=False, unique=True, index=True)
     quantity = db.Column(db.Integer, nullable=False, default=0)
 
     def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
