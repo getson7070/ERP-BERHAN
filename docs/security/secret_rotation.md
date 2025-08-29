@@ -17,7 +17,8 @@ environment variables through `erp.secrets.get_secret`.
    pytest tests/test_jwt_rotation.py
    ```
    The test ensures tokens signed with the previous key remain valid until
-   expiry and that the rotation log contains the new secret id.
+   expiry, the rotation log contains the new secret id, and the rotation
+   script updates the secrets file safely.
 
 3. **Deploy application**
    Redeploy services so all instances pick up the updated secret map and

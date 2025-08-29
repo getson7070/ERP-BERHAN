@@ -1,0 +1,19 @@
+name: CODEOWNERS Gating
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Validate CODEOWNERS
+        uses: mszostok/codeowners-validator@v0.7.1
+        with:
+          check-unowned-files: true
+          check-owners: true
+          check-syntax: true
