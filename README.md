@@ -40,7 +40,6 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 - [Control matrix](docs/control_matrix.md)
 - [Access recertification guide](docs/access_recerts.md)
 - [Design system tokens](docs/design_system.md)
-- [JWT secret rotation runbook](docs/security/secret_rotation.md)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
@@ -71,7 +70,8 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 
 Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
-OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires all checks to pass before merging. Commits must be GPG-signed and [CODEOWNERS](.github/CODEOWNERS) approval is enforced.
+OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
+all checks to pass before merging.
 Database migrations are smoke-tested with `flask db upgrade`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions. The CI job also emits a
@@ -370,8 +370,3 @@ actively addressing the following items:
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
 - Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
-
-## Contributing
-
-- All commits **must** be GPG-signed; unsigned commits fail verification.
-- Reviews from maintainers listed in [CODEOWNERS](.github/CODEOWNERS) are required before merge.
