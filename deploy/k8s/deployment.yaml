@@ -37,6 +37,13 @@ spec:
                   key: flask_secret
             - name: DB_POOL_SIZE
               value: "10"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
           readinessProbe:
             httpGet:
               path: /healthz

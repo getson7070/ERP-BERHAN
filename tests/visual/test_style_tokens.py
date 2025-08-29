@@ -2,7 +2,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("bs4")
-import bs4
+import bs4  # noqa: E402
 
 TEMPLATE = Path("templates/base.html").read_text(encoding="utf-8")
 NAVBAR = Path("templates/partials/navbar.html").read_text(encoding="utf-8")

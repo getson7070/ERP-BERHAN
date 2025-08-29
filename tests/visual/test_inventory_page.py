@@ -2,7 +2,8 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright")
-from playwright.sync_api import Page
+pytest.importorskip("pytest_playwright")
+from playwright.sync_api import Page  # noqa: E402
 
 HTML = """
 <!DOCTYPE html>

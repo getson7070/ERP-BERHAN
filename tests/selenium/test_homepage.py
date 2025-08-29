@@ -4,14 +4,14 @@ import os
 
 import pytest
 
-pytest.importorskip("selenium")
+pytest.importorskip("selenium.webdriver")
 pytest.importorskip("webdriver_manager")
 
-import selenium.webdriver as webdriver
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+import selenium.webdriver as webdriver  # noqa: E402
+from selenium.webdriver.chrome.options import Options  # noqa: E402
+from webdriver_manager.chrome import ChromeDriverManager  # noqa: E402
 
-from erp import create_app
+from erp import create_app  # noqa: E402
 
 
 @pytest.mark.skipif("CI" not in os.environ, reason="Selenium smoke only runs in CI")

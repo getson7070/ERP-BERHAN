@@ -2,7 +2,7 @@ import pathlib
 import pytest
 
 pytest.importorskip("bs4")
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # noqa: E402
 
 BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
 

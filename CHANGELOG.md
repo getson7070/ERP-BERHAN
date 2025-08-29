@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file. The format 
 ### UX
 - Document accessibility and responsive design standards in `docs/ux_guidelines.md` with reference snapshots
 
+### Added
+- Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.
+- GraphQL depth and complexity are validated using an AST-based analyzer instead of string heuristics.
+- Kubernetes manifests define resource requests/limits with an HPA driven by latency and queue lag metrics.
+- Coverage configuration includes core modules with a higher failure threshold to surface untested code.
+
 ## [0.1.0] - 2025-08-28
 - Add PgBouncer deployment manifests
 - Track cache hit rate with Prometheus gauge

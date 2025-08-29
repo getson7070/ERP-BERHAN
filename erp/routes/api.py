@@ -1,16 +1,17 @@
 from flask import Blueprint, jsonify, request, abort, current_app
 from functools import wraps
-import re
 from db import get_db, redis_client
 import os
 import hmac
 import hashlib
 import json
 import graphene
+from graphql import parse
 from erp import (
     TOKEN_ERRORS,
     limiter,
     GRAPHQL_REJECTS,
+    csrf,
 )
 from erp.utils import idempotency_key_required
 
@@ -127,25 +128,44 @@ schema = graphene.Schema(query=Query)
 
 
 @bp.post("/graphql")
+@csrf.exempt
 @token_required
 @limiter.limit("50 per minute")
 def graphql_endpoint():
     data = request.get_json() or {}
     query = data.get("query", "")
-    max_depth = current_app.config.get("GRAPHQL_MAX_DEPTH", 5)
-    depth = 0
-    deepest = 0
-    for ch in query:
-        if ch == "{":
+    try:
+        ast = parse(query)
+    except Exception as exc:
+        GRAPHQL_REJECTS.inc()
+        return jsonify({"errors": [str(exc)]}), 400
+
+    def analyze(node, depth=0):
+        max_depth = depth
+        complexity = 0
+        if getattr(node, "selection_set", None):
             depth += 1
-            deepest = max(deepest, depth)
-        elif ch == "}":
-            depth -= 1
-    if deepest > max_depth:
+            max_depth = depth
+            for sel in node.selection_set.selections:
+                d, c = analyze(sel, depth)
+                max_depth = max(max_depth, d)
+                complexity += c
+        else:
+            complexity = 1
+        return max_depth, complexity
+
+    total_depth = 0
+    total_complexity = 0
+    for definition in ast.definitions:
+        d, c = analyze(definition, 0)
+        total_depth = max(total_depth, d)
+        total_complexity += c
+    max_depth = current_app.config.get("GRAPHQL_MAX_DEPTH", 5)
+    if total_depth > max_depth:
         GRAPHQL_REJECTS.inc()
         return jsonify({"errors": ["query too deep"]}), 400
     max_complexity = current_app.config.get("GRAPHQL_MAX_COMPLEXITY", 1000)
-    if len(re.findall(r"[A-Za-z0-9_]+", query)) > max_complexity:
+    if total_complexity > max_complexity:
         GRAPHQL_REJECTS.inc()
         return jsonify({"errors": ["query too complex"]}), 400
     result = schema.execute(query)

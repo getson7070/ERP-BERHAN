@@ -51,7 +51,10 @@ from prometheus_client import (
     Gauge,
     generate_latest,
     CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    REGISTRY,
 )
+from prometheus_client import multiprocess
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
@@ -541,12 +544,18 @@ def create_app():
     def metrics():
         from erp.routes import analytics
 
+        if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)
+        else:
+            registry = REGISTRY
+
         KPI_SALES_MV_AGE.set(analytics.kpi_staleness_seconds())
         try:
             QUEUE_LAG.labels("celery").set(redis_client.llen("celery"))
         except Exception:
             pass
-        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+        return Response(generate_latest(registry), mimetype=CONTENT_TYPE_LATEST)
 
     @app.errorhandler(401)
     def _401(error):
