@@ -62,3 +62,38 @@ statistics to watch for saturation and adjust limits before hitting caps.
 Use `scripts/benchmark.py` to issue concurrent requests against a deployed
 instance and measure throughput. Results help validate tuning and autoscaling
 configurations.
+
+## Read Replicas
+
+For read-heavy workloads, configure one or more read replicas and direct
+analytics or reporting traffic to them. Applications should treat replicas as
+eventually consistent and fall back to the primary for critical reads. In
+PostgreSQL, replicas can be added via `standby.signal` files and managed with
+`pg_basebackup`.
+
+## Table Partitioning
+
+Large tables such as `audit_logs` or `inventory_items` benefit from native
+partitioning. Partition by `org_id` to isolate tenants or by time (e.g.,
+monthly ranges) to speed up retention jobs. New partitions can be created with
+
+```sql
+CREATE TABLE audit_logs_y2024m01 PARTITION OF audit_logs
+    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+```
+
+Ensure indexes exist on partition keys and schedule routines to drop old
+partitions when retention periods expire.
+
+## Avoiding N+1 Queries
+
+Always eager load related rows when iterating over collections to avoid N+1
+query patterns. SQLAlchemy's `selectinload` and `joinedload` helpers can
+preload relationships efficiently:
+
+```python
+from sqlalchemy.orm import selectinload
+users = User.query.options(selectinload(User.roles)).all()
+```
+
+Refer to `erp/utils.py` for reusable loader helpers.

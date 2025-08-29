@@ -7,6 +7,7 @@ from flask import (
     request,
     current_app,
 )
+from urllib.parse import urlparse, urljoin
 from sqlalchemy import text
 from erp.utils import login_required
 from db import get_db
@@ -91,7 +92,12 @@ def global_search():
 def set_language(lang):
     if lang in current_app.config["LANGUAGES"]:
         session["lang"] = lang
-    return redirect(request.referrer or url_for("main.dashboard"))
+    target = request.referrer or ""
+    host_url = request.host_url
+    next_url = urljoin(host_url, target)
+    if urlparse(next_url).netloc != urlparse(host_url).netloc:
+        next_url = url_for("main.dashboard")
+    return redirect(next_url or url_for("main.dashboard"))
 
 
 @bp.route("/status")

@@ -13,3 +13,9 @@ USERS=10000 RATE=500 DURATION=10m scripts/load_test.sh
 ```
 
 Record throughput and error rates, then tune application and database settings accordingly.
+
+## WebSocket Fan-out
+
+Live dashboards rely on WebSocket broadcasts. Monitor the number of connected
+clients and the cost of sending updates to all of them. Consider sharding
+broadcasts or using a message broker if fan-out becomes a bottleneck.
