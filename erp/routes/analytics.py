@@ -215,6 +215,7 @@ def refresh_kpis(idempotency_key=None):
     cur.close()
     conn.close()
     socketio.emit("kpi_update", fetch_kpis())
+    kpi_staleness_seconds()
 
 
 def kpi_staleness_seconds() -> float:

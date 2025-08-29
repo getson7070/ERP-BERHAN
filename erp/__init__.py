@@ -23,7 +23,19 @@ from dotenv import load_dotenv
 from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
 from authlib.integrations.flask_client import OAuth
-from flask_babel import Babel, get_locale
+
+try:
+    from flask_babel import Babel, get_locale
+except Exception:  # pragma: no cover - optional dependency fallback
+
+    class Babel:  # type: ignore[override, no-redef]
+        def init_app(self, app, **kwargs):
+            return None
+
+    def get_locale() -> str:
+        return "en"
+
+
 from celery import Celery, signals
 import logging.config
 import os
@@ -84,6 +96,17 @@ def _dead_letter_handler(
         "kwargs": kwargs,
     }
     redis_client.lpush("dead_letter", json.dumps(payload))
+
+
+@signals.task_postrun.connect
+def _record_queue_depth(*args: Any, **kwargs: Any) -> None:
+    """Update queue backlog gauge after each task completes."""
+    try:
+        backlog = redis_client.llen("celery")
+        QUEUE_LAG.labels("celery").set(backlog)
+    except Exception:
+        # Logging is avoided here to keep signal lightweight; failures are non-fatal.
+        pass
 
 
 REQUEST_COUNT = Counter(
@@ -451,6 +474,10 @@ def create_app():
         from erp.routes import analytics
 
         KPI_SALES_MV_AGE.set(analytics.kpi_staleness_seconds())
+        try:
+            QUEUE_LAG.labels("celery").set(redis_client.llen("celery"))
+        except Exception:
+            pass
         return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     @app.errorhandler(401)
