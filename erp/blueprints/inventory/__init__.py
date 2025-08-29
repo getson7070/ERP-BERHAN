@@ -1,6 +1,6 @@
 """Inventory blueprint providing basic CRUD routes."""
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from flask_security import roles_required, roles_accepted
 
@@ -45,7 +45,12 @@ def create_item():
     db.session.commit()
     return (
         jsonify(
-            {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
+            {
+                "id": item.id,
+                "name": item.name,
+                "sku": item.sku,
+                "quantity": item.quantity,
+            }
         ),
         201,
     )
@@ -57,7 +62,9 @@ def create_item():
 def get_item(item_id):
     org_id = get_jwt().get("org_id")
     item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
-    return jsonify({"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity})
+    return jsonify(
+        {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
+    )
 
 
 @bp.route("/<int:item_id>", methods=["PUT"])
@@ -71,7 +78,9 @@ def update_item(item_id):
     item.sku = payload.get("sku", item.sku)
     item.quantity = payload.get("quantity", item.quantity)
     db.session.commit()
-    return jsonify({"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity})
+    return jsonify(
+        {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
+    )
 
 
 @bp.route("/<int:item_id>", methods=["DELETE"])

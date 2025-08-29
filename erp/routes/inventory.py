@@ -50,4 +50,6 @@ def update_item(item_id):
     item.sku = request.form.get("sku", item.sku)
     item.quantity = request.form.get("quantity", item.quantity)
     db.session.commit()
-    return jsonify({"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity})
+    return jsonify(
+        {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
+    )

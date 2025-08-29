@@ -43,7 +43,9 @@ def test_inventory_crud(app, monkeypatch):
     update = _unwrap(update_item)
     delete = _unwrap(delete_item)
 
-    with app.test_request_context(json={"name": "Aspirin", "sku": "ASP-1", "quantity": 10}):
+    with app.test_request_context(
+        json={"name": "Aspirin", "sku": "ASP-1", "quantity": 10}
+    ):
         resp, status = create()
         assert status == 201
         item_id = json.loads(resp.data)["id"]
