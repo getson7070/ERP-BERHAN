@@ -3,7 +3,6 @@ from flask import session, redirect, url_for, request, abort
 from argon2 import PasswordHasher
 import os
 from argon2.exceptions import VerifyMismatchError
-import bcrypt
 from db import get_db
 from erp.cache import cache_get, cache_set
 from sqlalchemy import text
@@ -98,12 +97,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    if password_hash.startswith("$argon2"):
-        try:
-            return ph.verify(password_hash, password)
-        except VerifyMismatchError:
-            return False
-    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    if not password_hash.startswith("$argon2"):
+        return False
+    try:
+        return ph.verify(password_hash, password)
+    except VerifyMismatchError:
+        return False
 
 
 def login_required(f):

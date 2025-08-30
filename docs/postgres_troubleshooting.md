@@ -9,7 +9,7 @@ PostgreSQL service is installed and running.
    ```
 2. Verify the database accepts connections:
    ```bash
-   pg_isready -d postgresql://postgres:postgres@localhost:5432/erp
+   pg_isready -d postgresql://postgres:postgres@localhost:5432/erp?sslmode=require
    ```
 3. Run migrations and tests:
    ```bash

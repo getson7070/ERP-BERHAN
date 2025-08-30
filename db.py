@@ -55,16 +55,9 @@ def _get_engine(url: str | None, path: str) -> Engine:
     if path:
         return create_engine(f"sqlite:///{path}", future=True)
     return create_engine(
-        "postgresql://postgres:postgres@127.0.0.1:5432/erp",
+        "postgresql://postgres:postgres@127.0.0.1:5432/erp?sslmode=require",
         **pool_args,
     )
-
-
-def get_engine() -> Engine:
-    """Return a cached SQLAlchemy engine based on environment settings."""
-    url = os.environ.get("DATABASE_URL")
-    path = os.environ.get("DATABASE_PATH", "erp.db")
-    return _get_engine(url, path)
 
 
 class _ConnectionWrapper:

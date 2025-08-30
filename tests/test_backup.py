@@ -8,7 +8,7 @@ from backup import create_backup
 
 
 def test_pg_dump_invoked(tmp_path):
-    db_url = "postgresql://user:pass@localhost/db"
+    db_url = "postgresql://user:pass@localhost/db?sslmode=require"
 
     def fake_run(cmd, check):
         Path(cmd[cmd.index("-f") + 1]).write_text("-- pg dump --")

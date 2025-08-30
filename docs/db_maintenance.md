@@ -7,7 +7,7 @@ PostgreSQL and MySQL connections, it invokes `pg_dump` or `mysqldump` to produce
 SQL files that can be shipped off-site for disaster recovery. Example:
 
 ```bash
-python backup.py postgresql://user:pass@host:5432/erp
+python backup.py postgresql://user:pass@host:5432/erp?sslmode=require
 ```
 
 Backups are written to the `backups/` directory. Store database credentials in
@@ -53,7 +53,7 @@ default_pool_size = 20
 pool_mode = transaction
 ```
 
-Set environment variable `DATABASE_URL` to the PgBouncer service and tune
+Set environment variable `DATABASE_URL` to the PgBouncer service (append `?sslmode=require`) and tune
 `DB_POOL_SIZE`/`DB_MAX_OVERFLOW` for application workers. Monitor PgBouncer
 statistics to watch for saturation and adjust limits before hitting caps.
 

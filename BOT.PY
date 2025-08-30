@@ -21,7 +21,6 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
-import bcrypt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import logging
@@ -45,12 +44,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    if password_hash.startswith("$argon2"):
-        try:
-            return ph.verify(password_hash, password)
-        except VerifyMismatchError:
-            return False
-    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    if not password_hash.startswith("$argon2"):
+        return False
+    try:
+        return ph.verify(password_hash, password)
+    except VerifyMismatchError:
+        return False
 
 
 logging.basicConfig(level=logging.INFO)

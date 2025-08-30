@@ -4,8 +4,7 @@
 FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7 AS builder
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --prefix=/install --no-cache-dir -r requirements.txt \
-    && pip install --prefix=/install --no-cache-dir gunicorn
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
 
 # Final runtime image
 FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7

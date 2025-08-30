@@ -14,7 +14,7 @@ This document outlines recovery objectives and drill procedures.
 Run `scripts/restore_latest_backup.sh` **monthly**. The script restores the most
 recent dump into a staging database and logs the result to `logs/restore_drill.log`.
 
-1. Provision a staging database and set `DATABASE_URL`.
+1. Provision a staging database and set `DATABASE_URL` (include `?sslmode=require`).
 2. Execute the script:
    ```bash
    ./scripts/restore_latest_backup.sh
