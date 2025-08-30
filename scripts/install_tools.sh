@@ -14,18 +14,18 @@ curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitlea
   | tar xz -C /usr/local/bin gitleaks
 
 # Install Trivy (vulnerability scanner)
-curl -sSfL https://github.com/aquasecurity/trivy/releases/download/v0.65.0/trivy_0.65.0_Linux-64bit.tar.gz \
-  | tar xz -C /usr/local/bin trivy
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+  | sh -s -- -b /usr/local/bin
 
 # Install kube-linter
-curl -sSfL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux.tar.gz \
+curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.7.5/kube-linter-linux.tar.gz \
   | tar xz -C /usr/local/bin kube-linter
 
 # Install kube-score
-curl -sSfL https://github.com/zegl/kube-score/releases/download/v1.18.0/kube-score_1.18.0_linux_amd64.tar.gz \
+curl -sSfL https://github.com/zegl/kube-score/releases/download/v1.20.0/kube-score_1.20.0_linux_amd64.tar.gz \
   | tar xz -C /usr/local/bin kube-score
 
-pip install --break-system-packages "typer[all]==0.16.1" python-owasp-zap-v2.4 playwright
+pip install --break-system-packages "typer[all]==0.16.1" python-owasp-zap-v2.4 playwright pyyaml
 
 playwright install --with-deps chromium
 
