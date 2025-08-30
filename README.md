@@ -18,8 +18,12 @@ Row-level security policies derive the tenant ID from `current_setting('erp.org_
 ## Local tooling
 
 Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
-utilities (gitleaks, Pa11y, OWASP ZAP baseline, Playwright browsers) along with
-the system libraries they require.
+utilities (gitleaks, Trivy, kube-linter, kube-score, Pa11y, OWASP ZAP baseline,
+Playwright browsers) along with the system libraries they require.
+
+Pa11y needs the Chromium sandbox disabled when executed as root:
+`PUPPETEER_ARGS="--no-sandbox" pa11y http://localhost:5000`.
+Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
 
 | Report | Artifact |
 |--------|---------|

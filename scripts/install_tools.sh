@@ -12,7 +12,19 @@ npm install -g pa11y
 curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz \
   | tar xz -C /usr/local/bin gitleaks
 
-pip install --break-system-packages "typer[all]==0.9.0" python-owasp-zap-v2.4 playwright
+# Install Trivy (vulnerability scanner)
+curl -sSfL https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.tar.gz \
+  | tar xz -C /usr/local/bin trivy
+
+# Install kube-linter
+curl -sSfL https://github.com/stackrox/kube-linter/releases/latest/download/kube-linter-linux.tar.gz \
+  | tar xz -C /usr/local/bin kube-linter
+
+# Install kube-score
+curl -sSfL https://github.com/zegl/kube-score/releases/latest/download/kube-score_1.18.0_linux_amd64.tar.gz \
+  | tar xz -C /usr/local/bin kube-score
+
+pip install --break-system-packages "typer[all]==0.12.3" python-owasp-zap-v2.4 playwright
 
 playwright install --with-deps chromium
 
