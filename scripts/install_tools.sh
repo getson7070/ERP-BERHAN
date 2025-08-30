@@ -24,7 +24,7 @@ curl -sSfL https://github.com/stackrox/kube-linter/releases/latest/download/kube
 curl -sSfL https://github.com/zegl/kube-score/releases/latest/download/kube-score_1.18.0_linux_amd64.tar.gz \
   | tar xz -C /usr/local/bin kube-score
 
-pip install --break-system-packages "typer[all]==0.12.3" python-owasp-zap-v2.4 playwright
+pip install --break-system-packages "typer[all]==0.16.1" python-owasp-zap-v2.4 playwright
 
 playwright install --with-deps chromium
 
@@ -32,4 +32,4 @@ curl -sSfL https://raw.githubusercontent.com/zaproxy/zaproxy/main/docker/zap-bas
   -o /usr/local/bin/zap-baseline.py
 curl -sSfL https://raw.githubusercontent.com/zaproxy/zaproxy/main/docker/zap_common.py \
   -o /usr/local/bin/zap_common.py
-chmod +x /usr/local/bin/zap-baseline.py
+chmod +x /usr/local/bin/zap-baseline.py /usr/local/bin/zap_common.py
