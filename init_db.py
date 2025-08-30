@@ -63,9 +63,17 @@ def init_db():
     CREATE TABLE IF NOT EXISTS roles (
         id SERIAL PRIMARY KEY,
         org_id INTEGER REFERENCES organizations(id),
-        name TEXT NOT NULL
+        name TEXT NOT NULL,
+        description TEXT
     )
     ''')
+    # Older deployments may already have a ``roles`` table without the
+    # ``description`` column.  Attempt to add it and ignore errors if it
+    # already exists, ensuring the schema is consistent across environments.
+    try:
+        cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS description TEXT")
+    except Exception:
+        pass
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS permissions (
         id SERIAL PRIMARY KEY,
@@ -329,8 +337,8 @@ def init_db():
         cursor.execute(
             f"""
             CREATE POLICY org_rls ON {table}
-            USING (org_id = current_setting('my.org_id')::INTEGER)
-            WITH CHECK (org_id = current_setting('my.org_id')::INTEGER)
+            USING (org_id = current_setting('erp.org_id')::INTEGER)
+            WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)
             """
         )
 
