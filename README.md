@@ -63,6 +63,8 @@ cd ERP-BERHAN
 pip install -r requirements.txt
 # For tests and linting
 pip install -r requirements-dev.txt
+# Install security tooling and browsers
+bash scripts/install_tools.sh
 # Enable template auto-reload during development
 export FLASK_DEBUG=1
 docker compose up -d db redis

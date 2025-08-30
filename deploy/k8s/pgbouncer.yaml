@@ -29,12 +29,41 @@ spec:
       labels:
         app: pgbouncer
     spec:
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: pgbouncer
           image: edoburu/pgbouncer:1.23.0
+          imagePullPolicy: IfNotPresent
           args: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
           ports:
             - containerPort: 5432
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: config
               mountPath: /etc/pgbouncer
