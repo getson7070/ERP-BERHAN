@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template
 
-bp = Blueprint('help', __name__)
+bp = Blueprint("help", __name__)
 
-@bp.route('/help')
+
+@bp.route("/help")
 def help_page():
-    return render_template('help.html')
+    return render_template("help.html")

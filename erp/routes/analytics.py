@@ -189,11 +189,15 @@ def refresh_kpis(idempotency_key=None):
     conn = get_db()
     dialect = conn._dialect.name
     date_expr = (
-        "strftime('%Y-%m-01', order_date)" if dialect == "sqlite" else "DATE_TRUNC('month', order_date)"
+        "strftime('%Y-%m-01', order_date)"
+        if dialect == "sqlite"
+        else "DATE_TRUNC('month', order_date)"
     )
     conn.execute(text("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)"))
     last_refresh = conn.execute(
-        text("SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log")
+        text(
+            "SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log"
+        )
     ).fetchone()[0]
     conn.execute(
         text(
@@ -208,7 +212,10 @@ def refresh_kpis(idempotency_key=None):
         ),
         {"last_refresh": last_refresh},
     )
-    new_last = conn.execute(text("SELECT MAX(order_date) FROM orders")).fetchone()[0] or last_refresh
+    new_last = (
+        conn.execute(text("SELECT MAX(order_date) FROM orders")).fetchone()[0]
+        or last_refresh
+    )
     conn.execute(
         text("INSERT INTO kpi_refresh_log (last_refresh) VALUES (:last_refresh)"),
         {"last_refresh": new_last},

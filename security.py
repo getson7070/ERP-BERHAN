@@ -3,6 +3,7 @@
 These helpers rely on Fernet symmetric encryption.  Rotate keys regularly and
 consult ``docs/access_recerts.md`` for guidance on periodic access reviews.
 """
+
 from __future__ import annotations
 
 from cryptography.fernet import Fernet

@@ -11,11 +11,9 @@ import fnmatch
 from flask_caching import Cache
 from prometheus_client import Counter, Gauge
 
-CACHE_HITS = Counter('cache_hits_total', 'Number of cache hits')
-CACHE_MISSES = Counter('cache_misses_total', 'Number of cache misses')
-CACHE_HIT_RATE = Gauge(
-    'cache_hit_rate', 'Ratio of cache hits to total lookups'
-)
+CACHE_HITS = Counter("cache_hits_total", "Number of cache hits")
+CACHE_MISSES = Counter("cache_misses_total", "Number of cache misses")
+CACHE_HIT_RATE = Gauge("cache_hit_rate", "Ratio of cache hits to total lookups")
 
 cache = Cache()
 
@@ -28,9 +26,7 @@ def init_cache(app) -> None:
     """
     config = {
         "CACHE_TYPE": "RedisCache",
-        "CACHE_REDIS_URL": os.environ.get(
-            "REDIS_URL", "redis://localhost:6379/0"
-        ),
+        "CACHE_REDIS_URL": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
     }
     if app.config.get("TESTING"):
         config = {"CACHE_TYPE": "SimpleCache"}

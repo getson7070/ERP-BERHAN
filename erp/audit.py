@@ -5,7 +5,9 @@ from db import get_db
 from erp import AUDIT_CHAIN_BROKEN
 
 
-def log_audit(user_id: int | None, org_id: int | None, action: str, details: str = "") -> None:
+def log_audit(
+    user_id: int | None, org_id: int | None, action: str, details: str = ""
+) -> None:
     """Record an auditable event with hash-chaining for tamper evidence."""
     conn = get_db()
     prev = conn.execute(
@@ -63,7 +65,9 @@ def check_audit_chain() -> int:
             current_hash,
             created_at,
         ) = row
-        created_at_str = created_at if isinstance(created_at, str) else created_at.isoformat()
+        created_at_str = (
+            created_at if isinstance(created_at, str) else created_at.isoformat()
+        )
         dt = datetime.fromisoformat(created_at_str)
         expected_hash = hashlib.sha256(
             f"{prev_hash}{user_id}{org_id}{action}{details}{dt.isoformat()}".encode()

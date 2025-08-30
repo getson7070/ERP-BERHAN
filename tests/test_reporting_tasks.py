@@ -12,7 +12,9 @@ def setup_orders(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(db_file))
     conn = get_db()
     conn.execute("CREATE TABLE orders (id INTEGER, sales_rep TEXT, status TEXT)")
-    conn.execute("INSERT INTO orders VALUES (1,'alice','pending'), (2,'bob','approved')")
+    conn.execute(
+        "INSERT INTO orders VALUES (1,'alice','pending'), (2,'bob','approved')"
+    )
     conn.commit()
     return conn
 
@@ -28,7 +30,9 @@ def test_forecast_sales(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(db_file))
     conn = get_db()
     conn.execute("CREATE TABLE kpi_sales (month TEXT, total_sales REAL)")
-    conn.execute("INSERT INTO kpi_sales VALUES ('2024-01-01', 100.0), ('2024-02-01', 150.0)")
+    conn.execute(
+        "INSERT INTO kpi_sales VALUES ('2024-01-01', 100.0), ('2024-02-01', 150.0)"
+    )
     conn.commit()
     forecast = forecast_sales.run()
     assert isinstance(forecast, float)

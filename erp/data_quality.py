@@ -1,4 +1,5 @@
 """Data hygiene helpers."""
+
 from datetime import datetime
 from typing import Iterable
 import re
@@ -29,7 +30,7 @@ def deduplicate(table: str, key_fields: Iterable[str]) -> int:
     cur = conn.cursor()
     cur.execute(f"SELECT COUNT(*) FROM {table}")  # nosec B608
     before = cur.fetchone()[0]
-    conditions = ' AND '.join([f'a.{f}=b.{f}' for f in key_fields])
+    conditions = " AND ".join([f"a.{f}=b.{f}" for f in key_fields])
     try:
         query = (
             f"DELETE FROM {table} a USING {table} b "  # nosec B608
@@ -38,7 +39,7 @@ def deduplicate(table: str, key_fields: Iterable[str]) -> int:
         cur.execute(query)
     except (DBAPIError, sqlite3.DatabaseError) as exc:
         logger.warning("Falling back to rowid dedupe for %s: %s", table, exc)
-        group = ', '.join(key_fields)
+        group = ", ".join(key_fields)
         query = (
             f"DELETE FROM {table} "  # nosec B608
             "WHERE rowid NOT IN ("

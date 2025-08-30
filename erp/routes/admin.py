@@ -35,9 +35,9 @@ def workflows():
     return render_template("admin/workflows.html", workflows=wf)
 
 
-@bp.route('/panel')
+@bp.route("/panel")
 @login_required
 @mfa_required
 def panel():
     """Simple administrative panel protected by MFA."""
-    return 'admin panel'
+    return "admin panel"

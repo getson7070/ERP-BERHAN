@@ -33,4 +33,3 @@ def test_foreign_keys_enforced(app):
             conn.execute(text("INSERT INTO child (parent_id) VALUES (999)"))
         conn.rollback()
         conn.close()
-

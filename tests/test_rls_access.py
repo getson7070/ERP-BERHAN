@@ -27,7 +27,9 @@ def test_cross_tenant_inventory_access(tmp_path, monkeypatch):
     assert resp.status_code in (400, 403, 404)
     with app.app_context():
         conn = get_db()
-        row = conn.execute(text("SELECT name FROM inventory_items WHERE id = 2")).fetchone()
+        row = conn.execute(
+            text("SELECT name FROM inventory_items WHERE id = 2")
+        ).fetchone()
         assert row[0] == "B"
         conn.close()
     resp = client.get("/inventory/")

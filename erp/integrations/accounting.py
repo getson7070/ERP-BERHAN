@@ -1,8 +1,9 @@
 """Stub for accounting system connector."""
+
 import requests
 import os
 
-ACCOUNTING_URL = os.environ.get('ACCOUNTING_URL', 'https://example.com/api')
+ACCOUNTING_URL = os.environ.get("ACCOUNTING_URL", "https://example.com/api")
 
 
 def send_invoice(order: dict) -> bool:

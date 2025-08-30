@@ -7,9 +7,7 @@ from scripts.olap_export import main, OLAP_EXPORT_SUCCESS
 def test_olap_export_creates_csv_and_increments_metric():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute(
-        "CREATE TABLE IF NOT EXISTS kpi_sales (org_id INTEGER, total NUMERIC)"
-    )
+    cur.execute("CREATE TABLE IF NOT EXISTS kpi_sales (org_id INTEGER, total NUMERIC)")
     cur.execute("DELETE FROM kpi_sales")
     cur.execute("INSERT INTO kpi_sales VALUES (1, 123.45)")
     conn.commit()

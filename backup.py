@@ -32,7 +32,9 @@ def create_backup(db_url, backup_dir="backups"):
     if db_url.startswith("postgresql"):
         subprocess.run(["pg_dump", db_url, "-f", str(dump_file)], check=True)
     elif db_url.startswith("mysql"):
-        subprocess.run(["mysqldump", db_url, "--result-file", str(dump_file)], check=True)
+        subprocess.run(
+            ["mysqldump", db_url, "--result-file", str(dump_file)], check=True
+        )
     else:
         raise ValueError("Unsupported database URL")
 

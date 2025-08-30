@@ -14,10 +14,14 @@ def _prepare_app(tmp_path):
     # Configure SQLAlchemy to use this sqlite database
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
     os.environ["TEST_DB_PATH"] = str(db_path)
-    import importlib, db, erp
+    import importlib
+    import db
+    import erp
+
     importlib.reload(db)
     erp.get_db = db.get_db  # refresh DB engine without reloading metrics
     from erp import create_app  # import after updating get_db reference
+
     app = create_app()
     app.config["TESTING"] = True
     conn = sqlite3.connect(db_path)
@@ -72,44 +76,57 @@ def _prepare_app(tmp_path):
 
 def _login(client):
     with client.session_transaction() as sess:
-        sess['logged_in'] = True
-        sess['role'] = 'Admin'
-        sess['user_id'] = 1
-        sess['org_id'] = 1
+        sess["logged_in"] = True
+        sess["role"] = "Admin"
+        sess["user_id"] = 1
+        sess["org_id"] = 1
         # Bypass DB permission check for sqlite tests
-        sess['permissions'] = ['tenders_list']
+        sess["permissions"] = ["tenders_list"]
 
 
 def test_evaluate_marks_evaluated(tmp_path):
     app = _prepare_app(tmp_path)
-    conn = sqlite3.connect(os.environ['TEST_DB_PATH'])
+    conn = sqlite3.connect(os.environ["TEST_DB_PATH"])
     conn.execute("INSERT INTO tender_types (type_name) VALUES ('Test')")
-    conn.execute("INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, username, envelope_type) VALUES (1,'desc',?, 'opening_minute','u','One Envelope')", (date.today(),))
+    conn.execute(
+        "INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, username, envelope_type) VALUES (1,'desc',?, 'opening_minute','u','One Envelope')",
+        (date.today(),),
+    )
     conn.commit()
     conn.close()
     client = app.test_client()
     _login(client)
-    client.post('/tenders/1/advance', data={'evaluation_complete': '1'})
-    conn = sqlite3.connect(os.environ['TEST_DB_PATH'])
+    client.post("/tenders/1/advance", data={"evaluation_complete": "1"})
+    conn = sqlite3.connect(os.environ["TEST_DB_PATH"])
     conn.row_factory = sqlite3.Row
-    state = conn.execute('SELECT workflow_state FROM tenders WHERE id=1').fetchone()['workflow_state']
+    state = conn.execute("SELECT workflow_state FROM tenders WHERE id=1").fetchone()[
+        "workflow_state"
+    ]
     conn.close()
-    assert state == 'evaluated'
+    assert state == "evaluated"
 
 
 def test_award_marks_awarded(tmp_path):
     app = _prepare_app(tmp_path)
-    conn = sqlite3.connect(os.environ['TEST_DB_PATH'])
+    conn = sqlite3.connect(os.environ["TEST_DB_PATH"])
     conn.execute("INSERT INTO tender_types (type_name) VALUES ('Test')")
-    conn.execute("INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, username, envelope_type) VALUES (1,'desc',?, 'evaluated','u','One Envelope')", (date.today(),))
+    conn.execute(
+        "INSERT INTO tenders (tender_type_id, description, due_date, workflow_state, username, envelope_type) VALUES (1,'desc',?, 'evaluated','u','One Envelope')",
+        (date.today(),),
+    )
     conn.commit()
     conn.close()
     client = app.test_client()
     _login(client)
-    client.post('/tenders/1/advance', data={'result': 'won', 'awarded_to': 'Supplier', 'award_date': '2024-01-01'})
-    conn = sqlite3.connect(os.environ['TEST_DB_PATH'])
+    client.post(
+        "/tenders/1/advance",
+        data={"result": "won", "awarded_to": "Supplier", "award_date": "2024-01-01"},
+    )
+    conn = sqlite3.connect(os.environ["TEST_DB_PATH"])
     conn.row_factory = sqlite3.Row
-    row = conn.execute('SELECT workflow_state, awarded_to FROM tenders WHERE id=1').fetchone()
+    row = conn.execute(
+        "SELECT workflow_state, awarded_to FROM tenders WHERE id=1"
+    ).fetchone()
     conn.close()
-    assert row['workflow_state'] == 'awarded'
-    assert row['awarded_to'] == 'Supplier'
+    assert row["workflow_state"] == "awarded"
+    assert row["awarded_to"] == "Supplier"

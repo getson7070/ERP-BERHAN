@@ -103,17 +103,16 @@ def verify_password(password: str, password_hash: str) -> bool:
             return ph.verify(password_hash, password)
         except VerifyMismatchError:
             return False
-    return bcrypt.checkpw(
-        password.encode("utf-8"), password_hash.encode("utf-8")
-    )
+    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
 def login_required(f):
     @wraps(f)
     def wrap(*args, **kwargs):
-        if 'logged_in' not in session or not session['logged_in']:
-            return redirect(url_for('auth.choose_login'))
+        if "logged_in" not in session or not session["logged_in"]:
+            return redirect(url_for("auth.choose_login"))
         return f(*args, **kwargs)
+
     return wrap
 
 
