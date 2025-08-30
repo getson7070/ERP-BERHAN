@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from db import get_db
+from erp.sql_compat import execute as safe_execute
 
 
 def main() -> None:
@@ -14,15 +15,16 @@ def main() -> None:
     for i in range(items):
         sku = f"SKU{i}"
         name = f"Item{i}"
-        cur.execute(
+        safe_execute(
+            cur,
             "INSERT INTO inventory_items (org_id, name, sku, quantity) VALUES (1, ?, ?, 0)",
             (name, sku),
         )
     for i in range(users):
         email = f"user{i}@example.com"
-        cur.execute(
-            "INSERT INTO users (email, password, fs_uniquifier) VALUES (?, 'password', ?)"
-            " ON CONFLICT(email) DO NOTHING",
+        safe_execute(
+            cur,
+            "INSERT INTO users (email, password, fs_uniquifier) VALUES (?, 'password', ?) ON CONFLICT(email) DO NOTHING",
             (email, f"uid{i}"),
         )
     conn.commit()

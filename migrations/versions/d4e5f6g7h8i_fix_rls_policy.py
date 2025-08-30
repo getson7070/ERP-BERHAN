@@ -48,6 +48,6 @@ def downgrade():
     ):
         op.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")
         op.execute(
-            f"CREATE POLICY org_rls ON {table} USING (org_id = current_setting('my.org_id')::int) "
-            f"WITH CHECK (org_id = current_setting('my.org_id')::int)"
+            f"CREATE POLICY org_rls ON {table} USING (org_id = current_setting('erp.org_id')::int) "
+            f"WITH CHECK (org_id = current_setting('erp.org_id')::int)"
         )

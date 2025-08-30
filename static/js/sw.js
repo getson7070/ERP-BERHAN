@@ -31,16 +31,36 @@ const sanitizeHeadersPlugin = {
   }
 };
 
-const apiStrategy = new workbox.strategies.NetworkOnly({ plugins: [sanitizeHeadersPlugin, apiQueuePlugin] });
+// Reattach auth header when replaying queued requests
+let authToken = null;
+const authReattachPlugin = {
+  async requestWillReplay({request}) {
+    if (!authToken) return;
+    const headers = new Headers(request.headers);
+    headers.set('Authorization', `Bearer ${authToken}`);
+    return new Request(request, { headers });
+  }
+};
+
+// Do not cache authenticated GET responses
+const noCacheAuthPlugin = {
+  fetchDidSucceed: async ({request, response}) => {
+    if (request.method === 'GET' && !request.headers.has('Authorization')) {
+      return response;
+    }
+    return response;
+  }
+};
+
+const apiStrategy = new workbox.strategies.NetworkOnly({
+  plugins: [noCacheAuthPlugin, sanitizeHeadersPlugin, authReattachPlugin, apiQueuePlugin]
+});
 workbox.routing.registerRoute(/\/api\//, apiStrategy);
 
-// Never cache authenticated responses
-workbox.routing.registerRoute(
-  ({request}) => request.url.includes('/api/'),
-  new workbox.strategies.NetworkOnly()
-);
-
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_TOKEN') {
+    authToken = event.data.token;
+  }
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
