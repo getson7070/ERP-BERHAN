@@ -152,12 +152,14 @@ A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboar
 The application pulls configuration from environment variables. Key settings include:
 
 - `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
- - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy (append `?sslmode=require`).
- - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
-   knobs for high‑load deployments.
-- `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.
+- `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy (append `?sslmode=require`).
+- `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
+  knobs for high‑load deployments.
+- `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding (only when `SEED_DEMO_DATA=1`).
+- `SEED_DEMO_DATA` – set to `1` to populate demo users; never enable in production.
 - `MFA_ISSUER` – issuer name shown in authenticator apps for MFA codes.
 - `JWT_SECRETS`/`JWT_SECRET_ID` – map of versioned JWT secrets with active `kid` for rotation.
+- `SENTRY_DSN` – capture unhandled errors to Sentry.
 - `RATE_LIMIT_DEFAULT` – global rate limit (e.g. `100 per minute`).
 - `LOCK_THRESHOLD`/`ACCOUNT_LOCK_SECONDS` – progressive backoff and
   temporary account lock settings.
@@ -167,6 +169,7 @@ The application pulls configuration from environment variables. Key settings inc
 - `OAUTH_CLIENT_ID`/`OAUTH_CLIENT_SECRET` – credentials for SSO/OAuth2 login.
 - `OAUTH_AUTH_URL`/`OAUTH_TOKEN_URL`/`OAUTH_USERINFO_URL` – endpoints for the OAuth2 provider.
 - `ARGON2_TIME_COST`, `ARGON2_MEMORY_COST`, `ARGON2_PARALLELISM` – password hashing parameters.
+- `APP_DB_USER`/`APP_DB_PASSWORD` – least-privilege PostgreSQL role created by `init_db.py`.
 - `BABEL_DEFAULT_LOCALE`/`BABEL_SUPPORTED_LOCALES` – default and available locales for UI translations.
 - `API_TOKEN` – bearer token used to authorize REST and GraphQL requests.
 - `ACCOUNTING_URL` – base URL for the accounting connector.

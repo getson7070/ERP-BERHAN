@@ -361,23 +361,27 @@ def init_db():
 
     seed_demo = os.environ.get("SEED_DEMO_DATA", "").lower() in {"1", "true", "yes"}
     if seed_demo and os.environ.get("ENV") != "production":
-        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_username = os.environ.get("ADMIN_USERNAME")
         admin_password = os.environ.get("ADMIN_PASSWORD")
-        if admin_password:
-            password_hash = hash_password(admin_password)
-            cursor.execute(
-                "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                (
-                    "employee",
-                    admin_username,
-                    password_hash,
-                    "JBSWY3DPEHPK3PXP",
-                    "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
-                    True,
-                    "Admin",
-                    datetime.now(),
-                ),
+        if not admin_username or not admin_password:
+            raise RuntimeError(
+                "ADMIN_USERNAME and ADMIN_PASSWORD required when SEED_DEMO_DATA=1"
             )
+
+        password_hash = hash_password(admin_password)
+        cursor.execute(
+            "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            (
+                "employee",
+                admin_username,
+                password_hash,
+                "JBSWY3DPEHPK3PXP",
+                "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                True,
+                "Admin",
+                datetime.now(),
+            ),
+        )
 
         admin_phones = ["0946423021", "0984707070", "0969111144"]
         employee_phones = [
