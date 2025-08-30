@@ -29,7 +29,7 @@ def upgrade():
         )
         op.execute(f'ALTER TABLE {table} ENABLE ROW LEVEL SECURITY')
         op.execute(
-            f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('my.org_id')::int)"
+            f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('erp.org_id')::int)"
         )
 
 def downgrade():

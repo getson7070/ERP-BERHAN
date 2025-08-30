@@ -11,6 +11,9 @@ BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including invent
 Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
+`/health` (aliased as `/healthz`) exposes a lightweight database and Redis check for container probes.
+SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
+Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
 
 | Report | Artifact |
 |--------|---------|
@@ -289,7 +292,7 @@ checks, while `has_permission()` centralizes permission validation and
 automatically grants access to users with the *Management* role.
 
 Row level security is enabled on core tables. Each request sets a
-`my.org_id` session variable, ensuring queries are transparently filtered to the
+`erp.org_id` session variable, ensuring queries are transparently filtered to the
 tenant’s organization.
 
 ### Token-Based Authentication

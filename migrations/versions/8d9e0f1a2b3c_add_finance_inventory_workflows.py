@@ -44,7 +44,7 @@ def upgrade():
     for table in ('finance_transactions','inventory_items','workflows'):
         op.execute(f'ALTER TABLE {table} ENABLE ROW LEVEL SECURITY')
         op.execute(
-            f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('my.org_id')::int)"
+            f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('erp.org_id')::int)"
         )
 
 

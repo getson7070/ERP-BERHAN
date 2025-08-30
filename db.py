@@ -112,6 +112,6 @@ def get_db():
         org_id = session.get("org_id")
         if org_id is not None:
             cur = raw.cursor()
-            cur.execute("SET my.org_id = %s", (org_id,))
+            cur.execute("SET erp.org_id = %s", (org_id,))
             cur.close()
     return _ConnectionWrapper(raw, engine.dialect)

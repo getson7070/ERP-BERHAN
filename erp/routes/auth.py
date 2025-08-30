@@ -34,6 +34,7 @@ from flask_jwt_extended import (
     decode_token,
 )
 
+from sqlalchemy import text
 from db import get_db, redis_client
 from erp.utils import (
     hash_password,
@@ -112,8 +113,16 @@ def issue_token():
     if status == "backoff":
         return {"error": "retry_later", "retry_after": ttl}, 429
     conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    user = dict(row) if row is not None else None
+    cur = conn.execute(
+        text("SELECT * FROM users WHERE email = :email"),
+        {"email": email},
+    )
+    row = cur.fetchone()
+    if row is not None:
+        keys = [desc[0] for desc in cur.description]
+        user = dict(zip(keys, row))
+    else:
+        user = None
     if not user or not verify_password(password, user["password_hash"]):
         conn.close()
         _record_failure(email, user)
@@ -227,7 +236,14 @@ def oauth_callback():
     profile = resp.json()
     email = profile.get("email")
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    cur = conn.execute(
+        text("SELECT * FROM users WHERE email = :email"),
+        {"email": email},
+    )
+    user = cur.fetchone()
+    if user is not None:
+        keys = [desc[0] for desc in cur.description]
+        user = dict(zip(keys, user))
     if not user:
         conn.close()
         flash("Unauthorized user")
@@ -242,8 +258,8 @@ def oauth_callback():
     session["org_id"] = user.get("org_id")
     log_audit(user["id"], user.get("org_id"), "login", "SSO")
     conn.execute(
-        "UPDATE users SET last_login = ? WHERE email = ?",
-        (datetime.now(), email),
+        text("UPDATE users SET last_login = :now WHERE email = :email"),
+        {"now": datetime.now(), "email": email},
     )
     conn.commit()
     conn.close()
@@ -273,10 +289,16 @@ def employee_login():
             flash(f"Too many attempts. Retry after {ttl} seconds.")
             return render_template("employee_login.html", form=form)
         conn = get_db()
-        user = conn.execute(
-            "SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE",
-            (email, "employee"),
-        ).fetchone()
+        cur = conn.execute(
+            text(
+                "SELECT * FROM users WHERE email = :email AND user_type = :type AND approved_by_ceo = TRUE"
+            ),
+            {"email": email, "type": "employee"},
+        )
+        user = cur.fetchone()
+        if user is not None:
+            keys = [desc[0] for desc in cur.description]
+            user = dict(zip(keys, user))
         if (
             user
             and not user["account_locked"]
@@ -297,8 +319,10 @@ def employee_login():
                 )
                 session["mfa_verified"] = True
                 conn.execute(
-                    "UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?",
-                    (datetime.now(), email),
+                    text(
+                        "UPDATE users SET last_login = :now, failed_attempts = 0 WHERE email = :email"
+                    ),
+                    {"now": datetime.now(), "email": email},
                 )
                 log_audit(user["id"], user.get("org_id"), "login", "employee password")
                 conn.commit()
@@ -313,8 +337,10 @@ def employee_login():
                     flash("Account locked due to too many failed attempts.")
                 else:
                     conn.execute(
-                        "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?",
-                        (email,),
+                        text(
+                            "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = :email"
+                        ),
+                        {"email": email},
                     )
                     conn.commit()
                     _record_failure(email, user)
@@ -348,10 +374,16 @@ def client_login():
             flash(f"Too many attempts. Retry after {ttl} seconds.")
             return render_template("client_login.html", form=form)
         conn = get_db()
-        user = conn.execute(
-            "SELECT * FROM users WHERE email = ? AND user_type = ? AND approved_by_ceo = TRUE",
-            (email, "client"),
-        ).fetchone()
+        cur = conn.execute(
+            text(
+                "SELECT * FROM users WHERE email = :email AND user_type = :type AND approved_by_ceo = TRUE"
+            ),
+            {"email": email, "type": "client"},
+        )
+        user = cur.fetchone()
+        if user is not None:
+            keys = [desc[0] for desc in cur.description]
+            user = dict(zip(keys, user))
         if (
             user
             and not user["account_locked"]
@@ -373,8 +405,10 @@ def client_login():
                 )
                 session["mfa_verified"] = True
                 conn.execute(
-                    "UPDATE users SET last_login = ?, failed_attempts = 0 WHERE email = ?",
-                    (datetime.now(), email),
+                    text(
+                        "UPDATE users SET last_login = :now, failed_attempts = 0 WHERE email = :email"
+                    ),
+                    {"now": datetime.now(), "email": email},
                 )
                 log_audit(user["id"], user.get("org_id"), "login", "client password")
                 conn.commit()
@@ -389,8 +423,10 @@ def client_login():
                     flash("Account locked due to too many failed attempts.")
                 else:
                     conn.execute(
-                        "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = ?",
-                        (email,),
+                        text(
+                            "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE email = :email"
+                        ),
+                        {"email": email},
                     )
                     conn.commit()
                     _record_failure(email, user)
@@ -434,7 +470,8 @@ def client_registration():
         [
             (c["city"], c["city"])
             for c in conn.execute(
-                "SELECT city FROM regions_cities WHERE region = ?", (form.region.data,)
+                text("SELECT city FROM regions_cities WHERE region = :region"),
+                {"region": form.region.data},
             ).fetchall()
         ]
         if form.region.data
@@ -457,33 +494,37 @@ def client_registration():
         city = form.city.data
         email = form.email.data
         password = form.password.data
-        if conn.execute(
-            "SELECT * FROM users WHERE tin = ? OR email = ?", (tin, email)
-        ).fetchone():
+        cur = conn.execute(
+            text("SELECT * FROM users WHERE tin = :tin OR email = :email"),
+            {"tin": tin, "email": email},
+        )
+        if cur.fetchone() is not None:
             flash("TIN or email already registered.")
             conn.close()
             return render_template("client_registration.html", form=form)
         password_hash = hash_password(password)
         mfa_secret = pyotp.random_base32()
         conn.execute(
-            """
-            INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, mfa_secret, permissions, approved_by_ceo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                "client",
-                tin,
-                institution_name,
-                address,
-                phone,
-                region,
-                city,
-                email,
-                password_hash,
-                mfa_secret,
-                "put_order,my_orders,order_status,maintenance_request,maintenance_status,message",
-                False,
+            text(
+                """
+                INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, mfa_secret, permissions, approved_by_ceo)
+                VALUES (:user_type, :tin, :institution_name, :address, :phone, :region, :city, :email, :password_hash, :mfa_secret, :permissions, :approved)
+                """
             ),
+            {
+                "user_type": "client",
+                "tin": tin,
+                "institution_name": institution_name,
+                "address": address,
+                "phone": phone,
+                "region": region,
+                "city": city,
+                "email": email,
+                "password_hash": password_hash,
+                "mfa_secret": mfa_secret,
+                "permissions": "put_order,my_orders,order_status,maintenance_request,maintenance_status,message",
+                "approved": False,
+            },
         )
         conn.commit()
         flash(f"Set up your authenticator with this secret: {mfa_secret}", "info")
@@ -536,31 +577,35 @@ def employee_registration():
         hire_date = form.hire_date.data
         salary = form.salary.data
         conn = get_db()
-        if conn.execute(
-            "SELECT * FROM users WHERE username = ? OR email = ?", (username, email)
-        ).fetchone():
+        cur = conn.execute(
+            text("SELECT * FROM users WHERE username = :username OR email = :email"),
+            {"username": username, "email": email},
+        )
+        if cur.fetchone() is not None:
             flash("Username or email already registered.")
             conn.close()
             return render_template("employee_registration.html", form=form)
         password_hash = hash_password(password)
         mfa_secret = pyotp.random_base32()
         conn.execute(
-            """
-            INSERT INTO users (user_type, username, email, password_hash, mfa_secret, permissions, approved_by_ceo, hire_date, salary, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                "employee",
-                username,
-                email,
-                password_hash,
-                mfa_secret,
-                permissions,
-                False,
-                hire_date,
-                salary,
-                role,
+            text(
+                """
+                INSERT INTO users (user_type, username, email, password_hash, mfa_secret, permissions, approved_by_ceo, hire_date, salary, role)
+                VALUES (:user_type, :username, :email, :password_hash, :mfa_secret, :permissions, :approved, :hire_date, :salary, :role)
+                """
             ),
+            {
+                "user_type": "employee",
+                "username": username,
+                "email": email,
+                "password_hash": password_hash,
+                "mfa_secret": mfa_secret,
+                "permissions": permissions,
+                "approved": False,
+                "hire_date": hire_date,
+                "salary": salary,
+                "role": role,
+            },
         )
         conn.commit()
         flash(f"Set up your authenticator with this secret: {mfa_secret}", "info")
