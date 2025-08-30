@@ -30,17 +30,27 @@ celery = Celery(__name__)
 def fetch_kpis():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM orders WHERE status = %s", ("pending",))
-    pending_orders = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM maintenance WHERE status = %s", ("pending",))
-    pending_maintenance = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
-    expired_tenders = cur.fetchone()[0]
-    cur.execute(
-        "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
-        "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
+    pending_orders = (
+        cur.execute(
+            text("SELECT COUNT(*) FROM orders WHERE status = :status"),
+            {"status": "pending"},
+        ).fetchone()[0]
     )
-    monthly_sales = cur.fetchone()[0]
+    pending_maintenance = (
+        cur.execute(
+            text("SELECT COUNT(*) FROM maintenance WHERE status = :status"),
+            {"status": "pending"},
+        ).fetchone()[0]
+    )
+    expired_tenders = cur.execute(
+        text("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
+    ).fetchone()[0]
+    monthly_sales = cur.execute(
+        text(
+            "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
+            "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
+        )
+    ).fetchone()[0]
     cur.close()
     conn.close()
     return {
@@ -170,8 +180,10 @@ def generate_report(idempotency_key=None):
 def expire_tenders(idempotency_key=None):
     conn = get_db()
     conn.execute(
-        "UPDATE tenders SET status = 'expired' "
-        "WHERE due_date < DATE('now') AND status IS NULL"
+        text(
+            "UPDATE tenders SET status = 'expired' "
+            "WHERE due_date < CURRENT_DATE AND status IS NULL"
+        )
     )
     conn.commit()
     conn.close()
