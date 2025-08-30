@@ -5,9 +5,9 @@
 <h2>Message Support</h2>
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-            {% for message in messages %}
-                <p style="color: red;">{{ message }}</p>
-            {% endfor %}
+              {% for message in messages %}
+                  <p class="text-danger">{{ message }}</p>
+              {% endfor %}
         {% endif %}
     {% endwith %}
     <form method="POST" class="needs-validation" novalidate>

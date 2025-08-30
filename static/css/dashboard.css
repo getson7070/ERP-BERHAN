@@ -48,3 +48,7 @@ body {
     background-color: #1e1e1e;
     color: #f8f9fa;
 }
+
+.max-w-400 {
+    max-width: 400px;
+}

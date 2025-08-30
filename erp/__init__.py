@@ -274,8 +274,8 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": ["'self'"],  # add nonce via Talisman content_security_policy_nonce_in
-        "style-src": ["'self'", "'unsafe-inline'"],  # or switch to hashed styles if feasible
+        "script-src": ["'self'"],
+        "style-src": ["'self'"],
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
         "frame-ancestors": ["'none'"],
@@ -286,6 +286,16 @@ def create_app():
         content_security_policy_nonce_in=["script-src", "style-src"],
         force_https=True,
     )
+
+    @app.before_request
+    def _waf():
+        pattern = "<script"
+        if any(pattern in v.lower() for v in request.args.values()):
+            return "blocked", 400
+        if request.method in {"POST", "PUT", "PATCH"}:
+            data = request.get_data(as_text=True, parse_form_data=False)
+            if pattern in data.lower():
+                return "blocked", 400
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
