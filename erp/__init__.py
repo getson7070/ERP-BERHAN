@@ -275,21 +275,11 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": [
-            "'self'",
-            "https://cdn.jsdelivr.net",
-            "https://cdn.socket.io",
-            "https://cdnjs.cloudflare.com",
-            "https://unpkg.com",
-        ],
-        "style-src": [
-            "'self'",
-            "https://cdn.jsdelivr.net",
-            "https://cdnjs.cloudflare.com",
-        ],
+        "script-src": ["'self'"],  # add nonce via Talisman content_security_policy_nonce_in
+        "style-src": ["'self'", "'unsafe-inline'"],  # or switch to hashed styles if feasible
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
-        "frame-ancestors": "'none'",
+        "frame-ancestors": ["'none'"],
     }
     Talisman(
         app,
