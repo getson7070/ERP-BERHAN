@@ -1,5 +1,6 @@
 from datetime import datetime, UTC
 import hashlib
+from sqlalchemy import text
 from db import get_db
 from erp import AUDIT_CHAIN_BROKEN
 
@@ -7,23 +8,33 @@ from erp import AUDIT_CHAIN_BROKEN
 def log_audit(user_id: int | None, org_id: int | None, action: str, details: str = "") -> None:
     """Record an auditable event with hash-chaining for tamper evidence."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1")
-    prev = cur.fetchone()
+    prev = conn.execute(
+        text("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1")
+    ).fetchone()
     prev_hash = prev[0] if prev else ""
     timestamp = datetime.now(UTC)
     record = f"{prev_hash}{user_id}{org_id}{action}{details}{timestamp.isoformat()}"
     current_hash = hashlib.sha256(record.encode()).hexdigest()
     try:
-        cur.execute(
-            "INSERT INTO audit_logs (user_id, org_id, action, details, prev_hash, hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, org_id, action, details, prev_hash, current_hash, timestamp),
+        conn.execute(
+            text(
+                "INSERT INTO audit_logs (user_id, org_id, action, details, prev_hash, hash, created_at) "
+                "VALUES (:user_id, :org_id, :action, :details, :prev_hash, :hash, :created_at)"
+            ),
+            {
+                "user_id": user_id,
+                "org_id": org_id,
+                "action": action,
+                "details": details,
+                "prev_hash": prev_hash,
+                "hash": current_hash,
+                "created_at": timestamp,
+            },
         )
         conn.commit()
     except Exception:
         conn.rollback()
     finally:
-        cur.close()
         conn.close()
 
 

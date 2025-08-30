@@ -14,6 +14,7 @@ from erp.routes.analytics import celery  # reuse analytics Celery instance
 from erp.utils import task_idempotent
 from db import get_db
 from scripts.access_recert_export import export as export_recert
+from sqlalchemy import text
 
 
 @celery.on_after_finalize.connect
@@ -40,15 +41,14 @@ def purge_expired_records(idempotency_key: str | None = None) -> int:
     """Delete rows past their retention window."""
     now = datetime.now(UTC)
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "DELETE FROM audit_logs WHERE retain_until < ?",
-        (now,),
+    cur = conn.execute(
+        text("DELETE FROM audit_logs WHERE retain_until < :now"),
+        {"now": now},
     )
     purged_logs = cur.rowcount
-    cur.execute(
-        "DELETE FROM users WHERE retain_until < ?",
-        (now,),
+    cur = conn.execute(
+        text("DELETE FROM users WHERE retain_until < :now"),
+        {"now": now},
     )
     purged_users = cur.rowcount
     conn.commit()
@@ -62,17 +62,18 @@ def anonymize_users(idempotency_key: str | None = None) -> int:
     """Hash email addresses for inactive users marked for anonymization."""
     now = datetime.now(UTC)
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, email FROM users WHERE active = 0 AND anonymized = 0 AND retain_until < ?",
-        (now,),
-    )
-    rows = cur.fetchall()
+    rows = conn.execute(
+        text(
+            "SELECT id, email FROM users "
+            "WHERE active = 0 AND anonymized = 0 AND retain_until < :now"
+        ),
+        {"now": now},
+    ).fetchall()
     for user_id, email in rows:
         digest = hashlib.sha256(email.encode()).hexdigest()
-        cur.execute(
-            "UPDATE users SET email = ?, anonymized = 1 WHERE id = ?",
-            (digest, user_id),
+        conn.execute(
+            text("UPDATE users SET email = :email, anonymized = 1 WHERE id = :id"),
+            {"email": digest, "id": user_id},
         )
     conn.commit()
     conn.close()

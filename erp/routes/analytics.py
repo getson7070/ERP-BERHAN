@@ -29,24 +29,28 @@ celery = Celery(__name__)
 
 def fetch_kpis():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM orders WHERE status = %s", ("pending",))
-    pending_orders = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM maintenance WHERE status = %s", ("pending",))
-    pending_maintenance = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
-    expired_tenders = cur.fetchone()[0]
-    cur.execute(
-        "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
-        "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
-    )
-    monthly_sales = cur.fetchone()[0]
-    cur.close()
+    pending_orders = conn.execute(
+        text("SELECT COUNT(*) FROM orders WHERE status = :status"),
+        {"status": "pending"},
+    ).scalar()
+    pending_maintenance = conn.execute(
+        text("SELECT COUNT(*) FROM maintenance WHERE status = :status"),
+        {"status": "pending"},
+    ).scalar()
+    expired_tenders = conn.execute(
+        text("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
+    ).scalar()
+    monthly_sales = conn.execute(
+        text(
+            "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
+            "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
+        )
+    ).scalar()
     conn.close()
     return {
-        "pending_orders": pending_orders,
-        "pending_maintenance": pending_maintenance,
-        "expired_tenders": expired_tenders,
+        "pending_orders": pending_orders or 0,
+        "pending_maintenance": pending_maintenance or 0,
+        "expired_tenders": expired_tenders or 0,
         "monthly_sales": float(monthly_sales or 0),
     }
 
@@ -170,8 +174,10 @@ def generate_report(idempotency_key=None):
 def expire_tenders(idempotency_key=None):
     conn = get_db()
     conn.execute(
-        "UPDATE tenders SET status = 'expired' "
-        "WHERE due_date < DATE('now') AND status IS NULL"
+        text(
+            "UPDATE tenders SET status = 'expired' "
+            "WHERE due_date < CURRENT_DATE AND status IS NULL"
+        )
     )
     conn.commit()
     conn.close()
@@ -181,38 +187,33 @@ def expire_tenders(idempotency_key=None):
 @task_idempotent
 def refresh_kpis(idempotency_key=None):
     conn = get_db()
-    cur = conn.cursor()
     dialect = conn._dialect.name
-    placeholder = "?" if dialect == "sqlite" else "%s"
     date_expr = (
-        "strftime('%Y-%m-01', order_date)"
-        if dialect == "sqlite"
-        else "DATE_TRUNC('month', order_date)"
+        "strftime('%Y-%m-01', order_date)" if dialect == "sqlite" else "DATE_TRUNC('month', order_date)"
     )
-    cur.execute("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)")
-    cur.execute(
-        "SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log"
+    conn.execute(text("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)"))
+    last_refresh = conn.execute(
+        text("SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log")
+    ).fetchone()[0]
+    conn.execute(
+        text(
+            f"""
+            INSERT INTO kpi_sales (month, total_sales)
+            SELECT {date_expr} AS month, SUM(total_amount) AS total_sales
+            FROM orders
+            WHERE order_date >= :last_refresh
+            GROUP BY 1
+            ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
+            """
+        ),
+        {"last_refresh": last_refresh},
     )
-    last_refresh = cur.fetchone()[0]
-    cur.execute(
-        f"""
-        INSERT INTO kpi_sales (month, total_sales)
-        SELECT {date_expr} AS month, SUM(total_amount) AS total_sales
-        FROM orders
-        WHERE order_date >= {placeholder}
-        GROUP BY 1
-        ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
-        """,
-        (last_refresh,),
-    )
-    cur.execute("SELECT MAX(order_date) FROM orders")
-    new_last = cur.fetchone()[0] or last_refresh
-    cur.execute(
-        f"INSERT INTO kpi_refresh_log (last_refresh) VALUES ({placeholder})",
-        (new_last,),
+    new_last = conn.execute(text("SELECT MAX(order_date) FROM orders")).fetchone()[0] or last_refresh
+    conn.execute(
+        text("INSERT INTO kpi_refresh_log (last_refresh) VALUES (:last_refresh)"),
+        {"last_refresh": new_last},
     )
     conn.commit()
-    cur.close()
     conn.close()
     socketio.emit("kpi_update", fetch_kpis())
     kpi_staleness_seconds()

@@ -30,6 +30,7 @@ import csv  # For client list integration
 import os
 from db import get_db
 import sqlite3
+from sqlalchemy import text
 
 
 ph = PasswordHasher()
@@ -135,7 +136,13 @@ class BotState(IntEnum):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = str(update.effective_user.id)
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE (tin = ? OR username = ?) AND user_type = ? AND approved_by_ceo = TRUE', (user_id, user_id, 'employee')).fetchone()
+    user = conn.execute(
+        text(
+            "SELECT * FROM users WHERE (tin = :identifier OR username = :identifier) "
+            "AND user_type = :user_type AND approved_by_ceo = TRUE"
+        ),
+        {"identifier": user_id, "user_type": "employee"},
+    ).fetchone()
     conn.close()
     if user:
         await update.message.reply_text('You are pre-registered. Use /employee_login to log in.')
@@ -155,7 +162,13 @@ async def get_employee_username(update: Update, context: ContextTypes.DEFAULT_TY
 async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE user_type = ? AND username = ? AND approved_by_ceo = TRUE', ('employee', context.user_data['username'])).fetchone()
+    user = conn.execute(
+        text(
+            "SELECT * FROM users WHERE user_type = :user_type "
+            "AND username = :username AND approved_by_ceo = TRUE"
+        ),
+        {"user_type": "employee", "username": context.user_data['username']},
+    ).fetchone()
     conn.close()
     if user and verify_password(password, user['password_hash']):
         context.user_data['logged_in'] = True
@@ -164,7 +177,10 @@ async def get_employee_password(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['username'] = context.user_data['username']
         context.user_data['permissions'] = user['permissions'].split(',') if user['permissions'] else []
         conn = get_db()
-        conn.execute('UPDATE users SET last_login = ? WHERE username = ?', (datetime.now(), context.user_data['username']))
+        conn.execute(
+            text("UPDATE users SET last_login = :last_login WHERE username = :username"),
+            {"last_login": datetime.now(), "username": context.user_data['username']},
+        )
         conn.commit()
         conn.close()
         await update.message.reply_text('Logged in successfully. Use /dashboard to see menu.')
@@ -186,7 +202,13 @@ async def get_client_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     password = update.message.text
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE user_type = ? AND email = ? AND approved_by_ceo = TRUE', ('client', context.user_data['email'])).fetchone()
+    user = conn.execute(
+        text(
+            "SELECT * FROM users WHERE user_type = :user_type "
+            "AND email = :email AND approved_by_ceo = TRUE"
+        ),
+        {"user_type": "client", "email": context.user_data['email']},
+    ).fetchone()
     conn.close()
     if user and verify_password(password, user['password_hash']):
         context.user_data['logged_in'] = True
@@ -195,7 +217,10 @@ async def get_client_password(update: Update, context: ContextTypes.DEFAULT_TYPE
         context.user_data['username'] = context.user_data['email']
         context.user_data['permissions'] = user['permissions'].split(',') if user['permissions'] else []
         conn = get_db()
-        conn.execute('UPDATE users SET last_login = ? WHERE email = ?', (datetime.now(), context.user_data['email']))
+        conn.execute(
+            text("UPDATE users SET last_login = :last_login WHERE email = :email"),
+            {"last_login": datetime.now(), "email": context.user_data['email']},
+        )
         conn.commit()
         conn.close()
         await update.message.reply_text('Logged in successfully. Use /dashboard to see menu.')
@@ -217,19 +242,36 @@ async def get_client_reg_tin(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data['tin'] = tin
     conn = get_db()
     client_info = check_client_list(tin)
-    conn.close()
-    if client_info and not conn.execute('SELECT * FROM users WHERE tin = ?', (tin,)).fetchone():
+    if client_info and not conn.execute(
+        text("SELECT 1 FROM users WHERE tin = :tin"), {"tin": tin}
+    ).fetchone():
         context.user_data['phone'] = client_info['phone']
         context.user_data['email'] = client_info['email']
-        await update.message.reply_text(f'Client {client_info["name"]} with TIN {tin} found. Enter institution name:')
+        await update.message.reply_text(
+            f'Client {client_info["name"]} with TIN {tin} found. Enter institution name:'
+        )
+        conn.close()
         return BotState.CLIENT_REG_INST
-    elif conn.execute('SELECT * FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone():
-        user = conn.execute('SELECT institution_name, tin FROM users WHERE tin = ? OR email = ?', (tin, client_info['email'] if client_info else '')).fetchone()
+    elif conn.execute(
+        text("SELECT 1 FROM users WHERE tin = :tin OR email = :email"),
+        {"tin": tin, "email": client_info['email'] if client_info else ""},
+    ).fetchone():
+        user = conn.execute(
+            text(
+                "SELECT institution_name, tin FROM users WHERE tin = :tin OR email = :email"
+            ),
+            {"tin": tin, "email": client_info['email'] if client_info else ""},
+        ).fetchone()
         if user['tin'] and user['institution_name']:
-            await update.message.reply_text(f'Client {user["institution_name"]} with TIN {tin} already exists. Log in or use /message to contact support.')
+            await update.message.reply_text(
+                f'Client {user["institution_name"]} with TIN {tin} already exists. Log in or use /message to contact support.'
+            )
+            conn.close()
             return ConversationHandler.END
         await update.message.reply_text('TIN or email already registered. Try /client_registration again.')
+        conn.close()
         return ConversationHandler.END
+    conn.close()
     await update.message.reply_text('Enter institution name:')
     return BotState.CLIENT_REG_INST
 
@@ -246,7 +288,7 @@ async def get_client_reg_addr(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def get_client_reg_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['phone'] = update.message.text
     conn = get_db()
-    regions = [row['region'] for row in conn.execute('SELECT DISTINCT region FROM regions_cities').fetchall()]
+    regions = [row['region'] for row in conn.execute(text('SELECT DISTINCT region FROM regions_cities')).fetchall()]
     conn.close()
     keyboard = [[KeyboardButton(region) for region in regions[i:i+2]] for i in range(0, len(regions), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -256,7 +298,13 @@ async def get_client_reg_phone(update: Update, context: ContextTypes.DEFAULT_TYP
 async def get_client_reg_region(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['region'] = update.message.text
     conn = get_db()
-    cities = [row['city'] for row in conn.execute('SELECT city FROM regions_cities WHERE region = ?', (context.user_data['region'],)).fetchall()]
+    cities = [
+        row['city']
+        for row in conn.execute(
+            text('SELECT city FROM regions_cities WHERE region = :region'),
+            {"region": context.user_data['region']},
+        ).fetchall()
+    ]
     conn.close()
     keyboard = [[KeyboardButton(city) for city in cities[i:i+2]] for i in range(0, len(cities), 2)]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
@@ -278,12 +326,27 @@ async def get_client_reg_pass(update: Update, context: ContextTypes.DEFAULT_TYPE
     conn = get_db()
     password_hash = hash_password(password)
     try:
-        conn.execute('''
-            INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', ('client', context.user_data['tin'], context.user_data['institution_name'], context.user_data['address'],
-              context.user_data['phone'], context.user_data['region'], context.user_data['city'], context.user_data['email'],
-              password_hash, 'put_order,my_approved_orders,order_status,maintenance_request,maintenance_status,message', False))
+        conn.execute(
+            text(
+                """
+                INSERT INTO users (user_type, tin, institution_name, address, phone, region, city, email, password_hash, permissions, approved_by_ceo)
+                VALUES (:user_type, :tin, :institution_name, :address, :phone, :region, :city, :email, :password_hash, :permissions, :approved)
+                """
+            ),
+            {
+                "user_type": "client",
+                "tin": context.user_data['tin'],
+                "institution_name": context.user_data['institution_name'],
+                "address": context.user_data['address'],
+                "phone": context.user_data['phone'],
+                "region": context.user_data['region'],
+                "city": context.user_data['city'],
+                "email": context.user_data['email'],
+                "password_hash": password_hash,
+                "permissions": 'put_order,my_approved_orders,order_status,maintenance_request,maintenance_status,message',
+                "approved": False,
+            },
+        )
         conn.commit()
         await update.message.reply_text('Registration submitted. Awaiting management approval.')
         logger.info("Client registration submitted: %s", context.user_data['tin'])
@@ -294,7 +357,10 @@ async def get_client_reg_pass(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def employee_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
-    user = conn.execute('SELECT permissions FROM users WHERE username = ?', (context.user_data.get('username', ''),)).fetchone()
+    user = conn.execute(
+        text('SELECT permissions FROM users WHERE username = :username'),
+        {"username": context.user_data.get('username', '')},
+    ).fetchone()
     conn.close()
     if not user or 'user_management' not in user['permissions'].split(','):
         await update.message.reply_text('Access denied. Only management can register employees.')
@@ -336,11 +402,24 @@ async def get_employee_reg_salary(update: Update, context: ContextTypes.DEFAULT_
     conn = get_db()
     password_hash = hash_password(context.user_data['password'])
     try:
-        conn.execute('''
-            INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, position, hire_date, salary)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', ('employee', context.user_data['username'], password_hash, ','.join(context.user_data['permissions']),
-              False, context.user_data['position'], context.user_data['hire_date'], context.user_data['salary']))
+        conn.execute(
+            text(
+                """
+                INSERT INTO users (user_type, username, password_hash, permissions, approved_by_ceo, position, hire_date, salary)
+                VALUES (:user_type, :username, :password_hash, :permissions, :approved, :position, :hire_date, :salary)
+                """
+            ),
+            {
+                "user_type": "employee",
+                "username": context.user_data['username'],
+                "password_hash": password_hash,
+                "permissions": ','.join(context.user_data['permissions']),
+                "approved": False,
+                "position": context.user_data['position'],
+                "hire_date": context.user_data['hire_date'],
+                "salary": context.user_data['salary'],
+            },
+        )
         conn.commit()
         await update.message.reply_text('Employee registration submitted. Awaiting approval.')
         logger.info("Employee registration submitted: %s", context.user_data['username'])
@@ -356,9 +435,15 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def get_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message.text
     conn = get_db()
-    user = conn.execute('SELECT tin FROM users WHERE email = ?', (context.user_data.get('email', ''),)).fetchone()
+    user = conn.execute(
+        text('SELECT tin FROM users WHERE email = :email'),
+        {"email": context.user_data.get('email', '')},
+    ).fetchone()
     if user:
-        conn.execute('INSERT INTO messages (tin, message, date) VALUES (?, ?, ?)', (user['tin'], message, datetime.now()))
+        conn.execute(
+            text('INSERT INTO messages (tin, message, date) VALUES (:tin, :message, :date)'),
+            {"tin": user['tin'], "message": message, "date": datetime.now()},
+        )
         conn.commit()
         await update.message.reply_text('Message sent to support successfully.')
     else:
@@ -641,13 +726,27 @@ async def get_follow_up_details(update: Update, context: ContextTypes.DEFAULT_TY
 async def save_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     conn = get_db()
     sales_rep = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    conn.execute('''
-    INSERT INTO reports (institution, location, owner, phone, visit_date, interested_products, outcome, sale_amount, visit_type, follow_up_details, sales_rep)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (context.user_data['institution'], context.user_data['location'], '', context.user_data['phone'],
-          context.user_data['visit_date'], context.user_data['interested_products'], context.user_data['outcome'],
-          context.user_data.get('sale_amount'), context.user_data['visit_type'], context.user_data.get('follow_up_details'),
-          sales_rep))
+    conn.execute(
+        text(
+            """
+            INSERT INTO reports (institution, location, owner, phone, visit_date, interested_products, outcome, sale_amount, visit_type, follow_up_details, sales_rep)
+            VALUES (:institution, :location, :owner, :phone, :visit_date, :interested_products, :outcome, :sale_amount, :visit_type, :follow_up_details, :sales_rep)
+            """
+        ),
+        {
+            "institution": context.user_data['institution'],
+            "location": context.user_data['location'],
+            "owner": "",
+            "phone": context.user_data['phone'],
+            "visit_date": context.user_data['visit_date'],
+            "interested_products": context.user_data['interested_products'],
+            "outcome": context.user_data['outcome'],
+            "sale_amount": context.user_data.get('sale_amount'),
+            "visit_type": context.user_data['visit_type'],
+            "follow_up_details": context.user_data.get('follow_up_details'),
+            "sales_rep": sales_rep,
+        },
+    )
     conn.commit()
     await update.message.reply_text('Report submitted successfully.')
     logger.info("Report submitted by %s", sales_rep)
@@ -659,7 +758,12 @@ async def my_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     conn = get_db()
     sales_rep = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    reports = conn.execute('SELECT institution, visit_date, outcome, visit_type FROM reports WHERE sales_rep = ? ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    reports = conn.execute(
+        text(
+            'SELECT institution, visit_date, outcome, visit_type FROM reports WHERE sales_rep = :sales_rep ORDER BY id DESC LIMIT 5'
+        ),
+        {"sales_rep": sales_rep},
+    ).fetchall()
     conn.close()
     if not reports:
         await update.message.reply_text('No reports found.')
@@ -718,14 +822,27 @@ async def get_inventory_cat(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def save_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     conn = get_db()
     initials = ''.join(word[0].upper() for word in context.user_data['brand'].split())
-    seq = conn.execute('SELECT COUNT(*) FROM inventory').fetchone()[0] + 1
+    seq = conn.execute(text('SELECT COUNT(*) FROM inventory')).fetchone()[0] + 1
     item_code = f"{context.user_data['category'][:3].upper()}-{initials}-{context.user_data['pack_size']}-{seq:04d}"
     user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    conn.execute('''
-    INSERT INTO inventory (item_code, description, pack_size, brand, type, exp_date, category, stock)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (item_code, context.user_data['description'], context.user_data['pack_size'], context.user_data['brand'],
-          context.user_data['type'], context.user_data.get('exp_date'), context.user_data['category'], 0))
+    conn.execute(
+        text(
+            """
+            INSERT INTO inventory (item_code, description, pack_size, brand, type, exp_date, category, stock)
+            VALUES (:item_code, :description, :pack_size, :brand, :type, :exp_date, :category, :stock)
+            """
+        ),
+        {
+            "item_code": item_code,
+            "description": context.user_data['description'],
+            "pack_size": context.user_data['pack_size'],
+            "brand": context.user_data['brand'],
+            "type": context.user_data['type'],
+            "exp_date": context.user_data.get('exp_date'),
+            "category": context.user_data['category'],
+            "stock": 0,
+        },
+    )
     conn.commit()
     await update.message.reply_text('Inventory item added successfully.')
     logger.info("Inventory added by %s", user)
@@ -748,7 +865,10 @@ async def receive_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def get_receive_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
-    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    context.user_data['item_id'] = conn.execute(
+        text('SELECT id FROM inventory WHERE item_code = :code'),
+        {"code": update.message.text},
+    ).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity to receive:')
     return BotState.RECEIVE_QTY
@@ -760,12 +880,25 @@ async def get_receive_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text('Please enter a valid number for quantity.')
         return BotState.RECEIVE_QTY
     conn = get_db()
-    conn.execute('UPDATE inventory SET stock = stock + ? WHERE id = ?', (context.user_data['quantity'], context.user_data['item_id']))
+    conn.execute(
+        text('UPDATE inventory SET stock = stock + :qty WHERE id = :id'),
+        {"qty": context.user_data['quantity'], "id": context.user_data['item_id']},
+    )
     user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    conn.execute('''
-    INSERT INTO inventory_movements (item_id, quantity, action, date, user)
-    VALUES (?, ?, 'Receive', ?, ?)
-    ''', (context.user_data['item_id'], context.user_data['quantity'], datetime.now(), user))
+    conn.execute(
+        text(
+            """
+            INSERT INTO inventory_movements (item_id, quantity, action, date, user)
+            VALUES (:item_id, :quantity, 'Receive', :date, :user)
+            """
+        ),
+        {
+            "item_id": context.user_data['item_id'],
+            "quantity": context.user_data['quantity'],
+            "date": datetime.now(),
+            "user": user,
+        },
+    )
     conn.commit()
     await update.message.reply_text('Inventory received successfully.')
     conn.close()
@@ -788,7 +921,10 @@ async def inventory_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def get_out_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
-    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    context.user_data['item_id'] = conn.execute(
+        text('SELECT id FROM inventory WHERE item_code = :code'),
+        {"code": update.message.text},
+    ).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity to move out:')
     return BotState.OUT_QTY
@@ -800,7 +936,10 @@ async def get_out_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.message.reply_text('Please enter a valid number for quantity.')
         return BotState.OUT_QTY
     conn = get_db()
-    stock = conn.execute('SELECT stock FROM inventory WHERE id = ?', (context.user_data['item_id'],)).fetchone()['stock']
+    stock = conn.execute(
+        text('SELECT stock FROM inventory WHERE id = :id'),
+        {"id": context.user_data['item_id']},
+    ).fetchone()['stock']
     conn.close()
     if stock < context.user_data['quantity']:
         await update.message.reply_text('Insufficient stock.')
@@ -830,13 +969,27 @@ async def get_out_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def get_out_subaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['sub_action'] = update.message.text
     conn = get_db()
-    conn.execute('UPDATE inventory SET stock = stock - ? WHERE id = ?', (context.user_data['quantity'], context.user_data['item_id']))
+    conn.execute(
+        text('UPDATE inventory SET stock = stock - :qty WHERE id = :id'),
+        {"qty": context.user_data['quantity'], "id": context.user_data['item_id']},
+    )
     user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    conn.execute('''
-    INSERT INTO inventory_movements (item_id, quantity, action, sub_action, date, user)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ''', (context.user_data['item_id'], context.user_data['quantity'], context.user_data['action'],
-          context.user_data['sub_action'], datetime.now(), user))
+    conn.execute(
+        text(
+            """
+            INSERT INTO inventory_movements (item_id, quantity, action, sub_action, date, user)
+            VALUES (:item_id, :quantity, :action, :sub_action, :date, :user)
+            """
+        ),
+        {
+            "item_id": context.user_data['item_id'],
+            "quantity": context.user_data['quantity'],
+            "action": context.user_data['action'],
+            "sub_action": context.user_data['sub_action'],
+            "date": datetime.now(),
+            "user": user,
+        },
+    )
     conn.commit()
     await update.message.reply_text('Inventory out recorded successfully.')
     conn.close()
@@ -873,7 +1026,10 @@ async def add_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def get_tender_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
-    context.user_data['tender_type_id'] = conn.execute('SELECT id FROM tender_types WHERE type_name = ?', (update.message.text,)).fetchone()['id']
+    context.user_data['tender_type_id'] = conn.execute(
+        text('SELECT id FROM tender_types WHERE type_name = :name'),
+        {"name": update.message.text},
+    ).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter description:')
     return BotState.TENDER_DESC
@@ -924,12 +1080,26 @@ async def get_tender_fin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def save_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     conn = get_db()
     user = context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin']
-    conn.execute('''
-    INSERT INTO tenders (tender_type_id, description, due_date, status, user, institution, envelope_type, private_key, tech_key, fin_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (context.user_data['tender_type_id'], context.user_data['description'], context.user_data['due_date'],
-          'Open', user, context.user_data.get('institution'), context.user_data['envelope_type'],
-          context.user_data.get('private_key'), context.user_data.get('tech_key'), context.user_data.get('fin_key')))
+    conn.execute(
+        text(
+            """
+            INSERT INTO tenders (tender_type_id, description, due_date, status, user, institution, envelope_type, private_key, tech_key, fin_key)
+            VALUES (:tender_type_id, :description, :due_date, :status, :user, :institution, :envelope_type, :private_key, :tech_key, :fin_key)
+            """
+        ),
+        {
+            "tender_type_id": context.user_data['tender_type_id'],
+            "description": context.user_data['description'],
+            "due_date": context.user_data['due_date'],
+            "status": 'Open',
+            "user": user,
+            "institution": context.user_data.get('institution'),
+            "envelope_type": context.user_data['envelope_type'],
+            "private_key": context.user_data.get('private_key'),
+            "tech_key": context.user_data.get('tech_key'),
+            "fin_key": context.user_data.get('fin_key'),
+        },
+    )
     conn.commit()
     await update.message.reply_text('Tender added successfully.')
     logger.info("Tender added by %s", user)
@@ -1000,7 +1170,10 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def get_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     conn = get_db()
-    context.user_data['item_id'] = conn.execute('SELECT id FROM inventory WHERE item_code = ?', (update.message.text,)).fetchone()['id']
+    context.user_data['item_id'] = conn.execute(
+        text('SELECT id FROM inventory WHERE item_code = :code'),
+        {"code": update.message.text},
+    ).fetchone()['id']
     conn.close()
     await update.message.reply_text('Enter quantity:')
     return BotState.ORDER_QTY
@@ -1027,11 +1200,21 @@ async def get_order_vat_exempt(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data['vat_exempt'] = update.message.text.lower() == 'yes'
     conn = get_db()
     sales_rep = context.user_data['tin']
-    conn.execute('''
-    INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt)
-    VALUES (?, ?, ?, ?, ?)
-    ''', (context.user_data['item_id'], context.user_data['quantity'], context.user_data['customer'],
-          sales_rep, context.user_data['vat_exempt']))
+    conn.execute(
+        text(
+            """
+            INSERT INTO orders (item_id, quantity, customer, sales_rep, vat_exempt)
+            VALUES (:item_id, :quantity, :customer, :sales_rep, :vat_exempt)
+            """
+        ),
+        {
+            "item_id": context.user_data['item_id'],
+            "quantity": context.user_data['quantity'],
+            "customer": context.user_data['customer'],
+            "sales_rep": sales_rep,
+            "vat_exempt": context.user_data['vat_exempt'],
+        },
+    )
     conn.commit()
     await update.message.reply_text('Order placed successfully, pending approval.')
     conn.close()
@@ -1043,7 +1226,10 @@ async def my_approved_orders(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     conn = get_db()
     sales_rep = context.user_data['tin']
-    orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? AND status = "approved" ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    orders = conn.execute(
+        text('SELECT * FROM orders WHERE sales_rep = :sales_rep AND status = "approved" ORDER BY id DESC LIMIT 5'),
+        {"sales_rep": sales_rep},
+    ).fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text('No approved orders found.')
@@ -1060,7 +1246,10 @@ async def order_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
     conn = get_db()
     sales_rep = context.user_data['tin']
-    orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? ORDER BY id DESC LIMIT 5', (sales_rep,)).fetchall()
+    orders = conn.execute(
+        text('SELECT * FROM orders WHERE sales_rep = :sales_rep ORDER BY id DESC LIMIT 5'),
+        {"sales_rep": sales_rep},
+    ).fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text('No orders found.')
@@ -1091,10 +1280,21 @@ async def get_maintenance_type(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data['type'] = update.message.text
     conn = get_db()
     user = context.user_data['tin']
-    conn.execute('''
-    INSERT INTO maintenance (equipment_id, request_date, type, status, user)
-    VALUES (?, ?, ?, ?, ?)
-    ''', (context.user_data['equipment_id'], datetime.now(), context.user_data['type'], 'pending', user))
+    conn.execute(
+        text(
+            """
+            INSERT INTO maintenance (equipment_id, request_date, type, status, user)
+            VALUES (:equipment_id, :request_date, :type, :status, :user)
+            """
+        ),
+        {
+            "equipment_id": context.user_data['equipment_id'],
+            "request_date": datetime.now(),
+            "type": context.user_data['type'],
+            "status": 'pending',
+            "user": user,
+        },
+    )
     conn.commit()
     await update.message.reply_text('Maintenance request submitted.')
     conn.close()
@@ -1106,7 +1306,10 @@ async def maintenance_status(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     conn = get_db()
     user = context.user_data['tin']
-    maintenance = conn.execute('SELECT * FROM maintenance WHERE user = ? ORDER BY request_date DESC LIMIT 5', (user,)).fetchall()
+    maintenance = conn.execute(
+        text('SELECT * FROM maintenance WHERE user = :user ORDER BY request_date DESC LIMIT 5'),
+        {"user": user},
+    ).fetchall()
     conn.close()
     if not maintenance:
         await update.message.reply_text('No maintenance requests found.')
@@ -1144,8 +1347,14 @@ async def get_maintenance_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def get_maintenance_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['report'] = update.message.text
     conn = get_db()
-    conn.execute('UPDATE maintenance SET status = "completed", report = ?, user = ? WHERE id = ?',
-                 (context.user_data['report'], context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin'], context.user_data['maintenance_id']))
+    conn.execute(
+        text('UPDATE maintenance SET status = "completed", report = :report, user = :user WHERE id = :id'),
+        {
+            "report": context.user_data['report'],
+            "user": context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin'],
+            "id": context.user_data['maintenance_id'],
+        },
+    )
     conn.commit()
     await update.message.reply_text('Maintenance followed up successfully.')
     conn.close()
@@ -1157,9 +1366,12 @@ async def view_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return ConversationHandler.END
     conn = get_db()
     if context.user_data['tin'] is None:  # Management
-        orders = conn.execute('SELECT * FROM orders ORDER BY id DESC LIMIT 10').fetchall()
+        orders = conn.execute(text('SELECT * FROM orders ORDER BY id DESC LIMIT 10')).fetchall()
     else:
-        orders = conn.execute('SELECT * FROM orders WHERE sales_rep = ? ORDER BY id DESC LIMIT 10', (context.user_data['tin'],)).fetchall()
+        orders = conn.execute(
+            text('SELECT * FROM orders WHERE sales_rep = :sales_rep ORDER BY id DESC LIMIT 10'),
+            {"sales_rep": context.user_data['tin']},
+        ).fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text('No orders found.')
