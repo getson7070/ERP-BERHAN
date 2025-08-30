@@ -7,9 +7,10 @@ bp = Blueprint("health", __name__)
 
 def _ping_db() -> bool:
     try:
-        from db import engine
-        with engine.connect() as conn:
-            conn.execute("SELECT 1")
+        from db import get_engine
+        from sqlalchemy import text
+        with get_engine().connect() as conn:
+            conn.execute(text("SELECT 1"))
         return True
     except Exception:
         return False

@@ -188,30 +188,35 @@ def expire_tenders(idempotency_key=None):
 def refresh_kpis(idempotency_key=None):
     conn = get_db()
     dialect = conn._dialect.name
-    date_expr = (
-        "strftime('%Y-%m-01', order_date)"
-        if dialect == "sqlite"
-        else "DATE_TRUNC('month', order_date)"
-    )
     conn.execute(text("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)"))
     last_refresh = conn.execute(
         text(
             "SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log"
         )
     ).fetchone()[0]
-    conn.execute(
-        text(
-            f"""
+    if dialect == "sqlite":
+        sales_sql = text(
+            """
             INSERT INTO kpi_sales (month, total_sales)
-            SELECT {date_expr} AS month, SUM(total_amount) AS total_sales
+            SELECT strftime('%Y-%m-01', order_date) AS month, SUM(total_amount) AS total_sales
             FROM orders
             WHERE order_date >= :last_refresh
             GROUP BY 1
             ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
             """
-        ),
-        {"last_refresh": last_refresh},
-    )
+        )
+    else:
+        sales_sql = text(
+            """
+            INSERT INTO kpi_sales (month, total_sales)
+            SELECT DATE_TRUNC('month', order_date) AS month, SUM(total_amount) AS total_sales
+            FROM orders
+            WHERE order_date >= :last_refresh
+            GROUP BY 1
+            ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
+            """
+        )
+    conn.execute(sales_sql, {"last_refresh": last_refresh})
     new_last = (
         conn.execute(text("SELECT MAX(order_date) FROM orders")).fetchone()[0]
         or last_refresh

@@ -118,8 +118,8 @@ def log_access(
         try:
             cur.close()
             conn.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning("failed to close db connection", exc_info=exc)
 
 
 @signals.task_failure.connect
@@ -154,9 +154,8 @@ def _record_queue_depth(*args: Any, **kwargs: Any) -> None:
         else:
             backlog = cast(int, raw)
         QUEUE_LAG.labels("celery").set(float(backlog))
-    except Exception:
-        # Logging is avoided here to keep signal lightweight; failures are non-fatal.
-        pass
+    except Exception as exc:
+        current_app.logger.warning("queue lag metric update failed", exc_info=exc)
 
 
 REQUEST_COUNT = Counter(
@@ -385,8 +384,8 @@ def create_app():
         KPI_SALES_MV_AGE.set(analytics.kpi_staleness_seconds())
         try:
             QUEUE_LAG.labels("celery").set(redis_client.llen("celery"))
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning("queue lag metric update failed", exc_info=exc)
         return Response(generate_latest(registry), mimetype=CONTENT_TYPE_LATEST)
 
     @app.errorhandler(401)
