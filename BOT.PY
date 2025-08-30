@@ -1227,13 +1227,11 @@ async def my_approved_orders(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     conn = get_db()
     sales_rep = context.user_data['tin']
-    cur = conn.cursor()
-    safe_execute(
-        cur,
+    orders = safe_execute(
+        conn,
         "SELECT * FROM orders WHERE sales_rep = ? AND status = ? ORDER BY id DESC LIMIT 5",
         (sales_rep, 'approved'),
-    )
-    orders = cur.fetchall()
+    ).fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text('No approved orders found.')
@@ -1329,10 +1327,11 @@ async def maintenance_followup(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text('Access denied. Missing maintenance_followup permission.')
         return ConversationHandler.END
     conn = get_db()
-    cur = conn.cursor()
-    sql = "SELECT * FROM maintenance WHERE status = ? LIMIT 5"
-    safe_execute(cur, sql, ('pending',))
-    maintenance = cur.fetchall()
+    maintenance = safe_execute(
+        conn,
+        "SELECT * FROM maintenance WHERE status = ? LIMIT 5",
+        ('pending',),
+    ).fetchall()
     conn.close()
     if not maintenance:
         await update.message.reply_text('No pending maintenance requests.')
@@ -1354,9 +1353,8 @@ async def get_maintenance_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def get_maintenance_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['report'] = update.message.text
     conn = get_db()
-    cur = conn.cursor()
     safe_execute(
-        cur,
+        conn,
         "UPDATE maintenance SET status = ?, report = ?, user = ? WHERE id = ?",
         (
             'completed',
