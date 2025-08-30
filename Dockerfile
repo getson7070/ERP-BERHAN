@@ -9,7 +9,9 @@ RUN pip install --prefix=/install --no-cache-dir -r requirements.txt \
 
 # Final runtime image
 FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7
-RUN apt-get update && apt-get install --no-install-recommends -y curl \
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    curl chromium libatk1.0-0 libgtk-3-0 libnss3 nodejs npm zaproxy \
+    && npm install -g pa11y \
     && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app

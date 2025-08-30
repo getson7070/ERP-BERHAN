@@ -122,3 +122,20 @@ def get_db():
             cur.execute("SET erp.org_id = %s", (org_id,))
             cur.close()
     return _ConnectionWrapper(raw, engine.dialect)
+
+
+def get_engine() -> Engine:
+    """Return a configured SQLAlchemy Engine.
+
+    The engine is created lazily based on the current environment
+    variables, mirroring the behaviour of :func:`get_db` while allowing
+    callers to work with SQLAlchemy's Engine API directly.
+    """
+
+    url = os.environ.get("DATABASE_URL")
+    path = os.environ.get("DATABASE_PATH", "erp.db")
+    return _get_engine(url, path)
+
+
+# Backwards compatible alias used by older code paths and tests
+engine: Engine = get_engine()

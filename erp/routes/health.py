@@ -9,8 +9,7 @@ def _ping_db() -> bool:
     try:
         from db import get_engine
         from sqlalchemy import text
-        engine = get_engine()
-        with engine.connect() as conn:
+        with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
     except Exception:

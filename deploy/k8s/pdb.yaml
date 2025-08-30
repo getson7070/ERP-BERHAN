@@ -4,7 +4,7 @@ metadata:
   name: erp-berhan-pdb
 spec:
   minAvailable: 2
-  unhealthyPodEvictionPolicy: AlwaysAllow
+  unhealthyPodEvictionPolicy: IfHealthyBudget
   selector:
     matchLabels:
       app: erp-berhan

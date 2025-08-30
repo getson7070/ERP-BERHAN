@@ -15,6 +15,16 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
 
+## Local tooling
+
+Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
+utilities (gitleaks, Trivy, kube-linter, kube-score, Pa11y, OWASP ZAP baseline,
+Playwright browsers) along with the system libraries they require.
+
+Pa11y needs the Chromium sandbox disabled when executed as root:
+`PUPPETEER_ARGS="--no-sandbox" pa11y http://localhost:5000`.
+Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
+
 | Report | Artifact |
 |--------|---------|
 | Coverage HTML | [coverage-html](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |

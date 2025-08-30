@@ -3,41 +3,85 @@ services:
   web:
     build: .
     command: gunicorn --config gunicorn.conf.py wsgi:app
-    ports:
-      - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      ENV: production
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      WEB_CONCURRENCY: 2
-      GUNICORN_THREADS: 2
-      GUNICORN_TIMEOUT: 30
-      STATSD_HOST: statsd
-      STATSD_PORT: 8125
-      STATSD_PREFIX: erp
-      PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRETS: ${JWT_SECRETS}
+      SENTRY_DSN: ${SENTRY_DSN}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
     depends_on:
       - db
       - redis
-  celery:
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://web:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+  worker:
     build: .
     command: celery -A erp.app.celery worker --loglevel=info
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      ENV: production
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
     depends_on:
       - db
       - redis
-  db:
-    image: postgres:15
+    restart: always
+    healthcheck:
+      test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  beat:
+    build: .
+    command: celery -A erp.app.celery beat --loglevel=info
     environment:
-      POSTGRES_PASSWORD: postgres
+      ENV: production
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+    depends_on:
+      - db
+      - redis
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep 'celery beat' | grep -qv grep"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: always
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redisdata:/data
 volumes:
   pgdata:
+  redisdata:

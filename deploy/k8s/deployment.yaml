@@ -12,34 +12,18 @@ spec:
       labels:
         app: erp-berhan
     spec:
-      securityContext:
-        runAsNonRoot: true
-        readOnlyRootFilesystem: true
-        allowPrivilegeEscalation: false
-        seccompProfile:
-          type: RuntimeDefault
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app: erp-berhan
-                topologyKey: kubernetes.io/hostname
       containers:
         - name: web
-          image: erp-berhan:v1.0.0
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8000
+          image: erp-berhan:1.0.0
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             seccompProfile:
               type: RuntimeDefault
+          ports:
+            - name: http
+              containerPort: 8000
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -71,3 +55,12 @@ spec:
               port: 8000
             initialDelaySeconds: 30
             periodSeconds: 20
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values: [erp-berhan]
+              topologyKey: kubernetes.io/hostname

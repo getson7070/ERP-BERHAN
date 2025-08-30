@@ -61,7 +61,7 @@ def init_celery(state):
     celery.conf.broker_url = app.config["CELERY_BROKER_URL"]
     celery.conf.result_backend = app.config["CELERY_RESULT_BACKEND"]
     celery.conf.update(app.config)
-    celery.conf.imports = ["erp.data_retention"]
+    celery.conf.imports = ["erp.data_retention", "backup"]
 
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
@@ -106,21 +106,25 @@ def init_celery(state):
             "task": "analytics.deduplicate_customers",
             "schedule": crontab(hour=4, minute=0),
         },
-        "purge-expired-rows": {
-            "task": "data_retention.purge_expired_rows",
-            "schedule": crontab(hour=3, minute=30),
-        },
-        "anonymize-users": {
-            "task": "data_retention.anonymize_users",
-            "schedule": crontab(hour=3, minute=45),
-        },
-        "quarterly-access-recert": {
-            "task": "data_retention.run_access_recert_export",
-            "schedule": crontab(
-                month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0
-            ),
-        },
-    }
+          "purge-expired-rows": {
+              "task": "data_retention.purge_expired_rows",
+              "schedule": crontab(hour=3, minute=30),
+          },
+          "anonymize-users": {
+              "task": "data_retention.anonymize_users",
+              "schedule": crontab(hour=3, minute=45),
+          },
+          "quarterly-access-recert": {
+              "task": "data_retention.run_access_recert_export",
+              "schedule": crontab(
+                  month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0
+              ),
+          },
+          "nightly-db-backup": {
+              "task": "backup.run_backup",
+              "schedule": crontab(hour=2, minute=30),
+          },
+      }
 
 
 @bp.route("/analytics/dashboard")
@@ -188,30 +192,35 @@ def expire_tenders(idempotency_key=None):
 def refresh_kpis(idempotency_key=None):
     conn = get_db()
     dialect = conn._dialect.name
-    date_expr = (
-        "strftime('%Y-%m-01', order_date)"
-        if dialect == "sqlite"
-        else "DATE_TRUNC('month', order_date)"
-    )
     conn.execute(text("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)"))
     last_refresh = conn.execute(
         text(
             "SELECT COALESCE(MAX(last_refresh), '1970-01-01T00:00:00') FROM kpi_refresh_log"
         )
     ).fetchone()[0]
-    conn.execute(
-        text(
-            f"""
+    if dialect == "sqlite":
+        sales_sql = text(
+            """
             INSERT INTO kpi_sales (month, total_sales)
-            SELECT {date_expr} AS month, SUM(total_amount) AS total_sales
+            SELECT strftime('%Y-%m-01', order_date) AS month, SUM(total_amount) AS total_sales
             FROM orders
             WHERE order_date >= :last_refresh
             GROUP BY 1
             ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
             """
-        ),
-        {"last_refresh": last_refresh},
-    )
+        )
+    else:
+        sales_sql = text(
+            """
+            INSERT INTO kpi_sales (month, total_sales)
+            SELECT DATE_TRUNC('month', order_date) AS month, SUM(total_amount) AS total_sales
+            FROM orders
+            WHERE order_date >= :last_refresh
+            GROUP BY 1
+            ON CONFLICT (month) DO UPDATE SET total_sales = excluded.total_sales
+            """
+        )
+    conn.execute(sales_sql, {"last_refresh": last_refresh})
     new_last = (
         conn.execute(text("SELECT MAX(order_date) FROM orders")).fetchone()[0]
         or last_refresh
