@@ -1,45 +1,39 @@
-"""Health check endpoints for container orchestration probes.
-
-The application exposes two aliases, ``/health`` and ``/healthz``, both of
-which perform lightweight dependency checks to keep Kubernetes and Docker
-probes happy.  Only a trivial ``SELECT 1`` is executed against the database to
-avoid expensive operations and, when configured, Redis is pinged to confirm the
-cache layer is reachable.
-"""
-
+from __future__ import annotations
 from flask import Blueprint, jsonify
-
-from db import get_db, redis_client
+import os
 
 bp = Blueprint("health", __name__)
 
 
-@bp.route("/health")
-@bp.route("/healthz")
-def health() -> tuple[dict, int]:
-    """Return basic service status along with dependency checks."""
-
-    db_ok = True
-    redis_ok = True
+def _ping_db() -> bool:
     try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.fetchone()
-    except Exception:  # pragma: no cover - best effort
-        db_ok = False
-    finally:
-        try:
-            cur.close()
-            conn.close()
-        except Exception:  # pragma: no cover - best effort
-            pass
-
-    try:  # pragma: no cover - best effort
-        redis_client.ping()
+        from db import engine
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return True
     except Exception:
-        redis_ok = False
+        return False
 
-    status = "ok" if db_ok and redis_ok else "degraded"
-    payload = {"status": status, "db": db_ok, "redis": redis_ok}
-    return jsonify(payload), 200
+
+def _ping_redis() -> bool:
+    try:
+        import redis
+        url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or "redis://localhost:6379/0"
+        r = redis.Redis.from_url(url)
+        r.ping()
+        return True
+    except Exception:
+        return False
+
+
+@bp.get("/health")
+def health():
+    return jsonify(ok=True), 200
+
+
+@bp.get("/healthz")
+def healthz():
+    db_ok = _ping_db()
+    redis_ok = _ping_redis()
+    ok = db_ok and redis_ok
+    return jsonify(ok=ok, db=db_ok, redis=redis_ok), (200 if ok else 503)
