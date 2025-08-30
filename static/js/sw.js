@@ -5,9 +5,9 @@ workbox.core.skipWaiting();
 workbox.core.clientsClaim();
 
 // Basic precache of core pages
-const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', '/offline.html'];
+const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', '/offline'];
 workbox.precaching.precacheAndRoute(PRECACHE);
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = '/offline';
 
 // Cache static assets with a stale-while-revalidate strategy
 workbox.routing.registerRoute(
