@@ -61,18 +61,19 @@ jobs:
           retention-days: 30
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
-      - name: DB migration smoke
-        run: |
-          start=$(date +%s)
-          alembic upgrade head
-          alembic downgrade base
-          end=$(date +%s)
-          echo "migration_seconds=$((end-start))" >> $GITHUB_STEP_SUMMARY
+      - name: Migration smoke test
+        run: python scripts/migration_smoke.py | tee migration-time.txt
+      - name: Upload migration timing
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: migration-timing
+          path: migration-time.txt
       - name: Validate CSP
         run: python scripts/validate_csp.py
       - name: Tests
         run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-report=html --cov-fail-under=80
-      - name: Accessibility checks
+      - name: Accessibility tests
         run: pytest -m accessibility
       - name: Upload coverage XML
         if: always()
@@ -113,6 +114,8 @@ jobs:
         run: |
           flask --app wsgi.py run -p 5000 &
           sleep 5
+      - name: Validate CSP
+        run: python scripts/validate_csp.py http://localhost:5000
       - name: OWASP ZAP baseline
         uses: zaproxy/action-baseline@v0.9.0
         with:

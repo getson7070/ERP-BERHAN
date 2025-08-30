@@ -60,6 +60,13 @@ def _get_engine(url: str | None, path: str) -> Engine:
     )
 
 
+def get_engine() -> Engine:
+    """Return a cached SQLAlchemy engine based on environment settings."""
+    url = os.environ.get("DATABASE_URL")
+    path = os.environ.get("DATABASE_PATH", "erp.db")
+    return _get_engine(url, path)
+
+
 class _ConnectionWrapper:
     """Bridge SQLite-style helpers with SQLAlchemy engines.
 
