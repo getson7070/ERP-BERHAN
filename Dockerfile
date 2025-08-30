@@ -18,5 +18,5 @@ COPY . .
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 EXPOSE 8000
-HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK CMD curl -f http://localhost:8000/healthz || exit 1
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app"]

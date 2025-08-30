@@ -37,6 +37,17 @@ const sanitizeHeadersPlugin = {
   }
 };
 
+let authToken = null;
+
+const authReattachPlugin = {
+  async requestWillReplay({request}) {
+    if (!authToken) return;
+    const headers = new Headers(request.headers);
+    headers.set('Authorization', `Bearer ${authToken}`);
+    return {request: new Request(request, {headers})};
+  }
+};
+
 const bgSyncPlugin = new workbox.backgroundSync.BackgroundSyncPlugin('apiQueue', {
   maxRetentionTime: 24 * 60
 });
@@ -57,6 +68,7 @@ const apiStrategy = new workbox.strategies.NetworkFirst({
       }
     },
     sanitizeHeadersPlugin,
+    authReattachPlugin,
     bgSyncPlugin
   ]
 });
@@ -64,6 +76,9 @@ const apiStrategy = new workbox.strategies.NetworkFirst({
 workbox.routing.registerRoute(/\/api\//, apiStrategy);
 
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_TOKEN') {
+    authToken = event.data.token;
+  }
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

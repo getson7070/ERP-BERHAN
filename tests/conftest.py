@@ -12,13 +12,10 @@ os.environ.setdefault("JWT_SECRET", "test-secret")
 import pytest
 
 XFAIL_TESTS = {
-    "tests/test_api.py::test_rest_and_graphql": "API endpoints not implemented",
     "tests/test_api.py::test_webhook_requires_token": "Webhook auth pending",
     "tests/test_audit_log.py::test_audit_chain_checker": "Audit chain checker pending",
-    "tests/test_i18n.py::test_language_switch": "Language switch endpoint missing",
     "tests/test_idempotency_and_dlq.py::test_idempotency_decorator_blocks_duplicates": "Idempotency not wired",
     "tests/test_idempotency_and_dlq.py::test_webhook_failure_queues_dead_letter": "DLQ handling not wired",
-    "tests/test_localization.py::test_amharic_translation": "Translation catalog incomplete",
     "tests/test_lockout.py::test_lockout_and_unlock": "Lockout flow incomplete",
     "tests/test_rate_limiting.py::test_token_rate_limit": "Rate limiting middleware missing",
     "tests/test_report_export.py::test_report_exports": "Report export not implemented",

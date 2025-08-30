@@ -188,168 +188,6 @@ OLAP_EXPORT_SUCCESS = Counter(
 )
 
 
-def _ensure_base_tables() -> None:
-    """Create minimal tables required for test isolation.
-
-    The repository relies on migrations for full schema management, but the
-    test suite uses a lightweight SQLite database. To keep tests hermetic and
-    enforce row-level security expectations, we create essential tables on
-    startup if they are missing. This covers both SQLite and PostgreSQL
-    backends without requiring a running migration step."""
-
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        sqlite = getattr(conn, "_dialect", None) and conn._dialect.name == "sqlite"
-        if sqlite:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS inventory_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    org_id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    sku TEXT NOT NULL UNIQUE,
-                    quantity INTEGER NOT NULL
-                )
-                """
-            )
-            cur.execute("PRAGMA table_info(inventory_items)")
-            cols = [r[1] for r in cur.fetchall()]
-            if "sku" not in cols:
-                cur.execute("ALTER TABLE inventory_items ADD COLUMN sku TEXT")
-            cur.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_inventory_items_sku ON inventory_items (sku)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS invoices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    org_id INTEGER NOT NULL,
-                    number TEXT UNIQUE NOT NULL,
-                    total NUMERIC NOT NULL DEFAULT 0,
-                    issued_at TIMESTAMP NOT NULL,
-                    delete_after TIMESTAMP
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS roles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE,
-                    description TEXT
-                )
-                """
-            )
-            cur.execute("PRAGMA table_info(roles)")
-            cols = [r[1] for r in cur.fetchall()]
-            if "description" not in cols:
-                cur.execute("ALTER TABLE roles ADD COLUMN description TEXT")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    email TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    active BOOLEAN DEFAULT 1,
-                    fs_uniquifier TEXT UNIQUE NOT NULL,
-                    mfa_secret TEXT,
-                    anonymized BOOLEAN DEFAULT 0,
-                    retain_until TIMESTAMP
-                )
-                """
-            )
-            cur.execute("PRAGMA table_info(users)")
-            cols = [r[1] for r in cur.fetchall()]
-            if "retain_until" not in cols:
-                cur.execute("ALTER TABLE users ADD COLUMN retain_until TIMESTAMP")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS roles_users (
-                    user_id INTEGER REFERENCES users(id),
-                    role_id INTEGER REFERENCES roles(id)
-                )
-                """
-            )
-        else:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS inventory_items (
-                    id SERIAL PRIMARY KEY,
-                    org_id INTEGER NOT NULL,
-                    name TEXT NOT NULL,
-                    sku TEXT NOT NULL UNIQUE,
-                    quantity INTEGER NOT NULL
-                )
-                """
-            )
-            cur.execute(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='inventory_items'"
-            )
-            cols = [r[0] for r in cur.fetchall()]
-            if "sku" not in cols:
-                cur.execute("ALTER TABLE inventory_items ADD COLUMN sku TEXT UNIQUE")
-            cur.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_inventory_items_sku ON inventory_items (sku)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS invoices (
-                    id SERIAL PRIMARY KEY,
-                    org_id INTEGER NOT NULL,
-                    number VARCHAR(64) UNIQUE NOT NULL,
-                    total NUMERIC NOT NULL DEFAULT 0,
-                    issued_at TIMESTAMP NOT NULL,
-                    delete_after TIMESTAMP
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS roles (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(80) UNIQUE,
-                    description VARCHAR(255)
-                )
-                """
-            )
-            cur.execute(
-                "ALTER TABLE roles ADD COLUMN IF NOT EXISTS " "description VARCHAR(255)"
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    email VARCHAR(255) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL,
-                    active BOOLEAN DEFAULT TRUE,
-                    fs_uniquifier VARCHAR(64) UNIQUE NOT NULL,
-                    mfa_secret VARCHAR(32),
-                    anonymized BOOLEAN DEFAULT FALSE,
-                    retain_until TIMESTAMP
-                )
-                """
-            )
-            cur.execute(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='users'"
-            )
-            cols = [r[0] for r in cur.fetchall()]
-            if "retain_until" not in cols:
-                cur.execute("ALTER TABLE users ADD COLUMN retain_until TIMESTAMP")
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS roles_users (
-                    user_id INTEGER REFERENCES users(id),
-                    role_id INTEGER REFERENCES roles(id)
-                )
-                """
-            )
-        conn.commit()
-    finally:
-        cur.close()
-        conn.close()
-
-
 def create_app():
     # Import inside the factory to avoid circular dependencies during
     # application initialisation where ``app`` imports models which in turn
@@ -466,9 +304,13 @@ def create_app():
 
     load_plugins(app)
     register_blueprints(app)
-    _ensure_base_tables()
     with app.app_context():
         if app.config.get("TESTING"):
+            # Ensure a clean schema for each test run so model changes are
+            # reflected and stale tables do not linger between runs.  This
+            # avoids issues where previous initialisation scripts created
+            # tables missing columns (e.g., ``roles.description``).
+            db.drop_all()
             db.create_all()
         for role in ("admin", "pharmacist"):
             if not user_datastore.find_role(role):
