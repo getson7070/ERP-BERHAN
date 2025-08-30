@@ -40,6 +40,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
       - db
       - redis
@@ -59,6 +60,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
       - db
       - redis
@@ -68,6 +70,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  backup:
+    build: .
+    command: sh -c "while true; do python backup.py; sleep 86400; done"
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      AWS_REGION: ${AWS_REGION}
+      SENTRY_DSN: ${SENTRY_DSN}
+    depends_on:
+      - db
+    restart: always
   db:
     image: postgres:15-alpine
     environment:

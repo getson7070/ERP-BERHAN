@@ -33,9 +33,7 @@ def init_db():
     if app_user and app_password:
         cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (app_user,))
         if cursor.fetchone() is None:
-            cursor.execute(
-                f"CREATE ROLE {app_user} LOGIN PASSWORD %s", (app_password,)
-            )
+            cursor.execute(f"CREATE ROLE {app_user} LOGIN PASSWORD %s", (app_password,))
         cursor.execute("SELECT current_database()")
         dbname = cursor.fetchone()[0]
         cursor.execute(f"GRANT CONNECT ON DATABASE {dbname} TO {app_user}")
@@ -361,7 +359,8 @@ def init_db():
         ("NGO/UN Portal Tender",),
     )
 
-    if os.environ.get("ENABLE_DEMO_SEED", "").lower() in {"1", "true", "yes"}:
+    seed_demo = os.environ.get("SEED_DEMO_DATA", "").lower() in {"1", "true", "yes"}
+    if seed_demo and os.environ.get("ENV") != "production":
         admin_username = os.environ.get("ADMIN_USERNAME", "admin")
         admin_password = os.environ.get("ADMIN_PASSWORD")
         if admin_password:
@@ -420,6 +419,8 @@ def init_db():
                     datetime.now(),
                 ),
             )
+    elif seed_demo:
+        print("SEED_DEMO_DATA ignored in production environment")
 
     for table in ("orders", "tenders", "inventory", "audit_logs"):
         cursor.execute(

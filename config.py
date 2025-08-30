@@ -102,14 +102,45 @@ class Config:
 
 env = os.environ.get("ENV")
 if env == "production":
-    missing = []
-    if not os.environ.get("SECRET_KEY") and not os.environ.get("FLASK_SECRET_KEY"):
+    missing: list[str] = []
+    insecure: list[str] = []
+
+    secret_key = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
+    if not secret_key:
         missing.append("SECRET_KEY")
-    if not (get_secret("JWT_SECRET") or get_secret("JWT_SECRETS")):
+    elif secret_key in {"changeme", "secret"}:
+        insecure.append("SECRET_KEY")
+
+    salt = os.environ.get("SECURITY_PASSWORD_SALT")
+    if not salt:
+        missing.append("SECURITY_PASSWORD_SALT")
+    elif salt in {"changeme", "secret"}:
+        insecure.append("SECURITY_PASSWORD_SALT")
+
+    jwt_secret = get_secret("JWT_SECRET")
+    jwt_secrets_raw = get_secret("JWT_SECRETS")
+    if not (jwt_secret or jwt_secrets_raw):
         missing.append("JWT_SECRET")
+    else:
+        if jwt_secret in {"changeme", "secret"}:
+            insecure.append("JWT_SECRET")
+        if jwt_secrets_raw:
+            try:
+                jwt_secrets = json.loads(jwt_secrets_raw)
+                if any(v in {"secret", "changeme"} for v in jwt_secrets.values()):
+                    insecure.append("JWT_SECRETS")
+            except json.JSONDecodeError:
+                insecure.append("JWT_SECRETS")
+
     if Config.DATABASE_URL.startswith("postgresql://postgres:postgres"):
         missing.append("DATABASE_URL")
     if not os.environ.get("SENTRY_DSN"):
         missing.append("SENTRY_DSN")
+    if insecure:
+        raise RuntimeError(
+            "Insecure default secrets detected: " + ", ".join(sorted(set(insecure)))
+        )
     if missing:
-        raise RuntimeError("Missing required production secrets: " + ", ".join(missing))
+        raise RuntimeError(
+            "Missing required production secrets: " + ", ".join(sorted(set(missing)))
+        )

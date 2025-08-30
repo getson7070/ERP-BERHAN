@@ -1,4 +1,5 @@
-CREATE USER erp_app WITH PASSWORD 'app_password';
+-- Creates a dedicated application role. Provide APP_DB_PASSWORD via environment.
+CREATE USER erp_app WITH PASSWORD '${APP_DB_PASSWORD}';
 CREATE DATABASE erp;
 GRANT CONNECT ON DATABASE erp TO erp_app;
 \c erp
