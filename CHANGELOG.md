@@ -24,6 +24,9 @@ All notable changes to this project will be documented in this file. The format 
 - Kubernetes manifests define resource requests/limits with an HPA driven by latency and queue lag metrics.
 - Coverage configuration includes core modules with a higher failure threshold to surface untested code.
 - Expose `/health` and `/healthz` endpoints with lightweight database and Redis checks for container probes
+- Row‑level security policies recreated to read the tenant ID from `current_setting('erp.org_id')`
+- Orders and authentication routes now use parameterized SQL for cross‑database compatibility
+- CDN assets include SRI hashes with `crossorigin` attributes and the service worker reattaches fresh auth tokens
 
 ## [0.1.0] - 2025-08-28
 - Add PgBouncer deployment manifests
