@@ -52,14 +52,10 @@ const noCacheAuthPlugin = {
   }
 };
 
-const apiStrategy = new workbox.strategies.NetworkOnly({ plugins: [noCacheAuthPlugin, sanitizeHeadersPlugin, authReattachPlugin, apiQueuePlugin] });
+const apiStrategy = new workbox.strategies.NetworkOnly({
+  plugins: [noCacheAuthPlugin, sanitizeHeadersPlugin, authReattachPlugin, apiQueuePlugin]
+});
 workbox.routing.registerRoute(/\/api\//, apiStrategy);
-
-// Never cache authenticated responses
-workbox.routing.registerRoute(
-  ({request}) => request.url.includes('/api/'),
-  new workbox.strategies.NetworkOnly()
-);
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SET_TOKEN') {

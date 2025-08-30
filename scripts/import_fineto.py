@@ -2,6 +2,7 @@ import csv
 import json
 import pathlib
 from db import get_db
+from erp.sql_compat import to_psql
 
 MAPPING_FILE = pathlib.Path("fineto/mapping.json")
 DATA_DIR = pathlib.Path("fineto")
@@ -27,10 +28,8 @@ def import_fineto():
             if rows:
                 cols = ",".join(rows[0].keys())
                 placeholders = ",".join("?" for _ in rows[0])
-                conn.executemany(
-                    f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})",
-                    [tuple(r.values()) for r in rows],
-                )
+                sql = to_psql(f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})")
+                conn.executemany(sql, [tuple(r.values()) for r in rows])
                 conn.commit()
     conn.close()
 

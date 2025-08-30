@@ -19,6 +19,7 @@ except Exception:
 @pytest.fixture(scope="module")
 def client():
     app = create_app()
+    app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
 
@@ -60,7 +61,7 @@ def test_health_endpoints_ok(client):
 )
 def test_rls_blocks_cross_tenant_reads():
     """
-    Precondition: RLS enabled with policies bound to current_setting('my.org_id')::int
+    Precondition: RLS enabled with policies bound to current_setting('erp.org_id')::int
     This test inserts two rows with different org_id values and proves that
     a session scoped to org 1 cannot see org 2's row (and vice versa).
     """
@@ -75,12 +76,12 @@ def test_rls_blocks_cross_tenant_reads():
             pytest.skip("orders table not present; skipping RLS test")
 
         # Seed one row per org, scoping each INSERT to that org
-        conn.execute(text("SET my.org_id = :org"), {"org": 1})
+        conn.execute(text("SET erp.org_id = :org"), {"org": 1})
         conn.execute(
             text("INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"),
             {"id": test_id_org1, "org_id": 1},
         )
-        conn.execute(text("SET my.org_id = :org"), {"org": 2})
+        conn.execute(text("SET erp.org_id = :org"), {"org": 2})
         conn.execute(
             text("INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"),
             {"id": test_id_org2, "org_id": 2},
@@ -88,7 +89,7 @@ def test_rls_blocks_cross_tenant_reads():
 
     # Session as org 1: must NOT see org 2's row
     with engine.begin() as conn:
-        conn.execute(text("SET my.org_id = :org"), {"org": 1})
+        conn.execute(text("SET erp.org_id = :org"), {"org": 1})
         cnt1 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}).scalar_one()
         cnt2 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}).scalar_one()
         assert cnt1 == 1, "Org 1 should see its own row"
@@ -96,7 +97,7 @@ def test_rls_blocks_cross_tenant_reads():
 
     # Session as org 2: mirror assertion
     with engine.begin() as conn:
-        conn.execute(text("SET my.org_id = :org"), {"org": 2})
+        conn.execute(text("SET erp.org_id = :org"), {"org": 2})
         cnt1 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}).scalar_one()
         cnt2 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}).scalar_one()
         assert cnt1 == 0, "Org 2 must NOT see Org 1's row (RLS)"
