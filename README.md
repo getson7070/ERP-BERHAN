@@ -152,7 +152,7 @@ A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboar
 The application pulls configuration from environment variables. Key settings include:
 
 - `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
- - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy.
+ - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy (append `?sslmode=require`).
  - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
    knobs for high‑load deployments.
 - `ADMIN_USERNAME`/`ADMIN_PASSWORD` – credentials used for initial admin seeding.

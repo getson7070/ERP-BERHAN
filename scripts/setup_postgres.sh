@@ -44,7 +44,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS inventory_kpi AS
 SQL
 
 # run basic connectivity and troubleshooting checks (see docs/postgres_troubleshooting.md)
-pg_isready -d postgresql://postgres:postgres@localhost:5432/erp
+pg_isready -d postgresql://postgres:postgres@localhost:5432/erp?sslmode=require
 alembic upgrade head || true
 
 echo "PostgreSQL ready on localhost:5432 with user 'postgres' and database 'erp'"

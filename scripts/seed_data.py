@@ -8,6 +8,8 @@ from erp.sql_compat import execute as safe_execute
 
 
 def main() -> None:
+    if os.environ.get("ALLOW_DEMO_SEEDING") != "1":
+        raise SystemExit("Demo seeding disabled; set ALLOW_DEMO_SEEDING=1 to enable")
     items = int(os.environ.get("SEED_ITEMS", "10000"))
     users = int(os.environ.get("SEED_USERS", "1000"))
     conn = get_db()

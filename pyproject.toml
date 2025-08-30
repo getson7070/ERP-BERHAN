@@ -1,2 +1,1 @@
 [tool.pip-audit]
-ignore-vulns = ["PYSEC-2022-42969"]

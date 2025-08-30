@@ -10,8 +10,10 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get(
         "FLASK_SECRET_KEY", secrets.token_hex(16)
     )
+    # Use a non-superuser account by default to enforce least privilege
     DATABASE_URL = os.environ.get(
-        "DATABASE_URL", "postgresql://erp_app:erp_app@localhost:5432/erp"
+        "DATABASE_URL",
+        "postgresql://erp_app:erp_app@localhost:5432/erp?sslmode=require",
     )
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -110,6 +112,4 @@ if env == "production":
     if not os.environ.get("SENTRY_DSN"):
         missing.append("SENTRY_DSN")
     if missing:
-        raise RuntimeError(
-            "Missing required production secrets: " + ", ".join(missing)
-        )
+        raise RuntimeError("Missing required production secrets: " + ", ".join(missing))
