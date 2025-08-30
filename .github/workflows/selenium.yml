@@ -9,6 +9,9 @@ concurrency:
 jobs:
   selenium:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox, safari, edge]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
@@ -17,10 +20,12 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
+          sudo apt-get install -y chromium-browser firefox || sudo apt-get install -y chromium
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
       - name: Run Selenium smoke
         env:
           CI: '1'
+          BROWSER: ${{ matrix.browser }}
+          SELENIUM_REMOTE_URL: ${{ secrets.SELENIUM_REMOTE_URL }}
         run: pytest tests/selenium/test_homepage.py

@@ -5,21 +5,22 @@ workbox.core.skipWaiting();
 workbox.core.clientsClaim();
 
 // Basic precache of core pages
-const OFFLINE = '/offline';
-const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', OFFLINE];
+const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', '/offline.html'];
 workbox.precaching.precacheAndRoute(PRECACHE);
-workbox.routing.setCatchHandler(async ({event}) => {
-  if (event.request.destination === 'document') {
-    return caches.match(OFFLINE);
-  }
-  return Response.error();
-});
+const OFFLINE_URL = '/offline.html';
 
 // Cache static assets with a stale-while-revalidate strategy
 workbox.routing.registerRoute(
   ({request}) => ['document', 'script', 'style', 'image'].includes(request.destination),
   new workbox.strategies.StaleWhileRevalidate({cacheName: 'static-resources'})
 );
+
+workbox.routing.setCatchHandler(async ({event}) => {
+  if (event.request.mode === 'navigate') {
+    return caches.match(OFFLINE_URL);
+  }
+  return Response.error();
+});
 
 // Background sync strategy for API writes
 const apiQueuePlugin = new workbox.backgroundSync.BackgroundSyncPlugin('apiQueue', { maxRetentionTime: 60 });

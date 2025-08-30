@@ -33,3 +33,4 @@ cryptography==45.0.6
 qrcode==8.2
 phonenumbers==9.0.12
 Flask-Caching==2.3.1
+fakeredis==2.31.0
