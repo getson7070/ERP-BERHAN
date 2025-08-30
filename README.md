@@ -117,6 +117,16 @@ Nightly [soak tests](scripts/soak_test.sh) run via the [performance workflow](ht
 Developer-facing lint and type rules are centralised in `.flake8` and `mypy.ini`.
 Run `ruff` and `mypy erp` locally to catch issues before pushing.
 
+### Running tests
+
+Install development dependencies and run the linters and test suite to ensure all checks pass:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
+```
+
 ### Pre-commit hooks
 
 Install and enable the pre-commit hooks to mirror CI checks:
