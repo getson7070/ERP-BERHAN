@@ -1,6 +1,7 @@
 from __future__ import annotations
 from flask import Blueprint, jsonify
 import os
+from erp import talisman
 
 bp = Blueprint("health", __name__)
 
@@ -28,11 +29,13 @@ def _ping_redis() -> bool:
 
 
 @bp.get("/health")
+@talisman(force_https=False)
 def health():
     return jsonify(ok=True), 200
 
 
 @bp.get("/healthz")
+@talisman(force_https=False)
 def healthz():
     db_ok = _ping_db()
     redis_ok = _ping_redis()

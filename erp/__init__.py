@@ -83,6 +83,7 @@ babel = Babel()
 celery = Celery(__name__)
 limiter = Limiter(key_func=rate_limit_key)
 csrf = CSRFProtect()
+talisman = Talisman()
 
 
 @celery.task(name="erp.log_access")
@@ -275,13 +276,17 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": ["'self'"],
-        "style-src": ["'self'"],
+        "script-src": [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "https://cdn.socket.io",
+        ],
+        "style-src": ["'self'", "https://cdn.jsdelivr.net"],
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
         "frame-ancestors": ["'none'"],
     }
-    Talisman(
+    talisman.init_app(
         app,
         content_security_policy=csp,
         content_security_policy_nonce_in=["script-src", "style-src"],
