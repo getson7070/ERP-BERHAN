@@ -115,3 +115,8 @@ def calendar():
 @login_required
 def plugins_view():
     return render_template("plugins.html")
+
+
+@bp.route("/offline")
+def offline():
+    return render_template("offline.html")

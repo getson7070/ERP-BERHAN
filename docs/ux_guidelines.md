@@ -18,3 +18,5 @@ pytest tests/test_template_accessibility.py::test_base_template_axe
 before committing frontend changes to catch regressions.
 
 See [Cross-Browser and Accessibility Audit](./browser_accessibility_review.md) for a full checklist covering browser compatibility, manual accessibility review, service worker and CSP verification, database integrity, and ongoing maintenance.
+
+Supported browser versions are tracked in [browser_matrix.md](./browser_matrix.md), and outcomes of manual accessibility reviews belong in [accessibility_audit_log.md](./accessibility_audit_log.md).

@@ -3,7 +3,7 @@
 This checklist guides teams through a holistic review of UI/UX, security, and data integrity. Run it after major UI changes or on a scheduled basis.
 
 ## 1. Prepare a Browser Test Matrix
-- Enumerate supported desktop browsers (Chrome, Firefox, Safari, Edge) and mobile browsers (Chrome on Android, Safari on iOS). Include legacy versions still used by customers.
+- Enumerate supported desktop browsers (Chrome, Firefox, Safari, Edge) and mobile browsers (Chrome on Android, Safari on iOS). Include legacy versions still used by customers. The current versioned list lives in [browser_matrix.md](browser_matrix.md).
 - Use services such as BrowserStack, Sauce Labs, or Selenium Grid to automate regression suites. Capture screenshots or video to confirm consistent layout and behaviour.
 - Ensure every tested page loads over HTTPS and is free of blocked resources by the Content Security Policy.
 
@@ -33,7 +33,7 @@ This checklist guides teams through a holistic review of UI/UX, security, and da
 - Recheck RBAC and row-level security rules to avoid exposing restricted data.
 
 ## 7. Document and Iterate
-- Record results from browser and accessibility tests, noting severity and impact.
+- Record results from browser and accessibility tests, noting severity and impact. Manual findings should be logged in [accessibility_audit_log.md](accessibility_audit_log.md).
 - Prioritise fixes based on user impact and security risk.
 - Re-run the audit after significant UI/UX changes, dependency upgrades, or security patches.
 

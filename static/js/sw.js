@@ -5,8 +5,15 @@ workbox.core.skipWaiting();
 workbox.core.clientsClaim();
 
 // Basic precache of core pages
-const PRECACHE = ['/', '/choose_login', '/dashboard', '/search'];
+const OFFLINE = '/offline';
+const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', OFFLINE];
 workbox.precaching.precacheAndRoute(PRECACHE);
+workbox.routing.setCatchHandler(async ({event}) => {
+  if (event.request.destination === 'document') {
+    return caches.match(OFFLINE);
+  }
+  return Response.error();
+});
 
 // Cache static assets with a stale-while-revalidate strategy
 workbox.routing.registerRoute(
