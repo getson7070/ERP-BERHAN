@@ -29,6 +29,7 @@ from datetime import datetime
 import csv  # For client list integration
 import os
 from db import get_db
+from erp.sql_compat import execute as safe_execute
 import sqlite3
 from sqlalchemy import text
 
@@ -1226,10 +1227,13 @@ async def my_approved_orders(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     conn = get_db()
     sales_rep = context.user_data['tin']
-    orders = conn.execute(
-        text('SELECT * FROM orders WHERE sales_rep = :sales_rep AND status = "approved" ORDER BY id DESC LIMIT 5'),
-        {"sales_rep": sales_rep},
-    ).fetchall()
+    cur = conn.cursor()
+    safe_execute(
+        cur,
+        "SELECT * FROM orders WHERE sales_rep = ? AND status = ? ORDER BY id DESC LIMIT 5",
+        (sales_rep, 'approved'),
+    )
+    orders = cur.fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text('No approved orders found.')
@@ -1325,7 +1329,10 @@ async def maintenance_followup(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text('Access denied. Missing maintenance_followup permission.')
         return ConversationHandler.END
     conn = get_db()
-    maintenance = conn.execute('SELECT * FROM maintenance WHERE status = "pending" LIMIT 5').fetchall()
+    cur = conn.cursor()
+    sql = "SELECT * FROM maintenance WHERE status = ? LIMIT 5"
+    safe_execute(cur, sql, ('pending',))
+    maintenance = cur.fetchall()
     conn.close()
     if not maintenance:
         await update.message.reply_text('No pending maintenance requests.')
@@ -1347,13 +1354,16 @@ async def get_maintenance_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def get_maintenance_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['report'] = update.message.text
     conn = get_db()
-    conn.execute(
-        text('UPDATE maintenance SET status = "completed", report = :report, user = :user WHERE id = :id'),
-        {
-            "report": context.user_data['report'],
-            "user": context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin'],
-            "id": context.user_data['maintenance_id'],
-        },
+    cur = conn.cursor()
+    safe_execute(
+        cur,
+        "UPDATE maintenance SET status = ?, report = ?, user = ? WHERE id = ?",
+        (
+            'completed',
+            context.user_data['report'],
+            context.user_data['username'] if context.user_data['tin'] is None else context.user_data['tin'],
+            context.user_data['maintenance_id'],
+        ),
     )
     conn.commit()
     await update.message.reply_text('Maintenance followed up successfully.')
