@@ -26,7 +26,7 @@
                     <option value="new">New Institution</option>
                 </select>
             </div>
-            <div class="mb-3" id="new_institution_field" style="display: none;">
+             <div class="mb-3 d-none" id="new_institution_field">
                 <label for="new_institution" class="form-label">New Institution Name</label>
                 <input type="text" name="new_institution" id="new_institution" class="form-control">
             </div>
@@ -69,7 +69,7 @@
                     {% endfor %}
                 {% endfor %}
             </div>
-            <div class="mb-3" id="other_detail_field" style="display: none;">
+             <div class="mb-3 d-none" id="other_detail_field">
                 <label for="other_detail" class="form-label">Other Product Details</label>
                 <input type="text" name="other_detail" id="other_detail" class="form-control">
             </div>
@@ -82,7 +82,7 @@
                     <option value="No Interest">No Interest</option>
                 </select>
             </div>
-            <div class="mb-3" id="sale_amount_field" style="display: block;">
+             <div class="mb-3" id="sale_amount_field">
                 <label for="sale_amount" class="form-label">Sale Amount (ETB)</label>
                 <input type="number" name="sale_amount" id="sale_amount" class="form-control" min="0">
             </div>
@@ -93,7 +93,7 @@
                     <option value="Follow-up">Follow-up</option>
                 </select>
             </div>
-            <div class="mb-3" id="follow_up_field" style="display: none;">
+             <div class="mb-3 d-none" id="follow_up_field">
                 <label for="follow_up" class="form-label">Follow-up Details</label>
                 <input type="text" name="follow_up" id="follow_up" class="form-control">
             </div>
@@ -102,10 +102,15 @@
         </form>
     </div>
     <script nonce="{{ csp_nonce() }}">
-        function toggleNewInstitution() {
-            var institution = document.getElementById('institution').value;
-            document.getElementById('new_institution_field').style.display = institution === 'new' ? 'block' : 'none';
-        }
+          function toggleNewInstitution() {
+              var institution = document.getElementById('institution').value;
+              var field = document.getElementById('new_institution_field');
+              if (institution === 'new') {
+                  field.classList.remove('d-none');
+              } else {
+                  field.classList.add('d-none');
+              }
+          }
 
         function updateCities() {
             var region = document.getElementById('region').value;
@@ -125,18 +130,33 @@
             }
         }
 
-        function toggleOtherDetail() {
-            var othersChecked = document.querySelector('input[name="products"][value="OTHERS"]').checked;
-            document.getElementById('other_detail_field').style.display = othersChecked ? 'block' : 'none';
-        }
+          function toggleOtherDetail() {
+              var othersChecked = document.querySelector('input[name="products"][value="OTHERS"]').checked;
+              var field = document.getElementById('other_detail_field');
+              if (othersChecked) {
+                  field.classList.remove('d-none');
+              } else {
+                  field.classList.add('d-none');
+              }
+          }
 
-        document.getElementById('outcome').addEventListener('change', function() {
-            document.getElementById('sale_amount_field').style.display = this.value === 'Sale' ? 'block' : 'none';
-        });
+          document.getElementById('outcome').addEventListener('change', function() {
+              var field = document.getElementById('sale_amount_field');
+              if (this.value === 'Sale') {
+                  field.classList.remove('d-none');
+              } else {
+                  field.classList.add('d-none');
+              }
+          });
 
-        document.getElementById('visit_type').addEventListener('change', function() {
-            document.getElementById('follow_up_field').style.display = this.value === 'Follow-up' ? 'block' : 'none';
-        });
+          document.getElementById('visit_type').addEventListener('change', function() {
+              var field = document.getElementById('follow_up_field');
+              if (this.value === 'Follow-up') {
+                  field.classList.remove('d-none');
+              } else {
+                  field.classList.add('d-none');
+              }
+          });
 
         // Initialize states
         toggleNewInstitution();

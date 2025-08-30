@@ -11,7 +11,7 @@ class Config:
         "FLASK_SECRET_KEY", secrets.token_hex(16)
     )
     DATABASE_URL = os.environ.get(
-        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/erp"
+        "DATABASE_URL", "postgresql://erp_app:erp_app@localhost:5432/erp"
     )
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -96,3 +96,20 @@ class Config:
     # Licensing and cost model configuration
     LICENSE_MODEL = os.environ.get("LICENSE_MODEL", "MIT")
     COST_MODEL_URL = os.environ.get("COST_MODEL_URL", "")
+
+
+env = os.environ.get("ENV")
+if env == "production":
+    missing = []
+    if not os.environ.get("SECRET_KEY") and not os.environ.get("FLASK_SECRET_KEY"):
+        missing.append("SECRET_KEY")
+    if not (get_secret("JWT_SECRET") or get_secret("JWT_SECRETS")):
+        missing.append("JWT_SECRET")
+    if Config.DATABASE_URL.startswith("postgresql://postgres:postgres"):
+        missing.append("DATABASE_URL")
+    if not os.environ.get("SENTRY_DSN"):
+        missing.append("SENTRY_DSN")
+    if missing:
+        raise RuntimeError(
+            "Missing required production secrets: " + ", ".join(missing)
+        )

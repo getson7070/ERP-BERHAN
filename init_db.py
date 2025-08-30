@@ -28,6 +28,25 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
+    app_user = os.environ.get("APP_DB_USER")
+    app_password = os.environ.get("APP_DB_PASSWORD")
+    if app_user and app_password:
+        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (app_user,))
+        if cursor.fetchone() is None:
+            cursor.execute(
+                f"CREATE ROLE {app_user} LOGIN PASSWORD %s", (app_password,)
+            )
+        cursor.execute("SELECT current_database()")
+        dbname = cursor.fetchone()[0]
+        cursor.execute(f"GRANT CONNECT ON DATABASE {dbname} TO {app_user}")
+        cursor.execute("GRANT USAGE ON SCHEMA public TO %s" % app_user)
+        cursor.execute(
+            f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
+        )
+        cursor.execute(
+            f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {app_user}"
+        )
+
     # Create users table
     cursor.execute(
         """
@@ -342,64 +361,65 @@ def init_db():
         ("NGO/UN Portal Tender",),
     )
 
-    admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD")
-    if admin_password:
-        password_hash = hash_password(admin_password)
-        cursor.execute(
-            "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (
-                "employee",
-                admin_username,
-                password_hash,
-                "JBSWY3DPEHPK3PXP",
-                "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
-                True,
-                "Admin",
-                datetime.now(),
-            ),
-        )
+    if os.environ.get("ENABLE_DEMO_SEED", "").lower() in {"1", "true", "yes"}:
+        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_password = os.environ.get("ADMIN_PASSWORD")
+        if admin_password:
+            password_hash = hash_password(admin_password)
+            cursor.execute(
+                "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (
+                    "employee",
+                    admin_username,
+                    password_hash,
+                    "JBSWY3DPEHPK3PXP",
+                    "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                    True,
+                    "Admin",
+                    datetime.now(),
+                ),
+            )
 
-    admin_phones = ["0946423021", "0984707070", "0969111144"]
-    employee_phones = [
-        "0969351111",
-        "0969361111",
-        "0969371111",
-        "0969381111",
-        "0969161111",
-        "0923804931",
-        "0911183488",
-    ]
-    for phone in admin_phones:
-        password_hash = hash_password(phone)
-        cursor.execute(
-            "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (
-                "employee",
-                phone,
-                password_hash,
-                "JBSWY3DPEHPK3PXP",
-                "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
-                True,
-                "Admin",
-                datetime.now(),
-            ),
-        )
-    for phone in employee_phones:
-        password_hash = hash_password(phone)
-        cursor.execute(
-            "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (
-                "employee",
-                phone,
-                password_hash,
-                "JBSWY3DPEHPK3PXP",
-                "add_report,put_order,view_orders",
-                True,
-                "Sales Rep",
-                datetime.now(),
-            ),
-        )
+        admin_phones = ["0946423021", "0984707070", "0969111144"]
+        employee_phones = [
+            "0969351111",
+            "0969361111",
+            "0969371111",
+            "0969381111",
+            "0969161111",
+            "0923804931",
+            "0911183488",
+        ]
+        for phone in admin_phones:
+            password_hash = hash_password(phone)
+            cursor.execute(
+                "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (
+                    "employee",
+                    phone,
+                    password_hash,
+                    "JBSWY3DPEHPK3PXP",
+                    "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                    True,
+                    "Admin",
+                    datetime.now(),
+                ),
+            )
+        for phone in employee_phones:
+            password_hash = hash_password(phone)
+            cursor.execute(
+                "INSERT INTO users (user_type, username, password_hash, mfa_secret, permissions, approved_by_ceo, role, last_password_change) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                (
+                    "employee",
+                    phone,
+                    password_hash,
+                    "JBSWY3DPEHPK3PXP",
+                    "add_report,put_order,view_orders",
+                    True,
+                    "Sales Rep",
+                    datetime.now(),
+                ),
+            )
 
     for table in ("orders", "tenders", "inventory", "audit_logs"):
         cursor.execute(

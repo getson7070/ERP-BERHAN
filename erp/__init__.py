@@ -118,8 +118,8 @@ def log_access(
         try:
             cur.close()
             conn.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning("failed to close db connection", exc_info=exc)
 
 
 @signals.task_failure.connect
@@ -154,9 +154,8 @@ def _record_queue_depth(*args: Any, **kwargs: Any) -> None:
         else:
             backlog = cast(int, raw)
         QUEUE_LAG.labels("celery").set(float(backlog))
-    except Exception:
-        # Logging is avoided here to keep signal lightweight; failures are non-fatal.
-        pass
+    except Exception as exc:
+        current_app.logger.warning("queue lag metric update failed", exc_info=exc)
 
 
 REQUEST_COUNT = Counter(
@@ -275,8 +274,8 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": ["'self'"],  # add nonce via Talisman content_security_policy_nonce_in
-        "style-src": ["'self'", "'unsafe-inline'"],  # or switch to hashed styles if feasible
+        "script-src": ["'self'"],
+        "style-src": ["'self'"],
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
         "frame-ancestors": ["'none'"],
@@ -287,6 +286,16 @@ def create_app():
         content_security_policy_nonce_in=["script-src", "style-src"],
         force_https=True,
     )
+
+    @app.before_request
+    def _waf():
+        pattern = "<script"
+        if any(pattern in v.lower() for v in request.args.values()):
+            return "blocked", 400
+        if request.method in {"POST", "PUT", "PATCH"}:
+            data = request.get_data(as_text=True, parse_form_data=False)
+            if pattern in data.lower():
+                return "blocked", 400
 
     app.jinja_env.trim_blocks = True
     app.jinja_env.lstrip_blocks = True
@@ -385,8 +394,8 @@ def create_app():
         KPI_SALES_MV_AGE.set(analytics.kpi_staleness_seconds())
         try:
             QUEUE_LAG.labels("celery").set(redis_client.llen("celery"))
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning("queue lag metric update failed", exc_info=exc)
         return Response(generate_latest(registry), mimetype=CONTENT_TYPE_LATEST)
 
     @app.errorhandler(401)

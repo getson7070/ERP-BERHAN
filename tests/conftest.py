@@ -21,7 +21,6 @@ XFAIL_TESTS = {
     "tests/test_report_export.py::test_report_exports": "Report export not implemented",
     "tests/test_tender_status.py::test_evaluate_marks_evaluated": "Tender evaluation workflow pending",
     "tests/test_tender_status.py::test_award_marks_awarded": "Tender award workflow pending",
-    "tests/test_waf.py::test_waf_blocks_script_tag": "WAF middleware not configured",
     "tests/test_webhook_signature.py::test_webhook_hmac": "Webhook signature verification pending",
     "tests/analytics/test_materialized_view.py::test_incremental_refresh_and_age_alert": "Materialized view refresh not implemented",
     "tests/ui/test_dashboard_customization.py::test_save_and_load_layout": "Dashboard customization disabled",

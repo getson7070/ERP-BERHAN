@@ -6,6 +6,7 @@ from pathlib import Path
 
 import boto3
 from cryptography.fernet import Fernet
+from celery import shared_task
 
 
 def create_backup(db_url, backup_dir="backups"):
@@ -66,3 +67,11 @@ def restore_backup(db_url, backup_file):
         shutil.copy(backup_file, dest)
         return dest
     raise ValueError("Restore supported only for sqlite databases")
+
+
+@shared_task(name="backup.run_backup")
+def run_backup():
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL is required for backups")
+    create_backup(db_url)

@@ -15,6 +15,12 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
 
+## Local tooling
+
+Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
+utilities (gitleaks, Pa11y, OWASP ZAP baseline, Playwright browsers) along with
+the system libraries they require.
+
 | Report | Artifact |
 |--------|---------|
 | Coverage HTML | [coverage-html](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml?query=branch%3Amain) |
