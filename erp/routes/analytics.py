@@ -29,24 +29,28 @@ celery = Celery(__name__)
 
 def fetch_kpis():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM orders WHERE status = %s", ("pending",))
-    pending_orders = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM maintenance WHERE status = %s", ("pending",))
-    pending_maintenance = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
-    expired_tenders = cur.fetchone()[0]
-    cur.execute(
-        "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
-        "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
-    )
-    monthly_sales = cur.fetchone()[0]
-    cur.close()
+    pending_orders = conn.execute(
+        text("SELECT COUNT(*) FROM orders WHERE status = :status"),
+        {"status": "pending"},
+    ).scalar()
+    pending_maintenance = conn.execute(
+        text("SELECT COUNT(*) FROM maintenance WHERE status = :status"),
+        {"status": "pending"},
+    ).scalar()
+    expired_tenders = conn.execute(
+        text("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
+    ).scalar()
+    monthly_sales = conn.execute(
+        text(
+            "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
+            "WHERE month = DATE_TRUNC('month', CURRENT_DATE)"
+        )
+    ).scalar()
     conn.close()
     return {
-        "pending_orders": pending_orders,
-        "pending_maintenance": pending_maintenance,
-        "expired_tenders": expired_tenders,
+        "pending_orders": pending_orders or 0,
+        "pending_maintenance": pending_maintenance or 0,
+        "expired_tenders": expired_tenders or 0,
         "monthly_sales": float(monthly_sales or 0),
     }
 
