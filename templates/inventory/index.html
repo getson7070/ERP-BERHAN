@@ -1,10 +1,9 @@
 {% extends 'base.html' %}
 {% block title %}Inventory{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+{% endblock %}
 {% block content %}
-<style nonce="{{ csp_nonce() }}">
-  :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
-  .table-sticky thead th { position: sticky; top: 0; background: #fff; }
-</style>
 <div class="container py-5">
   <h2>Inventory</h2>
   <div class="mb-2">
