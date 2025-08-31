@@ -48,3 +48,17 @@ def test_sorting(tmp_path, monkeypatch):
     resp = client.get("/inventory/?sort=quantity&dir=desc")
     data = resp.get_json()
     assert data[0]["quantity"] == 5
+
+
+def test_invalid_sort_defaults_to_id(tmp_path, monkeypatch):
+    client = _setup_app(tmp_path, monkeypatch)
+    resp = client.get("/inventory/?sort=bogus&dir=desc")
+    data = resp.get_json()
+    assert data[0]["id"] == 2
+
+
+def test_invalid_direction_defaults_to_asc(tmp_path, monkeypatch):
+    client = _setup_app(tmp_path, monkeypatch)
+    resp = client.get("/inventory/?sort=quantity&dir=sideways")
+    data = resp.get_json()
+    assert data[0]["quantity"] == 1

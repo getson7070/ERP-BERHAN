@@ -17,12 +17,24 @@ from erp.models import Inventory, db
 
 bp = Blueprint("inventory_ui", __name__, url_prefix="/inventory")
 
+ALLOWED_SORTS = {"id", "sku", "name", "quantity"}
+
+
+def _sanitize_sort(sort: str) -> str:
+    return sort if sort in ALLOWED_SORTS else "id"
+
+
+def _sanitize_direction(direction: str) -> str:
+    return direction if direction in {"asc", "desc"} else "asc"
+
 
 def _build_query(org_id, sku, sort, direction):
     query = Inventory.query.filter_by(org_id=org_id)
     if sku:
         query = query.filter_by(sku=sku)
-    sort_attr = getattr(Inventory, sort, Inventory.id)
+    sort = _sanitize_sort(sort)
+    direction = _sanitize_direction(direction)
+    sort_attr = getattr(Inventory, sort)
     sort_attr = sort_attr.desc() if direction == "desc" else sort_attr.asc()
     return query.order_by(sort_attr)
 
@@ -34,8 +46,8 @@ def inventory_table():
     sku = request.args.get("sku")
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
-    sort = request.args.get("sort", "id")
-    direction = request.args.get("dir", "asc")
+    sort = _sanitize_sort(request.args.get("sort", "id"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     query = _build_query(org_id, sku, sort, direction)
     items = query.offset(offset).limit(limit).all()
     next_offset = offset + limit if len(items) == limit else None
@@ -116,8 +128,8 @@ def _export_items(query, fmt):
 def export_inventory_csv():
     org_id = session.get("org_id")
     sku = request.args.get("sku")
-    sort = request.args.get("sort", "id")
-    direction = request.args.get("dir", "asc")
+    sort = _sanitize_sort(request.args.get("sort", "id"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     query = _build_query(org_id, sku, sort, direction)
     return _export_items(query, "csv")
 
@@ -127,7 +139,7 @@ def export_inventory_csv():
 def export_inventory_xlsx():
     org_id = session.get("org_id")
     sku = request.args.get("sku")
-    sort = request.args.get("sort", "id")
-    direction = request.args.get("dir", "asc")
+    sort = _sanitize_sort(request.args.get("sort", "id"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     query = _build_query(org_id, sku, sort, direction)
     return _export_items(query, "xlsx")
