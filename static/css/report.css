@@ -1,0 +1,6 @@
+body { background-color: #f4f4f9; font-size: 16px; min-height: 100vh; }
+.container { padding: 20px; border-radius: 10px; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+h1 { color: #1e90ff; font-weight: 600; }
+.navbar { margin-bottom: 20px; }
+.dropdown:hover .dropdown-menu { display: block; }
+table { margin-top: 20px; }

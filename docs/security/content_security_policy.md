@@ -3,7 +3,7 @@
 The application enforces a strict Content Security Policy using
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman).
 The policy enumerates permitted sources for each resource type and
-injects a per-request nonce for inline scripts and styles:
+injects a per-request nonce for inline scripts:
 
 ```
 {
@@ -11,14 +11,11 @@ injects a per-request nonce for inline scripts and styles:
   "script-src": [
     "'self'",
     "https://cdn.jsdelivr.net",
-    "https://cdn.socket.io",
-    "https://cdnjs.cloudflare.com",
-    "https://unpkg.com"
+    "https://cdn.socket.io"
   ],
   "style-src": [
     "'self'",
-    "https://cdn.jsdelivr.net",
-    "https://cdnjs.cloudflare.com"
+    "https://cdn.jsdelivr.net"
   ],
   "img-src": ["'self'", "data:"],
   "connect-src": ["'self'"],
@@ -26,8 +23,8 @@ injects a per-request nonce for inline scripts and styles:
 }
 ```
 
-Inline `<script>` and `<style>` tags must include `nonce="{{ csp_nonce() }}"`
-so the browser can verify they originate from the application. External
+Inline `<script>` tags must include `nonce="{{ csp_nonce() }}"` so the
+browser can verify they originate from the application. External
 assets from the CDNs above should specify Subresource Integrity (SRI)
 hashes to prevent tampering.
 
