@@ -59,12 +59,12 @@
   <nav>
     <ul class="pagination">
       {% if prev_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=prev_offset, limit=limit, sort=sort, order=order) }}">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=prev_offset, limit=limit, sort=sort, dir=direction) }}">Previous</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Previous</span></li>
       {% endif %}
       {% if next_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=next_offset, limit=limit, sort=sort, order=order) }}">Next</a></li>
+        <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=next_offset, limit=limit, sort=sort, dir=direction) }}">Next</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Next</span></li>
       {% endif %}
