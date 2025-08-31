@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <h2>Orders</h2>
+  <p>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders') }}">CSV</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders', format='xlsx') }}">XLSX</a>
+  </p>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th><a href="{{ url_for('orders.orders_list', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">ID</a></th>
+        <th><a href="{{ url_for('orders.orders_list', sort='item_id', order='desc' if sort=='item_id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Item ID</a></th>
+        <th><a href="{{ url_for('orders.orders_list', sort='quantity', order='desc' if sort=='quantity' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Quantity</a></th>
+        <th><a href="{{ url_for('orders.orders_list', sort='customer', order='desc' if sort=='customer' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Customer</a></th>
+        <th><a href="{{ url_for('orders.orders_list', sort='status', order='desc' if sort=='status' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Status</a></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr>
+        <td>{{ o.id }}</td>
+        <td>{{ o.item_id }}</td>
+        <td>{{ o.quantity }}</td>
+        <td>{{ o.customer }}</td>
+        <td>{{ o.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <nav>
+    <ul class="pagination">
+      {% if prev_offset is not none %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=prev_offset, limit=limit, sort=sort, order=order) }}">Previous</a></li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      {% endif %}
+      {% if next_offset is not none %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('orders.orders_list', offset=next_offset, limit=limit, sort=sort, order=order) }}">Next</a></li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endblock %}

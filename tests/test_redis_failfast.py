@@ -1,4 +1,3 @@
-import importlib
 import sys
 
 import pytest
@@ -18,7 +17,6 @@ def test_redis_connection_failure(monkeypatch):
         type("_Dummy", (), {"from_url": staticmethod(lambda url: DummyRedis())}),
     )
     sys.modules.pop("db", None)
+    import db  # noqa: F401
     with pytest.raises(RuntimeError):
-        import db  # noqa: F401
-
-        importlib.reload(sys.modules["db"])
+        db.redis_client.ping()

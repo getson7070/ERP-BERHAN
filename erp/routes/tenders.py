@@ -1,12 +1,24 @@
-from flask import Blueprint, render_template, redirect, url_for, session, flash, request
+from flask import (
+    Blueprint,
+    render_template,
+    redirect,
+    url_for,
+    session,
+    flash,
+    request,
+    make_response,
+    send_file,
+)
 from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, DateField, SubmitField
 from wtforms.validators import DataRequired
 
 from sqlalchemy import text
-
 from db import get_db
 from erp.utils import login_required, has_permission
+from io import BytesIO, StringIO
+import csv
+from openpyxl import Workbook
 
 bp = Blueprint("tenders", __name__)
 
@@ -102,18 +114,50 @@ def add_tender():
 def tenders_list():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
+    sort = request.args.get("sort", "due_date")
+    order = request.args.get("order", "asc")
+    limit = min(int(request.args.get("limit", 20)), 100)
+    offset = int(request.args.get("offset", 0))
+    columns = {
+        "id": "t.id",
+        "type_name": "tt.type_name",
+        "description": "t.description",
+        "due_date": "t.due_date",
+        "workflow_state": "t.workflow_state",
+        "result": "t.result",
+        "awarded_to": "t.awarded_to",
+        "award_date": "t.award_date",
+        "username": "t.username",
+        "institution": "t.institution",
+        "envelope_type": "t.envelope_type",
+    }
+    sort_col = columns.get(sort, "t.due_date")
+    order_sql = "DESC" if order == "desc" else "ASC"
     conn = get_db()
     tenders = (
         conn.execute(
             text(
-                "SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.due_date ASC"
-            )
+                f"SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY {sort_col} {order_sql} LIMIT :limit OFFSET :offset"
+            ),
+            {"limit": limit, "offset": offset},
         )
         .mappings()
         .fetchall()
     )
     conn.close()
-    return render_template("tenders_list.html", tenders=tenders, states=WORKFLOW_STATES)
+    next_offset = offset + limit if len(tenders) == limit else None
+    prev_offset = offset - limit if offset - limit >= 0 else None
+    return render_template(
+        "tenders_list.html",
+        tenders=tenders,
+        states=WORKFLOW_STATES,
+        sort=sort,
+        order=order,
+        limit=limit,
+        offset=offset,
+        next_offset=next_offset,
+        prev_offset=prev_offset,
+    )
 
 
 @bp.route("/tenders_report")
@@ -135,6 +179,62 @@ def tenders_report():
     return render_template(
         "tenders_report.html", tenders=tenders, states=WORKFLOW_STATES
     )
+
+
+@bp.route("/export")
+@login_required
+def export_tenders():
+    if not has_permission("tenders_list"):
+        return redirect(url_for("main.dashboard"))
+    fmt = request.args.get("format", "csv")
+    conn = get_db()
+    tenders = (
+        conn.execute(
+            text(
+                "SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id ORDER BY t.id"
+            )
+        )
+        .mappings()
+        .fetchall()
+    )
+    conn.close()
+    headers = [
+        "id",
+        "type_name",
+        "description",
+        "due_date",
+        "workflow_state",
+        "result",
+        "awarded_to",
+        "award_date",
+        "username",
+        "institution",
+        "envelope_type",
+    ]
+    if fmt == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.append(headers)
+        for r in tenders:
+            ws.append([r[h] for h in headers])
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        return send_file(
+            bio,
+            as_attachment=True,
+            download_name="tenders.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    sio = StringIO()
+    writer = csv.writer(sio)
+    writer.writerow(headers)
+    for r in tenders:
+        writer.writerow([r[h] for h in headers])
+    resp = make_response(sio.getvalue())
+    resp.headers["Content-Disposition"] = "attachment; filename=tenders.csv"
+    resp.headers["Content-Type"] = "text/csv"
+    return resp
 
 
 @bp.route("/tenders/<int:tender_id>/advance", methods=["POST"])

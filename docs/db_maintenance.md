@@ -24,6 +24,9 @@ When using PostgreSQL, apply dumps with `psql`:
 psql $DATABASE_URL -f backups/<file>.sql
 ```
 
+When storing dumps in S3 or another object store, enable a lifecycle policy to
+expire old backups after your retention period to limit storage costs.
+
 ## Connection Pooling
 
 `db.py` configures SQLAlchemy connection pooling to protect the database from

@@ -2,11 +2,11 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn --config gunicorn.conf.py wsgi:app
+    command: sh -c "alembic upgrade head && gunicorn --config gunicorn.conf.py wsgi:app"
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY}
@@ -25,9 +25,9 @@ services:
       retries: 3
   worker:
     build: .
-    command: celery -A erp.app.celery worker --loglevel=info
+    command: sh -c "alembic upgrade head && celery -A erp.app.celery worker --loglevel=info"
     environment:
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN}
@@ -42,9 +42,9 @@ services:
       retries: 3
   beat:
     build: .
-    command: celery -A erp.app.celery beat --loglevel=info
+    command: sh -c "alembic upgrade head && celery -A erp.app.celery beat --loglevel=info"
     environment:
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN}
@@ -60,7 +60,7 @@ services:
     build: .
     command: sh -c "while true; do python backup.py; sleep 86400; done"
     environment:
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       S3_BUCKET: ${S3_BUCKET}
       S3_ENDPOINT: ${S3_ENDPOINT}
@@ -68,6 +68,18 @@ services:
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
       - db
+    restart: always
+  monitor:
+    build: .
+    command: sh -c "while true; do python scripts/monitor_queue.py; sleep 60; done"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+    depends_on:
+      - web
+      - redis
     restart: always
   db:
     image: postgres:15
