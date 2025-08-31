@@ -6,7 +6,8 @@
 [![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![SLSA](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml/badge.svg?label=SLSA)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain)
 
-BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, and compliance. Core security features include universal CSRF protection, rate limiting and a lightweight WAF that blocks obvious injection attempts.
+BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, compliance, and traceability.
+This release adds electronic signatures, GMP batch record tracking, native lot/serial management with recall simulation, and predictive analytics for demand forecasting. Core security features include universal CSRF protection, rate limiting and a lightweight WAF that blocks obvious injection attempts.
 
 Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
 
