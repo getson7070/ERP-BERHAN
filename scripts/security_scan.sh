@@ -10,8 +10,8 @@ if ! command -v bandit >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v safety >/dev/null 2>&1; then
-  echo "Safety is required for dependency checks" >&2
+if ! command -v pip-audit >/dev/null 2>&1; then
+  echo "pip-audit is required for dependency checks" >&2
   exit 1
 fi
 
@@ -20,7 +20,7 @@ bandit -r erp
 
 # Dependency vulnerability audit
 if [[ -f requirements.txt ]]; then
-    safety check -r requirements.txt --full-report
+    pip-audit -r requirements.txt
 else
-    safety check --full-report
+    pip-audit
 fi
