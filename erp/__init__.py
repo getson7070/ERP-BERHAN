@@ -280,12 +280,13 @@ def create_app():
         "style-src": ["'self'"],
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
+        "font-src": ["'self'"],
         "frame-ancestors": ["'none'"],
     }
     talisman.init_app(
         app,
         content_security_policy=csp,
-        content_security_policy_nonce_in=["script-src"],
+        content_security_policy_nonce_in=["script-src", "style-src"],
         force_https=True,
     )
 

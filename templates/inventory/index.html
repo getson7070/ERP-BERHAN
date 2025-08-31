@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Inventory{% endblock %}
 {% block content %}
-<style>
+<style nonce="{{ csp_nonce() }}">
   :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
   .table-sticky thead th { position: sticky; top: 0; background: #fff; }
 </style>
@@ -65,7 +65,7 @@
     </ul>
   </nav>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.col-toggle').forEach(cb => {
     cb.addEventListener('change', () => {
       const idx = parseInt(cb.dataset.col) + 1;
