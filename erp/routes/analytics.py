@@ -129,15 +129,44 @@ def init_celery(state):
 
 @bp.route("/analytics/dashboard")
 @login_required
-@roles_required("Management")
 def dashboard():
     kpis = fetch_kpis()
     role = session.get("role")
     permissions = session.get("permissions", [])
+    conn = get_db()
+    cur = conn.execute(
+        text(
+            "SELECT r.name FROM role_assignments ra JOIN roles r ON ra.role_id = r.id "
+            "WHERE ra.user_id = :uid AND ra.org_id = :org"
+        ),
+        {"uid": session.get("user_id"), "org": session.get("org_id")},
+    )
+    roles = [row[0] for row in cur.fetchall()]
+    saved_cur = conn.execute(
+        text(
+            "SELECT name, query FROM saved_searches WHERE user_id = :uid"
+        ),
+        {"uid": session.get("user_id")},
+    )
+    saved_searches = saved_cur.fetchall()
+    audit_logs: list[str] = []
+    if "Auditor" in roles:
+        log_cur = conn.execute(
+            text(
+                "SELECT action FROM audit_logs WHERE org_id = :org "
+                "ORDER BY created_at DESC LIMIT 5"
+            ),
+            {"org": session.get("org_id")},
+        )
+        audit_logs = [row[0] for row in log_cur.fetchall()]
+    conn.close()
     return render_template(
         "analytics/dashboard.html",
         role=role,
         permissions=permissions,
+        roles=roles,
+        audit_logs=audit_logs,
+        saved_searches=saved_searches,
         pending_orders=kpis["pending_orders"],
         pending_maintenance=kpis["pending_maintenance"],
         expired_tenders=kpis["expired_tenders"],

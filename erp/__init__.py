@@ -312,7 +312,7 @@ def create_app():
             # tables missing columns (e.g., ``roles.description``).
             db.drop_all()
             db.create_all()
-        for role in ("admin", "pharmacist"):
+        for role in ("Admin", "Manager", "Staff", "Auditor"):
             if not user_datastore.find_role(role):
                 user_datastore.create_role(name=role)
         db.session.commit()

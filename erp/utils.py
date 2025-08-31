@@ -10,6 +10,14 @@ from sqlalchemy.orm import selectinload, joinedload
 from erp.models import User
 
 
+ROLE_HIERARCHY = {
+    "Admin": {"Admin", "Manager", "Staff", "Auditor"},
+    "Manager": {"Manager", "Staff"},
+    "Auditor": {"Auditor", "Staff"},
+    "Staff": {"Staff"},
+}
+
+
 def has_permission(permission: str) -> bool:
     """Check database for permission tied to current organization."""
     # During tests, a permissions list may be stored in the session.
@@ -56,8 +64,10 @@ def roles_required(*roles):
             # directly in the session. This avoids needing full RBAC tables
             # populated while still enforcing access control.
             session_role = session.get("role")
-            if session_role and session_role in roles:
-                return f(*args, **kwargs)
+            if session_role:
+                allowed = ROLE_HIERARCHY.get(session_role, {session_role})
+                if allowed.intersection(roles):
+                    return f(*args, **kwargs)
 
             user_id = session.get("user_id")
             org_id = session.get("org_id")
@@ -76,7 +86,10 @@ def roles_required(*roles):
             rows = cur.fetchall()
             conn.close()
             user_roles = [row[0] for row in rows]
-            if not any(r in user_roles for r in roles):
+            expanded = set()
+            for r in user_roles:
+                expanded.update(ROLE_HIERARCHY.get(r, {r}))
+            if not expanded.intersection(roles):
                 return redirect(url_for("main.dashboard"))
             return f(*args, **kwargs)
 

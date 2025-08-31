@@ -30,16 +30,7 @@ def dashboard():
         return render_template("employee_dashboard.html")
     if role == "pharmacist":
         return render_template("pharma_dashboard.html")
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT name, query FROM saved_searches WHERE user_id = %s",
-        (session.get("user_id"),),
-    )
-    saved = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template("analytics/dashboard.html", saved_searches=saved)
+    return redirect(url_for("analytics.dashboard"))
 
 
 @bp.route("/dashboard/save_search", methods=["POST"])
