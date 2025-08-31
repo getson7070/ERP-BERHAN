@@ -11,6 +11,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
+    <a class="skip-link" href="#main-content">{{ _('Skip to main content') }}</a>
     {% block navbar %}{% include 'partials/navbar.html' %}{% endblock %}
     {% include 'partials/messages.html' %}
     {% block breadcrumbs %}{% include 'partials/breadcrumbs.html' %}{% endblock %}
