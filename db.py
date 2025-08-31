@@ -30,9 +30,11 @@ POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 if os.environ.get("USE_FAKE_REDIS") == "1":
     try:
-        import fakeredis
-    except ImportError as exc:  # pragma: no cover - exercised in test env
-        raise RuntimeError("fakeredis is required when USE_FAKE_REDIS=1") from exc
+        import fakeredis  # type: ignore
+    except ImportError as exc:  # pragma: no cover - guarded import
+        raise RuntimeError(
+            "USE_FAKE_REDIS=1 but fakeredis is not installed"
+        ) from exc
 
     redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
