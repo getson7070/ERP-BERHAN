@@ -1,8 +1,7 @@
 import pytest
 
 pytest.importorskip("bs4")
-from bs4 import BeautifulSoup  # noqa: E402
-from erp.app import create_app  # noqa: E402
+from erp import create_app  # noqa: E402
 
 
 @pytest.fixture
