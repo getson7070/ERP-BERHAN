@@ -58,6 +58,11 @@ class Config:
     API_TOKEN = get_secret("API_TOKEN")
     ACCOUNTING_URL = os.environ.get("ACCOUNTING_URL")
     PLUGIN_PATH = os.environ.get("PLUGIN_PATH", "plugins")
+    PLUGIN_ALLOWLIST = (
+        os.environ.get("PLUGIN_ALLOWLIST", "").split(",")
+        if os.environ.get("PLUGIN_ALLOWLIST")
+        else []
+    )
     WEBHOOK_SECRET = get_secret("WEBHOOK_SECRET")
     S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
     S3_BUCKET = os.environ.get("S3_BUCKET")

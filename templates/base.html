@@ -51,7 +51,10 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const originalFetch = window.fetch;
         window.fetch = (input, init = {}) => {
-            init.headers = Object.assign({}, init.headers, { 'X-CSRFToken': csrfToken });
+            const url = new URL(input instanceof Request ? input.url : input, location.href);
+            if (url.origin === location.origin) {
+                init.headers = Object.assign({}, init.headers, { 'X-CSRFToken': csrfToken });
+            }
             return originalFetch(input, init);
         };
         window.showMessage = (type, text) => {
@@ -60,7 +63,15 @@
             const wrapper = document.createElement('div');
             wrapper.className = `alert alert-${type} alert-dismissible fade show`;
             wrapper.setAttribute('role', 'alert');
-            wrapper.innerHTML = `${text}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            const message = document.createElement('span');
+            message.textContent = text;
+            wrapper.appendChild(message);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-close';
+            btn.setAttribute('data-bs-dismiss', 'alert');
+            btn.setAttribute('aria-label', 'Close');
+            wrapper.appendChild(btn);
             container.appendChild(wrapper);
         };
     </script>

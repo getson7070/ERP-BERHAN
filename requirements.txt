@@ -35,3 +35,4 @@ qrcode==8.2
 phonenumbers==9.0.12
 Flask-Caching==2.3.1
 types-requests==2.32.4.20250809
+bleach==6.2.0

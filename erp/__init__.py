@@ -61,6 +61,7 @@ from flask_wtf.csrf import CSRFProtect
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 import re
+import bleach
 from erp.plugins import load_plugins
 from .cache import init_cache
 from .extensions import db
@@ -297,11 +298,11 @@ def create_app():
 
     @app.before_request
     def _waf():
-        if any(script_re.search(v or "") for v in request.args.values()):
+        if any(v != bleach.clean(v or "", strip=True) for v in request.args.values()):
             return "blocked", 400
         if request.method in {"POST", "PUT", "PATCH"}:
             data = request.get_data(as_text=True, parse_form_data=False)
-            if script_re.search(data):
+            if data != bleach.clean(data, strip=True):
                 return "blocked", 400
 
     app.jinja_env.trim_blocks = True
