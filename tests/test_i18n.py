@@ -20,3 +20,11 @@ def test_language_switch(client):
     client.get("/set_language/am", follow_redirects=True)
     res = client.get("/dashboard")
     assert "የሰራተኛ ዳሽቦርድ" in res.get_data(as_text=True)
+
+
+def test_locale_switcher_present(client):
+    with client.session_transaction() as sess:
+        sess["logged_in"] = True
+        sess["role"] = "Employee"
+    res = client.get("/dashboard")
+    assert 'id="locale-select"' in res.get_data(as_text=True)

@@ -1,0 +1,6 @@
+<label for="locale-select" class="visually-hidden">{{ _('Language') }}</label>
+<select id="locale-select" class="form-select form-select-sm me-2" onchange="window.location.href='{{ url_for('main.set_language', lang='') }}'+this.value">
+  {% for code in config['LANGUAGES'] %}
+    <option value="{{ code }}" {% if get_locale() == code %}selected{% endif %}>{{ code.upper() }}</option>
+  {% endfor %}
+</select>

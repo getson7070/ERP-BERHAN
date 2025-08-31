@@ -80,9 +80,8 @@
                     name="q"
                 >
             </form>
-            <div class="navbar-nav">
-                <a class="nav-link" href="{{ url_for('main.set_language', lang='en') }}">EN</a>
-                <a class="nav-link" href="{{ url_for('main.set_language', lang='am') }}">AM</a>
+            <div class="navbar-nav align-items-center">
+                {% include 'partials/locale_switcher.html' %}
                 <a
                     class="nav-link"
                     href="#"

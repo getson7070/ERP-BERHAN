@@ -99,6 +99,15 @@ msgstr "ጨለማ/ብርሃን ሁኔታ ቀይር"
 msgid "CRM"
 msgstr "CRM"
 
+msgid "Language"
+msgstr "ቋንቋ"
+
+msgid "Skip to main content"
+msgstr "ወደ ዋናው ይሂዱ"
+
+msgid "Loading..."
+msgstr "በመጫን ላይ..."
+
 msgid "HR"
 msgstr "ሀ.ሀ"
 
