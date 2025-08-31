@@ -5,8 +5,9 @@ from flask import (
     jsonify,
     session,
     current_app,
-    make_response,
     send_file,
+    Response,
+    stream_with_context,
 )
 from io import BytesIO, StringIO
 import csv
@@ -17,6 +18,15 @@ from erp.models import Inventory, db
 bp = Blueprint("inventory_ui", __name__, url_prefix="/inventory")
 
 
+def _build_query(org_id, sku, sort, direction):
+    query = Inventory.query.filter_by(org_id=org_id)
+    if sku:
+        query = query.filter_by(sku=sku)
+    sort_attr = getattr(Inventory, sort, Inventory.id)
+    sort_attr = sort_attr.desc() if direction == "desc" else sort_attr.asc()
+    return query.order_by(sort_attr)
+
+
 @bp.route("/", methods=["GET"])
 @login_required
 def inventory_table():
@@ -25,13 +35,8 @@ def inventory_table():
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
     sort = request.args.get("sort", "id")
-    order = request.args.get("order", "asc")
-    query = Inventory.query.filter_by(org_id=org_id)
-    if sku:
-        query = query.filter_by(sku=sku)
-    sort_attr = getattr(Inventory, sort, Inventory.id)
-    sort_attr = sort_attr.desc() if order == "desc" else sort_attr.asc()
-    query = query.order_by(sort_attr)
+    direction = request.args.get("dir", "asc")
+    query = _build_query(org_id, sku, sort, direction)
     items = query.offset(offset).limit(limit).all()
     next_offset = offset + limit if len(items) == limit else None
     prev_offset = offset - limit if offset - limit >= 0 else None
@@ -50,7 +55,7 @@ def inventory_table():
         sku=sku,
         offset=offset,
         sort=sort,
-        order=order,
+        direction=direction,
     )
 
 
@@ -68,18 +73,13 @@ def update_item(item_id):
     )
 
 
-@bp.route("/export")
-@login_required
-def export_inventory():
-    org_id = session.get("org_id")
-    fmt = request.args.get("format", "csv")
-    items = Inventory.query.filter_by(org_id=org_id).order_by(Inventory.id).all()
+def _export_items(query, fmt):
     headers = ["id", "sku", "name", "quantity"]
     if fmt == "xlsx":
         wb = Workbook()
         ws = wb.active
         ws.append(headers)
-        for i in items:
+        for i in query:
             ws.append([i.id, i.sku, i.name, i.quantity])
         bio = BytesIO()
         wb.save(bio)
@@ -90,13 +90,44 @@ def export_inventory():
             download_name="inventory.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-    # default CSV
-    sio = StringIO()
-    writer = csv.writer(sio)
-    writer.writerow(headers)
-    for i in items:
-        writer.writerow([i.id, i.sku, i.name, i.quantity])
-    resp = make_response(sio.getvalue())
-    resp.headers["Content-Disposition"] = "attachment; filename=inventory.csv"
-    resp.headers["Content-Type"] = "text/csv"
-    return resp
+
+    def generate():
+        sio = StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(headers)
+        yield sio.getvalue()
+        sio.seek(0)
+        sio.truncate(0)
+        for i in query:
+            writer.writerow([i.id, i.sku, i.name, i.quantity])
+            yield sio.getvalue()
+            sio.seek(0)
+            sio.truncate(0)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=inventory.csv"},
+    )
+
+
+@bp.route("/export.csv")
+@login_required
+def export_inventory_csv():
+    org_id = session.get("org_id")
+    sku = request.args.get("sku")
+    sort = request.args.get("sort", "id")
+    direction = request.args.get("dir", "asc")
+    query = _build_query(org_id, sku, sort, direction)
+    return _export_items(query, "csv")
+
+
+@bp.route("/export.xlsx")
+@login_required
+def export_inventory_xlsx():
+    org_id = session.get("org_id")
+    sku = request.args.get("sku")
+    sort = request.args.get("sort", "id")
+    direction = request.args.get("dir", "asc")
+    query = _build_query(org_id, sku, sort, direction)
+    return _export_items(query, "xlsx")

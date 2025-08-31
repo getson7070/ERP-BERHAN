@@ -28,7 +28,7 @@ def _setup_app(tmp_path, monkeypatch):
 
 def test_export_csv(tmp_path, monkeypatch):
     client = _setup_app(tmp_path, monkeypatch)
-    resp = client.get("/inventory/export")
+    resp = client.get("/inventory/export.csv")
     assert resp.status_code == 200
     assert resp.headers["Content-Type"].startswith("text/csv")
     assert b"a" in resp.data
@@ -36,7 +36,7 @@ def test_export_csv(tmp_path, monkeypatch):
 
 def test_export_xlsx(tmp_path, monkeypatch):
     client = _setup_app(tmp_path, monkeypatch)
-    resp = client.get("/inventory/export?format=xlsx")
+    resp = client.get("/inventory/export.xlsx")
     assert resp.status_code == 200
     assert resp.headers["Content-Type"].startswith(
         "application/vnd.openxmlformats-officedocument"
@@ -45,6 +45,6 @@ def test_export_xlsx(tmp_path, monkeypatch):
 
 def test_sorting(tmp_path, monkeypatch):
     client = _setup_app(tmp_path, monkeypatch)
-    resp = client.get("/inventory/?sort=quantity&order=desc")
+    resp = client.get("/inventory/?sort=quantity&dir=desc")
     data = resp.get_json()
     assert data[0]["quantity"] == 5
