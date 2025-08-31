@@ -9,7 +9,7 @@
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, compliance, and traceability.
 This release adds electronic signatures, GMP batch record tracking, native lot/serial management with recall simulation, and predictive analytics for demand forecasting. Core security features include universal CSRF protection, rate limiting and a lightweight WAF that blocks obvious injection attempts.
 
-Signed webhooks and OAuth-friendly connectors expose a secure integration surface for services like Power BI and external manufacturing systems.
+Signed webhooks and OAuth-friendly connectors expose a secure integration surface for services like Power BI and external manufacturing systems. A dedicated integration API exposes REST and GraphQL endpoints for connecting external systems.
 
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
 

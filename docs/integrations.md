@@ -3,16 +3,19 @@
 ## REST & GraphQL APIs
 - `GET /api/ping` – simple health check.
 - `POST /api/graphql` – execute GraphQL queries; try `{ hello }`.
+- `POST /api/integrations/events` – send integration events.
+- `POST /api/integrations/graphql` – query the integration schema.
 
 ## Webhooks
 `POST /api/integrations/webhook` receives manufacturing and order events. Clients must sign the raw JSON payload with `WEBHOOK_SECRET` and supply the hex digest via the `X-Signature` header to avoid spoofing.
 
 ## SDK
-`sdk/client.py` exposes helpers for both basic pings and signed webhook submissions:
+`sdk/client.py` exposes helpers for pings, event submission and signed webhooks:
 ```python
 from sdk.client import ERPClient
 client = ERPClient('http://localhost:5000', token='API_TOKEN')
-client.send_event('order.created', {'id': 1}, secret='WEBHOOK_SECRET')
+client.send_event('order.created', {'id': 1})
+client.send_signed_event('order.created', {'id': 1}, secret='WEBHOOK_SECRET')
 ```
 
 ## Connectors

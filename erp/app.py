@@ -125,7 +125,7 @@ def register_blueprints(app) -> None:
     application.
     """
 
-    for package_name in ("erp.routes", "erp.blueprints", "plugins"):
+    for package_name in ("erp.api", "erp.routes", "erp.blueprints", "plugins"):
         try:
             pkg = importlib.import_module(package_name)
         except ModuleNotFoundError:
