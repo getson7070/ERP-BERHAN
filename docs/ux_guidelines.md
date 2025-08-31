@@ -7,6 +7,7 @@ This project follows industry-standard UX and accessibility practices:
 - **Dark mode:** toggle provided with persistent preference stored in `localStorage`.
 - **Form validation:** Bootstrap validation styles used with `needs-validation` class and custom scripts to ensure keyboard and screen reader support.
 - **CSP nonces:** all inline scripts/styles use `csp_nonce()` to align with our Content Security Policy.
+- **PWA support:** service worker and web app manifest enable offline access and installable experience on mobile.
 
 Developers should run:
 

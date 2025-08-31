@@ -4,8 +4,20 @@ workbox.setConfig({debug: false});
 workbox.core.skipWaiting();
 workbox.core.clientsClaim();
 
-// Basic precache of core pages
-const PRECACHE = ['/', '/choose_login', '/dashboard', '/search', '/offline'];
+// Basic precache of core pages and critical assets
+const PRECACHE = [
+  '/',
+  '/choose_login',
+  '/dashboard',
+  '/search',
+  '/offline',
+  '/static/manifest.json',
+  '/static/css/dashboard.css',
+  '/static/vendor/bootstrap.min.css',
+  '/static/js/offline.js',
+  '/static/icons/icon-192.png',
+  '/static/icons/icon-512.png'
+];
 workbox.precaching.precacheAndRoute(PRECACHE);
 const OFFLINE_URL = '/offline';
 
