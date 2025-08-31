@@ -11,6 +11,8 @@ This release adds electronic signatures, GMP batch record tracking, native lot/s
 
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
 
+A dedicated integration API exposes REST and GraphQL endpoints for connecting external systems.
+
 Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
