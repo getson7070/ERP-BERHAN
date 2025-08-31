@@ -1,20 +1,46 @@
 {% extends 'base.html' %}
 {% block title %}Orders{% endblock %}
 {% block content %}
+<style>
+  :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
+  .table-sticky thead th { position: sticky; top: 0; background: #fff; }
+</style>
 <div class="container py-5">
   <h2>Orders</h2>
+  <div class="mb-2">
+    <span class="me-2">Columns:</span>
+    <input type="checkbox" id="col-item" class="col-toggle" data-col="1" checked>
+    <label for="col-item" class="me-2">Item ID</label>
+    <input type="checkbox" id="col-qty" class="col-toggle" data-col="2" checked>
+    <label for="col-qty" class="me-2">Quantity</label>
+    <input type="checkbox" id="col-cust" class="col-toggle" data-col="3" checked>
+    <label for="col-cust" class="me-2">Customer</label>
+    <input type="checkbox" id="col-status" class="col-toggle" data-col="4" checked>
+    <label for="col-status" class="me-2">Status</label>
+  </div>
   <p>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders') }}">CSV</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders', format='xlsx') }}">XLSX</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders_csv', sort=sort, dir=direction) }}">CSV</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('orders.export_orders_xlsx', sort=sort, dir=direction) }}">XLSX</a>
   </p>
-  <table class="table table-striped">
+  <div class="table-responsive">
+  <table class="table table-striped table-sticky">
     <thead>
       <tr>
-        <th><a href="{{ url_for('orders.orders_list', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">ID</a></th>
-        <th><a href="{{ url_for('orders.orders_list', sort='item_id', order='desc' if sort=='item_id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Item ID</a></th>
-        <th><a href="{{ url_for('orders.orders_list', sort='quantity', order='desc' if sort=='quantity' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Quantity</a></th>
-        <th><a href="{{ url_for('orders.orders_list', sort='customer', order='desc' if sort=='customer' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Customer</a></th>
-        <th><a href="{{ url_for('orders.orders_list', sort='status', order='desc' if sort=='status' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Status</a></th>
+        <th aria-sort="{{ 'ascending' if sort=='id' and direction=='asc' else 'descending' if sort=='id' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('orders.orders_list', sort='id', dir='desc' if sort=='id' and direction=='asc' else 'asc', offset=offset, limit=limit) }}">ID{% if sort=='id' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='item_id' and direction=='asc' else 'descending' if sort=='item_id' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('orders.orders_list', sort='item_id', dir='desc' if sort=='item_id' and direction=='asc' else 'asc', offset=offset, limit=limit) }}">Item ID{% if sort=='item_id' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='quantity' and direction=='asc' else 'descending' if sort=='quantity' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('orders.orders_list', sort='quantity', dir='desc' if sort=='quantity' and direction=='asc' else 'asc', offset=offset, limit=limit) }}">Quantity{% if sort=='quantity' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='customer' and direction=='asc' else 'descending' if sort=='customer' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('orders.orders_list', sort='customer', dir='desc' if sort=='customer' and direction=='asc' else 'asc', offset=offset, limit=limit) }}">Customer{% if sort=='customer' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='status' and direction=='asc' else 'descending' if sort=='status' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('orders.orders_list', sort='status', dir='desc' if sort=='status' and direction=='asc' else 'asc', offset=offset, limit=limit) }}">Status{% if sort=='status' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -29,6 +55,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <nav>
     <ul class="pagination">
       {% if prev_offset is not none %}
@@ -44,4 +71,15 @@
     </ul>
   </nav>
 </div>
+<script>
+  document.querySelectorAll('.col-toggle').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const idx = parseInt(cb.dataset.col) + 1;
+      document.querySelectorAll('.table tr').forEach(row => {
+        const cell = row.children[idx];
+        if(cell){ cell.style.display = cb.checked ? '' : 'none'; }
+      });
+    });
+  });
+</script>
 {% endblock %}

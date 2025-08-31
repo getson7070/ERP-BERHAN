@@ -151,7 +151,12 @@ def issue_token():
         json.dumps({"email": email, "org_id": user.get("org_id")}),
     )
     current_app.logger.info("issued tokens for %s", email)
-    log_audit(user["id"], user.get("org_id"), "login", "API")
+    log_audit(
+        user["id"],
+        user.get("org_id"),
+        "login",
+        "provider=api",
+    )
     conn.close()
     _clear_failures(email, user)
     return {"access_token": access, "refresh_token": refresh}
@@ -268,7 +273,12 @@ def oauth_callback():
         user["permissions"].split(",") if user["permissions"] else []
     )
     session["org_id"] = user.get("org_id")
-    log_audit(user["id"], user.get("org_id"), "login", "SSO")
+    log_audit(
+        user["id"],
+        user.get("org_id"),
+        "login",
+        f"provider={current_app.config.get('OAUTH_PROVIDER', 'sso')}",
+    )
     conn.execute(
         text("UPDATE users SET last_login = :now WHERE email = :email"),
         {"now": datetime.now(), "email": email},
@@ -311,7 +321,12 @@ def oauth_totp():
             )
             conn.commit()
             conn.close()
-            log_audit(user_id, pending.get("org_id"), "login", "SSO")
+            log_audit(
+                user_id,
+                pending.get("org_id"),
+                "login",
+                f"provider={current_app.config.get('OAUTH_PROVIDER', 'sso')}",
+            )
             session.pop("pending_sso", None)
             return redirect(url_for("main.dashboard"))
         flash("Invalid MFA code.")
