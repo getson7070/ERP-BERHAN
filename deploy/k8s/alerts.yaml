@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: erp-berhan-alerts
+  labels:
+    release: prometheus
+spec:
+  groups:
+  - name: erp-berhan.slo
+    rules:
+    - alert: LowAvailability
+      expr: rate(http_requests_total{status!~"5.."}[5m]) / rate(http_requests_total[5m]) < 0.999
+      for: 5m
+      labels:
+        severity: page
+      annotations:
+        description: Availability below 99.9%
+    - alert: HighErrorRate
+      expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+      for: 5m
+      labels:
+        severity: page
+      annotations:
+        description: High 5xx error rate
+    - alert: QueueLag
+      expr: celery_queue_latency_seconds > 60
+      for: 5m
+      labels:
+        severity: page
+      annotations:
+        description: Celery queue latency over 60s
+    - alert: BackupFailure
+      expr: time() - backup_last_success_timestamp > 86400
+      for: 10m
+      labels:
+        severity: page
+      annotations:
+        description: Last backup older than 1 day
