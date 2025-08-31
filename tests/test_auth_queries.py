@@ -38,6 +38,12 @@ def test_issue_token(tmp_path, monkeypatch):
         monkeypatch.setattr(auth_module, "_check_backoff", lambda email: ("ok", 0))
         monkeypatch.setattr(auth_module, "_record_failure", lambda *a, **k: None)
         monkeypatch.setattr(auth_module, "_clear_failures", lambda *a, **k: None)
+        audit_detail = {}
+        monkeypatch.setattr(
+            auth_module,
+            "log_audit",
+            lambda user_id, org_id, action, detail: audit_detail.setdefault("d", detail),
+        )
         app.config["WTF_CSRF_ENABLED"] = False
         client = app.test_client()
         resp = client.post(
@@ -51,3 +57,4 @@ def test_issue_token(tmp_path, monkeypatch):
         if resp.status_code != 200:
             pytest.skip(f"/auth/token returned {resp.status_code}")
         assert "access_token" in resp.json
+        assert audit_detail.get("d") == "API"
