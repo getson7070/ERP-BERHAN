@@ -3,9 +3,18 @@
 {% block content %}
 <div class="container py-5">
   <h2>Inventory</h2>
+  <p>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory') }}">CSV</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory', format='xlsx') }}">XLSX</a>
+  </p>
   <table class="table table-striped">
     <thead>
-      <tr><th>ID</th><th>SKU</th><th>Name</th><th>Quantity</th></tr>
+      <tr>
+        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">ID</a></th>
+        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='sku', order='desc' if sort=='sku' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">SKU</a></th>
+        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='name', order='desc' if sort=='name' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Name</a></th>
+        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='quantity', order='desc' if sort=='quantity' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Quantity</a></th>
+      </tr>
     </thead>
     <tbody>
       {% for i in items %}
@@ -21,12 +30,12 @@
   <nav>
     <ul class="pagination">
       {% if prev_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=prev_offset, limit=limit, sku=sku) }}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=prev_offset, limit=limit, sku=sku, sort=sort, order=order) }}">Previous</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Previous</span></li>
       {% endif %}
       {% if next_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=next_offset, limit=limit, sku=sku) }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=next_offset, limit=limit, sku=sku, sort=sort, order=order) }}">Next</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Next</span></li>
       {% endif %}
