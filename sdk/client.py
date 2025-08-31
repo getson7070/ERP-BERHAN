@@ -1,5 +1,9 @@
 """Simple Python SDK for the ERP REST API."""
 
+import hashlib
+import hmac
+import json
+
 import requests
 
 
@@ -24,6 +28,21 @@ class ERPClient:
     def get_orders(self):
         resp = requests.get(
             f"{self.base_url}/api/orders", headers=self._headers(), timeout=5
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def send_event(self, event: str, payload: dict, secret: str) -> dict:
+        """Send a signed webhook event to the integration endpoint."""
+        body = json.dumps({"event": event, "payload": payload})
+        signature = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        headers = self._headers()
+        headers["X-Signature"] = signature
+        resp = requests.post(
+            f"{self.base_url}/api/integrations/webhook",
+            headers=headers,
+            data=body,
+            timeout=5,
         )
         resp.raise_for_status()
         return resp.json()

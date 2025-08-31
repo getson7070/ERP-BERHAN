@@ -5,19 +5,20 @@
 - `POST /api/graphql` – execute GraphQL queries; try `{ hello }`.
 
 ## Webhooks
-Set `WEBHOOK_URL` in the environment to forward events. Incoming requests must include an `X-Signature` header with an HMAC SHA-256 digest of the raw body using `WEBHOOK_SECRET` to prevent spoofing.
+`POST /api/integrations/webhook` receives manufacturing and order events. Clients must sign the raw JSON payload with `WEBHOOK_SECRET` and supply the hex digest via the `X-Signature` header to avoid spoofing.
 
 ## SDK
-`sdk/client.py` provides a minimal Python interface:
+`sdk/client.py` exposes helpers for both basic pings and signed webhook submissions:
 ```python
 from sdk.client import ERPClient
-client = ERPClient('http://localhost:5000')
-print(client.ping())
+client = ERPClient('http://localhost:5000', token='API_TOKEN')
+client.send_event('order.created', {'id': 1}, secret='WEBHOOK_SECRET')
 ```
 
 ## Connectors
 - `erp/connectors/accounting.py` – push invoices to accounting software.
 - `erp/connectors/ecommerce.py` – fetch products from e-commerce platforms.
+- `erp/integrations/powerbi.py` – fetch Power BI embed tokens for dashboards.
 
 ## Object Storage
 `erp/storage.py` uploads files to S3-compatible backends with a basic EICAR scan and returns presigned URLs for secure downloads.
