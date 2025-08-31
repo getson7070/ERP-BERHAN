@@ -141,6 +141,10 @@ if env == "production":
         missing.append("SENTRY_DSN")
 
     if insecure:
-        raise RuntimeError("Insecure default secrets detected: " + ", ".join(sorted(set(insecure))))
+        raise RuntimeError(
+            "Insecure default secrets detected: " + ", ".join(sorted(set(insecure)))
+        )
     if missing:
-        raise RuntimeError("Missing required production secrets: " + ", ".join(sorted(set(missing))))
+        raise RuntimeError(
+            "Missing required production secrets: " + ", ".join(sorted(set(missing)))
+        )

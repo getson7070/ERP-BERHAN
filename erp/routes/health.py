@@ -10,6 +10,7 @@ def _ping_db() -> bool:
     try:
         from db import get_engine
         from sqlalchemy import text
+
         with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         return True
@@ -20,7 +21,12 @@ def _ping_db() -> bool:
 def _ping_redis() -> bool:
     try:
         import redis
-        url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or "redis://localhost:6379/0"
+
+        url = (
+            os.getenv("REDIS_URL")
+            or os.getenv("CELERY_BROKER_URL")
+            or "redis://localhost:6379/0"
+        )
         r = redis.Redis.from_url(url)
         r.ping()
         return True

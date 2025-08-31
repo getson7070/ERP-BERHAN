@@ -1,4 +1,5 @@
 """Fix RLS policies to use current_setting('erp.org_id')::int."""
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -22,6 +23,7 @@ TENANT_TABLES = (
     "project_projects",
 )
 
+
 def upgrade():
     for table in TENANT_TABLES:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
@@ -33,6 +35,7 @@ def upgrade():
             WITH CHECK (org_id = current_setting('erp.org_id')::int)
             """
         )
+
 
 def downgrade():
     for table in TENANT_TABLES:

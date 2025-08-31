@@ -106,25 +106,25 @@ def init_celery(state):
             "task": "analytics.deduplicate_customers",
             "schedule": crontab(hour=4, minute=0),
         },
-          "purge-expired-rows": {
-              "task": "data_retention.purge_expired_rows",
-              "schedule": crontab(hour=3, minute=30),
-          },
-          "anonymize-users": {
-              "task": "data_retention.anonymize_users",
-              "schedule": crontab(hour=3, minute=45),
-          },
-          "quarterly-access-recert": {
-              "task": "data_retention.run_access_recert_export",
-              "schedule": crontab(
-                  month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0
-              ),
-          },
-          "nightly-db-backup": {
-              "task": "backup.run_backup",
-              "schedule": crontab(hour=2, minute=30),
-          },
-      }
+        "purge-expired-rows": {
+            "task": "data_retention.purge_expired_rows",
+            "schedule": crontab(hour=3, minute=30),
+        },
+        "anonymize-users": {
+            "task": "data_retention.anonymize_users",
+            "schedule": crontab(hour=3, minute=45),
+        },
+        "quarterly-access-recert": {
+            "task": "data_retention.run_access_recert_export",
+            "schedule": crontab(
+                month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0
+            ),
+        },
+        "nightly-db-backup": {
+            "task": "backup.run_backup",
+            "schedule": crontab(hour=2, minute=30),
+        },
+    }
 
 
 @bp.route("/analytics/dashboard")
