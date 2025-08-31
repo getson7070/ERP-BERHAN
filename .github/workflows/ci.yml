@@ -21,13 +21,13 @@ jobs:
         with:
           python-version: '3.10'
           cache: 'pip'
-          cache-dependency-path: 'requirements.txt requirements-dev.txt'
+          cache-dependency-path: 'requirements.lock requirements-dev.txt'
       - name: Install Node tools
         run: npm install -g pa11y-ci @axe-core/cli
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
+          pip install -r requirements.lock -r requirements-dev.txt
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium firefox webkit
       - name: Lint
@@ -40,7 +40,7 @@ jobs:
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit
-        run: pip-audit -r requirements.txt -f json -o pip-audit.json
+        run: pip-audit -r requirements.lock -f json -o pip-audit.json
       - name: Upload pip-audit report
         if: always()
         uses: actions/upload-artifact@v3
@@ -91,6 +91,22 @@ jobs:
           retention-days: 30
       - name: Build Docker image
         run: docker build -t erp-berhan .
+      - name: Save image tarball
+        run: docker save erp-berhan -o erp-berhan.tar
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.6.0
+      - name: Sign container image
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+        run: cosign sign-blob --output-signature erp-berhan.tar.sig --output-certificate erp-berhan.tar.cert erp-berhan.tar
+      - name: Upload signature
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cosign-signature
+          path: |
+            erp-berhan.tar.sig
+            erp-berhan.tar.cert
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.11.3
         with:

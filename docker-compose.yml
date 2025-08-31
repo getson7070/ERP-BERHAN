@@ -19,6 +19,9 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/seccomp.json
     healthcheck:
       test: ["CMD", "curl", "-f", "http://web:8000/healthz"]
       interval: 30s
@@ -49,6 +52,9 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/seccomp.json
     healthcheck:
       test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
       interval: 30s
@@ -71,6 +77,9 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/seccomp.json
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep 'celery beat' | grep -qv grep"]
       interval: 30s
@@ -91,6 +100,9 @@ services:
       db:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/seccomp.json
   monitor:
     build: .
     command: sh -c "while true; do python scripts/monitor_queue.py; sleep 60; done"
@@ -106,6 +118,9 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/seccomp.json
   db:
     image: postgres:15-alpine
     environment:
