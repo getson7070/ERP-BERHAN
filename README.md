@@ -13,6 +13,8 @@ Signed webhooks and OAuth-friendly connectors expose a secure integration surfac
 
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
 
+An accessible locale switcher in the navbar lets users toggle between English and Amharic interfaces.
+
 Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.

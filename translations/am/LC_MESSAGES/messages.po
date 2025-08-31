@@ -39,6 +39,12 @@ msgstr "ሰራተኛ መመዝገብ"
 msgid "Register Client"
 msgstr "ደንበኛ መመዝገብ"
 
+msgid "Language"
+msgstr "ቋንቋ"
+
+msgid "Language switcher"
+msgstr "የቋንቋ መቀየሪያ"
+
 msgid "Marketing"
 msgstr "ማስታወቂያ"
 
@@ -98,9 +104,6 @@ msgstr "ጨለማ/ብርሃን ሁኔታ ቀይር"
 
 msgid "CRM"
 msgstr "CRM"
-
-msgid "Language"
-msgstr "ቋንቋ"
 
 msgid "Skip to main content"
 msgstr "ወደ ዋናው ይሂዱ"

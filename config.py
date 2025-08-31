@@ -52,7 +52,7 @@ class Config:
     BABEL_SUPPORTED_LOCALES = os.environ.get("BABEL_SUPPORTED_LOCALES", "en,am").split(
         ","
     )
-    LANGUAGES = BABEL_SUPPORTED_LOCALES
+    LANGUAGES = {"en": "English", "am": "አማርኛ"}
     BABEL_DEFAULT_TIMEZONE = "UTC"
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
     API_TOKEN = get_secret("API_TOKEN")

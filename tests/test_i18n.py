@@ -22,9 +22,11 @@ def test_language_switch(client):
     assert "የሰራተኛ ዳሽቦርድ" in res.get_data(as_text=True)
 
 
-def test_locale_switcher_present(client):
+def test_locale_switcher_rendered(client):
     with client.session_transaction() as sess:
         sess["logged_in"] = True
         sess["role"] = "Employee"
     res = client.get("/dashboard")
-    assert 'id="locale-select"' in res.get_data(as_text=True)
+    html = res.get_data(as_text=True)
+    assert 'id="language-select"' in html
+    assert '<option value="am"' in html
