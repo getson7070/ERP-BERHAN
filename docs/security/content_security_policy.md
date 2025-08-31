@@ -2,17 +2,19 @@
 
 The application enforces a strict Content Security Policy using
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman).
-All third-party libraries are self-hosted under `/static/vendor`, so the
-policy only allows resources from the application itself and injects
-per-request nonces for inline scripts and styles:
+
+Most third-party libraries are self-hosted under `/static/vendor`. The
+Workbox service worker modules are fetched from Google's CDN, so the
+policy whitelists that domain and injects a per-request nonce for
+inline scripts and styles:
 
 ```
 {
   "default-src": "'self'",
-  "script-src": ["'self'"],
+  "script-src": ["'self'", "https://storage.googleapis.com"],
   "style-src": ["'self'"],
   "img-src": ["'self'", "data:"],
-  "connect-src": ["'self'"],
+  "connect-src": ["'self'", "https://storage.googleapis.com"],
   "font-src": ["'self'"],
   "frame-ancestors": "'none'"
 }

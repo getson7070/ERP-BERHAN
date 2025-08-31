@@ -4,6 +4,10 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
 {% endblock %}
 {% block content %}
+<style>
+  :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
+  .table-sticky thead th { position: sticky; top: 0; background: #fff; }
+</style>
 <div class="container py-5">
   <h2>Orders</h2>
   <div class="mb-2">

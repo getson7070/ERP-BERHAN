@@ -8,6 +8,13 @@ spec:
   groups:
   - name: erp-berhan.slo
     rules:
+    - alert: LowAvailability
+      expr: rate(http_requests_total{status!~"5.."}[5m]) / rate(http_requests_total[5m]) < 0.999
+      for: 5m
+      labels:
+        severity: page
+      annotations:
+        description: Availability below 99.9%
     - alert: HighErrorRate
       expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
       for: 5m

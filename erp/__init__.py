@@ -276,10 +276,12 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": ["'self'"],
+        # Workbox modules are fetched from Google's CDN, so it must be
+        # explicitly whitelisted in the policy.
+        "script-src": ["'self'", "https://storage.googleapis.com"],
         "style-src": ["'self'"],
         "img-src": ["'self'", "data:"],
-        "connect-src": ["'self'"],
+        "connect-src": ["'self'", "https://storage.googleapis.com"],
         "font-src": ["'self'"],
         "frame-ancestors": ["'none'"],
     }
