@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() }}" dir="{{ 'rtl' if get_locale() in ['ar', 'he'] else 'ltr' }}" data-bs-theme="light">
+<html lang="{{ get_locale() }}" dir="{{ 'rtl' if get_locale() in ['ar', 'he', 'fa'] else 'ltr' }}" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,7 +90,6 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/async.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/tour.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

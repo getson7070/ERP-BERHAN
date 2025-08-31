@@ -13,7 +13,7 @@ Signed webhooks and OAuth-friendly connectors expose a secure integration surfac
 
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
 
-An accessible locale switcher enables English and Amharic translations, and a lightweight guided tour introduces key UI controls for new users.
+An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
 Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
 
