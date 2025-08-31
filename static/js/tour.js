@@ -1,7 +1,9 @@
 (() => {
-    if (localStorage.getItem('onboarding-tour-done')) return;
+    const btn = document.getElementById('start-tour');
+    if (!btn || localStorage.getItem('onboarding-tour-done')) return;
     const steps = [
         { el: '.navbar-brand', text: window.tourStrings?.nav || 'Use the navigation menu to switch modules.' },
+        { el: '#lang-select', text: window.tourStrings?.language || 'Change the interface language.' },
         { el: '#themeToggle', text: window.tourStrings?.theme || 'Toggle dark mode to reduce eye strain.' }
     ];
     let index = 0;
@@ -28,5 +30,5 @@
             localStorage.setItem('onboarding-tour-done', '1');
         }
     }
-    showStep();
+    btn.addEventListener('click', showStep);
 })();

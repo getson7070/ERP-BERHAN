@@ -1,9 +1,8 @@
-import os
-import sys
 import pytest
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from erp import create_app  # noqa: E402
+pytest.importorskip("bs4")
+from bs4 import BeautifulSoup  # noqa: E402
+from erp.app import create_app  # noqa: E402
 
 
 @pytest.fixture
@@ -28,5 +27,5 @@ def test_locale_switcher_rendered(client):
         sess["role"] = "Employee"
     res = client.get("/dashboard")
     html = res.get_data(as_text=True)
-    assert 'id="language-select"' in html
+    assert 'id="lang-select"' in html
     assert '<option value="am"' in html

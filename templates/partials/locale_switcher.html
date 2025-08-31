@@ -1,6 +1,6 @@
 <form class="d-flex align-items-center ms-2" action="#" method="get" aria-label="{{ _('Language switcher') }}">
-  <label for="language-select" class="me-2">{{ _('Language') }}</label>
-  <select id="language-select" class="form-select form-select-sm" onchange="window.location='{{ url_for('main.set_language', lang='') }}'+this.value;">
+  <label for="lang-select" class="me-2">{{ _('Language') }}</label>
+  <select id="lang-select" class="form-select form-select-sm" onchange="window.location='{{ url_for('main.set_language', lang='') }}'+this.value;">
     {% for code, name in config['LANGUAGES'].items() %}
     <option value="{{ code }}" {% if get_locale() == code %}selected{% endif %}>{{ name }}</option>
     {% endfor %}
