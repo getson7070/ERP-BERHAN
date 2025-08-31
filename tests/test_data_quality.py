@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from datetime import datetime, UTC, timedelta
 from erp.data_quality import deduplicate, detect_conflict
 from db import get_db
+import pytest
 
 
 def test_deduplicate():
@@ -19,6 +20,13 @@ def test_deduplicate():
     conn.commit()
     cur.close()
     conn.close()
+
+
+def test_deduplicate_rejects_invalid_identifier():
+    with pytest.raises(ValueError):
+        deduplicate("tmp;DROP TABLE users;", ["name"])
+    with pytest.raises(ValueError):
+        deduplicate("tmp", ["name;DROP TABLE users;"])
 
 
 def test_detect_conflict():
