@@ -1,5 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Inventory{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+{% endblock %}
 {% block content %}
 <style>
   :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
@@ -65,7 +68,7 @@
     </ul>
   </nav>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.col-toggle').forEach(cb => {
     cb.addEventListener('change', () => {
       const idx = parseInt(cb.dataset.col) + 1;
