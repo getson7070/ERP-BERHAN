@@ -5,7 +5,7 @@ services:
     command: gunicorn --config gunicorn.conf.py wsgi:app
     environment:
       ENV: production
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -35,7 +35,7 @@ services:
     command: celery -A erp.app.celery worker --loglevel=info
     environment:
       ENV: production
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -55,7 +55,7 @@ services:
     command: celery -A erp.app.celery beat --loglevel=info
     environment:
       ENV: production
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -75,7 +75,7 @@ services:
     command: sh -c "while true; do python backup.py; sleep 86400; done"
     environment:
       ENV: production
-      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=require
+      DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       S3_BUCKET: ${S3_BUCKET}
       S3_ENDPOINT: ${S3_ENDPOINT}
@@ -92,6 +92,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/init-app-user.sh:ro
     restart: always
   redis:
     image: redis:7-alpine

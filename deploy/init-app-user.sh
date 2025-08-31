@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'SQL'
+DO
+$$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_catalog.pg_roles WHERE rolname = 'erp_app'
+    ) THEN
+        CREATE ROLE erp_app LOGIN PASSWORD '${APP_DB_PASSWORD}';
+    END IF;
+END
+$$;
+GRANT CONNECT ON DATABASE $POSTGRES_DB TO erp_app;
+GRANT USAGE ON SCHEMA public TO erp_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO erp_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;
+SQL

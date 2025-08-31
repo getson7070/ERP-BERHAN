@@ -13,6 +13,7 @@ via environment variables to support high-concurrency deployments.
 """
 
 import os
+import time
 from functools import lru_cache
 from typing import cast
 
@@ -33,10 +34,14 @@ if os.environ.get("USE_FAKE_REDIS") == "1":
     redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
     redis_client = redis.Redis.from_url(REDIS_URL)
-    try:
-        redis_client.ping()
-    except Exception as exc:
-        raise RuntimeError("Redis connection failed") from exc
+    for _ in range(5):
+        try:
+            redis_client.ping()
+            break
+        except Exception:
+            time.sleep(0.5)
+    else:
+        raise RuntimeError("Redis connection failed")
 
 
 @lru_cache(maxsize=None)

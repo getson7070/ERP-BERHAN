@@ -13,10 +13,7 @@ injects a per-request nonce for inline scripts:
     "https://cdn.jsdelivr.net",
     "https://cdn.socket.io"
   ],
-  "style-src": [
-    "'self'",
-    "https://cdn.jsdelivr.net"
-  ],
+  "style-src": ["'self'"] ,
   "img-src": ["'self'", "data:"],
   "connect-src": ["'self'"],
   "frame-ancestors": "'none'"
