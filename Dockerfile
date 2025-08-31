@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=builder /install /usr/local
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt \
+    && python -m playwright install --with-deps chromium
 COPY . .
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app

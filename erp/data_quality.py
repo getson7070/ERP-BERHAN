@@ -3,12 +3,8 @@
 from datetime import datetime
 from typing import Iterable
 import re
-import logging
 from sqlalchemy import MetaData, Table, delete, func, literal_column, select
-from sqlalchemy.exc import DBAPIError
 from db import get_engine
-
-logger = logging.getLogger(__name__)
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -20,7 +16,7 @@ def _validate_identifier(name: str) -> None:
 
 
 def deduplicate(table: str, key_fields: Iterable[str]) -> int:
-    """Remove duplicate rows based on key fields.
+    """Remove duplicate rows based on key fields using window functions.
 
     Returns number of rows deleted.
     """
@@ -34,34 +30,23 @@ def deduplicate(table: str, key_fields: Iterable[str]) -> int:
 
     with engine.begin() as conn:
         before = conn.execute(select(func.count()).select_from(t)).scalar_one()
-        if engine.dialect.name == "postgresql":
-            a = t.alias("a")
-            b = t.alias("b")
-            conditions = [a.c[f] == b.c[f] for f in key_fields]
-            a_ctid = literal_column("ctid"); a_ctid.table = a
-            b_ctid = literal_column("ctid"); b_ctid.table = b
-            try:
-                stmt = delete(a).where(a_ctid < b_ctid, *conditions)
-                conn.execute(stmt)
-            except DBAPIError as exc:
-                logger.warning("Falling back to rowid dedupe for %s: %s", table, exc)
-                rowid = literal_column("rowid")
-                subq = (
-                    select(func.min(rowid).label("min_rowid"), *[t.c[f] for f in key_fields])
-                    .group_by(*[t.c[f] for f in key_fields])
-                    .subquery()
-                )
-                stmt = delete(t).where(rowid.notin_(select(subq.c.min_rowid)))
-                conn.execute(stmt)
+
+        pk_cols = list(t.primary_key.columns)
+        if pk_cols:
+            order_col = pk_cols[0]
         else:
-            rowid = literal_column("rowid")
-            subq = (
-                select(func.min(rowid).label("min_rowid"), *[t.c[f] for f in key_fields])
-                .group_by(*[t.c[f] for f in key_fields])
-                .subquery()
-            )
-            stmt = delete(t).where(rowid.notin_(select(subq.c.min_rowid)))
-            conn.execute(stmt)
+            order_col = literal_column("rowid")
+            order_col.table = t
+
+        partition_cols = [t.c[f] for f in key_fields]
+        rn = func.row_number().over(partition_by=partition_cols, order_by=order_col).label("rn")
+        order_label = order_col.label("ord_col")
+        subq = select(order_label, rn).subquery()
+        stmt = delete(t).where(
+            order_col.in_(select(subq.c.ord_col).where(subq.c.rn > 1))
+        )
+        conn.execute(stmt)
+
         after = conn.execute(select(func.count()).select_from(t)).scalar_one()
     return before - after
 
