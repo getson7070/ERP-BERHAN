@@ -4,6 +4,7 @@
 <p>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('crm.export_customers') }}">CSV</a>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('crm.export_customers', format='xlsx') }}">XLSX</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('crm.import_customers') }}">Import CSV</a>
 </p>
 <table class="table table-striped">
   <thead>
@@ -16,7 +17,13 @@
     {% for c in customers %}
     <tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td></tr>
     {% else %}
-    <tr><td colspan="2">No customers</td></tr>
+    <tr>
+      <td colspan="2">
+        No customers yet.
+        <a href="{{ url_for('crm.add_customer') }}" class="btn btn-sm btn-primary ms-2">Add Client</a>
+        <a href="{{ url_for('crm.import_customers') }}" class="btn btn-sm btn-outline-secondary ms-2">Import CSV</a>
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>

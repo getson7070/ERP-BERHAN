@@ -69,6 +69,31 @@ def add_customer():
     return render_template("crm/add.html")
 
 
+@bp.route("/import", methods=["GET", "POST"])
+@require_enabled("crm")
+def import_customers():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if file and file.filename:
+            stream = StringIO(file.stream.read().decode("utf-8"))
+            reader = csv.reader(stream)
+            next(reader, None)
+            conn = get_db()
+            cur = conn.cursor()
+            org_id = session.get("org_id")
+            for row in reader:
+                if row:
+                    cur.execute(
+                        "INSERT INTO crm_customers (org_id, name) VALUES (%s, %s)",
+                        (org_id, row[0]),
+                    )
+            conn.commit()
+            cur.close()
+            conn.close()
+        return redirect(url_for("crm.index"))
+    return render_template("crm/import.html")
+
+
 @bp.route("/export")
 @require_enabled("crm")
 def export_customers():
