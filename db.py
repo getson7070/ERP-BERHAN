@@ -29,19 +29,38 @@ MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 if os.environ.get("USE_FAKE_REDIS") == "1":
-    import fakeredis
+    try:
+        import fakeredis
+    except ImportError as exc:  # pragma: no cover - exercised in test env
+        raise RuntimeError("fakeredis is required when USE_FAKE_REDIS=1") from exc
 
     redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
-    redis_client = redis.Redis.from_url(REDIS_URL)
-    for _ in range(5):
-        try:
-            redis_client.ping()
-            break
-        except Exception:
-            time.sleep(0.5)
-    else:
-        raise RuntimeError("Redis connection failed")
+    class _RedisProxy:
+        """Lazily connect to Redis and retry a few times."""
+
+        def __init__(self, url: str):
+            self._url = url
+            self._client: redis.Redis | None = None
+
+        def _ensure(self) -> redis.Redis:
+            if self._client is None:
+                client = redis.Redis.from_url(self._url)
+                for _ in range(5):
+                    try:
+                        client.ping()
+                        break
+                    except Exception:
+                        time.sleep(0.5)
+                else:
+                    raise RuntimeError("Redis connection failed")
+                self._client = client
+            return self._client
+
+        def __getattr__(self, name):  # pragma: no cover - thin proxy
+            return getattr(self._ensure(), name)
+
+    redis_client = cast(redis.Redis, _RedisProxy(REDIS_URL))
 
 
 @lru_cache(maxsize=None)

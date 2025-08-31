@@ -211,7 +211,9 @@ Celery powers several background workflows:
   `kpi_sales_mv_age_seconds` metric.
 - Visit `/analytics/report-builder` to generate ad-hoc order or maintenance
   reports and schedule compliance exports.
-- Monitor Celery backlog with `python scripts/monitor_queue.py` to detect stuck tasks.
+- `scripts/monitor_queue.py` checks `/healthz`, queue depth and error rates,
+  optionally emailing or posting to Slack when thresholds are exceeded. Set
+  `ALERT_EMAIL` and/or `SLACK_WEBHOOK` to enable notifications.
 
 ## Caching
 
@@ -228,6 +230,8 @@ alembic upgrade head
 ```
 
 Run this command after pulling updates to keep your database schema in sync.
+Docker Compose services execute `alembic upgrade head` on startup so production
+deployments stay current automatically.
 
 ### Local PostgreSQL Setup
 
@@ -287,8 +291,9 @@ The `backup.py` helper creates timestamped database backups. PostgreSQL and
 MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
 to be used for replication or off-site disaster recovery. On Render, set up a
 nightly Cron Job running `python backup.py` with `BACKUP_ENCRYPTION_KEY`
-defined so backups are encrypted at rest. See `docs/db_maintenance.md` for
-detailed backup/restore and pooling guidance.
+defined so backups are encrypted at rest. Configure an S3 bucket with a
+lifecycle policy to expire old backups and reduce storage costs. See
+`docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
 
 ## Disaster Recovery
 

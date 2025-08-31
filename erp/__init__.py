@@ -60,7 +60,6 @@ from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
-import re
 import bleach
 from erp.plugins import load_plugins
 from .cache import init_cache
@@ -277,11 +276,7 @@ def create_app():
 
     csp = {
         "default-src": "'self'",
-        "script-src": [
-            "'self'",
-            "https://cdn.jsdelivr.net",
-            "https://cdn.socket.io",
-        ],
+        "script-src": ["'self'"],
         "style-src": ["'self'"],
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
@@ -293,8 +288,6 @@ def create_app():
         content_security_policy_nonce_in=["script-src"],
         force_https=True,
     )
-
-    script_re = re.compile(r"<\s*script", re.I)
 
     @app.before_request
     def _waf():

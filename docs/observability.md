@@ -10,3 +10,6 @@
 - **Audit log integrity:** `audit_chain_broken_total` should remain `0`; any increase triggers incident response.
 
 Configure Prometheus alerts for these SLOs and review dashboards weekly.
+`scripts/monitor_queue.py` can be run as a sidecar to poll `/healthz`, queue
+depth and error metrics, delivering alerts via email or Slack when thresholds
+are exceeded.

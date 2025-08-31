@@ -19,6 +19,9 @@
         <h1 class="visually-hidden">{{ _('BERHAN ERP') }}</h1>
         {% block body %}{% block content %}{% endblock %}{% endblock %}
     </main>
+    <div id="loading-spinner" class="spinner-border text-primary position-fixed top-50 start-50 d-none" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/flatpickr.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}">
@@ -75,11 +78,10 @@
             container.appendChild(wrapper);
         };
     </script>
-    <script nonce="{{ csp_nonce() }}" src="https://cdn.socket.io/4.6.1/socket.io.min.js"
-      integrity="sha384-KA7m0DwgQGmeRC6Xre3hJO+ZxpanOauVh4Czdqbg8lDKJ3bZZYVYmP+y4F31x40L"
-      crossorigin="anonymous"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/async.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

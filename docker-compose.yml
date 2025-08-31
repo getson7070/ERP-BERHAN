@@ -2,7 +2,7 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn --config gunicorn.conf.py wsgi:app
+    command: sh -c "alembic upgrade head && gunicorn --config gunicorn.conf.py wsgi:app"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
@@ -14,8 +14,10 @@ services:
       SENTRY_DSN: ${SENTRY_DSN}
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://web:8000/healthz"]
@@ -32,7 +34,7 @@ services:
           memory: 256M
   worker:
     build: .
-    command: celery -A erp.app.celery worker --loglevel=info
+    command: sh -c "alembic upgrade head && celery -A erp.app.celery worker --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
@@ -42,8 +44,10 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
@@ -52,7 +56,7 @@ services:
       retries: 3
   beat:
     build: .
-    command: celery -A erp.app.celery beat --loglevel=info
+    command: sh -c "alembic upgrade head && celery -A erp.app.celery beat --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
@@ -62,8 +66,10 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep 'celery beat' | grep -qv grep"]
@@ -82,7 +88,23 @@ services:
       AWS_REGION: ${AWS_REGION}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: always
+  monitor:
+    build: .
+    command: sh -c "while true; do python scripts/monitor_queue.py; sleep 60; done"
+    environment:
+      ENV: production
+      CELERY_BROKER_URL: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
   db:
     image: postgres:15-alpine
@@ -90,15 +112,26 @@ services:
       POSTGRES_DB: erp
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/init-app-user.sh:ro
+      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/10-init-app-user.sh:ro
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
     image: redis:7-alpine
     restart: always
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   pgdata:
   redisdata:

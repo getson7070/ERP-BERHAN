@@ -2,18 +2,15 @@
 
 The application enforces a strict Content Security Policy using
 [`Flask-Talisman`](https://github.com/GoogleCloudPlatform/flask-talisman).
-The policy enumerates permitted sources for each resource type and
-injects a per-request nonce for inline scripts:
+All third-party libraries are self-hosted under `/static/vendor`, so the
+policy only allows resources from the application itself and injects a
+per-request nonce for inline scripts:
 
 ```
 {
   "default-src": "'self'",
-  "script-src": [
-    "'self'",
-    "https://cdn.jsdelivr.net",
-    "https://cdn.socket.io"
-  ],
-  "style-src": ["'self'"] ,
+  "script-src": ["'self'"],
+  "style-src": ["'self'"],
   "img-src": ["'self'", "data:"],
   "connect-src": ["'self'"],
   "frame-ancestors": "'none'"

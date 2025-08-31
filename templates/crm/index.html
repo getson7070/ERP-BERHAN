@@ -1,12 +1,38 @@
 {% extends 'dashboard.html' %}
 {% block content %}
 <h2>Customers</h2>
-<ul class="list-group mb-3">
-  {% for c in customers %}
-    <li class="list-group-item">{{ c[1] }}</li>
-  {% else %}
-    <li class="list-group-item">No customers</li>
-  {% endfor %}
-</ul>
+<p>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('crm.export_customers') }}">CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('crm.export_customers', format='xlsx') }}">XLSX</a>
+</p>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th><a href="{{ url_for('crm.index', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">ID</a></th>
+      <th><a href="{{ url_for('crm.index', sort='name', order='desc' if sort=='name' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Name</a></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in customers %}
+    <tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td></tr>
+    {% else %}
+    <tr><td colspan="2">No customers</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<nav>
+  <ul class="pagination">
+    {% if prev_offset is not none %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('crm.index', offset=prev_offset, limit=limit, sort=sort, order=order) }}">Previous</a></li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+    {% endif %}
+    {% if next_offset is not none %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('crm.index', offset=next_offset, limit=limit, sort=sort, order=order) }}">Next</a></li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
 <a href="{{ url_for('crm.add_customer') }}" class="btn btn-primary">Add Customer</a>
 {% endblock %}

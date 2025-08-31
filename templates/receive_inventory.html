@@ -29,8 +29,8 @@
 {% endblock %}
 {% block scripts %}
   {{ super() }}
-  <script nonce="{{ csp_nonce() }}" src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js" integrity="sha384-sl2LNalPRD3qrS3TKmINXWwRcQKf9cUlNZGd8pqjlpzbzgMsFgE+133u4kM32IR" crossorigin="anonymous"></script>
-  <script nonce="{{ csp_nonce() }}" src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js" integrity="sha384-esTT3pUoxT1ABdxNxbMOglzErtD7TMAJIeNSgB/6zIc15mCDJBQ47WIQWsP6v+Pb" crossorigin="anonymous"></script>
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/quagga.min.js') }}"></script>
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/html5-qrcode.min.js') }}"></script>
   <script nonce="{{ csp_nonce() }}">
   const scanner = document.getElementById('scanner');
   if (scanner) {

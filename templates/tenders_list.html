@@ -3,6 +3,10 @@
 {% block body %}
 <div class="container mt-4">
     <h2>Tenders</h2>
+    <p>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('tenders.export_tenders') }}">CSV</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('tenders.export_tenders', format='xlsx') }}">XLSX</a>
+    </p>
     {% with messages = get_flashed_messages(with_categories=True) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -14,17 +18,17 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Due Date</th>
-                <th>State</th>
-                <th>Result</th>
-                <th>Awarded To</th>
-                <th>Award Date</th>
-                <th>User</th>
-                <th>Institution</th>
-                <th>Envelope</th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit) }}">ID</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='type_name', order='desc' if sort=='type_name' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Type</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='description', order='desc' if sort=='description' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Description</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='due_date', order='desc' if sort=='due_date' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Due Date</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='workflow_state', order='desc' if sort=='workflow_state' and order=='asc' else 'asc', offset=offset, limit=limit) }}">State</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='result', order='desc' if sort=='result' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Result</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='awarded_to', order='desc' if sort=='awarded_to' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Awarded To</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='award_date', order='desc' if sort=='award_date' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Award Date</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='username', order='desc' if sort=='username' and order=='asc' else 'asc', offset=offset, limit=limit) }}">User</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='institution', order='desc' if sort=='institution' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Institution</a></th>
+                <th><a href="{{ url_for('tenders.tenders_list', sort='envelope_type', order='desc' if sort=='envelope_type' and order=='asc' else 'asc', offset=offset, limit=limit) }}">Envelope</a></th>
                 <th></th>
             </tr>
         </thead>
@@ -51,15 +55,22 @@
                     {% elif tender['workflow_state'] == 'evaluated' %}
                     <form method="post" action="{{ url_for('tenders.advance_tender', tender_id=tender['id']) }}" class="row g-1 needs-validation" novalidate>
                         <div class="col-auto">
-                            <select name="result" class="form-select form-select-sm">
+                            <label for="result-{{ tender['id'] }}" class="visually-hidden">Result</label>
+                            <select id="result-{{ tender['id'] }}" name="result" class="form-select form-select-sm">
                                 <option value="won">Won</option>
                                 <option value="defeat">Defeat</option>
                                 <option value="rejected">Rejected</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>
                         </div>
-                        <div class="col"><input type="text" name="awarded_to" class="form-control form-control-sm" placeholder="Awarded To"></div>
-                        <div class="col"><input type="date" name="award_date" class="form-control form-control-sm"></div>
+                        <div class="col">
+                            <label for="awarded-{{ tender['id'] }}" class="visually-hidden">Awarded To</label>
+                            <input type="text" id="awarded-{{ tender['id'] }}" name="awarded_to" class="form-control form-control-sm" placeholder="Awarded To">
+                        </div>
+                        <div class="col">
+                            <label for="award-date-{{ tender['id'] }}" class="visually-hidden">Award Date</label>
+                            <input type="date" id="award-date-{{ tender['id'] }}" name="award_date" class="form-control form-control-sm">
+                        </div>
                         <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Record</button></div>
                     </form>
                     {% else %}
@@ -70,10 +81,23 @@
             {% endfor %}
         </tbody>
     </table>
+    <nav>
+        <ul class="pagination">
+            {% if prev_offset is not none %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('tenders.tenders_list', offset=prev_offset, limit=limit, sort=sort, order=order) }}">Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+            {% if next_offset is not none %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('tenders.tenders_list', offset=next_offset, limit=limit, sort=sort, order=order) }}">Next</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
     {% else %}
     <p>No tenders found.</p>
     {% endif %}
     <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Back</a>
 </div>
 {% endblock %}
-

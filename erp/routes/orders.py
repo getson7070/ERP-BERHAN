@@ -1,9 +1,21 @@
-from flask import Blueprint, render_template, redirect, url_for, session
+from flask import (
+    Blueprint,
+    render_template,
+    redirect,
+    url_for,
+    session,
+    request,
+    make_response,
+    send_file,
+)
 from flask_wtf import FlaskForm
 from wtforms import SelectField, IntegerField, BooleanField, SubmitField, StringField
 from wtforms.validators import DataRequired, NumberRange
 
 from sqlalchemy import text
+from io import BytesIO, StringIO
+import csv
+from openpyxl import Workbook
 from db import get_db
 from erp.utils import login_required, has_permission, idempotency_key_required
 
@@ -82,3 +94,91 @@ def orders():
         approved_orders=approved_orders,
         rejected_orders=rejected_orders,
     )
+
+
+@bp.route("/list")
+@login_required
+def orders_list():
+    if not has_permission("view_orders"):
+        return redirect(url_for("main.dashboard"))
+    sort = request.args.get("sort", "id")
+    order = request.args.get("order", "asc")
+    limit = min(int(request.args.get("limit", 20)), 100)
+    offset = int(request.args.get("offset", 0))
+    columns = {
+        "id": "id",
+        "item_id": "item_id",
+        "quantity": "quantity",
+        "customer": "customer",
+        "status": "status",
+    }
+    sort_col = columns.get(sort, "id")
+    order_sql = "DESC" if order == "desc" else "ASC"
+    conn = get_db()
+    rows = (
+        conn.execute(
+            text(
+                f"SELECT id, item_id, quantity, customer, status FROM orders ORDER BY {sort_col} {order_sql} LIMIT :limit OFFSET :offset"
+            ),
+            {"limit": limit, "offset": offset},
+        )
+        .mappings()
+        .fetchall()
+    )
+    conn.close()
+    next_offset = offset + limit if len(rows) == limit else None
+    prev_offset = offset - limit if offset - limit >= 0 else None
+    return render_template(
+        "orders_list.html",
+        orders=rows,
+        sort=sort,
+        order=order,
+        limit=limit,
+        offset=offset,
+        next_offset=next_offset,
+        prev_offset=prev_offset,
+    )
+
+
+@bp.route("/export")
+@login_required
+def export_orders():
+    if not has_permission("view_orders"):
+        return redirect(url_for("main.dashboard"))
+    fmt = request.args.get("format", "csv")
+    conn = get_db()
+    rows = (
+        conn.execute(
+            text(
+                "SELECT id, item_id, quantity, customer, status FROM orders ORDER BY id"
+            )
+        )
+        .mappings()
+        .fetchall()
+    )
+    conn.close()
+    headers = ["id", "item_id", "quantity", "customer", "status"]
+    if fmt == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.append(headers)
+        for r in rows:
+            ws.append([r[h] for h in headers])
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        return send_file(
+            bio,
+            as_attachment=True,
+            download_name="orders.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    sio = StringIO()
+    writer = csv.writer(sio)
+    writer.writerow(headers)
+    for r in rows:
+        writer.writerow([r[h] for h in headers])
+    resp = make_response(sio.getvalue())
+    resp.headers["Content-Disposition"] = "attachment; filename=orders.csv"
+    resp.headers["Content-Type"] = "text/csv"
+    return resp
