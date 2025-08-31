@@ -109,13 +109,17 @@ def _log_drill(start: float, backup_file: Path, log_dir: Path = Path("logs")):
         )
 
 
-@shared_task(name="backup.run_backup")
-def run_backup():
+def run_backup_sync():
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         raise RuntimeError("DATABASE_URL is required for backups")
     create_backup(db_url)
     BACKUP_LAST_SUCCESS.set(time.time())
+
+
+@shared_task(name="backup.run_backup")
+def run_backup():
+    run_backup_sync()
 
 
 def perform_restore_drill():

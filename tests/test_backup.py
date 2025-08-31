@@ -4,7 +4,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from backup import create_backup, run_backup, BACKUP_LAST_SUCCESS
+from backup import create_backup, run_backup_sync, BACKUP_LAST_SUCCESS
 
 
 def test_pg_dump_invoked(tmp_path):
@@ -35,5 +35,5 @@ def test_run_backup_sets_metric(tmp_path, monkeypatch):
     db_file = tmp_path / "db.sqlite"
     db_file.write_text("data")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
-    run_backup()
+    run_backup_sync()
     assert BACKUP_LAST_SUCCESS._value.get() > 0
