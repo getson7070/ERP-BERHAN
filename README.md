@@ -285,8 +285,10 @@ See [docs/blueprints.md](docs/blueprints.md) for details. All HTML pages extend 
 
 The `backup.py` helper creates timestamped database backups. PostgreSQL and
 MySQL connections are dumped via `pg_dump` and `mysqldump`, allowing the dumps
-to be used for replication or off-site disaster recovery. See
-`docs/db_maintenance.md` for detailed backup/restore and pooling guidance.
+to be used for replication or off-site disaster recovery. On Render, set up a
+nightly Cron Job running `python backup.py` with `BACKUP_ENCRYPTION_KEY`
+defined so backups are encrypted at rest. See `docs/db_maintenance.md` for
+detailed backup/restore and pooling guidance.
 
 ## Disaster Recovery
 
