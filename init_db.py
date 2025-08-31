@@ -359,7 +359,7 @@ def init_db():
         ("NGO/UN Portal Tender",),
     )
 
-    seed_demo = os.environ.get("SEED_DEMO_DATA", "").lower() in {"1", "true", "yes"}
+    seed_demo = os.environ.get("SEED_DEMO_DATA") == "1"
     if seed_demo and os.environ.get("ENV") != "production":
         admin_username = os.environ.get("ADMIN_USERNAME")
         admin_password = os.environ.get("ADMIN_PASSWORD")

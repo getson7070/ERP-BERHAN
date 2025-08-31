@@ -14,8 +14,10 @@ services:
       SENTRY_DSN: ${SENTRY_DSN}
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://web:8000/healthz"]
@@ -42,8 +44,10 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
@@ -62,8 +66,10 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep 'celery beat' | grep -qv grep"]
@@ -82,7 +88,8 @@ services:
       AWS_REGION: ${AWS_REGION}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
   db:
     image: postgres:15-alpine
@@ -90,15 +97,26 @@ services:
       POSTGRES_DB: erp
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/init-app-user.sh:ro
+      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/10-init-app-user.sh:ro
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
     image: redis:7-alpine
     restart: always
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   pgdata:
   redisdata:

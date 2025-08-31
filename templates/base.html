@@ -75,9 +75,7 @@
             container.appendChild(wrapper);
         };
     </script>
-    <script nonce="{{ csp_nonce() }}" src="https://cdn.socket.io/4.6.1/socket.io.min.js"
-      integrity="sha384-KA7m0DwgQGmeRC6Xre3hJO+ZxpanOauVh4Czdqbg8lDKJ3bZZYVYmP+y4F31x40L"
-      crossorigin="anonymous"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
     {% block scripts %}{% endblock %}
