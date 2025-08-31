@@ -7,5 +7,7 @@ This directory contains manifests for deploying the ERP system.
 - `pdb.yaml` adds a PodDisruptionBudget ensuring at least two application pods remain during voluntary disruptions.
 - `pgbouncer.yaml` provisions the PgBouncer connection pooler with resource limits and readiness/liveness probes.
 - `pgbouncer-pdb.yaml` keeps at least one PgBouncer replica available during voluntary disruptions.
+- `prometheus.yaml` defines ServiceMonitors for the web app, Celery workers,
+  PgBouncer, and Redis so metrics are scraped by Prometheus.
 
 Refer to `docs/deployment.md` for failover, rolling upgrade, and load-testing practices.

@@ -9,7 +9,11 @@
 - **Rate limiting:** monitor `429` counts to detect abusive clients.
 - **Audit log integrity:** `audit_chain_broken_total` should remain `0`; any increase triggers incident response.
 
-Configure Prometheus alerts for these SLOs and review dashboards weekly.
-`scripts/monitor_queue.py` can be run as a sidecar to poll `/healthz`, queue
-depth and error metrics, delivering alerts via email or Slack when thresholds
-are exceeded.
+Prometheus scrapes the web app, Celery workers, PgBouncer, and Redis using
+[`deploy/k8s/prometheus.yaml`](../deploy/k8s/prometheus.yaml). Alerts should be
+configured for all SLOs and reviewed weekly.
+`scripts/monitor_queue.py` can run as a sidecar to poll `/healthz`, queue depth
+and error metrics, delivering alerts via email or Slack when thresholds are
+exceeded. `scripts/dr_drill.sh` captures RPO/RTO metrics for restore drills,
+and `scripts/rotate_secrets.py` rotates database and API secrets with audit
+logging.

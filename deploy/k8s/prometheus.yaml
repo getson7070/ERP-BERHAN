@@ -11,3 +11,51 @@ spec:
   endpoints:
     - port: http
       path: /metrics
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: erp-berhan-celery
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: celery
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: erp-berhan-pgbouncer
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: pgbouncer
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: erp-berhan-redis
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

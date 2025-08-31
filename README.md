@@ -378,8 +378,9 @@ high‑availability setup with readiness probes and horizontal pod autoscaling.
 ## Observability & Offline Use
 
 Requests are instrumented with Prometheus metrics and exposed at `/metrics` for
-collection by a monitoring system. Structured logs are emitted to standard
-output to aid in tracing and alerting.
+collection by a monitoring system. Additional ServiceMonitors scrape Celery
+workers, PgBouncer, and Redis as defined in `deploy/k8s/prometheus.yaml`.
+Structured logs are emitted to standard output to aid in tracing and alerting.
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
 Database efficiency is monitored through `db_query_count` tests that guard
@@ -408,14 +409,14 @@ actively addressing the following items:
 - Enforce reverse-proxy rate limiting and publish 429 metrics.
 - Expand the CI pipeline so every push or pull request runs linting,
   type checks, tests, dependency and container scans.
-- Document recovery objectives and perform regular restore drills to
-  validate backups.
+- Document recovery objectives and run `scripts/dr_drill.sh` monthly to
+  validate backups and capture RPO/RTO metrics.
 - Maintain data retention rules and column-level lineage for analytical
   exports.
 - Monitor cache hit rate and query counts to flag inefficient
   database access.
-- Automate JWT secret rotation using `JWT_SECRET_ID` and audit each
-  rollover.
+- Automate JWT secret rotation using `JWT_SECRET_ID` and
+  `scripts/rotate_secrets.py`, auditing each rollover.
 
 ## Governance & Roadmap
 
