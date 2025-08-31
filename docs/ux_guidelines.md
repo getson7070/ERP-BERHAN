@@ -9,6 +9,8 @@ This project follows industry-standard UX and accessibility practices:
 - **CSP nonces:** all inline scripts/styles use `csp_nonce()` to align with our Content Security Policy.
 - **PWA support:** service worker and web app manifest enable offline access and installable experience on mobile.
 - **Locale switcher:** an accessible language dropdown appears in the navbar so users can toggle between supported locales.
+- **Internationalization:** translation catalogs live under `translations/` and new strings should be extracted with Babel.
+- **Guided tour:** first-time users see a popover tour that highlights navigation and the theme toggle.
 
 Developers should run:
 

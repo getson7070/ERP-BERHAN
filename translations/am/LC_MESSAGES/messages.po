@@ -183,3 +183,18 @@ msgstr "በSSO ይግቡ"
 msgid "Analytics Dashboard"
 msgstr "የትንታኔ ዳሽቦርድ"
 
+
+msgid "English"
+msgstr "እንግሊዝኛ"
+
+msgid "Amharic"
+msgstr "አማርኛ"
+
+msgid "Select language"
+msgstr "ቋንቋ ይምረጡ"
+
+msgid "Use the navigation menu to switch modules."
+msgstr "ሞጁሎችን ለመቀየር የንባብ ምናሌን ይጠቀሙ."
+
+msgid "Toggle dark mode to reduce eye strain."
+msgstr "የዓይን ጭንቀትን ለመቀነስ ጨለማ ሁኔታን ቀይሩ."
