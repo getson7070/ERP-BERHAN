@@ -28,7 +28,9 @@ def import_fineto():
             if rows:
                 cols = ",".join(rows[0].keys())
                 placeholders = ",".join("?" for _ in rows[0])
-                sql = to_psql(f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})")
+                sql = to_psql(
+                    f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})"
+                )
                 conn.executemany(sql, [tuple(r.values()) for r in rows])
                 conn.commit()
     conn.close()

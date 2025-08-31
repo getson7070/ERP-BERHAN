@@ -1,15 +1,12 @@
 import re
 import pytest
 
-# App/test client
-try:
-    from erp import create_app  # preferred factory location
-except Exception:
-    from app import create_app  # fallback if project exposes factory here
+from erp import create_app
 
 # DB engine for RLS checks
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
+
 try:
     from db import engine
 except Exception:
@@ -31,7 +28,9 @@ def _metric_value(metrics_text: str, metric: str) -> float:
       rate_limit_rejections_total 3.0
       rate_limit_rejections_total{route="/auth/token"} 2.0
     """
-    pattern = re.compile(rf'^{re.escape(metric)}(?:{{[^}}]*}})?\s+([0-9]+(?:\.[0-9]+)?)$', re.MULTILINE)
+    pattern = re.compile(
+        rf"^{re.escape(metric)}(?:{{[^}}]*}})?\s+([0-9]+(?:\.[0-9]+)?)$", re.MULTILINE
+    )
     m = pattern.search(metrics_text)
     return float(m.group(1)) if m else 0.0
 
@@ -56,7 +55,8 @@ def test_health_endpoints_ok(client):
 # 2) RLS: cross-tenant reads must be blocked
 # ------------------------------------------
 @pytest.mark.skipif(
-    engine is None or getattr(getattr(engine, "dialect", None), "name", "") != "postgresql",
+    engine is None
+    or getattr(getattr(engine, "dialect", None), "name", "") != "postgresql",
     reason="RLS test requires PostgreSQL engine",
 )
 def test_rls_blocks_cross_tenant_reads():
@@ -78,28 +78,40 @@ def test_rls_blocks_cross_tenant_reads():
         # Seed one row per org, scoping each INSERT to that org
         conn.execute(text("SET erp.org_id = :org"), {"org": 1})
         conn.execute(
-            text("INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"),
+            text(
+                "INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"
+            ),
             {"id": test_id_org1, "org_id": 1},
         )
         conn.execute(text("SET erp.org_id = :org"), {"org": 2})
         conn.execute(
-            text("INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"),
+            text(
+                "INSERT INTO orders (id, org_id, status) VALUES (:id, :org_id, 'pending') ON CONFLICT (id) DO NOTHING"
+            ),
             {"id": test_id_org2, "org_id": 2},
         )
 
     # Session as org 1: must NOT see org 2's row
     with engine.begin() as conn:
         conn.execute(text("SET erp.org_id = :org"), {"org": 1})
-        cnt1 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}).scalar_one()
-        cnt2 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}).scalar_one()
+        cnt1 = conn.execute(
+            text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}
+        ).scalar_one()
+        cnt2 = conn.execute(
+            text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}
+        ).scalar_one()
         assert cnt1 == 1, "Org 1 should see its own row"
         assert cnt2 == 0, "Org 1 must NOT see Org 2's row (RLS)"
 
     # Session as org 2: mirror assertion
     with engine.begin() as conn:
         conn.execute(text("SET erp.org_id = :org"), {"org": 2})
-        cnt1 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}).scalar_one()
-        cnt2 = conn.execute(text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}).scalar_one()
+        cnt1 = conn.execute(
+            text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org1}
+        ).scalar_one()
+        cnt2 = conn.execute(
+            text("SELECT COUNT(*) FROM orders WHERE id = :id"), {"id": test_id_org2}
+        ).scalar_one()
         assert cnt1 == 0, "Org 2 must NOT see Org 1's row (RLS)"
         assert cnt2 == 1, "Org 2 should see its own row"
 
@@ -116,8 +128,16 @@ def test_rate_limit_increments_counter(client):
     # Hit a strongly limited endpoint: /auth/token is typically 2/min
     # We intentionally trigger the limiter by calling 3 times quickly.
     for _ in range(3):
-        client.post("/auth/token", data={}, headers={"Content-Type": "application/x-www-form-urlencoded"})
-    resp = client.post("/auth/token", data={}, headers={"Content-Type": "application/x-www-form-urlencoded"})
+        client.post(
+            "/auth/token",
+            data={},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+    resp = client.post(
+        "/auth/token",
+        data={},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
     if resp.status_code != 429:
         pytest.skip(f"/auth/token not rate limited (status {resp.status_code})")
 
@@ -125,4 +145,6 @@ def test_rate_limit_increments_counter(client):
     m1 = client.get("/metrics")
     assert m1.status_code == 200
     after = _metric_value(m1.get_data(as_text=True), "rate_limit_rejections_total")
-    assert after >= before + 1.0, f"rate_limit_rejections_total did not increase (before={before}, after={after})"
+    assert (
+        after >= before + 1.0
+    ), f"rate_limit_rejections_total did not increase (before={before}, after={after})"
