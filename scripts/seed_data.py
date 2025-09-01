@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from db import get_db
 from erp.sql_compat import execute as safe_execute
+from erp.utils import hash_password
 
 
 def main() -> None:
@@ -14,6 +15,12 @@ def main() -> None:
         )
     items = int(os.environ.get("SEED_ITEMS", "10000"))
     users = int(os.environ.get("SEED_USERS", "1000"))
+    password_plain = os.environ.get("SEED_USER_PASSWORD")
+    if not password_plain:
+        raise SystemExit(
+            "SEED_USER_PASSWORD environment variable required for user seeding"
+        )
+    password_hash = hash_password(password_plain)
     conn = get_db()
     cur = conn.cursor()
     for i in range(items):
@@ -28,8 +35,8 @@ def main() -> None:
         email = f"user{i}@example.com"
         safe_execute(
             cur,
-            "INSERT INTO users (email, password, fs_uniquifier) VALUES (?, 'password', ?) ON CONFLICT(email) DO NOTHING",
-            (email, f"uid{i}"),
+            "INSERT INTO users (email, password, fs_uniquifier) VALUES (?, ?, ?) ON CONFLICT(email) DO NOTHING",
+            (email, password_hash, f"uid{i}"),
         )
     conn.commit()
     cur.close()

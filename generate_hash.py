@@ -1,9 +1,11 @@
 from argon2 import PasswordHasher
+from getpass import getpass
 
 
 def main() -> None:
     ph = PasswordHasher()
-    password_hash = ph.hash("admin123")
+    password = getpass("Password to hash: ")
+    password_hash = ph.hash(password)
     print(password_hash)
 
 
