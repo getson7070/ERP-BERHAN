@@ -64,8 +64,6 @@ def update_item(item_id):
     )
 
 
-
-
 @bp.route("/export.csv")
 @login_required
 def export_inventory_csv():
