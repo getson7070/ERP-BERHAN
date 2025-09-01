@@ -374,6 +374,7 @@ are provided for running the application in a Gunicorn-backed container. Configu
 environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
+For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8000 for single-container deployments.
 
 ## Observability & Offline Use
 
