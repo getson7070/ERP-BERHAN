@@ -386,6 +386,11 @@ def create_app():
 
     @app.route("/metrics")
     def metrics():
+        token = os.environ.get("METRICS_AUTH_TOKEN")
+        auth_header = request.headers.get("Authorization", "")
+        if token and auth_header != f"Bearer {token}":
+            return Response(status=401)
+
         from erp.routes import analytics
 
         if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):

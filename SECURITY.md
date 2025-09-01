@@ -19,3 +19,11 @@ Please email security@getsonpharma.com or open a private security advisory on Gi
 4. Coordinated disclosure occurs after patches are released and, when applicable, a CVE is assigned.
 
 Thank you for helping keep BERHAN PHARMA secure.
+
+## Operational Security
+
+- **Threat model**: multi-tenant ERP exposed to the internet; each organization is isolated via PostgreSQL row-level security.
+- **RLS policy**: all tables carry an `org_id` column protected by an `org_rls` policy tied to `current_setting('erp.org_id')`.
+- **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
+- **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy and HTTP Strict Transport Security globally, with health checks opting out for probes.
+- **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early.

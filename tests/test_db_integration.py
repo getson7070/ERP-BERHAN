@@ -12,5 +12,5 @@ def test_invoice_persistence(tmp_path, monkeypatch):
         invoice = Invoice(org_id=1, number="INV-100", total=Decimal("99.99"))
         db.session.add(invoice)
         db.session.commit()
-        found = Invoice.query.filter_by(number="INV-100").one()
+        found = Invoice.tenant_query(org_id=1).filter_by(number="INV-100").one()
         assert found.total == Decimal("99.99")

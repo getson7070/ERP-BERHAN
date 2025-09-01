@@ -3,6 +3,7 @@ from datetime import datetime
 from argon2 import PasswordHasher
 import os
 from db import get_db
+from psycopg2 import sql
 
 
 ph = PasswordHasher(
@@ -31,18 +32,38 @@ def init_db():
     app_user = os.environ.get("APP_DB_USER")
     app_password = os.environ.get("APP_DB_PASSWORD")
     if app_user and app_password:
-        cursor.execute(f"SELECT 1 FROM pg_roles WHERE rolname='{app_user}'")
+        cursor.execute(
+            "SELECT 1 FROM pg_roles WHERE rolname=%s",
+            (app_user,),
+        )
         if cursor.fetchone() is None:
-            cursor.execute(f"CREATE ROLE {app_user} LOGIN PASSWORD %s", (app_password,))
+            cursor.execute(
+                sql.SQL("CREATE ROLE {} LOGIN PASSWORD %s").format(
+                    sql.Identifier(app_user)
+                ),
+                (app_password,),
+            )
         cursor.execute("SELECT current_database()")
         dbname = cursor.fetchone()[0]
-        cursor.execute(f"GRANT CONNECT ON DATABASE {dbname} TO {app_user}")
-        cursor.execute(f"GRANT USAGE ON SCHEMA public TO {app_user}")
         cursor.execute(
-            f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
+            sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                sql.Identifier(dbname), sql.Identifier(app_user)
+            )
         )
         cursor.execute(
-            f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {app_user}"
+            sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
+                sql.Identifier(app_user)
+            )
+        )
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}"
+            ).format(sql.Identifier(app_user))
+        )
+        cursor.execute(
+            sql.SQL(
+                "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {}"
+            ).format(sql.Identifier(app_user))
         )
 
     # Create users table
@@ -428,16 +449,22 @@ def init_db():
 
     for table in ("orders", "tenders", "inventory", "audit_logs"):
         cursor.execute(
-            f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
+            sql.SQL(
+                "ALTER TABLE {} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
+            ).format(sql.Identifier(table))
         )
-        cursor.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        cursor.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")
         cursor.execute(
-            f"""
-            CREATE POLICY org_rls ON {table}
-            USING (org_id = current_setting('erp.org_id')::INTEGER)
-            WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)
-            """
+            sql.SQL("ALTER TABLE {} ENABLE ROW LEVEL SECURITY").format(
+                sql.Identifier(table)
+            )
+        )
+        cursor.execute(
+            sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(sql.Identifier(table))
+        )
+        cursor.execute(
+            sql.SQL(
+                "CREATE POLICY org_rls ON {} USING (org_id = current_setting('erp.org_id')::INTEGER) WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)"
+            ).format(sql.Identifier(table))
         )
 
     conn.commit()
