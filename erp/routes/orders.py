@@ -5,9 +5,6 @@ from flask import (
     url_for,
     session,
     request,
-    send_file,
-    Response,
-    stream_with_context,
     current_app,
     jsonify,
 )
@@ -16,12 +13,15 @@ from wtforms import SelectField, IntegerField, BooleanField, SubmitField, String
 from wtforms.validators import DataRequired, NumberRange
 
 from sqlalchemy import text
-from io import BytesIO, StringIO
-import csv
-from openpyxl import Workbook
 from db import get_db
-from erp.utils import login_required, has_permission, idempotency_key_required
-from erp.utils import sanitize_sort, sanitize_direction
+from erp.utils import (
+    login_required,
+    has_permission,
+    idempotency_key_required,
+    sanitize_sort,
+    sanitize_direction,
+    stream_export,
+)
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -114,42 +114,6 @@ def _build_query(sort: str, direction: str, limit: int | None = None, offset: in
     return text(sql)
 
 
-def _export_rows(rows, fmt):
-    headers = ["id", "item_id", "quantity", "customer", "status"]
-    if fmt == "xlsx":
-        wb = Workbook()
-        ws = wb.active
-        ws.append(headers)
-        for r in rows:
-            ws.append([r[h] for h in headers])
-        bio = BytesIO()
-        wb.save(bio)
-        bio.seek(0)
-        return send_file(
-            bio,
-            as_attachment=True,
-            download_name="orders.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-    def generate():
-        sio = StringIO()
-        writer = csv.writer(sio)
-        writer.writerow(headers)
-        yield sio.getvalue()
-        sio.seek(0)
-        sio.truncate(0)
-        for r in rows:
-            writer.writerow([r[h] for h in headers])
-            yield sio.getvalue()
-            sio.seek(0)
-            sio.truncate(0)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=orders.csv"},
-    )
 
 
 def _iter_rows(conn, stmt):
@@ -206,7 +170,9 @@ def export_orders_csv():
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
-    return _export_rows(rows, "csv")
+    headers = ["id", "item_id", "quantity", "customer", "status"]
+    row_values = ([r[h] for h in headers] for r in rows)
+    return stream_export(row_values, headers, "orders", "csv")
 
 
 @bp.route("/export.xlsx")
@@ -218,4 +184,6 @@ def export_orders_xlsx():
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
-    return _export_rows(rows, "xlsx")
+    headers = ["id", "item_id", "quantity", "customer", "status"]
+    row_values = ([r[h] for h in headers] for r in rows)
+    return stream_export(row_values, headers, "orders", "xlsx")

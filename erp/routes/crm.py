@@ -5,19 +5,13 @@ from flask import (
     request,
     redirect,
     url_for,
-    send_file,
-    Response,
-    stream_with_context,
     current_app,
     jsonify,
 )
 from db import get_db
 from erp.workflow import require_enabled
-from io import BytesIO, StringIO
-import csv
-from openpyxl import Workbook
 from sqlalchemy import text
-from erp.utils import sanitize_sort, sanitize_direction
+from erp.utils import sanitize_sort, sanitize_direction, stream_export
 
 bp = Blueprint("crm", __name__, url_prefix="/crm")
 
@@ -78,7 +72,13 @@ def add_customer():
     return render_template("crm/add.html")
 
 
-def _export_customers(org_id: int, sort: str, direction: str, fmt: str):
+
+@bp.route("/export.csv")
+@require_enabled("crm")
+def export_customers_csv():
+    org_id = session.get("org_id")
+    sort = request.args.get("sort", "id")
+    direction = request.args.get("dir", "asc")
     sort = sanitize_sort(sort, ALLOWED_SORTS, "id")
     direction = sanitize_direction(direction)
     order_sql = "DESC" if direction == "desc" else "ASC"
@@ -90,53 +90,16 @@ def _export_customers(org_id: int, sort: str, direction: str, fmt: str):
         {"org": org_id},
     )
     headers = ["id", "name"]
-    if fmt == "xlsx":
-        wb = Workbook()
-        ws = wb.active
-        ws.append(headers)
-        for r in cur:
-            ws.append(list(r))
-        bio = BytesIO()
-        wb.save(bio)
-        bio.seek(0)
-        cur.close()
-        conn.close()
-        return send_file(
-            bio,
-            as_attachment=True,
-            download_name="clients.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
 
-    def generate():
-        sio = StringIO()
-        writer = csv.writer(sio)
-        writer.writerow(headers)
-        yield sio.getvalue()
-        sio.seek(0)
-        sio.truncate(0)
-        for r in cur:
-            writer.writerow(list(r))
-            yield sio.getvalue()
-            sio.seek(0)
-            sio.truncate(0)
-        cur.close()
-        conn.close()
+    def rows():
+        try:
+            for r in cur:
+                yield list(r)
+        finally:
+            cur.close()
+            conn.close()
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=clients.csv"},
-    )
-
-
-@bp.route("/export.csv")
-@require_enabled("crm")
-def export_customers_csv():
-    org_id = session.get("org_id")
-    sort = request.args.get("sort", "id")
-    direction = request.args.get("dir", "asc")
-    return _export_customers(org_id, sort, direction, "csv")
+    return stream_export(rows(), headers, "clients", "csv")
 
 
 @bp.route("/export.xlsx")
@@ -145,4 +108,24 @@ def export_customers_xlsx():
     org_id = session.get("org_id")
     sort = request.args.get("sort", "id")
     direction = request.args.get("dir", "asc")
-    return _export_customers(org_id, sort, direction, "xlsx")
+    sort = sanitize_sort(sort, ALLOWED_SORTS, "id")
+    direction = sanitize_direction(direction)
+    order_sql = "DESC" if direction == "desc" else "ASC"
+    conn = get_db()
+    cur = conn.execute(
+        text(
+            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort} {order_sql}"
+        ),
+        {"org": org_id},
+    )
+    headers = ["id", "name"]
+
+    def rows():
+        try:
+            for r in cur:
+                yield list(r)
+        finally:
+            cur.close()
+            conn.close()
+
+    return stream_export(rows(), headers, "clients", "xlsx")

@@ -1,7 +1,19 @@
 from functools import wraps
-from typing import Iterable
+from typing import Iterable, Sequence
 
-from flask import session, redirect, url_for, request, abort
+from flask import (
+    session,
+    redirect,
+    url_for,
+    request,
+    abort,
+    Response,
+    stream_with_context,
+    send_file,
+)
+from io import BytesIO, StringIO
+import csv
+from openpyxl import Workbook
 from argon2 import PasswordHasher
 import os
 from argon2.exceptions import VerifyMismatchError
@@ -28,6 +40,60 @@ def sanitize_sort(sort: str, allowed: Iterable[str], default: str) -> str:
 def sanitize_direction(direction: str, default: str = "asc") -> str:
     """Return direction if valid, else default."""
     return direction if direction in {"asc", "desc"} else default
+
+
+def stream_csv(
+    rows: Iterable[Sequence], headers: Sequence[str], filename: str
+) -> Response:
+    """Stream rows as a CSV attachment."""
+
+    def generate():
+        sio = StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(headers)
+        yield sio.getvalue()
+        sio.seek(0)
+        sio.truncate(0)
+        for row in rows:
+            writer.writerow(row)
+            yield sio.getvalue()
+            sio.seek(0)
+            sio.truncate(0)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}.csv"},
+    )
+
+
+def stream_xlsx(
+    rows: Iterable[Sequence], headers: Sequence[str], filename: str
+) -> Response:
+    """Stream rows as an XLSX attachment."""
+    wb = Workbook()
+    ws = wb.active
+    ws.append(list(headers))
+    for row in rows:
+        ws.append(list(row))
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    return send_file(
+        bio,
+        as_attachment=True,
+        download_name=f"{filename}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+def stream_export(
+    rows: Iterable[Sequence], headers: Sequence[str], filename: str, fmt: str
+) -> Response:
+    """Export helper switching between CSV and XLSX."""
+    if fmt == "xlsx":
+        return stream_xlsx(rows, headers, filename)
+    return stream_csv(rows, headers, filename)
 
 
 def has_permission(permission: str) -> bool:

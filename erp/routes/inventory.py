@@ -1,20 +1,6 @@
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    jsonify,
-    session,
-    current_app,
-    send_file,
-    Response,
-    stream_with_context,
-)
-from io import BytesIO, StringIO
-import csv
-from openpyxl import Workbook
-from erp.utils import login_required
+from flask import Blueprint, render_template, request, jsonify, session, current_app
+from erp.utils import login_required, sanitize_sort, sanitize_direction, stream_export
 from erp.models import Inventory, db
-from erp.utils import sanitize_sort, sanitize_direction
 
 bp = Blueprint("inventory_ui", __name__, url_prefix="/inventory")
 
@@ -78,42 +64,6 @@ def update_item(item_id):
     )
 
 
-def _export_items(query, fmt):
-    headers = ["id", "sku", "name", "quantity"]
-    if fmt == "xlsx":
-        wb = Workbook()
-        ws = wb.active
-        ws.append(headers)
-        for i in query:
-            ws.append([i.id, i.sku, i.name, i.quantity])
-        bio = BytesIO()
-        wb.save(bio)
-        bio.seek(0)
-        return send_file(
-            bio,
-            as_attachment=True,
-            download_name="inventory.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-    def generate():
-        sio = StringIO()
-        writer = csv.writer(sio)
-        writer.writerow(headers)
-        yield sio.getvalue()
-        sio.seek(0)
-        sio.truncate(0)
-        for i in query:
-            writer.writerow([i.id, i.sku, i.name, i.quantity])
-            yield sio.getvalue()
-            sio.seek(0)
-            sio.truncate(0)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=inventory.csv"},
-    )
 
 
 @bp.route("/export.csv")
@@ -124,7 +74,9 @@ def export_inventory_csv():
     sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS, "id")
     direction = sanitize_direction(request.args.get("dir", "asc"))
     query = _build_query(org_id, sku, sort, direction)
-    return _export_items(query, "csv")
+    headers = ["id", "sku", "name", "quantity"]
+    rows = ([i.id, i.sku, i.name, i.quantity] for i in query)
+    return stream_export(rows, headers, "inventory", "csv")
 
 
 @bp.route("/export.xlsx")
@@ -135,4 +87,6 @@ def export_inventory_xlsx():
     sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS, "id")
     direction = sanitize_direction(request.args.get("dir", "asc"))
     query = _build_query(org_id, sku, sort, direction)
-    return _export_items(query, "xlsx")
+    headers = ["id", "sku", "name", "quantity"]
+    rows = ([i.id, i.sku, i.name, i.quantity] for i in query)
+    return stream_export(rows, headers, "inventory", "xlsx")

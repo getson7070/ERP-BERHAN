@@ -6,9 +6,6 @@ from flask import (
     session,
     flash,
     request,
-    send_file,
-    Response,
-    stream_with_context,
     current_app,
     jsonify,
 )
@@ -18,11 +15,13 @@ from wtforms.validators import DataRequired
 
 from sqlalchemy import text
 from db import get_db
-from erp.utils import login_required, has_permission
-from erp.utils import sanitize_sort, sanitize_direction
-from io import BytesIO, StringIO
-import csv
-from openpyxl import Workbook
+from erp.utils import (
+    login_required,
+    has_permission,
+    sanitize_sort,
+    sanitize_direction,
+    stream_export,
+)
 
 bp = Blueprint("tenders", __name__, url_prefix="/tenders")
 
@@ -81,54 +80,6 @@ def _iter_rows(conn, stmt, params=None):
         conn.close()
 
 
-def _export_rows(rows, fmt: str):
-    headers = [
-        "id",
-        "type_name",
-        "description",
-        "due_date",
-        "workflow_state",
-        "result",
-        "awarded_to",
-        "award_date",
-        "username",
-        "institution",
-        "envelope_type",
-    ]
-    if fmt == "xlsx":
-        wb = Workbook()
-        ws = wb.active
-        ws.append(headers)
-        for r in rows:
-            ws.append([r[h] for h in headers])
-        bio = BytesIO()
-        wb.save(bio)
-        bio.seek(0)
-        return send_file(
-            bio,
-            as_attachment=True,
-            download_name="tenders.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-    def generate():
-        sio = StringIO()
-        writer = csv.writer(sio)
-        writer.writerow(headers)
-        yield sio.getvalue()
-        sio.seek(0)
-        sio.truncate(0)
-        for r in rows:
-            writer.writerow([r[h] for h in headers])
-            yield sio.getvalue()
-            sio.seek(0)
-            sio.truncate(0)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=tenders.csv"},
-    )
 
 # ordered states reflecting the full tender lifecycle
 WORKFLOW_STATES = [
@@ -275,7 +226,21 @@ def export_tenders_csv():
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
-    return _export_rows(rows, "csv")
+    headers = [
+        "id",
+        "type_name",
+        "description",
+        "due_date",
+        "workflow_state",
+        "result",
+        "awarded_to",
+        "award_date",
+        "username",
+        "institution",
+        "envelope_type",
+    ]
+    row_values = ([r[h] for h in headers] for r in rows)
+    return stream_export(row_values, headers, "tenders", "csv")
 
 
 @bp.route("/export.xlsx")
@@ -287,7 +252,21 @@ def export_tenders_xlsx():
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
-    return _export_rows(rows, "xlsx")
+    headers = [
+        "id",
+        "type_name",
+        "description",
+        "due_date",
+        "workflow_state",
+        "result",
+        "awarded_to",
+        "award_date",
+        "username",
+        "institution",
+        "envelope_type",
+    ]
+    row_values = ([r[h] for h in headers] for r in rows)
+    return stream_export(row_values, headers, "tenders", "xlsx")
 
 
 @bp.route("/<int:tender_id>/advance", methods=["POST"])
