@@ -57,4 +57,4 @@ def test_issue_token(tmp_path, monkeypatch):
         if resp.status_code != 200:
             pytest.skip(f"/auth/token returned {resp.status_code}")
         assert "access_token" in resp.json
-        assert audit_detail.get("d") == "API"
+        assert audit_detail.get("d") == "provider=api"
