@@ -55,9 +55,9 @@ def _evaluate(policy: str) -> int:
     """Validate the provided CSP string.
 
     If ``CSP_EVAL_URL`` is defined, the policy is sent to that endpoint and any
-    warnings or errors cause the script to fail.  When the variable is unset or
+    warnings or errors cause the script to fail. When the variable is unset or
     the request fails, we fall back to lightweight local checks that look for
-    obviously unsafe directives.  The fallback keeps CI green even when the
+    obviously unsafe directives. The fallback keeps CI green even when the
     network or external service is unavailable.
     """
 
