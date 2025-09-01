@@ -1,19 +1,44 @@
 {% extends 'base.html' %}
 {% block title %}Inventory{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
+{% endblock %}
 {% block content %}
+<style>
+  :focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
+  .table-sticky thead th { position: sticky; top: 0; background: #fff; }
+</style>
 <div class="container py-5">
   <h2>Inventory</h2>
+  <div class="mb-2">
+    <span class="me-2">Columns:</span>
+    <input type="checkbox" id="col-sku" class="col-toggle" data-col="1" checked>
+    <label for="col-sku" class="me-2">SKU</label>
+    <input type="checkbox" id="col-name" class="col-toggle" data-col="2" checked>
+    <label for="col-name" class="me-2">Name</label>
+    <input type="checkbox" id="col-qty" class="col-toggle" data-col="3" checked>
+    <label for="col-qty" class="me-2">Quantity</label>
+  </div>
   <p>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory') }}">CSV</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory', format='xlsx') }}">XLSX</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory_csv', sku=sku, sort=sort, dir=direction) }}">CSV</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory_ui.export_inventory_xlsx', sku=sku, sort=sort, dir=direction) }}">XLSX</a>
   </p>
-  <table class="table table-striped">
+  <div class="table-responsive">
+  <table class="table table-striped table-sticky">
     <thead>
       <tr>
-        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='id', order='desc' if sort=='id' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">ID</a></th>
-        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='sku', order='desc' if sort=='sku' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">SKU</a></th>
-        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='name', order='desc' if sort=='name' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Name</a></th>
-        <th><a href="{{ url_for('inventory_ui.inventory_table', sort='quantity', order='desc' if sort=='quantity' and order=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Quantity</a></th>
+        <th aria-sort="{{ 'ascending' if sort=='id' and direction=='asc' else 'descending' if sort=='id' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('inventory_ui.inventory_table', sort='id', dir='desc' if sort=='id' and direction=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">ID{% if sort=='id' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='sku' and direction=='asc' else 'descending' if sort=='sku' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('inventory_ui.inventory_table', sort='sku', dir='desc' if sort=='sku' and direction=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">SKU{% if sort=='sku' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='name' and direction=='asc' else 'descending' if sort=='name' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('inventory_ui.inventory_table', sort='name', dir='desc' if sort=='name' and direction=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Name{% if sort=='name' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
+        <th aria-sort="{{ 'ascending' if sort=='quantity' and direction=='asc' else 'descending' if sort=='quantity' and direction=='desc' else 'none' }}">
+          <a href="{{ url_for('inventory_ui.inventory_table', sort='quantity', dir='desc' if sort=='quantity' and direction=='asc' else 'asc', offset=offset, limit=limit, sku=sku) }}">Quantity{% if sort=='quantity' %}{% if direction=='asc' %} ▲{% else %} ▼{% endif %}{% endif %}</a>
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -27,19 +52,31 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <nav>
     <ul class="pagination">
       {% if prev_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=prev_offset, limit=limit, sku=sku, sort=sort, order=order) }}">Previous</a></li>
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=prev_offset, limit=limit, sku=sku, sort=sort, dir=direction) }}">Previous</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Previous</span></li>
       {% endif %}
       {% if next_offset is not none %}
-      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=next_offset, limit=limit, sku=sku, sort=sort, order=order) }}">Next</a></li>
+      <li class="page-item"><a class="page-link" href="{{ url_for('inventory_ui.inventory_table', offset=next_offset, limit=limit, sku=sku, sort=sort, dir=direction) }}">Next</a></li>
       {% else %}
       <li class="page-item disabled"><span class="page-link">Next</span></li>
       {% endif %}
     </ul>
   </nav>
 </div>
+<script nonce="{{ csp_nonce() }}">
+  document.querySelectorAll('.col-toggle').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const idx = parseInt(cb.dataset.col) + 1;
+      document.querySelectorAll('.table tr').forEach(row => {
+        const cell = row.children[idx];
+        if(cell){ cell.style.display = cb.checked ? '' : 'none'; }
+      });
+    });
+  });
+</script>
 {% endblock %}

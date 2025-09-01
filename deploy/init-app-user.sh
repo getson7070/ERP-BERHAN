@@ -2,14 +2,14 @@
 set -e
 
 # Ensure the application role and database exist and have the proper grants.
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-SQL
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -v app_pass="$APP_DB_PASSWORD" <<SQL
 DO
 $$
 BEGIN
     IF NOT EXISTS (
         SELECT FROM pg_catalog.pg_roles WHERE rolname = 'erp_app'
     ) THEN
-        CREATE ROLE erp_app LOGIN PASSWORD '${APP_DB_PASSWORD}';
+        CREATE ROLE erp_app LOGIN PASSWORD :'app_pass';
     END IF;
     IF NOT EXISTS (
         SELECT FROM pg_database WHERE datname = 'erp'

@@ -4,7 +4,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from backup import create_backup
+from backup import create_backup, run_backup, BACKUP_LAST_SUCCESS
 
 
 def test_pg_dump_invoked(tmp_path):
@@ -29,3 +29,11 @@ def test_mysql_dump_invoked(tmp_path):
         backup_file = create_backup(db_url, backup_dir=tmp_path)
         assert run.called
         assert backup_file.exists()
+
+
+def test_run_backup_sets_metric(tmp_path, monkeypatch):
+    db_file = tmp_path / "db.sqlite"
+    db_file.write_text("data")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
+    run_backup()
+    assert BACKUP_LAST_SUCCESS._value.get() > 0

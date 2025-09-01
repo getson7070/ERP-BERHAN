@@ -124,6 +124,10 @@ def init_celery(state):
             "task": "backup.run_backup",
             "schedule": crontab(hour=2, minute=30),
         },
+        "monthly-restore-drill": {
+            "task": "backup.run_restore_drill",
+            "schedule": crontab(day_of_month=1, hour=3, minute=0),
+        },
     }
 
 
