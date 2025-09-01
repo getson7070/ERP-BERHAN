@@ -7,6 +7,7 @@ import hashlib
 import json
 import graphene
 from graphql import parse
+from sqlalchemy import text
 from erp import (
     TOKEN_ERRORS,
     limiter,
@@ -36,10 +37,9 @@ def token_required(f):
 @limiter.limit("50 per minute")
 def list_orders():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, item_id, quantity, customer, status FROM orders")
-    rows = cur.fetchall()
-    cur.close()
+    rows = conn.execute(
+        text("SELECT id, item_id, quantity, customer, status FROM orders")
+    ).fetchall()
     conn.close()
     orders = [
         {
@@ -59,10 +59,9 @@ def list_orders():
 @limiter.limit("50 per minute")
 def list_tenders():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, description, workflow_state FROM tenders")
-    rows = cur.fetchall()
-    cur.close()
+    rows = conn.execute(
+        text("SELECT id, description, workflow_state FROM tenders")
+    ).fetchall()
     conn.close()
     return jsonify([{"id": r[0], "description": r[1], "state": r[2]} for r in rows])
 
@@ -101,10 +100,9 @@ class Query(graphene.ObjectType):
 
     def resolve_orders(root, info):
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id, item_id, quantity, customer, status FROM orders")
-        rows = cur.fetchall()
-        cur.close()
+        rows = conn.execute(
+            text("SELECT id, item_id, quantity, customer, status FROM orders")
+        ).fetchall()
         conn.close()
         return [
             OrderType(id=r[0], item_id=r[1], quantity=r[2], customer=r[3], status=r[4])
@@ -113,10 +111,9 @@ class Query(graphene.ObjectType):
 
     def resolve_tenders(root, info):
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id, description, workflow_state FROM tenders")
-        rows = cur.fetchall()
-        cur.close()
+        rows = conn.execute(
+            text("SELECT id, description, workflow_state FROM tenders")
+        ).fetchall()
         conn.close()
         return [TenderType(id=r[0], description=r[1], state=r[2]) for r in rows]
 

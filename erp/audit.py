@@ -47,13 +47,13 @@ def check_audit_chain() -> int:
     ``audit_chain_broken_total`` Prometheus counter accordingly.
     """
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, user_id, org_id, action, details, prev_hash, hash, created_at FROM audit_logs ORDER BY id"
-    )
+    rows = conn.execute(
+        text(
+            "SELECT id, user_id, org_id, action, details, prev_hash, hash, created_at FROM audit_logs ORDER BY id"
+        )
+    ).fetchall()
     prev_hash = ""
     breaks = 0
-    rows = cur.fetchall()
     for row in rows:
         (
             _id,
@@ -75,7 +75,6 @@ def check_audit_chain() -> int:
         if row_prev_hash != prev_hash or current_hash != expected_hash:
             breaks += 1
         prev_hash = current_hash
-    cur.close()
     conn.close()
     if breaks:
         AUDIT_CHAIN_BROKEN.inc(breaks)
