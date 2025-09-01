@@ -13,6 +13,7 @@ from flask import (
 )
 from db import get_db
 from erp.workflow import require_enabled
+from erp.sort_utils import sanitize_sort, sanitize_direction
 from io import BytesIO, StringIO
 import csv
 from openpyxl import Workbook
@@ -23,22 +24,14 @@ bp = Blueprint("crm", __name__, url_prefix="/crm")
 ALLOWED_SORTS = {"id", "name"}
 
 
-def _sanitize_sort(sort: str) -> str:
-    return sort if sort in ALLOWED_SORTS else "id"
-
-
-def _sanitize_direction(direction: str) -> str:
-    return direction if direction in {"asc", "desc"} else "asc"
-
-
 @bp.route("/")
 @require_enabled("crm")
 def index():
     org_id = session.get("org_id")
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
-    sort = _sanitize_sort(request.args.get("sort", "id"))
-    direction = _sanitize_direction(request.args.get("dir", "asc"))
+    sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS)
+    direction = sanitize_direction(request.args.get("dir", "asc"))
     sort_col = sort
     order_sql = "DESC" if direction == "desc" else "ASC"
     conn = get_db()
@@ -86,8 +79,8 @@ def add_customer():
 
 
 def _export_customers(org_id: int, sort: str, direction: str, fmt: str):
-    sort = _sanitize_sort(sort)
-    direction = _sanitize_direction(direction)
+    sort = sanitize_sort(sort, ALLOWED_SORTS)
+    direction = sanitize_direction(direction)
     order_sql = "DESC" if direction == "desc" else "ASC"
     conn = get_db()
     cur = conn.execute(

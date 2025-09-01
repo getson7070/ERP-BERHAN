@@ -21,6 +21,7 @@ import csv
 from openpyxl import Workbook
 from db import get_db
 from erp.utils import login_required, has_permission, idempotency_key_required
+from erp.sort_utils import sanitize_sort, sanitize_direction
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -102,17 +103,9 @@ def orders():
 ALLOWED_SORTS = {"id", "item_id", "quantity", "customer", "status"}
 
 
-def _sanitize_sort(sort: str) -> str:
-    return sort if sort in ALLOWED_SORTS else "id"
-
-
-def _sanitize_direction(direction: str) -> str:
-    return direction if direction in {"asc", "desc"} else "asc"
-
-
 def _build_query(sort: str, direction: str, limit: int | None = None, offset: int | None = None):
-    sort = _sanitize_sort(sort)
-    direction = _sanitize_direction(direction)
+    sort = sanitize_sort(sort, ALLOWED_SORTS)
+    direction = sanitize_direction(direction)
     order_sql = "DESC" if direction == "desc" else "ASC"
     sql = f"SELECT id, item_id, quantity, customer, status FROM orders ORDER BY {sort} {order_sql}"
     if limit is not None:
@@ -176,8 +169,8 @@ def _iter_rows(conn, stmt):
 def orders_list():
     if not has_permission("view_orders"):
         return redirect(url_for("main.dashboard"))
-    sort = _sanitize_sort(request.args.get("sort", "id"))
-    direction = _sanitize_direction(request.args.get("dir", "asc"))
+    sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS)
+    direction = sanitize_direction(request.args.get("dir", "asc"))
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
     conn = get_db()
@@ -210,8 +203,8 @@ def orders_list():
 def export_orders_csv():
     if not has_permission("view_orders"):
         return redirect(url_for("main.dashboard"))
-    sort = _sanitize_sort(request.args.get("sort", "id"))
-    direction = _sanitize_direction(request.args.get("dir", "asc"))
+    sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS)
+    direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
     return _export_rows(rows, "csv")
@@ -222,8 +215,8 @@ def export_orders_csv():
 def export_orders_xlsx():
     if not has_permission("view_orders"):
         return redirect(url_for("main.dashboard"))
-    sort = _sanitize_sort(request.args.get("sort", "id"))
-    direction = _sanitize_direction(request.args.get("dir", "asc"))
+    sort = sanitize_sort(request.args.get("sort", "id"), ALLOWED_SORTS)
+    direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
     return _export_rows(rows, "xlsx")
