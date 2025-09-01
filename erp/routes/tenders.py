@@ -40,7 +40,9 @@ ALLOWED_SORTS = {
 }
 
 
-def _build_query(sort: str, direction: str, limit: int | None = None, offset: int | None = None):
+def _build_query(
+    sort: str, direction: str, limit: int | None = None, offset: int | None = None
+):
     columns = {
         "id": "t.id",
         "type_name": "tt.type_name",
@@ -78,7 +80,6 @@ def _iter_rows(conn, stmt, params=None):
     finally:
         cur.close()
         conn.close()
-
 
 
 # ordered states reflecting the full tender lifecycle
@@ -173,7 +174,9 @@ def add_tender():
 def tenders_list():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date")
+    sort = sanitize_sort(
+        request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date"
+    )
     direction = sanitize_direction(request.args.get("dir", "asc"))
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
@@ -217,12 +220,15 @@ def tenders_report():
         "tenders_report.html", tenders=tenders, states=WORKFLOW_STATES
     )
 
+
 @bp.route("/export.csv")
 @login_required
 def export_tenders_csv():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date")
+    sort = sanitize_sort(
+        request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date"
+    )
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
@@ -248,7 +254,9 @@ def export_tenders_csv():
 def export_tenders_xlsx():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date")
+    sort = sanitize_sort(
+        request.args.get("sort", "due_date"), ALLOWED_SORTS, "due_date"
+    )
     direction = sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))

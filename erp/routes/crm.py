@@ -72,7 +72,6 @@ def add_customer():
     return render_template("crm/add.html")
 
 
-
 @bp.route("/export.csv")
 @require_enabled("crm")
 def export_customers_csv():

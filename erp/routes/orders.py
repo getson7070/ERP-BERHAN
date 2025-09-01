@@ -99,10 +99,13 @@ def orders():
         rejected_orders=rejected_orders,
     )
 
+
 ALLOWED_SORTS = {"id", "item_id", "quantity", "customer", "status"}
 
 
-def _build_query(sort: str, direction: str, limit: int | None = None, offset: int | None = None):
+def _build_query(
+    sort: str, direction: str, limit: int | None = None, offset: int | None = None
+):
     sort = sanitize_sort(sort, ALLOWED_SORTS, "id")
     direction = sanitize_direction(direction)
     order_sql = "DESC" if direction == "desc" else "ASC"
@@ -112,8 +115,6 @@ def _build_query(sort: str, direction: str, limit: int | None = None, offset: in
     if offset is not None:
         sql += " OFFSET :offset"
     return text(sql)
-
-
 
 
 def _iter_rows(conn, stmt):
