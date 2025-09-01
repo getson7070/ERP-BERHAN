@@ -31,7 +31,7 @@ def init_db():
     app_user = os.environ.get("APP_DB_USER")
     app_password = os.environ.get("APP_DB_PASSWORD")
     if app_user and app_password:
-        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (app_user,))
+        cursor.execute(f"SELECT 1 FROM pg_roles WHERE rolname='{app_user}'")
         if cursor.fetchone() is None:
             cursor.execute(f"CREATE ROLE {app_user} LOGIN PASSWORD %s", (app_password,))
         cursor.execute("SELECT current_database()")

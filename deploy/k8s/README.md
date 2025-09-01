@@ -9,5 +9,9 @@ This directory contains manifests for deploying the ERP system.
 - `pgbouncer-pdb.yaml` keeps at least one PgBouncer replica available during voluntary disruptions.
 - `prometheus.yaml` defines ServiceMonitors for the web app, Celery workers,
   PgBouncer, and Redis so metrics are scraped by Prometheus.
+- `alerts.yaml` configures Prometheus alerting rules including error-rate and queue-depth thresholds.
+- `backup-cronjob.yaml` schedules a nightly backup job.
+- `restore-cronjob.yaml` runs monthly restore drills to verify backups.
+- `bluegreen.yaml` provides a blue/green deployment example for zero-downtime releases.
 
 Refer to `docs/deployment.md` for failover, rolling upgrade, and load-testing practices.
