@@ -529,7 +529,9 @@ def client_registration():
     form = ClientRegistrationForm()
     form.region.choices = [
         (r["region"], r["region"])
-        for r in conn.execute("SELECT DISTINCT region FROM regions_cities").fetchall()
+        for r in conn.execute(
+            text("SELECT DISTINCT region FROM regions_cities")
+        ).fetchall()
     ]
     if not form.region.data and form.region.choices:
         form.region.data = form.region.choices[0][0]

@@ -15,14 +15,14 @@ from typing import Iterable
 
 from db import get_db
 from erp import OLAP_EXPORT_SUCCESS
+from sqlalchemy import text
 
 
 def fetch_kpi_sales() -> Iterable[tuple[int, float]]:
     """Yield kpi_sales rows as (org_id, total)."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT org_id, total FROM kpi_sales")
-    yield from cur.fetchall()
+    for row in conn.execute(text("SELECT org_id, total FROM kpi_sales")):
+        yield row
 
 
 def export_to_csv(rows: Iterable[tuple[int, float]], dest: Path) -> None:

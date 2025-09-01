@@ -1139,7 +1139,7 @@ async def receive_inventory(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return ConversationHandler.END
     conn = get_db()
-    items = conn.execute("SELECT id, item_code FROM inventory").fetchall()
+    items = conn.execute(text("SELECT id, item_code FROM inventory")).fetchall()
     conn.close()
     if not items:
         await update.message.reply_text("No items available in inventory.")
@@ -1346,7 +1346,9 @@ async def add_tender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Access denied. Missing add_tender permission.")
         return ConversationHandler.END
     conn = get_db()
-    tender_types = conn.execute("SELECT id, type_name FROM tender_types").fetchall()
+    tender_types = conn.execute(
+        text("SELECT id, type_name FROM tender_types")
+    ).fetchall()
     conn.close()
     keyboard = [[KeyboardButton(t["type_name"]) for t in tender_types]]
     reply_markup = ReplyKeyboardMarkup(
@@ -1520,7 +1522,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.message.reply_text("Access denied. Missing put_order permission.")
         return ConversationHandler.END
     conn = get_db()
-    items = conn.execute("SELECT id, item_code FROM inventory").fetchall()
+    items = conn.execute(text("SELECT id, item_code FROM inventory")).fetchall()
     conn.close()
     if not items:
         await update.message.reply_text("No items available in inventory.")

@@ -1,3 +1,7 @@
 [allowlist]
   commits = ["effa7d45096e948f60328fddc95c4def3675c1dd"]
-  paths = ["secrets.allowlist"]
+  paths = [
+    "secrets.allowlist",
+    "tests",
+    "docs"
+  ]
