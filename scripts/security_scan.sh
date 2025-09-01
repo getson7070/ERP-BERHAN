@@ -19,8 +19,8 @@ fi
 bandit -r erp
 
 # Dependency vulnerability audit
-if [[ -f requirements.txt ]]; then
-    pip-audit -r requirements.txt
+if [[ -f requirements.lock ]]; then
+    pip-audit -r requirements.lock
 else
     pip-audit
 fi

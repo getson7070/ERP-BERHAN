@@ -151,6 +151,12 @@ def issue_token():
         json.dumps({"email": email, "org_id": user.get("org_id")}),
     )
     current_app.logger.info("issued tokens for %s", email)
+    log_audit(
+        user["id"],
+        user.get("org_id"),
+        "login",
+        "provider=api",
+    )
     conn.close()
     _clear_failures(email, user)
     return {"access_token": access, "refresh_token": refresh}
@@ -248,6 +254,17 @@ def oauth_callback():
         conn.close()
         flash("Unauthorized user")
         return redirect(url_for("auth.choose_login"))
+    if user["role"] in ("Admin", "Management") and user.get("mfa_secret"):
+        session["pending_sso"] = {
+            "id": user["id"],
+            "email": email,
+            "role": user["role"],
+            "permissions": user.get("permissions") or "",
+            "org_id": user.get("org_id"),
+            "mfa_secret": user.get("mfa_secret"),
+        }
+        conn.close()
+        return redirect(url_for("auth.oauth_totp"))
     session.permanent = True
     session["logged_in"] = True
     session["role"] = user["role"] or "Employee"
@@ -256,7 +273,12 @@ def oauth_callback():
         user["permissions"].split(",") if user["permissions"] else []
     )
     session["org_id"] = user.get("org_id")
-    log_audit(user["id"], user.get("org_id"), "login", "SSO")
+    log_audit(
+        user["id"],
+        user.get("org_id"),
+        "login",
+        f"provider={current_app.config.get('OAUTH_PROVIDER', 'sso')}",
+    )
     conn.execute(
         text("UPDATE users SET last_login = :now WHERE email = :email"),
         {"now": datetime.now(), "email": email},
@@ -264,6 +286,51 @@ def oauth_callback():
     conn.commit()
     conn.close()
     return redirect(url_for("main.dashboard"))
+
+
+@bp.route("/oauth_totp", methods=["GET", "POST"])
+def oauth_totp():
+    class TotpForm(FlaskForm):
+        totp = StringField(
+            "MFA Code", validators=[DataRequired(), Length(min=6, max=6)]
+        )
+        submit = SubmitField("Verify")
+
+    pending = session.get("pending_sso")
+    if not pending:
+        return redirect(url_for("auth.choose_login"))
+
+    form = TotpForm()
+    if form.validate_on_submit():
+        if pyotp.TOTP(
+            pending["mfa_secret"], issuer=current_app.config["MFA_ISSUER"]
+        ).verify(form.totp.data):
+            session.permanent = True
+            session["logged_in"] = True
+            session["role"] = pending["role"] or "Employee"
+            session["username"] = pending["email"]
+            session["permissions"] = (
+                pending["permissions"].split(",") if pending["permissions"] else []
+            )
+            session["org_id"] = pending.get("org_id")
+            user_id = pending["id"]
+            conn = get_db()
+            conn.execute(
+                text("UPDATE users SET last_login = :now WHERE email = :email"),
+                {"now": datetime.now(), "email": pending["email"]},
+            )
+            conn.commit()
+            conn.close()
+            log_audit(
+                user_id,
+                pending.get("org_id"),
+                "login",
+                f"provider={current_app.config.get('OAUTH_PROVIDER', 'sso')}",
+            )
+            session.pop("pending_sso", None)
+            return redirect(url_for("main.dashboard"))
+        flash("Invalid MFA code.")
+    return render_template("auth/sso_totp.html", form=form)
 
 
 @bp.route("/employee_login", methods=["GET", "POST"])
