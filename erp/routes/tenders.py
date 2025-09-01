@@ -19,7 +19,7 @@ from wtforms.validators import DataRequired
 from sqlalchemy import text
 from db import get_db
 from erp.utils import login_required, has_permission
-from erp.routes.helpers import sanitize_sort, sanitize_direction
+from erp.utils import sanitize_sort, sanitize_direction
 from io import BytesIO, StringIO
 import csv
 from openpyxl import Workbook

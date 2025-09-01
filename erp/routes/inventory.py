@@ -14,7 +14,7 @@ import csv
 from openpyxl import Workbook
 from erp.utils import login_required
 from erp.models import Inventory, db
-from erp.routes.helpers import sanitize_sort, sanitize_direction
+from erp.utils import sanitize_sort, sanitize_direction
 
 bp = Blueprint("inventory_ui", __name__, url_prefix="/inventory")
 

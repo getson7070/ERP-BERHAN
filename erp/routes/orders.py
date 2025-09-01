@@ -21,7 +21,7 @@ import csv
 from openpyxl import Workbook
 from db import get_db
 from erp.utils import login_required, has_permission, idempotency_key_required
-from erp.routes.helpers import sanitize_sort, sanitize_direction
+from erp.utils import sanitize_sort, sanitize_direction
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
 

@@ -17,7 +17,7 @@ from io import BytesIO, StringIO
 import csv
 from openpyxl import Workbook
 from sqlalchemy import text
-from erp.routes.helpers import sanitize_sort, sanitize_direction
+from erp.utils import sanitize_sort, sanitize_direction
 
 bp = Blueprint("crm", __name__, url_prefix="/crm")
 
