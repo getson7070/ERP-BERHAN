@@ -14,6 +14,7 @@ from erp import (
     csrf,
 )
 from erp.utils import idempotency_key_required
+from sqlalchemy import text
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -36,10 +37,13 @@ def token_required(f):
 @limiter.limit("50 per minute")
 def list_orders():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, item_id, quantity, customer, status FROM orders")
-    rows = cur.fetchall()
-    cur.close()
+    org_id = request.args.get("org_id")
+    query = "SELECT id, item_id, quantity, customer, status FROM orders"
+    params: dict[str, object] = {}
+    if org_id:
+        query += " WHERE org_id = :org"
+        params["org"] = org_id
+    rows = conn.execute(text(query), params).fetchall()
     conn.close()
     orders = [
         {
@@ -59,10 +63,13 @@ def list_orders():
 @limiter.limit("50 per minute")
 def list_tenders():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, description, workflow_state FROM tenders")
-    rows = cur.fetchall()
-    cur.close()
+    org_id = request.args.get("org_id")
+    query = "SELECT id, description, workflow_state FROM tenders"
+    params: dict[str, object] = {}
+    if org_id:
+        query += " WHERE org_id = :org"
+        params["org"] = org_id
+    rows = conn.execute(text(query), params).fetchall()
     conn.close()
     return jsonify([{"id": r[0], "description": r[1], "state": r[2]} for r in rows])
 
@@ -101,10 +108,13 @@ class Query(graphene.ObjectType):
 
     def resolve_orders(root, info):
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id, item_id, quantity, customer, status FROM orders")
-        rows = cur.fetchall()
-        cur.close()
+        org_id = request.args.get("org_id")
+        query = "SELECT id, item_id, quantity, customer, status FROM orders"
+        params: dict[str, object] = {}
+        if org_id:
+            query += " WHERE org_id = :org"
+            params["org"] = org_id
+        rows = conn.execute(text(query), params).fetchall()
         conn.close()
         return [
             OrderType(id=r[0], item_id=r[1], quantity=r[2], customer=r[3], status=r[4])
@@ -113,10 +123,13 @@ class Query(graphene.ObjectType):
 
     def resolve_tenders(root, info):
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id, description, workflow_state FROM tenders")
-        rows = cur.fetchall()
-        cur.close()
+        org_id = request.args.get("org_id")
+        query = "SELECT id, description, workflow_state FROM tenders"
+        params: dict[str, object] = {}
+        if org_id:
+            query += " WHERE org_id = :org"
+            params["org"] = org_id
+        rows = conn.execute(text(query), params).fetchall()
         conn.close()
         return [TenderType(id=r[0], description=r[1], state=r[2]) for r in rows]
 

@@ -27,19 +27,40 @@ bp = Blueprint("analytics", __name__)
 celery = Celery(__name__)
 
 
-def fetch_kpis():
+def fetch_kpis(org_id: int | None = None):
     conn = get_db()
-    pending_orders = conn.execute(
-        text("SELECT COUNT(*) FROM orders WHERE status = :status"),
-        {"status": "pending"},
-    ).scalar()
-    pending_maintenance = conn.execute(
-        text("SELECT COUNT(*) FROM maintenance WHERE status = :status"),
-        {"status": "pending"},
-    ).scalar()
-    expired_tenders = conn.execute(
-        text("SELECT COUNT(*) FROM tenders WHERE status = 'expired'")
-    ).scalar()
+    if org_id is not None:
+        pending_orders = conn.execute(
+            text(
+                "SELECT COUNT(*) FROM orders WHERE status = :status AND org_id = :org"
+            ),
+            {"status": "pending", "org": org_id},
+        ).scalar()
+        pending_maintenance = conn.execute(
+            text(
+                "SELECT COUNT(*) FROM maintenance WHERE status = :status AND org_id = :org"
+            ),
+            {"status": "pending", "org": org_id},
+        ).scalar()
+        expired_tenders = conn.execute(
+            text(
+                "SELECT COUNT(*) FROM tenders WHERE status = :status AND org_id = :org"
+            ),
+            {"status": "expired", "org": org_id},
+        ).scalar()
+    else:
+        pending_orders = conn.execute(
+            text("SELECT COUNT(*) FROM orders WHERE status = :status"),
+            {"status": "pending"},
+        ).scalar()
+        pending_maintenance = conn.execute(
+            text("SELECT COUNT(*) FROM maintenance WHERE status = :status"),
+            {"status": "pending"},
+        ).scalar()
+        expired_tenders = conn.execute(
+            text("SELECT COUNT(*) FROM tenders WHERE status = :status"),
+            {"status": "expired"},
+        ).scalar()
     monthly_sales = conn.execute(
         text(
             "SELECT COALESCE(SUM(total_sales),0) FROM kpi_sales "
@@ -134,7 +155,7 @@ def init_celery(state):
 @bp.route("/analytics/dashboard")
 @login_required
 def dashboard():
-    kpis = fetch_kpis()
+    kpis = fetch_kpis(session.get("org_id"))
     role = session.get("role")
     permissions = session.get("permissions", [])
     conn = get_db()
@@ -147,9 +168,7 @@ def dashboard():
     )
     roles = [row[0] for row in cur.fetchall()]
     saved_cur = conn.execute(
-        text(
-            "SELECT name, query FROM saved_searches WHERE user_id = :uid"
-        ),
+        text("SELECT name, query FROM saved_searches WHERE user_id = :uid"),
         {"uid": session.get("user_id")},
     )
     saved_searches = saved_cur.fetchall()
@@ -180,19 +199,18 @@ def dashboard():
 
 @socketio.on("connect")
 def push_kpis():
-    emit("kpi_update", fetch_kpis())
+    emit("kpi_update", fetch_kpis(session.get("org_id")))
 
 
 @celery.task
 @task_idempotent
 def generate_report(idempotency_key=None):
     conn = get_db()
-    cur = conn.cursor()
-    orders = cur.execute(
-        "SELECT status, COUNT(*) FROM orders GROUP BY status"
+    orders = conn.execute(
+        text("SELECT status, COUNT(*) FROM orders GROUP BY status")
     ).fetchall()
-    maintenance = cur.execute(
-        "SELECT status, COUNT(*) FROM maintenance GROUP BY status"
+    maintenance = conn.execute(
+        text("SELECT status, COUNT(*) FROM maintenance GROUP BY status")
     ).fetchall()
     filename = f"report_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, "w") as f:
@@ -271,11 +289,8 @@ def refresh_kpis(idempotency_key=None):
 def kpi_staleness_seconds() -> float:
     """Return age of the kpi_sales dataset in seconds and update gauge."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)")
-    cur.execute("SELECT MAX(last_refresh) FROM kpi_refresh_log")
-    row = cur.fetchone()
-    cur.close()
+    conn.execute(text("CREATE TABLE IF NOT EXISTS kpi_refresh_log (last_refresh TEXT)"))
+    row = conn.execute(text("SELECT MAX(last_refresh) FROM kpi_refresh_log")).fetchone()
     conn.close()
     if not row or row[0] is None:
         age = 0.0
@@ -308,10 +323,7 @@ def export_kpis_to_olap(idempotency_key=None):
     if not dsn:
         return 0
     src = get_db()
-    cur = src.cursor()
-    cur.execute("SELECT month, total_sales FROM kpi_sales")
-    rows = cur.fetchall()
-    cur.close()
+    rows = src.execute(text("SELECT month, total_sales FROM kpi_sales")).fetchall()
     src.close()
     engine = create_engine(dsn)
     inserted = 0
@@ -330,10 +342,10 @@ def export_kpis_to_olap(idempotency_key=None):
 def send_approval_reminders(idempotency_key=None):
     """Notify sales reps of orders awaiting approval."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id, sales_rep FROM orders WHERE status = 'pending'")
-    rows = cur.fetchall()
-    cur.close()
+    rows = conn.execute(
+        text("SELECT id, sales_rep FROM orders WHERE status = :status"),
+        {"status": "pending"},
+    ).fetchall()
     conn.close()
     for order_id, rep in rows:
         print(f"Reminder sent to {rep} for order {order_id}")
@@ -345,10 +357,12 @@ def send_approval_reminders(idempotency_key=None):
 def forecast_sales(idempotency_key=None):
     """Naive monthly sales forecast using average trend."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2")
-    rows = [r[0] for r in cur.fetchall()]
-    cur.close()
+    rows = [
+        r[0]
+        for r in conn.execute(
+            text("SELECT total_sales FROM kpi_sales ORDER BY month DESC LIMIT 2")
+        ).fetchall()
+    ]
     conn.close()
     if len(rows) < 2:
         return 0.0
@@ -361,11 +375,9 @@ def forecast_sales(idempotency_key=None):
 def generate_compliance_report(idempotency_key=None):
     """Produce a simple CSV listing orders missing status."""
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM orders WHERE status IS NULL")
-    missing = [r[0] for r in cur.fetchall()]
-    cur.close()
+    rows = conn.execute(text("SELECT id FROM orders WHERE status IS NULL")).fetchall()
     conn.close()
+    missing = [r[0] for r in rows]
     filename = f"compliance_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.csv"
     with open(filename, "w") as f:
         f.write("order_id\n")
@@ -393,16 +405,19 @@ def report_builder():
     if request.method == "POST":
         report_type = request.form.get("report_type")
         conn = get_db()
-        cur = conn.cursor()
         if report_type == "orders":
-            cur.execute("SELECT id, customer, status FROM orders")
+            rows = conn.execute(
+                text("SELECT id, customer, status FROM orders WHERE org_id = :org"),
+                {"org": session.get("org_id")},
+            ).fetchall()
             headers = ["id", "customer", "status"]
         else:
-            cur.execute("SELECT id, title, status FROM tenders")
+            rows = conn.execute(
+                text("SELECT id, title, status FROM tenders WHERE org_id = :org"),
+                {"org": session.get("org_id")},
+            ).fetchall()
             headers = ["id", "title", "status"]
-        rows = cur.fetchall()
         anomalies = detect_anomalies([r[0] for r in rows])
-        cur.close()
         conn.close()
     return render_template(
         "analytics/report_builder.html",
@@ -418,15 +433,18 @@ def report_builder():
 def export_report(fmt):
     report_type = request.form.get("report_type")
     conn = get_db()
-    cur = conn.cursor()
     if report_type == "orders":
-        cur.execute("SELECT id, customer, status FROM orders")
+        rows = conn.execute(
+            text("SELECT id, customer, status FROM orders WHERE org_id = :org"),
+            {"org": session.get("org_id")},
+        ).fetchall()
         headers = ["id", "customer", "status"]
     else:
-        cur.execute("SELECT id, title, status FROM tenders")
+        rows = conn.execute(
+            text("SELECT id, title, status FROM tenders WHERE org_id = :org"),
+            {"org": session.get("org_id")},
+        ).fetchall()
         headers = ["id", "title", "status"]
-    rows = cur.fetchall()
-    cur.close()
     conn.close()
     if fmt == "excel":
         from openpyxl import Workbook
