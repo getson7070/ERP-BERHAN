@@ -4,9 +4,7 @@ Follow these steps to bring up a demo environment with sample data.
 
 1. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
-   # Optional: tools for tests and linting
-   pip install -r requirements-dev.txt
+   pip install -r requirements.lock
    ```
 2. **Start services**
    ```bash
