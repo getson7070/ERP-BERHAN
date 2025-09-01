@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, session
+from sqlalchemy import text
 from db import get_db
 from erp.utils import login_required, mfa_required
 
@@ -9,28 +10,23 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 def workflows():
     org_id = session.get("org_id")
     conn = get_db()
-    cur = conn.cursor()
     if request.method == "POST":
         module = request.form["module"]
         steps = request.form["steps"]
         enabled = request.form.get("enabled") == "on"
-        cur.execute(
-            (
-                "INSERT INTO workflows (org_id, module, steps, enabled) "
-                "VALUES (%s,%s,%s,%s)"
+        conn.execute(
+            text(
+                "INSERT INTO workflows (org_id, module, steps, enabled) VALUES (:org,:module,:steps,:enabled)"
             ),
-            (org_id, module, steps, enabled),
+            {"org": org_id, "module": module, "steps": steps, "enabled": enabled},
         )
         conn.commit()
-    cur.execute(
-        (
-            "SELECT id, module, steps, enabled FROM workflows "
-            "WHERE org_id = %s ORDER BY module"
+    wf = conn.execute(
+        text(
+            "SELECT id, module, steps, enabled FROM workflows WHERE org_id = :org ORDER BY module"
         ),
-        (org_id,),
-    )
-    wf = cur.fetchall()
-    cur.close()
+        {"org": org_id},
+    ).fetchall()
     conn.close()
     return render_template("admin/workflows.html", workflows=wf)
 

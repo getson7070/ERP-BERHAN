@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, session, request, redirect, url_for
+from sqlalchemy import text
 from db import get_db
 from erp.workflow import require_enabled
 
@@ -9,13 +10,10 @@ bp = Blueprint("projects", __name__, url_prefix="/projects")
 @require_enabled("projects")
 def index():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, name FROM project_projects WHERE org_id = %s ORDER BY id",
-        (session.get("org_id"),),
-    )
-    projects = cur.fetchall()
-    cur.close()
+    projects = conn.execute(
+        text("SELECT id, name FROM project_projects WHERE org_id = :org ORDER BY id"),
+        {"org": session.get("org_id")},
+    ).fetchall()
     conn.close()
     return render_template("projects/index.html", projects=projects)
 
@@ -26,13 +24,11 @@ def add_project():
     if request.method == "POST":
         name = request.form["name"]
         conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO project_projects (org_id, name) VALUES (%s,%s)",
-            (session.get("org_id"), name),
+        conn.execute(
+            text("INSERT INTO project_projects (org_id, name) VALUES (:org, :name)"),
+            {"org": session.get("org_id"), "name": name},
         )
         conn.commit()
-        cur.close()
         conn.close()
         return redirect(url_for("projects.index"))
     return render_template("projects/add.html")

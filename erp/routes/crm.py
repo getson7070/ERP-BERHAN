@@ -8,9 +8,9 @@ from flask import (
     current_app,
     jsonify,
 )
+from sqlalchemy import text
 from db import get_db
 from erp.workflow import require_enabled
-from sqlalchemy import text
 from erp.utils import sanitize_sort, sanitize_direction, stream_export
 
 bp = Blueprint("crm", __name__, url_prefix="/crm")
@@ -60,13 +60,12 @@ def add_customer():
     if request.method == "POST":
         name = request.form["name"]
         conn = get_db()
-        cur = conn.cursor()
         org_id = session.get("org_id")
-        cur.execute(
-            "INSERT INTO crm_customers (org_id, name) VALUES (%s,%s)", (org_id, name)
+        conn.execute(
+            text("INSERT INTO crm_customers (org_id, name) VALUES (:org, :name)"),
+            {"org": org_id, "name": name},
         )
         conn.commit()
-        cur.close()
         conn.close()
         return redirect(url_for("crm.index"))
     return render_template("crm/add.html")

@@ -39,13 +39,13 @@ def save_search():
     name = request.form["name"]
     query = request.form["query"]
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO saved_searches (user_id, name, query) VALUES (%s,%s,%s)",
-        (session.get("user_id"), name, query),
+    conn.execute(
+        text(
+            "INSERT INTO saved_searches (user_id, name, query) VALUES (:user_id,:name,:query)"
+        ),
+        {"user_id": session.get("user_id"), "name": name, "query": query},
     )
     conn.commit()
-    cur.close()
     conn.close()
     return redirect(url_for("main.dashboard"))
 
