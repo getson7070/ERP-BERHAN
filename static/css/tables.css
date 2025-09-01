@@ -1,0 +1,2 @@
+:focus { outline: 2px dashed #4f46e5; outline-offset: 2px; }
+.table-sticky thead th { position: sticky; top: 0; background: #fff; }
