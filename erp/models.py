@@ -6,6 +6,7 @@ from decimal import Decimal
 from flask_security import RoleMixin, UserMixin
 
 from .extensions import db
+from .tenant import TenantMixin
 
 # Association table for many-to-many user/role relationship
 roles_users = db.Table(
@@ -15,7 +16,7 @@ roles_users = db.Table(
 )
 
 
-class Inventory(db.Model):  # type: ignore[name-defined]
+class Inventory(TenantMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "inventory_items"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -28,7 +29,7 @@ class Inventory(db.Model):  # type: ignore[name-defined]
         return f"<Inventory {self.name}={self.quantity}>"
 
 
-class Invoice(db.Model):  # type: ignore[name-defined]
+class Invoice(TenantMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "invoices"
 
     id = db.Column(db.Integer, primary_key=True)

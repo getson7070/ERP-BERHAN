@@ -21,7 +21,7 @@ def test_inventory_query_count(tmp_path, monkeypatch):
         def count_queries(conn, cursor, statement, parameters, context, executemany):
             counts["n"] += 1
 
-        Inventory.query.all()
+        Inventory.tenant_query(org_id=1).all()
         event.remove(db.engine, "before_cursor_execute", count_queries)
     assert counts["n"] <= 1
 

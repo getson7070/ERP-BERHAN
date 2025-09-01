@@ -18,7 +18,7 @@ def list_items():
     sku = request.args.get("sku")
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
-    query = Inventory.query.filter_by(org_id=org_id)
+    query = Inventory.tenant_query(org_id)
     if sku:
         query = query.filter_by(sku=sku)
     items = query.offset(offset).limit(limit).all()
@@ -61,7 +61,7 @@ def create_item():
 @roles_accepted("admin", "pharmacist")
 def get_item(item_id):
     org_id = get_jwt().get("org_id")
-    item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
+    item = Inventory.tenant_query(org_id).filter_by(id=item_id).first_or_404()
     return jsonify(
         {"id": item.id, "name": item.name, "sku": item.sku, "quantity": item.quantity}
     )
@@ -72,7 +72,7 @@ def get_item(item_id):
 @roles_required("pharmacist")
 def update_item(item_id):
     org_id = get_jwt().get("org_id")
-    item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
+    item = Inventory.tenant_query(org_id).filter_by(id=item_id).first_or_404()
     payload = request.get_json() or {}
     item.name = payload.get("name", item.name)
     item.sku = payload.get("sku", item.sku)
@@ -88,7 +88,7 @@ def update_item(item_id):
 @roles_required("pharmacist")
 def delete_item(item_id):
     org_id = get_jwt().get("org_id")
-    item = Inventory.query.filter_by(id=item_id, org_id=org_id).first_or_404()
+    item = Inventory.tenant_query(org_id).filter_by(id=item_id).first_or_404()
     db.session.delete(item)
     db.session.commit()
     return "", 204
