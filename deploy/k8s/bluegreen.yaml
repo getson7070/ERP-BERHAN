@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-berhan-blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: erp-berhan
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: erp-berhan
+        color: blue
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/getson7070/erp-berhan:latest
+          ports:
+            - containerPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-berhan-green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: erp-berhan
+      color: green
+  template:
+    metadata:
+      labels:
+        app: erp-berhan
+        color: green
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/getson7070/erp-berhan:latest
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-berhan
+spec:
+  selector:
+    app: erp-berhan
+    color: blue
+  ports:
+    - port: 8000
+      targetPort: 8000

@@ -22,6 +22,13 @@ spec:
         severity: page
       annotations:
         description: High 5xx error rate
+    - alert: TooManyRequests
+      expr: rate(http_requests_total{status="429"}[5m]) / rate(http_requests_total[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: warn
+      annotations:
+        description: Spike in HTTP 429 responses
     - alert: QueueLag
       expr: celery_queue_latency_seconds > 60
       for: 5m
