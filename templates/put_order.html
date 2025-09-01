@@ -25,10 +25,9 @@
                 <label for="customer" class="form-label">Customer</label>
                 <input type="text" name="customer" id="customer" class="form-control" required>
             </div>
-            <div class="mb-3">
-                <label class="form-check-label">
-                    <input type="checkbox" name="vat_exempt" value="yes" class="form-check-input"> VAT Exempt
-                </label>
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="vat_exempt" id="vat_exempt" value="yes" class="form-check-input">
+                <label for="vat_exempt" class="form-check-label">VAT Exempt</label>
             </div>
             <button type="submit" class="btn btn-primary">Submit Order</button>
             <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
