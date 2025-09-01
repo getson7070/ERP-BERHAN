@@ -11,13 +11,14 @@ This document outlines recovery objectives and drill procedures.
 - Off‑site copies replicated to S3 with 30‑day retention.
 
 ## Restore Drill
-Run `scripts/restore_latest_backup.sh` **monthly**. The script restores the most
-recent dump into a staging database and logs the result to `logs/restore_drill.log`.
+Nightly backups and monthly restore drills are automated via Celery beat
+(`backup.run_backup` and `backup.run_restore_drill`). The latest dump is restored
+into a staging database and results are logged to `logs/restore_drill.log`.
 
 1. Provision a staging database and set `DATABASE_URL` (include `?sslmode=require`).
-2. Execute the script:
+2. Execute the script manually if needed:
    ```bash
-   ./scripts/restore_latest_backup.sh
+   python scripts/dr_drill.py
    ```
 3. Measure start and end times to confirm the **RTO ≤ 1 hour**.
 4. Compare the backup timestamp against the drill time to validate the

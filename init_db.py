@@ -37,7 +37,7 @@ def init_db():
         cursor.execute("SELECT current_database()")
         dbname = cursor.fetchone()[0]
         cursor.execute(f"GRANT CONNECT ON DATABASE {dbname} TO {app_user}")
-        cursor.execute("GRANT USAGE ON SCHEMA public TO %s" % app_user)
+        cursor.execute(f"GRANT USAGE ON SCHEMA public TO {app_user}")
         cursor.execute(
             f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
         )

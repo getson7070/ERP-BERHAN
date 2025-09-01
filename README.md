@@ -77,9 +77,7 @@ for reviewer assignments.
 ```bash
 git clone https://github.com/getson7070/ERP-BERHAN.git
 cd ERP-BERHAN
-pip install -r requirements.txt
-# For tests and linting
-pip install -r requirements-dev.txt
+pip install -r requirements.lock
 # Install security tooling and browsers
 bash scripts/install_tools.sh
 # Enable template auto-reload during development
@@ -129,7 +127,7 @@ Run `ruff` and `mypy erp` locally to catch issues before pushing.
 Install development dependencies and run the linters and test suite to ensure all checks pass:
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements.lock
 ruff check .
 pytest
 ```
@@ -139,7 +137,7 @@ pytest
 Install and enable the pre-commit hooks to mirror CI checks:
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements.lock
 pre-commit install
 ```
 
