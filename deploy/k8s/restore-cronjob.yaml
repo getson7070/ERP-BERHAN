@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: erp-restore-drill
+spec:
+  schedule: "0 0 1 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: restore
+              image: ghcr.io/getson7070/erp-berhan:latest
+              command: ["python", "scripts/dr_drill.py"]
