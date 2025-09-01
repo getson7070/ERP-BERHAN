@@ -19,7 +19,6 @@ from wtforms.validators import DataRequired
 from sqlalchemy import text
 from db import get_db
 from erp.utils import login_required, has_permission
-from erp.sort_utils import sanitize_sort, sanitize_direction
 from io import BytesIO, StringIO
 import csv
 from openpyxl import Workbook
@@ -41,6 +40,14 @@ ALLOWED_SORTS = {
 }
 
 
+def _sanitize_sort(sort: str) -> str:
+    return sort if sort in ALLOWED_SORTS else "due_date"
+
+
+def _sanitize_direction(direction: str) -> str:
+    return direction if direction in {"asc", "desc"} else "asc"
+
+
 def _build_query(sort: str, direction: str, limit: int | None = None, offset: int | None = None):
     columns = {
         "id": "t.id",
@@ -55,8 +62,8 @@ def _build_query(sort: str, direction: str, limit: int | None = None, offset: in
         "institution": "t.institution",
         "envelope_type": "t.envelope_type",
     }
-    sort_col = columns[sanitize_sort(sort, ALLOWED_SORTS)]
-    order_sql = "DESC" if sanitize_direction(direction) == "desc" else "ASC"
+    sort_col = columns[_sanitize_sort(sort)]
+    order_sql = "DESC" if _sanitize_direction(direction) == "desc" else "ASC"
     sql = (
         "SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, "
         "t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type "
@@ -222,8 +229,8 @@ def add_tender():
 def tenders_list():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS)
-    direction = sanitize_direction(request.args.get("dir", "asc"))
+    sort = _sanitize_sort(request.args.get("sort", "due_date"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     limit = min(int(request.args.get("limit", 20)), 100)
     offset = int(request.args.get("offset", 0))
     conn = get_db()
@@ -271,8 +278,8 @@ def tenders_report():
 def export_tenders_csv():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS)
-    direction = sanitize_direction(request.args.get("dir", "asc"))
+    sort = _sanitize_sort(request.args.get("sort", "due_date"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
     return _export_rows(rows, "csv")
@@ -283,8 +290,8 @@ def export_tenders_csv():
 def export_tenders_xlsx():
     if not has_permission("tenders_list"):
         return redirect(url_for("main.dashboard"))
-    sort = sanitize_sort(request.args.get("sort", "due_date"), ALLOWED_SORTS)
-    direction = sanitize_direction(request.args.get("dir", "asc"))
+    sort = _sanitize_sort(request.args.get("sort", "due_date"))
+    direction = _sanitize_direction(request.args.get("dir", "asc"))
     conn = get_db()
     rows = _iter_rows(conn, _build_query(sort, direction))
     return _export_rows(rows, "xlsx")
