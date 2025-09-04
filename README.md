@@ -375,7 +375,7 @@ environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
 For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8000 for single-container deployments.
-For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage installs dependencies with `pip install -r requirements.txt`, while the start command applies database migrations via `flask db upgrade` before launching the service using `gunicorn --bind 0.0.0.0:8000 wsgi:app`.
+For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The configuration installs dependencies with `pip install -r requirements.txt`, runs migrations via `flask --app app db upgrade`, and launches the service using `gunicorn --bind 0.0.0.0:8000 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
 
 ## Observability & Offline Use
 

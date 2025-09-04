@@ -4,6 +4,6 @@ build:
   commands:
     - pip install --no-cache-dir -r requirements.txt
 run:
-  command: flask db upgrade && gunicorn --bind 0.0.0.0:8000 wsgi:app
+  command: flask --app app db upgrade && gunicorn --bind 0.0.0.0:8000 wsgi:app
   network:
     port: 8000

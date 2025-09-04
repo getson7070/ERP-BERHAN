@@ -6,9 +6,12 @@ from erp import create_app
 # DB engine for RLS checks
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.engine import Engine
+from typing import Optional
 
+engine: Optional[Engine]
 try:
-    from db import engine
+    from db import engine as engine  # type: ignore[assignment]
 except Exception:
     engine = None
 

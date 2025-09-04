@@ -8,6 +8,8 @@ from email.message import EmailMessage
 
 import requests  # type: ignore[import-untyped]
 from celery import Celery
+from typing import cast
+
 from db import redis_client
 
 BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
@@ -66,7 +68,7 @@ def main() -> None:
         msg = f"Celery backlog has reached {backlog} tasks"
         _send_email(msg, "Celery backlog alert")
         _send_slack(msg)
-    dlq_size = redis_client.llen("dead_letter")
+    dlq_size = cast(int, redis_client.llen("dead_letter"))
     if dlq_size > DLQ_THRESHOLD:
         msg = f"Dead letter queue has {dlq_size} entries"
         _send_email(msg, "Dead letter queue alert")
