@@ -24,6 +24,7 @@ from flask_talisman import Talisman
 from flask_socketio import SocketIO, join_room, disconnect
 from authlib.integrations.flask_client import OAuth
 from typing import Any, Awaitable, cast
+from urllib.parse import parse_qsl
 
 try:
     from flask_babel import Babel, get_locale, gettext as _
@@ -301,7 +302,11 @@ def create_app():
             "application/x-www-form-urlencoded",
         }:
             data = request.get_data(as_text=True, parse_form_data=False)
-            if data != bleach.clean(data, strip=True):
+            if request.mimetype == "application/x-www-form-urlencoded":
+                for _, value in parse_qsl(data, keep_blank_values=True):
+                    if value != bleach.clean(value or "", strip=True):
+                        return "blocked", 400
+            elif data != bleach.clean(data, strip=True):
                 return "blocked", 400
 
     app.jinja_env.trim_blocks = True
