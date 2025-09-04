@@ -1,0 +1,10 @@
+version: 1.0
+runtime: python3
+build:
+  commands:
+    - pip install --no-cache-dir -r requirements.txt
+    - flask db upgrade
+run:
+  command: gunicorn --bind 0.0.0.0:8000 wsgi:app
+  network:
+    port: 8000
