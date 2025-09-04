@@ -1,9 +1,9 @@
 """Data hygiene helpers."""
 
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, cast
 import re
-from sqlalchemy import MetaData, Table, delete, func, literal_column, select
+from sqlalchemy import Column, MetaData, Table, delete, func, literal_column, select
 from db import get_engine
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -35,7 +35,7 @@ def deduplicate(table: str, key_fields: Iterable[str]) -> int:
         if pk_cols:
             order_col = pk_cols[0]
         else:
-            order_col = literal_column("rowid")
+            order_col = cast(Column, literal_column("rowid"))
             order_col.table = t
 
         partition_cols = [t.c[f] for f in key_fields]
