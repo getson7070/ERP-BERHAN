@@ -22,6 +22,26 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
 
+## Deploying on AWS App Runner
+
+### Option A: Source build (uses `apprunner.yaml`)
+1. Create Secrets Manager secrets:
+   - `berhan-erp/FLASK_SECRET_KEY` (random string)
+   - `berhan-erp/JWT_SECRET` (random string)
+   - `berhan-erp/DATABASE_URL` (`postgresql://...` or `sqlite:////tmp/erp.db`)
+2. App Runner:
+   - Source: GitHub → branch `main` → Source directory `/`
+   - Health check: HTTP `/health`
+   - Port: `8080`
+   - Runtime env vars: map the three names above from Secrets Manager
+3. First green deploy should return `200` at `/health`.
+
+### Option B: Container (Dockerfile → ECR)
+1. Build & push the image to ECR (eu-west-1).
+2. Create App Runner service from image:
+   - Port `8000`, Health path `/health`
+   - Same Secrets Manager env mappings as above.
+
 ## Local tooling
 
 Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
