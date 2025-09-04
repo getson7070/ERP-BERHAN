@@ -10,6 +10,8 @@ def _setup_app(tmp_path, monkeypatch):
     app.config["TESTING"] = True
     with app.app_context():
         conn = get_db()
+        conn.execute(text("DROP TABLE IF EXISTS tenders"))
+        conn.execute(text("DROP TABLE IF EXISTS tender_types"))
         conn.execute(
             text(
                 """
