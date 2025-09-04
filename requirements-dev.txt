@@ -5,7 +5,7 @@ pip-audit==2.9.0
 flake8==7.3.0
 mypy==1.17.1
 bandit==1.8.6
-fakeredis==2.31.0  # in-memory Redis for tests
+fakeredis==2.31.1  # in-memory Redis for tests
 typer==0.16.1
 types-requests==2.32.4.20250809
 types-bleach==6.2.0.20250809

@@ -295,7 +295,11 @@ def create_app():
     def _waf():
         if any(v != bleach.clean(v or "", strip=True) for v in request.args.values()):
             return "blocked", 400
-        if request.method in {"POST", "PUT", "PATCH"} and request.mimetype in {"application/json", "text/plain"}:
+        if request.method in {"POST", "PUT", "PATCH"} and request.mimetype in {
+            "application/json",
+            "text/plain",
+            "application/x-www-form-urlencoded",
+        }:
             data = request.get_data(as_text=True, parse_form_data=False)
             if data != bleach.clean(data, strip=True):
                 return "blocked", 400
