@@ -8,19 +8,27 @@ def register(app, register_plugin):
     links = {}
 
     async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        uid = update.effective_user.id
+        user = update.effective_user
+        message = update.message
+        if user is None or message is None:
+            return
+        uid = user.id
         limits[uid] = limits.get(uid, 0) + 1
         if limits[uid] > 5:
             return
-        await update.message.reply_text("pong")
+        await message.reply_text("pong")
 
     async def link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        message = update.message
+        if user is None or message is None:
+            return
         token = context.args[0] if context.args else ""
         if not token:
-            await update.message.reply_text("token required")
+            await message.reply_text("token required")
             return
-        links[update.effective_user.id] = token
-        await update.message.reply_text("linked")
+        links[user.id] = token
+        await message.reply_text("linked")
 
     async def run_bot():
         token = app.config.get("TELEGRAM_TOKEN")

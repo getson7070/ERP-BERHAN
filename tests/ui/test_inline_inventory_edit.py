@@ -38,4 +38,6 @@ def test_inline_edit_updates_item(tmp_path, monkeypatch):
     )
     assert resp.json["sku"] == "W1"
     with app.app_context():
-        assert Inventory.tenant_query(org_id=1).get(item_id).name == "Gadget"
+        item = Inventory.tenant_query(org_id=1).filter_by(id=item_id).first()
+        assert item is not None
+        assert item.name == "Gadget"
