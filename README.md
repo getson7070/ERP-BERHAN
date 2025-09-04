@@ -92,6 +92,22 @@ flask run
 avoid unnecessary file-system checks.
 See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample data and first-run tips.
 
+## Deploying on AWS App Runner
+
+**Source build (uses `apprunner.yaml`):**
+- Source directory: `/`
+- Health check: HTTP `/health`
+- Port: `8080`
+- Runtime env (from Secrets Manager):
+  - `FLASK_SECRET_KEY`
+  - `JWT_SECRET`
+  - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
+- (Optional) Container path: build/push Dockerfile to ECR, set container port to 8000; health path `/health`.
+
+**Notes:**
+- Do not use `localhost` in `DATABASE_URL`.
+- For Redis, set `REDIS_URL=redis://…` (ElastiCache + VPC connector) or omit `USE_FAKE_REDIS` in production.
+
 ## Tech Stack
 
 - Flask

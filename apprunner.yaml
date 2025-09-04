@@ -1,10 +1,14 @@
 version: 1.0
-runtime: python3.11
+runtime: python3
+
 build:
   commands:
-    - python -m pip install --upgrade pip
-    - python -m pip install --no-cache-dir -r requirements.txt
+    pre-build:
+      - python -m pip install --upgrade pip setuptools wheel
+    build:
+      - if [ -f requirements.lock ]; then pip install -r requirements.lock; else pip install -r requirements.txt; fi
+
 run:
-  command: bash -c "flask --app app db upgrade && gunicorn --bind 0.0.0.0:8000 wsgi:app"
+  command: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 8 --timeout 120 wsgi:app
   network:
-    port: 8000
+    port: 8080

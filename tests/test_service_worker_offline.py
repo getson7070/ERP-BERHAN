@@ -1,17 +1,18 @@
 import threading
 import time
 
-import pytest
 import os
-
-pytest.importorskip("playwright.sync_api")
-from playwright.sync_api import sync_playwright  # noqa: E402
+import pytest
+from tests.playwright_utils import skip_if_browser_missing  # noqa: E402
 
 from erp import create_app  # noqa: E402
 
 
 @pytest.mark.skipif("CI" not in os.environ, reason="offline test runs only in CI")
 def test_offline_fallback():
+    skip_if_browser_missing("chromium")
+    from playwright.sync_api import sync_playwright  # noqa: E402
+
     app = create_app()
 
     def run():

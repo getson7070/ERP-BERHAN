@@ -2,6 +2,9 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright")
+from tests.playwright_utils import skip_if_browser_missing  # noqa: E402
+
+skip_if_browser_missing("chromium", module_level=True)
 pytest.importorskip("pytest_playwright")
 from playwright.sync_api import Page  # noqa: E402
 

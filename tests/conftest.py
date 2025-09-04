@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 os.environ.setdefault("USE_FAKE_REDIS", "1")
 os.environ.setdefault("SECURITY_PASSWORD_SALT", "test-salt")
 os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret")
 
 import pytest
 

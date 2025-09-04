@@ -1,41 +1,18 @@
-# syntax=docker/dockerfile:1
+FROM python:3.11-slim
 
-# Builder stage installs dependencies to an isolated prefix
-FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7 AS builder
-WORKDIR /app
-COPY requirements.lock .
-RUN pip install --prefix=/install --no-cache-dir -r requirements.lock
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Test image with tooling
-FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7 AS test
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    curl chromium libatk1.0-0 libgtk-3-0 libnss3 nodejs npm zaproxy \
-    && npm install -g pa11y \
-    && rm -rf /var/lib/apt/lists/*
-ENV PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY --from=builder /install /usr/local
-COPY requirements.lock .
-RUN pip install --no-cache-dir -r requirements.lock \
-    && python -m playwright install --with-deps chromium
-COPY . .
+
+COPY requirements.lock requirements.txt /app/
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    if [ -f requirements.lock ]; then pip install -r requirements.lock; else pip install -r requirements.txt; fi
+
+COPY . /app
+
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app"]
 
-# Production runtime image
-FROM python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7 AS runtime
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-ENV PYTHONUNBUFFERED=1
-WORKDIR /app
-COPY --from=builder /install /usr/local
-COPY . .
-RUN addgroup --system app && adduser --system --ingroup app app
-USER app
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8000} wsgi:app"]

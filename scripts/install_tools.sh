@@ -27,7 +27,7 @@ curl -sSfL https://github.com/zegl/kube-score/releases/download/v1.20.0/kube-sco
 
 pip install --break-system-packages "typer[all]==0.16.1" python-owasp-zap-v2.4 playwright pyyaml
 
-playwright install --with-deps chromium
+playwright install --with-deps chromium firefox
 
 curl -sSfL https://raw.githubusercontent.com/zaproxy/zaproxy/main/docker/zap-baseline.py \
   -o /usr/local/bin/zap-baseline.py

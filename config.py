@@ -1,15 +1,16 @@
 import os
-import secrets
-import json
 from datetime import timedelta
 
 from erp.secrets import get_secret
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get(
-        "FLASK_SECRET_KEY", secrets.token_hex(16)
+    _flask_secret_key = os.environ.get("FLASK_SECRET_KEY") or os.environ.get(
+        "SECRET_KEY"
     )
+    if not _flask_secret_key:
+        raise RuntimeError("FLASK_SECRET_KEY/SECRET_KEY not set")
+    SECRET_KEY = _flask_secret_key
     # Use a non-superuser account by default to enforce least privilege
     DATABASE_URL = os.environ.get(
         "DATABASE_URL",
@@ -25,12 +26,9 @@ class Config:
     DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", "10"))
     DB_POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "30"))
     PREFERRED_URL_SCHEME = "https"
-    _default_secret = get_secret("JWT_SECRET") or secrets.token_hex(32)
-    JWT_SECRETS = json.loads(
-        get_secret("JWT_SECRETS") or json.dumps({"v1": _default_secret})
-    )
-    JWT_SECRET_ID = get_secret("JWT_SECRET_ID") or "v1"
-    JWT_SECRET = JWT_SECRETS[JWT_SECRET_ID]
+    JWT_SECRET = get_secret("JWT_SECRET")
+    if not JWT_SECRET:
+        raise RuntimeError("JWT_SECRET not set")
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
@@ -125,19 +123,10 @@ if env == "production":
         insecure.append("SECURITY_PASSWORD_SALT")
 
     jwt_secret = get_secret("JWT_SECRET")
-    jwt_secrets_raw = get_secret("JWT_SECRETS")
-    if not (jwt_secret or jwt_secrets_raw):
+    if not jwt_secret:
         missing.append("JWT_SECRET")
-    else:
-        if jwt_secret and jwt_secret in default_vals:
-            insecure.append("JWT_SECRET")
-        if jwt_secrets_raw:
-            try:
-                jwt_secrets = json.loads(jwt_secrets_raw)
-                if any(v in default_vals for v in jwt_secrets.values()):
-                    insecure.append("JWT_SECRETS")
-            except json.JSONDecodeError:
-                insecure.append("JWT_SECRETS")
+    elif jwt_secret in default_vals:
+        insecure.append("JWT_SECRET")
 
     if Config.DATABASE_URL.startswith("postgresql://postgres"):
         missing.append("DATABASE_URL")
