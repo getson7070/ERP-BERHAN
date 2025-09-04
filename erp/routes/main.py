@@ -15,7 +15,7 @@ from db import get_db
 bp = Blueprint("main", __name__)
 
 
-@bp.route("/")
+@bp.route("/", methods=["GET", "POST"])
 def index():
     return redirect(url_for("auth.choose_login"))
 
