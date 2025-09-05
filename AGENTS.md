@@ -284,6 +284,12 @@ K8s: readiness/liveness, HPA, NetworkPolicies; secrets via env/CSI.
 
 Containers: non-root, HEALTHCHECK, pinned digests; Trivy scans in CI.
 
+AWS deployments:
+- Push the latest `main` branch to GitHub before building artifacts.
+- Build and push images to ECR (`ACCOUNT_ID.dkr.ecr.<region>.amazonaws.com/erp-berhan:<tag>`).
+- Containers must listen on port 8080 and run `flask db upgrade` before `gunicorn --bind 0.0.0.0:${PORT:-8080}`.
+- `DATABASE_URL` and `REDIS_URL` must not use `localhost`; point to RDS or ElastiCache endpoints.
+
 14) Performance & Capacity
 
 Budgets: throughput target, p95 SLA, queue size; publish soak tests.

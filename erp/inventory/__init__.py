@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from flask import current_app
 from sqlalchemy.sql import func
@@ -51,9 +51,9 @@ def assign_lot(item_id: int, quantity: int) -> str:
     lot = Lot(
         org_id=0,
         item_id=item_id,
-        lot_number=f"LOT-{datetime.utcnow().timestamp():.0f}",
+        lot_number=f"LOT-{datetime.now(UTC).timestamp():.0f}",
         quantity=quantity,
-        expiry_date=datetime.utcnow() + timedelta(days=365),
+        expiry_date=datetime.now(UTC) + timedelta(days=365),
     )
     db.session.add(lot)
     db.session.commit()
@@ -64,5 +64,5 @@ def assign_lot(item_id: int, quantity: int) -> str:
 @celery.task
 def check_expiry() -> int:
     """Return count of lots nearing expiry within 30 days."""
-    threshold = datetime.utcnow() + timedelta(days=30)
+    threshold = datetime.now(UTC) + timedelta(days=30)
     return Lot.query.filter(Lot.expiry_date <= threshold).count()
