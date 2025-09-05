@@ -4,7 +4,6 @@ import pytest
 pytest.importorskip("bs4")
 from bs4 import BeautifulSoup  # noqa: E402
 from tests.playwright_utils import skip_if_browser_missing  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
 
 BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
 
@@ -28,6 +27,7 @@ def test_base_template_axe():
     pytest.importorskip("axe_playwright_python")
     from axe_playwright_python.sync_playwright import Axe  # noqa: E402
     import json  # noqa: E402
+    from playwright.sync_api import sync_playwright  # noqa: E402
 
     with sync_playwright() as p:
         browser = p.firefox.launch()
@@ -42,6 +42,8 @@ def test_base_template_axe():
 
 def test_show_message_sanitizes_html():
     skip_if_browser_missing("firefox")
+    from playwright.sync_api import sync_playwright  # noqa: E402
+
     with sync_playwright() as p:
         browser = p.firefox.launch()
         page = browser.new_page()
@@ -56,6 +58,7 @@ def test_show_message_sanitizes_html():
 def test_fetch_omits_csrf_on_cross_origin():
     skip_if_browser_missing("firefox")
     captured = {}
+    from playwright.sync_api import sync_playwright  # noqa: E402
 
     with sync_playwright() as p:
         browser = p.firefox.launch()

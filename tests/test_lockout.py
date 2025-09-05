@@ -23,7 +23,7 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
     def get_db():  # pragma: no cover - test helper
         conn = real_get_db()
         try:
-            conn._raw.connection.row_factory = __import__("sqlite3").Row  # type: ignore[attr-defined]
+            conn._raw.driver_connection.row_factory = __import__("sqlite3").Row  # type: ignore[attr-defined]
         except Exception:
             pass
         return conn

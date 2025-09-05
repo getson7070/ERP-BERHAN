@@ -1,6 +1,6 @@
 """Database models for core ERP entities."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 
 from flask_security import RoleMixin, UserMixin
@@ -36,7 +36,9 @@ class Invoice(TenantMixin, db.Model):  # type: ignore[name-defined]
     org_id = db.Column(db.Integer, nullable=False, index=True)
     number = db.Column(db.String(64), unique=True, nullable=False)
     total = db.Column(db.Numeric(scale=2), nullable=False, default=Decimal("0.00"))
-    issued_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    issued_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
     delete_after = db.Column(db.DateTime)
 
     def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
@@ -64,7 +66,7 @@ class User(db.Model, UserMixin):  # type: ignore[name-defined]
     retain_until = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.utcnow() + timedelta(days=365 * 7),
+        default=lambda: datetime.now(UTC) + timedelta(days=365 * 7),
     )
     roles = db.relationship(
         "Role",
@@ -80,7 +82,9 @@ class DataLineage(db.Model):  # type: ignore[name-defined]
     table_name = db.Column(db.String(128), nullable=False)
     column_name = db.Column(db.String(128), nullable=False)
     source = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
 
 
 class UserDashboard(db.Model):  # type: ignore[name-defined]
@@ -94,5 +98,8 @@ class UserDashboard(db.Model):  # type: ignore[name-defined]
     )
     layout = db.Column(db.Text, nullable=False)
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        db.DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
     )
