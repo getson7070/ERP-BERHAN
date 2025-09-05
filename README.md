@@ -103,11 +103,17 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
 - Start command: `flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`
-- (Optional) Container path: build/push Dockerfile to ECR, set container port to 8080; health path `/health`.
+ 
+**Container image build:**
+1. `docker build -t erp-berhan:latest .`
+2. `docker tag erp-berhan:latest ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/erp-berhan:latest`
+3. `docker push ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/erp-berhan:latest`
+4. Configure App Runner or Elastic Beanstalk to use this ECR image and container port `8080`; health path `/health`.
 
 **Notes:**
 - Do not use `localhost` in `DATABASE_URL`.
 - For Redis, set `REDIS_URL=redis://…` (ElastiCache + VPC connector) or omit `USE_FAKE_REDIS` in production.
+- Push the latest `main` branch to GitHub before deploying.
 
 ## Tech Stack
 
