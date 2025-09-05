@@ -7,8 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.lock requirements.txt /app/
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    if [ -f requirements.lock ]; then pip install -r requirements.lock; else pip install -r requirements.txt; fi
+# hadolint ignore=DL3013
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    if [ -f requirements.lock ]; then pip install --no-cache-dir -r requirements.lock; else pip install --no-cache-dir -r requirements.txt; fi
 
 COPY . /app
 
