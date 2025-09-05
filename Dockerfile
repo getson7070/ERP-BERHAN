@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
 
 WORKDIR /app
 
@@ -15,4 +16,4 @@ RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 
 EXPOSE 8080
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app"]
+CMD ["sh", "-c", "alembic upgrade head && gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT:-8080} wsgi:app"]
