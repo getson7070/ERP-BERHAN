@@ -1,43 +1,40 @@
-# Core server
 Flask>=2.3,<3.1
-gunicorn>=21.2
-
-# DB stack
-SQLAlchemy>=1.4,<3
-alembic>=1.13
-psycopg2-binary>=2.9  # binary wheel to avoid native compile
-
-# Optional: Redis features
+Flask-Login==0.6.3
+flask-wtf==1.2.2
+werkzeug==3.1.3
+python-telegram-bot==22.3
+argon2-cffi==25.1.0
+celery==5.5.3
 redis>=5
-
-# JWT / misc
+fakeredis==2.31.1
+alembic>=1.13
+pyotp==2.9.0
+gunicorn>=21.2
+Flask-Talisman==1.1.0
+python-dotenv>=1.0
+SQLAlchemy>=1.4,<3
+Flask-SQLAlchemy==3.1.1
+psycopg2-binary>=2.9
 PyJWT>=2.8
-python-dotenv>=1.0  # if you use .env locally
-# Security and UX
-flask_talisman
-flask_socketio
-flask-security-too
-flask_jwt_extended
-flask-babel
-flask-wtf
-flask-limiter
-flask-caching
-bleach
-
-# Data and ML utilities
-numpy
-scikit-learn
-openpyxl
-argon2-cffi
-
-# External integrations
-boto3
-requests
-fakeredis
-prometheus_client
-celery
-authlib
-sentry-sdk
-pyotp
-flask_sqlalchemy
-graphene
+Flask-SocketIO==5.5.1
+python-socketio==5.13.0
+eventlet==0.40.3
+prometheus-client==0.22.1
+sentry-sdk==2.35.1
+Authlib==1.6.3
+requests==2.32.5
+Flask-Babel==4.0.0
+graphene==3.4.3
+boto3==1.40.20
+openpyxl==3.1.5
+reportlab==4.4.3
+Flask-Limiter==3.12
+Flask-Security-Too==5.6.2
+Flask-JWT-Extended==4.7.1
+cryptography==45.0.6
+qrcode==8.2
+phonenumbers==9.0.12
+Flask-Caching==2.3.1
+bleach==6.2.0
+numpy==2.1.1
+scikit-learn==1.5.2
