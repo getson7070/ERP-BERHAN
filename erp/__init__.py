@@ -231,6 +231,11 @@ def create_app():
     )
 
     use_fake = os.environ.get("USE_FAKE_REDIS") == "1"
+    if os.getenv("ENV") == "production":
+        if use_fake:
+            raise RuntimeError("USE_FAKE_REDIS must be disabled in production")
+        if not os.environ.get("REDIS_URL"):
+            raise RuntimeError("REDIS_URL is required in production")
     socketio.init_app(app, message_queue=None if use_fake else app.config["REDIS_URL"])
     oauth.init_app(app)
     db.init_app(app)
