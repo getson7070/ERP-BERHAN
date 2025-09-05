@@ -98,7 +98,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 - Source directory: `/`
 - Health check: HTTP `/health`
 - Port: `8080`
-- Build command: `pip install --no-cache-dir -r requirements.txt`
+- Build command: `python -m pip install --no-cache-dir -r requirements.txt`
 - Runtime env (from Secrets Manager):
   - `FLASK_SECRET_KEY`
   - `JWT_SECRET`
@@ -402,7 +402,7 @@ environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
 For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8080 for single-container deployments.
-For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage installs dependencies with `pip install --no-cache-dir -r requirements.txt`, runs migrations via `flask db upgrade`, and launches the service using `gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
+For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage first upgrades packaging tools with `python -m pip install --upgrade pip setuptools wheel` and then installs dependencies using `python -m pip install --no-cache-dir -r requirements.txt`. At runtime it executes `flask --app wsgi db upgrade` before launching `gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
 
 ## Observability & Offline Use
 
