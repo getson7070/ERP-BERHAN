@@ -103,6 +103,8 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
   - `FLASK_SECRET_KEY`
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
+  - `REDIS_URL`
+  - set `AWS_SECRETS_PREFIX` so the app can resolve secrets from AWS Secrets Manager
 - Start command: `flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`
  
 **Container image build:**
@@ -113,7 +115,8 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 
 **Notes:**
 - Do not use `localhost` in `DATABASE_URL`.
-- For Redis, set `REDIS_URL=redis://…` (ElastiCache + VPC connector) or omit `USE_FAKE_REDIS` in production.
+- Set `REDIS_URL=redis://…` (ElastiCache + VPC connector) and avoid `USE_FAKE_REDIS` in production.
+- Store secrets such as `FLASK_SECRET_KEY`, `JWT_SECRET`, and database credentials in AWS Secrets Manager and expose them via `AWS_SECRETS_PREFIX`.
 - Push the latest `main` branch to GitHub before deploying.
 
 ## Tech Stack
@@ -213,7 +216,7 @@ The application pulls configuration from environment variables. Key settings inc
 - `API_TOKEN` – bearer token used to authorize REST and GraphQL requests.
 - `ACCOUNTING_URL` – base URL for the accounting connector.
 - `S3_RETENTION_DAYS` – optional lifecycle policy for object storage.
-- `USE_FAKE_REDIS` – set to `1` during testing to use an in-memory Redis emulator.
+- `USE_FAKE_REDIS` – set to `1` during testing to use an in-memory Redis emulator; must be unset in production.
 
 The analytics module uses Celery for scheduled reporting. Configure the broker
 and result backend via the following environment variables:
