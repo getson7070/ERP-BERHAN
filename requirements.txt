@@ -13,3 +13,31 @@ redis>=5
 # JWT / misc
 PyJWT>=2.8
 python-dotenv>=1.0  # if you use .env locally
+# Security and UX
+flask_talisman
+flask_socketio
+flask-security-too
+flask_jwt_extended
+flask-babel
+flask-wtf
+flask-limiter
+flask-caching
+bleach
+
+# Data and ML utilities
+numpy
+scikit-learn
+openpyxl
+argon2-cffi
+
+# External integrations
+boto3
+requests
+fakeredis
+prometheus_client
+celery
+authlib
+sentry-sdk
+pyotp
+flask_sqlalchemy
+graphene

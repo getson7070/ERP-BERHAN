@@ -98,15 +98,23 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 - Source directory: `/`
 - Health check: HTTP `/health`
 - Port: `8080`
+- Build command: `pip install --no-cache-dir -r requirements.txt`
 - Runtime env (from Secrets Manager):
   - `FLASK_SECRET_KEY`
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
-- (Optional) Container path: build/push Dockerfile to ECR, set container port to 8000; health path `/health`.
+- Start command: `flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`
+ 
+**Container image build:**
+1. `docker build -t erp-berhan:latest .`
+2. `docker tag erp-berhan:latest ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/erp-berhan:latest`
+3. `docker push ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/erp-berhan:latest`
+4. Configure App Runner or Elastic Beanstalk to use this ECR image and container port `8080`; health path `/health`.
 
 **Notes:**
 - Do not use `localhost` in `DATABASE_URL`.
 - For Redis, set `REDIS_URL=redis://…` (ElastiCache + VPC connector) or omit `USE_FAKE_REDIS` in production.
+- Push the latest `main` branch to GitHub before deploying.
 
 ## Tech Stack
 
@@ -390,8 +398,8 @@ are provided for running the application in a Gunicorn-backed container. Configu
 environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
-For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8000 for single-container deployments.
-For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The configuration installs dependencies with `pip install -r requirements.txt`, runs migrations via `flask --app app db upgrade`, and launches the service using `gunicorn --bind 0.0.0.0:8000 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
+For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8080 for single-container deployments.
+For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage installs dependencies with `pip install --no-cache-dir -r requirements.txt`, runs migrations via `flask db upgrade`, and launches the service using `gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
 
 ## Observability & Offline Use
 

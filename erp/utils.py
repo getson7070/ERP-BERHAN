@@ -19,6 +19,7 @@ import os
 from argon2.exceptions import VerifyMismatchError
 from db import get_db
 from erp.cache import cache_get, cache_set
+from erp import csrf
 from sqlalchemy import text
 from sqlalchemy.orm import selectinload, joinedload
 from erp.models import User
@@ -221,6 +222,7 @@ def mfa_required(f):
 def idempotency_key_required(f):
     """Ensure requests with the same Idempotency-Key are processed once."""
 
+    @csrf.exempt
     @wraps(f)
     def wrapper(*args, **kwargs):
         key = request.headers.get("Idempotency-Key")
