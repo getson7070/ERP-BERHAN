@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Ops
 - Container health checks reference `/healthz` endpoint for consistent probe configuration
+- App Runner start command runs `alembic upgrade head` before launching Gunicorn to avoid missing `db` CLI errors
 
 ### Added
 - Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.
