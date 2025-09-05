@@ -2,7 +2,6 @@ import hmac
 import hashlib
 import pathlib
 import sys
-import pytest
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 from erp import create_app
@@ -42,7 +41,6 @@ def test_webhook_hmac(monkeypatch):
     assert bad.status_code == 401  # nosec B101
 
 
-@pytest.mark.xfail(reason="backend returns 400 when secret missing")
 def test_webhook_requires_secret(monkeypatch):
     monkeypatch.setenv("API_TOKEN", "tok")
     app = create_app()
@@ -61,7 +59,6 @@ def test_webhook_requires_secret(monkeypatch):
     assert resp.status_code == 500  # nosec B101
 
 
-@pytest.mark.xfail(reason="backend returns 400 when signature missing")
 def test_webhook_requires_signature(monkeypatch):
     monkeypatch.setenv("API_TOKEN", "tok")
     app = create_app()

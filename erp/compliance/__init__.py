@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from hashlib import sha256
 
 from ..extensions import db
@@ -16,13 +16,15 @@ class ElectronicSignature(db.Model):  # type: ignore[name-defined]
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     intent = db.Column(db.String(255), nullable=False)
-    signed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    signed_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
     prev_hash = db.Column(db.String(64))
     signature_hash = db.Column(db.String(64), nullable=False)
 
     def __init__(self, **kwargs):
         if "signed_at" not in kwargs:
-            kwargs["signed_at"] = datetime.utcnow()
+            kwargs["signed_at"] = datetime.now(UTC)
         super().__init__(**kwargs)
         self._apply_hash()
 
@@ -43,9 +45,14 @@ class BatchRecord(db.Model):  # type: ignore[name-defined]
     id = db.Column(db.Integer, primary_key=True)
     lot_number = db.Column(db.String(64), nullable=False, unique=True, index=True)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        db.DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
 
@@ -59,7 +66,9 @@ class NonConformance(db.Model):  # type: ignore[name-defined]
         db.Integer, db.ForeignKey("batch_records.id"), nullable=False
     )
     description = db.Column(db.Text, nullable=False)
-    detected_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    detected_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
     resolved_at = db.Column(db.DateTime)
     status = db.Column(db.String(32), default="open", nullable=False)
 
