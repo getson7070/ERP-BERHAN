@@ -130,6 +130,15 @@ if env == "production":
 
     if Config.DATABASE_URL.startswith("postgresql://postgres"):
         missing.append("DATABASE_URL")
+    if "localhost" in Config.DATABASE_URL:
+        insecure.append("DATABASE_URL")
+
+    redis_url = os.environ.get("REDIS_URL")
+    if os.environ.get("USE_FAKE_REDIS") != "1":
+        if not redis_url:
+            missing.append("REDIS_URL")
+        elif "localhost" in redis_url:
+            insecure.append("REDIS_URL")
 
     if not os.environ.get("SENTRY_DSN"):
         missing.append("SENTRY_DSN")
