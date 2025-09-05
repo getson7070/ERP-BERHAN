@@ -13,7 +13,6 @@ os.environ.setdefault("FLASK_SECRET_KEY", "test-secret")
 import pytest
 
 XFAIL_TESTS = {
-    "tests/test_audit_log.py::test_audit_chain_checker": "Audit chain checker pending",
     "tests/test_lockout.py::test_lockout_and_unlock": "Lockout flow incomplete",
     "tests/test_rate_limiting.py::test_token_rate_limit": "Rate limiting middleware missing",
     "tests/test_report_export.py::test_report_exports": "Report export not implemented",

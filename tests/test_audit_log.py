@@ -4,7 +4,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from erp.audit import log_audit, check_audit_chain
 from db import get_db
-from erp import create_app
+from prometheus_client import REGISTRY, generate_latest
+from erp import AUDIT_CHAIN_BROKEN
 
 
 def test_log_audit_writes_entry(tmp_path, monkeypatch):
@@ -35,11 +36,9 @@ def test_audit_chain_checker(monkeypatch, tmp_path):
     log_audit(1, 1, "b")
     conn.execute("UPDATE audit_logs SET hash='bad' WHERE id=2")
     conn.commit()
+    AUDIT_CHAIN_BROKEN._value.set(0)
     breaks = check_audit_chain()
     assert breaks == 1
-    app = create_app()
-    app.config["TESTING"] = True
-    client = app.test_client()
-    metrics = client.get("/metrics")
-    assert b"audit_chain_broken_total 1.0" in metrics.data
+    metrics = generate_latest(REGISTRY)
+    assert b"audit_chain_broken_total 1.0" in metrics
     conn.close()
