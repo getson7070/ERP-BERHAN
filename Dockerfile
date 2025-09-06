@@ -6,6 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install curl for container health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl=8.5.0-2ubuntu10.6 && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.lock requirements.txt /app/
 # hadolint ignore=DL3013
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
@@ -17,4 +21,6 @@ RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 
 EXPOSE 8080
-CMD ["sh", "-c", "alembic upgrade head && gunicorn --workers 2 --threads 8 --bind 0.0.0.0:${PORT:-8080} wsgi:app"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD curl -f http://localhost:${PORT:-8080}/healthz || exit 1
+
+CMD ["sh", "-c", "alembic upgrade head && gunicorn --workers 2 --threads 8 --timeout 60 --bind 0.0.0.0:${PORT:-8080} wsgi:app"]
