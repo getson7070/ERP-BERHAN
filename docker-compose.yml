@@ -2,7 +2,7 @@ version: '3.8'
 services:
   web:
     build: .
-    command: sh -c "alembic upgrade head && gunicorn --config gunicorn.conf.py wsgi:app"
+    command: sh -c "gunicorn --config gunicorn.conf.py wsgi:app"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
@@ -37,7 +37,7 @@ services:
           memory: 256M
   worker:
     build: .
-    command: sh -c "alembic upgrade head && celery -A erp.app.celery worker --loglevel=info"
+    command: sh -c "celery -A erp.app.celery worker --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable
@@ -62,7 +62,7 @@ services:
       retries: 3
   beat:
     build: .
-    command: sh -c "alembic upgrade head && celery -A erp.app.celery beat --loglevel=info"
+    command: sh -c "celery -A erp.app.celery beat --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: postgresql://erp_app:${APP_DB_PASSWORD}@db:5432/erp?sslmode=disable

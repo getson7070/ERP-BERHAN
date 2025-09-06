@@ -1,14 +1,14 @@
 version: 1.0
-runtime: python3
+runtime: python3.11
 
 build:
   commands:
     pre-build:
-      - python -m pip install --upgrade pip setuptools wheel
+      - python3 -m pip install --upgrade pip setuptools wheel
     build:
-      - python -m pip install --no-cache-dir -r requirements.txt
+      - python3 -m pip install --no-cache-dir -r requirements.lock
 
 run:
-  command: bash -c "alembic upgrade head && gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app"
+  command: bash -c "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app"
   network:
     port: 8080

@@ -3,7 +3,7 @@
 This guide outlines steps to migrate database schema when new modules are introduced.
 
 1. Ensure backups are taken before applying migrations.
-2. Run `alembic upgrade head` to apply latest changes.
+2. Run `scripts/run_migrations.sh` (which executes `alembic upgrade head`) to apply latest changes.
 3. Verify new tables contain `org_id` and appropriate indexes.
 4. Test row-level security policies using multiple tenant sessions.
 

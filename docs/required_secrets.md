@@ -6,7 +6,7 @@ The application retrieves all sensitive configuration exclusively from AWS Secre
 | --- | --- |
 | `FLASK_SECRET_KEY` | Session and CSRF signing key |
 | `JWT_SECRETS` / `JWT_SECRET_ID` | Map of versioned JWT signing secrets with active key id |
-| `DATABASE_URL` | PostgreSQL connection string (use `?sslmode=require`) |
+| `DATABASE_URL` | PostgreSQL connection string (use `?sslmode=require`; application fails to start if unset) |
 | `REDIS_URL` | Redis/ElastiCache connection string |
 | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | Credentials for SSO/OAuth2 login |
 | `WEBHOOK_SECRET` | HMAC secret for verifying inbound webhook payloads |

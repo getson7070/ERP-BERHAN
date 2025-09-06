@@ -83,13 +83,15 @@ bash scripts/install_tools.sh
 # Enable template auto-reload during development
 export FLASK_DEBUG=1
 docker compose up -d db redis
-flask db upgrade
+scripts/run_migrations.sh
 python init_db.py  # seeds initial admin
 flask run
 ```
 
 `FLASK_DEBUG` controls template auto-reload. Leave it unset in production to
 avoid unnecessary file-system checks.
+If Docker is unavailable, `scripts/setup_postgres.sh` provisions a local
+PostgreSQL service before running migrations.
 See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample data and first-run tips.
 
 ## Deploying on AWS App Runner
@@ -98,14 +100,14 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 - Source directory: `/`
 - Health check: HTTP `/health`
 - Port: `8080`
-- Build command: `python -m pip install --no-cache-dir -r requirements.txt`
+ - Build command: `python3 -m pip install --upgrade pip setuptools wheel && python3 -m pip install --no-cache-dir -r requirements.lock`
 - Runtime env (from Secrets Manager):
   - `FLASK_SECRET_KEY`
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
   - `REDIS_URL`
   - set `AWS_SECRETS_PREFIX` so the app can resolve secrets from AWS Secrets Manager
-- Start command: `flask db upgrade && gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app`
+  - Start command: `gunicorn --bind 0.0.0.0:${PORT:-8080} wsgi:app` (run `scripts/run_migrations.sh` beforehand)
  
 **Container image build:**
 1. `docker build -t erp-berhan:latest .`
@@ -114,7 +116,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 4. Configure App Runner or Elastic Beanstalk to use this ECR image and container port `8080`; health path `/health`.
 
 **Notes:**
-- Do not use `localhost` in `DATABASE_URL`.
+  - `DATABASE_URL` must be set; the application will not start without it. Do not use `localhost` in `DATABASE_URL`.
 - Set `REDIS_URL=redis://…` (ElastiCache + VPC connector) and avoid `USE_FAKE_REDIS` in production.
 - Store secrets such as `FLASK_SECRET_KEY`, `JWT_SECRET`, and database credentials in AWS Secrets Manager and expose them via `AWS_SECRETS_PREFIX`.
 - Push the latest `main` branch to GitHub before deploying.
@@ -137,7 +139,7 @@ OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging. Commits must be GPG-signed and changes touching
 protected paths require CODEOWNERS review. A dedicated workflow verifies commit
 signatures on pull requests.
-Database migrations are smoke-tested with `flask db upgrade`, and a separate
+Database migrations are smoke-tested with `scripts/run_migrations.sh`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
 test exercises the homepage to catch gross browser regressions. The CI job also emits a
 CycloneDX SBOM and uploads disaster-recovery drill timing artifacts for auditors.
@@ -262,8 +264,7 @@ alembic upgrade head
 ```
 
 Run this command after pulling updates to keep your database schema in sync.
-Docker Compose services execute `alembic upgrade head` on startup so production
-deployments stay current automatically.
+Execute `scripts/run_migrations.sh` before starting application services in any deployment pipeline.
 
 ### Local PostgreSQL Setup
 
@@ -402,7 +403,7 @@ environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
 For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8080 for single-container deployments.
-For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage first upgrades packaging tools with `python -m pip install --upgrade pip setuptools wheel` and then installs dependencies using `python -m pip install --no-cache-dir -r requirements.txt`. At runtime it executes `flask --app wsgi db upgrade` before launching `gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
+For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage first upgrades packaging tools with `python3 -m pip install --upgrade pip setuptools wheel` and then installs dependencies from `requirements.lock` using `python3 -m pip install --no-cache-dir -r requirements.lock`. Run `scripts/run_migrations.sh` in the deployment pipeline before launching `gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
 
 ## Observability & Offline Use
 

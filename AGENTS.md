@@ -286,8 +286,8 @@ Containers: non-root, HEALTHCHECK, pinned digests; Trivy scans in CI.
 
 AWS deployments:
 - Push the latest `main` branch to GitHub before building artifacts.
-- Build and push images to ECR (`ACCOUNT_ID.dkr.ecr.<region>.amazonaws.com/erp-berhan:<tag>`).
-- Containers must listen on port 8080 and run `flask db upgrade` before `gunicorn --bind 0.0.0.0:${PORT:-8080}`.
+- Build and push images to ECR (`ACCOUNT_ID.dkr.ecr.<region>.amazonaws.com/erp-berhan:<tag>`) with dependencies installed from `requirements.lock` using `python3 -m pip`.
+- Containers must listen on port 8080 and apply migrations via `scripts/run_migrations.sh` before starting `gunicorn --bind 0.0.0.0:${PORT:-8080}`.
 - `DATABASE_URL` and `REDIS_URL` must not use `localhost`; point to RDS or ElastiCache endpoints.
 
 14) Performance & Capacity

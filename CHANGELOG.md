@@ -17,7 +17,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Ops
 - Container health checks reference `/healthz` endpoint for consistent probe configuration
-- App Runner start command runs `alembic upgrade head` before launching Gunicorn to avoid missing `db` CLI errors
+- Database migrations are executed via `scripts/run_migrations.sh` prior to starting application services
+- Deterministic builds install dependencies from `requirements.lock` and docs outline `scripts/setup_postgres.sh` for local provisioning
 - Dockerfile sets a default `CMD` to run migrations and launch Gunicorn on `0.0.0.0:8080` so App Runner can pass health checks
 - Skip Redis check in `/healthz` when no broker URL is configured to prevent false health probe failures
 - Package test utilities to avoid mypy duplicate-module errors

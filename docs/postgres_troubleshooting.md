@@ -13,7 +13,7 @@ PostgreSQL service is installed and running.
    ```
 3. Run migrations and tests:
    ```bash
-   alembic upgrade head
+   scripts/run_migrations.sh
    pytest
    ```
 

@@ -45,6 +45,6 @@ SQL
 
 # run basic connectivity and troubleshooting checks (see docs/postgres_troubleshooting.md)
 pg_isready -d postgresql://postgres:postgres@localhost:5432/erp?sslmode=require
-alembic upgrade head || true
+"$(dirname "$0")/run_migrations.sh" || true
 
 echo "PostgreSQL ready on localhost:5432 with user 'postgres' and database 'erp'"

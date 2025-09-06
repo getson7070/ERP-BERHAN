@@ -12,7 +12,7 @@ Follow these steps to bring up a demo environment with sample data.
    ```
 3. **Run migrations and seed data**
    ```bash
-   alembic upgrade head
+   scripts/run_migrations.sh
    SEED_DEMO_DATA=1 ADMIN_USERNAME=admin ADMIN_PASSWORD=strongpass python init_db.py
    ```
 4. **Load sample organization**

@@ -23,4 +23,4 @@ USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD curl -f http://localhost:${PORT:-8080}/healthz || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head && gunicorn --workers 2 --threads 8 --timeout 60 --bind 0.0.0.0:${PORT:-8080} wsgi:app"]
+CMD ["sh", "-c", "gunicorn --workers 2 --threads 8 --timeout 60 --bind 0.0.0.0:${PORT:-8080} wsgi:app"]

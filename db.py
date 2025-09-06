@@ -32,12 +32,11 @@ if os.environ.get("USE_FAKE_REDIS") == "1":
     try:
         import fakeredis  # type: ignore
     except ImportError as exc:  # pragma: no cover - guarded import
-        raise RuntimeError(
-            "USE_FAKE_REDIS=1 but fakeredis is not installed"
-        ) from exc
+        raise RuntimeError("USE_FAKE_REDIS=1 but fakeredis is not installed") from exc
 
     redis_client: redis.Redis = cast(redis.Redis, fakeredis.FakeRedis())
 else:
+
     class _RedisProxy:
         """Lazily connect to Redis and retry a few times."""
 
@@ -80,9 +79,8 @@ def _get_engine(url: str | None, path: str) -> Engine:
         return create_engine(url, **pool_args)
     if path:
         return create_engine(f"sqlite:///{path}", future=True)
-    return create_engine(
-        "postgresql://postgres:postgres@127.0.0.1:5432/erp?sslmode=require",
-        **pool_args,
+    raise RuntimeError(
+        "DATABASE_URL or DATABASE_PATH must be configured; no default database credentials are used."
     )
 
 

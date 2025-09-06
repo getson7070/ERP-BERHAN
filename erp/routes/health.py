@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from flask import Blueprint, jsonify
 import os
 from erp import talisman
@@ -26,10 +27,10 @@ def _ping_redis() -> bool:
     try:
         import redis
 
-        r = redis.Redis.from_url(url)
+        r = redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
         r.ping()
         return True
-    except Exception:
+    except (redis.exceptions.RedisError, TimeoutError):
         return False
 
 
