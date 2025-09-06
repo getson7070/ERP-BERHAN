@@ -15,8 +15,12 @@ def skip_if_browser_missing(browser: str, *, module_level: bool = False) -> None
     from playwright.sync_api import sync_playwright
 
     try:
+        from pathlib import Path
+
         with sync_playwright() as p:
-            getattr(p, browser).executable_path
+            exec_path = getattr(p, browser).executable_path
+            if not Path(exec_path).is_file():
+                raise FileNotFoundError(exec_path)
     except Exception as exc:  # pragma: no cover - skip logic
         pytest.skip(
             f"Playwright {browser} browser not installed: {exc}",
