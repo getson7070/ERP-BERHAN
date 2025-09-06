@@ -19,14 +19,13 @@ def _ping_db() -> bool:
 
 
 def _ping_redis() -> bool:
+    url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
+    if not url:
+        # Redis is optional; treat absence of a configured URL as healthy
+        return True
     try:
         import redis
 
-        url = (
-            os.getenv("REDIS_URL")
-            or os.getenv("CELERY_BROKER_URL")
-            or "redis://localhost:6379/0"
-        )
         r = redis.Redis.from_url(url)
         r.ping()
         return True
