@@ -49,14 +49,18 @@ def upgrade():
         sa.Column("org_id", sa.Integer, sa.ForeignKey("organizations.id")),
     )
     for table in ("orders", "tenders", "inventory"):
-        op.add_column(
-            table, sa.Column("org_id", sa.Integer, sa.ForeignKey("organizations.id"))
-        )
+        with op.batch_alter_table(table) as batch:
+            batch.add_column(sa.Column("org_id", sa.Integer(), nullable=True))
+            batch.create_foreign_key(
+                f"{table}_org_id_fkey", "organizations", ["org_id"], ["id"]
+            )
 
 
 def downgrade():
     for table in ("orders", "tenders", "inventory"):
-        op.drop_column(table, "org_id")
+        with op.batch_alter_table(table) as batch:
+            batch.drop_constraint(f"{table}_org_id_fkey", type_="foreignkey")
+            batch.drop_column("org_id")
     op.drop_table("role_assignments")
     op.drop_table("role_permissions")
     op.drop_table("permissions")

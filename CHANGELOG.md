@@ -5,24 +5,30 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 ### Security
-- Pin Docker base image to `python:3.11-slim@sha256:8df0e8faf75b3c17ac33dc90d76787bbbcae142679e11da8c6f16afae5605ea7` to ensure supply-chain integrity
+- Pin Docker base image to `python:3.11-slim@sha256:1d6131b5d479888b43200645e03a78443c7157efbdb730e6b48129740727c312` to ensure supply-chain integrity
 - Harden Kubernetes deployment with pod `securityContext` and outbound-only NetworkPolicies
 - Recreate row-level security policies using `erp.org_id` to enforce tenant isolation
 - Refactor authentication and order routes to use parameterised SQL queries for injection safety and cross-database support
+- Docker Compose connections to PostgreSQL now require TLS (`sslmode=require`)
 
 ### UX
 - Document accessibility and responsive design standards in `docs/ux_guidelines.md` with reference snapshots
 - Break long template lines and add SRI/crossorigin attributes for CDN assets
 - Service worker securely reattaches fresh auth tokens when replaying background-sync requests
+- Dynamically revealed inventory expiration field now toggles `aria` attributes for screen-reader support
 
 ### Ops
+- Add missing Alembic revision for data lineage table to ensure migration chain completeness
 - Container health checks reference `/healthz` endpoint for consistent probe configuration
+- Linearized Alembic migration history to eliminate multiple heads
 - Database migrations are executed via `scripts/run_migrations.sh` prior to starting application services
 - Deterministic builds install dependencies from `requirements.lock` and docs outline `scripts/setup_postgres.sh` for local provisioning
 - Dockerfile sets a default `CMD` to run migrations and launch Gunicorn on `0.0.0.0:8080` so App Runner can pass health checks
 - Skip Redis check in `/healthz` when no broker URL is configured to prevent false health probe failures
 - Package test utilities to avoid mypy duplicate-module errors
 - Playwright tests skip when required browser dependencies are missing to avoid CI failures
+- Composite indexes added on `(status, org_id)` for `orders`, `maintenance`, and `tenders` tables to accelerate dashboards
+- Analytics reminders log via structured logging instead of `print`
 
 ### Added
 - Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.

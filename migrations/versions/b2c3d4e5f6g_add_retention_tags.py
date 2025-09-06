@@ -4,8 +4,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "b2c3d4e5f6g_add_retention_tags"
-down_revision = "a1b2c3d4e5f7_add_user_dashboards_table"
+revision = "b2c3d4e5f6g"
+down_revision = "b1c2d3e4f5g6"
 branch_labels = None
 depends_on = None
 

@@ -1,7 +1,7 @@
 """add core module tables
 
 Revision ID: 7c9d0e1f2g3h
-Revises: 6a7b8c9d0e1f
+Revises: c3d4e5f6g7h
 Create Date: 2024-06-09 00:00:00 UTC
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "7c9d0e1f2g3h"
-down_revision = "6a7b8c9d0e1f"
+down_revision = "c3d4e5f6g7h"
 branch_labels = None
 depends_on = None
 
@@ -30,10 +30,11 @@ def upgrade():
             ),
             sa.Column(column, sa.String(), nullable=False),
         )
-        op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('erp.org_id')::int)"
-        )
+        if op.get_bind().dialect.name != "sqlite":
+            op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+            op.execute(
+                f"CREATE POLICY {table}_org_isolation ON {table} USING (org_id = current_setting('erp.org_id')::int)"
+            )
 
 
 def downgrade():

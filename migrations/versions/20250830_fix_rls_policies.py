@@ -25,6 +25,8 @@ TENANT_TABLES = (
 
 
 def upgrade():
+    if op.get_bind().dialect.name == "sqlite":
+        return
     for table in TENANT_TABLES:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")
@@ -38,5 +40,7 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_bind().dialect.name == "sqlite":
+        return
     for table in TENANT_TABLES:
         op.execute(f"DROP POLICY IF EXISTS org_rls ON {table}")

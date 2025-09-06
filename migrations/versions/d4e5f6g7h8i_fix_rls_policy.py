@@ -9,6 +9,9 @@ depends_on = None
 
 
 def upgrade():
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        return
     for table in (
         "orders",
         "tenders",
@@ -32,6 +35,9 @@ def upgrade():
 
 
 def downgrade():
+    conn = op.get_bind()
+    if conn.dialect.name == "sqlite":
+        return
     for table in (
         "orders",
         "tenders",
