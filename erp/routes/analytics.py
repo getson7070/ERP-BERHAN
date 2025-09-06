@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import statistics
 from datetime import datetime, UTC
@@ -25,6 +26,7 @@ from erp.utils import login_required, roles_required, task_idempotent
 bp = Blueprint("analytics", __name__)
 
 celery = Celery(__name__)
+logger = logging.getLogger(__name__)
 
 
 def fetch_kpis(org_id: int | None = None):
@@ -348,7 +350,7 @@ def send_approval_reminders(idempotency_key=None):
     ).fetchall()
     conn.close()
     for order_id, rep in rows:
-        print(f"Reminder sent to {rep} for order {order_id}")
+        logger.info("reminder sent", extra={"sales_rep": rep, "order_id": order_id})
     return len(rows)
 
 

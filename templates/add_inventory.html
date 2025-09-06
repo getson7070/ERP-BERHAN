@@ -28,7 +28,7 @@
                     <option value="Reagent">Reagent</option>
                 </select>
             </div>
-             <div class="mb-3 d-none" id="exp_date_field">
+            <div class="mb-3" id="exp_date_field" hidden aria-hidden="true">
                 <label for="exp_date" class="form-label">Expiration Date</label>
                 <input type="date" name="exp_date" id="exp_date" class="form-control">
             </div>
@@ -41,13 +41,14 @@
         </form>
     </div>
     <script nonce="{{ csp_nonce() }}">
-         document.getElementById('type').addEventListener('change', function() {
-             const field = document.getElementById('exp_date_field');
-             if (this.value === 'Reagent') {
-                 field.classList.remove('d-none');
-             } else {
-                 field.classList.add('d-none');
-             }
+         const typeSelect = document.getElementById('type');
+         const field = document.getElementById('exp_date_field');
+         typeSelect.setAttribute('aria-controls', 'exp_date_field');
+         typeSelect.addEventListener('change', function() {
+             const show = this.value === 'Reagent';
+             field.hidden = !show;
+             field.setAttribute('aria-hidden', String(!show));
+             this.setAttribute('aria-expanded', String(show));
          });
     </script>
 </div>
