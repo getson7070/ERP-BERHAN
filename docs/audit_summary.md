@@ -5,7 +5,7 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 ## Category Scores (0–3)
 | Area | Score | Notes |
 | --- | --- | --- |
-| Functional Fit | 0 | Modules described in README but not implemented. |
+| Functional Fit | 0 | Modules described in readme but not implemented. |
 | UI/UX & Accessibility | 1 | Basic Bootstrap layout; lacks mobile and accessibility testing. |
 | Performance & Scale | 0 | No load or concurrency tests yet. |
 | Security (App & Data) | 1 | Plans for SSO/MFA/RLS but minimal code. |
@@ -15,7 +15,7 @@ This document captures the results of an early audit of the ERP-BERHAN project w
 | Integrations & Extensibility | 0 | No external connectors in place. |
 | Telegram/Chatbot Path | 0 | Bot framework not started. |
 | Files & Storage | 1 | Basic backup scripts, no object storage. |
-| Deployability & DevOps | 1 | README references Docker/K8s, no CI/CD. |
+| Deployability & DevOps | 1 | readme references Docker/K8s, no CI/CD. |
 | Reliability & DR | 0 | No failover or DR runbooks. |
 | Observability | 1 | Prometheus metrics stubbed in app factory. |
 | Testing & Quality | 0 | No automated tests at the time of audit. |

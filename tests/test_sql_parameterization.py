@@ -3,7 +3,7 @@ from pathlib import Path
 TARGET_FILES = [
     "erp/audit.py",
     "erp/data_retention.py",
-    "BOT.PY",
+    "bot.py",
     "erp/routes/analytics.py",
 ]
 

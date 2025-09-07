@@ -53,7 +53,7 @@ Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
 - [erp/audit.py](erp/audit.py#L1-L67) and [hash-chain migration](migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py#L1-L18)
 - [static/js/sw.js](static/js/sw.js)
 - [deploy/k8s/](deploy/k8s)
-- [Dockerfile](Dockerfile)
+- [dockerfile](dockerfile)
 - [GraphQL complexity guard](erp/routes/api.py#L140-L150)
 - [templates/base.html](templates/base.html)
 - [templates/partials/navbar.html](templates/partials/navbar.html)
@@ -69,7 +69,7 @@ Latest operational metrics are published in the [status page](docs/status.md).
 ## Contributing
 
 All commits to `main` must be GPG-signed (`git commit -S`) and receive
-approval from a designated CODEOWNER. See [CODEOWNERS](.github/CODEOWNERS)
+approval from a designated CODEOWNER. See [codeowners](codeowners)
 for reviewer assignments.
 
 ## Setup
@@ -137,7 +137,7 @@ Every push and pull request runs ruff, mypy, pytest with coverage,
 Bandit, pip-audit, gitleaks, Docker build with Trivy, kube-linter, kube-score,
 OWASP ZAP baseline, and pa11y accessibility checks. Branch protection requires
 all checks to pass before merging. Commits must be GPG-signed and changes touching
-protected paths require CODEOWNERS review. A dedicated workflow verifies commit
+protected paths require codeowners review. A dedicated workflow verifies commit
 signatures on pull requests.
 Database migrations are smoke-tested with `scripts/run_migrations.sh`, and a separate
 performance workflow runs N+1 and slow-query guards under `tests/perf`. A Selenium smoke
@@ -180,7 +180,7 @@ improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
 
 ## Code of Conduct
 
-Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) when interacting with the project.
+Please follow our [Code of Conduct](code_of_conduct.md) when interacting with the project.
 
 ## Design System
 
@@ -397,12 +397,12 @@ status becomes *Evaluated*; recording a winning supplier and date moves it to
 
 ## Deployment
 
-A production-ready WSGI entrypoint (`wsgi.py`), `Dockerfile`, and `.env.example`
+A production-ready WSGI entrypoint (`wsgi.py`), `dockerfile`, and `.env.example`
 are provided for running the application in a Gunicorn-backed container. Configure
 environment variables as needed and build the container with Docker for
 consistent deployments. Kubernetes manifests in `deploy/k8s/` illustrate a
 high‑availability setup with readiness probes and horizontal pod autoscaling.
-For AWS Elastic Beanstalk, a `Dockerrun.aws.json` file references the container image and exposes port 8080 for single-container deployments.
+For AWS Elastic Beanstalk, a `dockerrun.aws.json` file references the container image and exposes port 8080 for single-container deployments.
 For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies build and start commands. The build stage first upgrades packaging tools with `python3 -m pip install --upgrade pip setuptools wheel` and then installs dependencies from `requirements.lock` using `python3 -m pip install --no-cache-dir -r requirements.lock`. Run `scripts/run_migrations.sh` in the deployment pipeline before launching `gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app`. Ensure the service defines a `DATABASE_URL` (append `?sslmode=require`), `FLASK_SECRET_KEY`, `JWT_SECRETS`, and `REDIS_URL` environment variables.
 
 ## Observability & Offline Use
@@ -458,9 +458,9 @@ actively addressing the following items:
 - An in-app `/help` page links to documentation and discussion forums.
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
-- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
+- Release notes are tracked in `changelog.md` with rollback steps in `docs/rollback.md`.
 
 ## Contributing
 
 - All commits must be GPG-signed.
-- Pull requests require approval from owners listed in `.github/CODEOWNERS`.
+- Pull requests require approval from owners listed in `codeowners`.

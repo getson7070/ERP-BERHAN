@@ -316,7 +316,7 @@ Marketplace: plugins declare permissions; reviewed via CI + manual approval.
 
 17) References (repo-local)
 
-Security & hardening: SECURITY.md, docs/security/secret_rotation.md
+Security & hardening: security.md, docs/security/secret_rotation.md
 
 Audit chain & gaps: docs/audit_summary.md (+ migration adding hash-chain columns)
 
@@ -326,7 +326,7 @@ DR & Retention: docs/dr_plan.md, docs/data_retention.md
 
 CI pipeline: .github/workflows/ci.yml (ruff, mypy, pytest+cov, Bandit, pip-audit, gitleaks, Trivy, kube-linters, ZAP, Pa11y)
 
-Status page: see README link
+Status page: see readme link
 
 18) Agent PR Checklist (copy into every agent PR)
 
