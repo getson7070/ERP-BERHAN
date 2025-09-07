@@ -10,7 +10,6 @@ from telegram import (
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
-from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -25,7 +24,6 @@ from argon2.exceptions import VerifyMismatchError
 import logging
 from datetime import datetime
 import csv  # For client list integration
-import os
 from db import get_db
 import sqlite3
 from sqlalchemy import text

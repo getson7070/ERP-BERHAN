@@ -19,20 +19,35 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 
+def _table_exists(cur, table: str) -> bool:
+    cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+    return cur.fetchone()[0] is not None
+
+
 def _role_exists(cur, name: str) -> bool:
+    if not _table_exists(cur, "roles"):
+        return False
     cur.execute("SELECT 1 FROM roles WHERE name=%s", (name,))
     return cur.fetchone() is not None
 
 
 def _org_id_for(cur, org_name: str) -> int | None:
+    if not _table_exists(cur, "organizations"):
+        return None
     cur.execute("SELECT id FROM organizations WHERE name=%s", (org_name,))
     row = cur.fetchone()
     return row[0] if row else None
 
 
-def _table_exists(cur, name: str) -> bool:
-    cur.execute("SELECT to_regclass(%s)", (name,))
-    return cur.fetchone()[0] is not None
+def _reset_schema() -> None:
+    """Drop and recreate the public schema to clear stray tables."""
+    conn = get_db()
+    conn.autocommit = True
+    cur = conn.cursor()
+    cur.execute("DROP SCHEMA IF EXISTS public CASCADE")
+    cur.execute("CREATE SCHEMA public")
+    cur.close()
+    conn.close()
 
 
 def init_db():
@@ -41,8 +56,13 @@ def init_db():
     try:
         subprocess.run(["alembic", "upgrade", "head"], check=True)
         print("Alembic upgrade: OK")
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except FileNotFoundError:
         print("Alembic upgrade skipped or failed.")
+    except subprocess.CalledProcessError:
+        print("Alembic upgrade failed; resetting schema and retrying...")
+        _reset_schema()
+        subprocess.run(["alembic", "upgrade", "head"], check=True)
+        print("Alembic upgrade: OK")
 
     conn = get_db()
     cursor = conn.cursor()
@@ -82,6 +102,29 @@ def init_db():
             ).format(sql.Identifier(app_user))
         )
 
+    regions_cities_data = [
+        ("Amhara", "Bahir Dar"),
+        ("Amhara", "Gondar"),
+        ("Afar", "Semera"),
+        ("Benishangul-Gumuz", "Asosa"),
+        ("Gambela", "Gambela"),
+        ("Harari", "Harar"),
+        ("Oromia", "Adama"),
+        ("Oromia", "Jimma"),
+        ("Sidama", "Hawassa"),
+        ("Somali", "Jijiga"),
+        ("South West Ethiopia Peoples Region", "Bonga"),
+        ("Southern Nations, Nationalities, and Peoples Region", "Arba Minch"),
+        ("Tigray", "Mekelle"),
+        ("Addis Ababa", "Addis Ababa"),
+        ("Dire Dawa", "Dire Dawa"),
+    ]
+    if _table_exists(cursor, "regions_cities"):
+        cursor.executemany(
+            "INSERT INTO regions_cities (region, city) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            regions_cities_data,
+        )
+
     if _table_exists(cursor, "tender_types"):
         for ttype in ("EGP Portal", "Paper Tender", "NGO/UN Portal Tender"):
             cursor.execute(
@@ -89,49 +132,26 @@ def init_db():
                 (ttype,),
             )
 
-    org_id = None
+    default_org_name = os.environ.get("DEFAULT_ORG_NAME", "Default Org")
     if _table_exists(cursor, "organizations"):
-        default_org_name = os.environ.get("DEFAULT_ORG_NAME", "Default Org")
         cursor.execute(
             "INSERT INTO organizations (name) VALUES (%s) ON CONFLICT DO NOTHING",
             (default_org_name,),
         )
-        org_id = _org_id_for(cursor, default_org_name)
+    org_id = _org_id_for(cursor, default_org_name)
 
-    if org_id and _table_exists(cursor, "roles") and not _role_exists(cursor, "Admin"):
+    if _table_exists(cursor, "roles") and not _role_exists(cursor, "Admin"):
         cursor.execute(
             "INSERT INTO roles (org_id, name, description) VALUES (%s, %s, %s)",
             (org_id, "Admin", "Full platform access"),
         )
 
-    if _table_exists(cursor, "regions_cities"):
-        regions_cities_data = [
-            ("Amhara", "Bahir Dar"),
-            ("Amhara", "Gondar"),
-            ("Afar", "Semera"),
-            ("Benishangul-Gumuz", "Asosa"),
-            ("Gambela", "Gambela"),
-            ("Harari", "Harar"),
-            ("Oromia", "Adama"),
-            ("Oromia", "Jimma"),
-            ("Sidama", "Hawassa"),
-            ("Somali", "Jijiga"),
-            ("South West Ethiopia Peoples Region", "Bonga"),
-            (
-                "Southern Nations, Nationalities, and Peoples Region",
-                "Arba Minch",
-            ),
-            ("Tigray", "Mekelle"),
-            ("Addis Ababa", "Addis Ababa"),
-            ("Dire Dawa", "Dire Dawa"),
-        ]
-        cursor.executemany(
-            "INSERT INTO regions_cities (region, city) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-            regions_cities_data,
-        )
-
     seed_demo = os.environ.get("SEED_DEMO_DATA") == "1"
-    if seed_demo and os.environ.get("ENV") != "production" and _table_exists(cursor, "users"):
+    if (
+        _table_exists(cursor, "users")
+        and seed_demo
+        and os.environ.get("ENV") != "production"
+    ):
         admin_username = os.environ.get("ADMIN_USERNAME")
         admin_password = os.environ.get("ADMIN_PASSWORD")
         if not admin_username or not admin_password:
@@ -228,7 +248,9 @@ def init_db():
                 )
             )
             cursor.execute(
-                sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(sql.Identifier(table))
+                sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(
+                    sql.Identifier(table)
+                )
             )
             cursor.execute(
                 sql.SQL(
