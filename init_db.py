@@ -1,4 +1,5 @@
 import subprocess
+import subprocess
 from datetime import datetime
 import os
 
@@ -20,19 +21,34 @@ def hash_password(password: str) -> str:
 
 
 def _role_exists(cur, name: str) -> bool:
+    if not _table_exists(cur, "roles"):
+        return False
     cur.execute("SELECT 1 FROM roles WHERE name=%s", (name,))
     return cur.fetchone() is not None
 
 
 def _org_id_for(cur, org_name: str) -> int | None:
+    if not _table_exists(cur, "organizations"):
+        return None
     cur.execute("SELECT id FROM organizations WHERE name=%s", (org_name,))
     row = cur.fetchone()
     return row[0] if row else None
 
 
-def _table_exists(cur, name: str) -> bool:
-    cur.execute("SELECT to_regclass(%s)", (name,))
+def _table_exists(cur, table: str) -> bool:
+    cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
     return cur.fetchone()[0] is not None
+
+
+def _reset_schema() -> None:
+    """Drop and recreate the public schema to clear stray tables."""
+    conn = get_db()
+    conn.autocommit = True
+    cur = conn.cursor()
+    cur.execute("DROP SCHEMA IF EXISTS public CASCADE")
+    cur.execute("CREATE SCHEMA public")
+    cur.close()
+    conn.close()
 
 
 def init_db():
@@ -41,8 +57,13 @@ def init_db():
     try:
         subprocess.run(["alembic", "upgrade", "head"], check=True)
         print("Alembic upgrade: OK")
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except FileNotFoundError:
         print("Alembic upgrade skipped or failed.")
+    except subprocess.CalledProcessError:
+        print("Alembic upgrade failed; resetting schema and retrying...")
+        _reset_schema()
+        subprocess.run(["alembic", "upgrade", "head"], check=True)
+        print("Alembic upgrade: OK")
 
     conn = get_db()
     cursor = conn.cursor()
