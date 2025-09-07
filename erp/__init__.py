@@ -68,6 +68,7 @@ from .extensions import db
 
 from config import Config
 from db import get_db, redis_client
+from sqlalchemy import inspect
 
 load_dotenv()
 
@@ -328,10 +329,12 @@ def create_app():
             # tables missing columns (e.g., ``roles.description``).
             db.drop_all()
             db.create_all()
-        for role in ("Admin", "Manager", "Staff", "Auditor"):
-            if not user_datastore.find_role(role):
-                user_datastore.create_role(name=role)
-        db.session.commit()
+        inspector = inspect(db.engine)
+        if inspector.has_table("roles"):
+            for role in ("Admin", "Manager", "Staff", "Auditor"):
+                if not user_datastore.find_role(role):
+                    user_datastore.create_role(name=role)
+            db.session.commit()
 
     @socketio.on("connect")
     def _ws_connect(auth):
