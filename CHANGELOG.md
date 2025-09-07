@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file. The format 
 - Row‑level security policies recreated to read the tenant ID from `current_setting('erp.org_id')`
 - Audit logging, data retention, analytics tasks, Telegram bot, orders, and authentication routes now use parameterized SQL for cross‑database compatibility
 - CDN assets include SRI hashes with `crossorigin` attributes and the service worker reattaches fresh auth tokens
+- Application startup skips role seeding when the `roles` table is missing, preventing migration failures on fresh databases
 
 ## [0.1.0] - 2025-08-28
 - Add PgBouncer deployment manifests

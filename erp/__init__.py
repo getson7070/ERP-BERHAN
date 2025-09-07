@@ -69,6 +69,7 @@ from .extensions import db
 from config import Config
 from db import get_db, redis_client
 from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 load_dotenv()
 
@@ -331,10 +332,13 @@ def create_app():
             db.create_all()
         inspector = inspect(db.engine)
         if inspector.has_table("roles"):
-            for role in ("Admin", "Manager", "Staff", "Auditor"):
-                if not user_datastore.find_role(role):
-                    user_datastore.create_role(name=role)
-            db.session.commit()
+            try:
+                for role in ("Admin", "Manager", "Staff", "Auditor"):
+                    if not user_datastore.find_role(role):
+                        user_datastore.create_role(name=role)
+                db.session.commit()
+            except (ProgrammingError, OperationalError):
+                db.session.rollback()
 
     @socketio.on("connect")
     def _ws_connect(auth):
