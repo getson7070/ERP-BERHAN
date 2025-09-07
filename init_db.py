@@ -33,12 +33,6 @@ def _org_id_for(cur, org_name: str) -> int | None:
 def init_db():
     """Bootstrap a fresh/local DB so the app can import without errors."""
 
-    try:
-        subprocess.run(["alembic", "upgrade", "head"], check=True)
-        print("Alembic migration: OK")
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("Alembic migration skipped or failed; proceeding with manual DDL.")
-
     conn = get_db()
     cursor = conn.cursor()
 
@@ -79,34 +73,6 @@ def init_db():
 
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            user_type TEXT NOT NULL CHECK(user_type IN ('employee', 'client')),
-            tin TEXT,
-            username TEXT UNIQUE,
-            institution_name TEXT,
-            address TEXT,
-            phone TEXT,
-            region TEXT,
-            city TEXT,
-            email TEXT UNIQUE,
-            password_hash TEXT NOT NULL,
-            mfa_secret TEXT,
-            permissions TEXT,
-            approved_by_ceo BOOLEAN DEFAULT FALSE,
-            last_login TIMESTAMP,
-            hire_date DATE,
-            salary REAL,
-            role TEXT,
-            failed_attempts INTEGER DEFAULT 0,
-            account_locked BOOLEAN DEFAULT FALSE,
-            last_password_change TIMESTAMP
-        )
-        """
-    )
-
-    cursor.execute(
-        """
         CREATE TABLE IF NOT EXISTS organizations (
             id SERIAL PRIMARY KEY,
             name TEXT UNIQUE NOT NULL
@@ -141,6 +107,34 @@ def init_db():
             role_id INTEGER REFERENCES roles(id),
             permission_id INTEGER REFERENCES permissions(id),
             PRIMARY KEY (role_id, permission_id)
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            user_type TEXT NOT NULL CHECK(user_type IN ('employee', 'client')),
+            tin TEXT,
+            username TEXT UNIQUE,
+            institution_name TEXT,
+            address TEXT,
+            phone TEXT,
+            region TEXT,
+            city TEXT,
+            email TEXT UNIQUE,
+            password_hash TEXT NOT NULL,
+            mfa_secret TEXT,
+            permissions TEXT,
+            approved_by_ceo BOOLEAN DEFAULT FALSE,
+            last_login TIMESTAMP,
+            hire_date DATE,
+            salary REAL,
+            role TEXT,
+            failed_attempts INTEGER DEFAULT 0,
+            account_locked BOOLEAN DEFAULT FALSE,
+            last_password_change TIMESTAMP
         )
         """
     )
@@ -290,10 +284,9 @@ def init_db():
         """
     )
 
-    cursor.execute("DROP TABLE IF EXISTS maintenance")
     cursor.execute(
         """
-        CREATE TABLE maintenance (
+        CREATE TABLE IF NOT EXISTS maintenance (
             id SERIAL PRIMARY KEY,
             equipment_id INTEGER NOT NULL,
             request_date TIMESTAMP NOT NULL,
@@ -304,6 +297,11 @@ def init_db():
         )
         """
     )
+    cursor.execute(
+        "ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'"
+    )
+    cursor.execute("ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS report TEXT")
+    cursor.execute("ALTER TABLE maintenance ADD COLUMN IF NOT EXISTS username TEXT")
 
     cursor.execute(
         """
@@ -337,23 +335,14 @@ def init_db():
     )
 
     cursor.execute(
-        "SELECT column_name FROM information_schema.columns WHERE table_name='tenders'"
+        "ALTER TABLE tenders ADD COLUMN IF NOT EXISTS workflow_state TEXT NOT NULL DEFAULT 'advert_registered'"
     )
-    existing = [row[0] for row in cursor.fetchall()]
-    if "workflow_state" not in existing:
-        cursor.execute(
-            "ALTER TABLE tenders ADD COLUMN workflow_state TEXT NOT NULL DEFAULT 'advert_registered'"
-        )
-    else:
-        cursor.execute(
-            "UPDATE tenders SET workflow_state='advert_registered' WHERE workflow_state='advertised'"
-        )
-    if "result" not in existing:
-        cursor.execute("ALTER TABLE tenders ADD COLUMN result TEXT")
-    if "awarded_to" not in existing:
-        cursor.execute("ALTER TABLE tenders ADD COLUMN awarded_to TEXT")
-    if "award_date" not in existing:
-        cursor.execute("ALTER TABLE tenders ADD COLUMN award_date DATE")
+    cursor.execute(
+        "UPDATE tenders SET workflow_state='advert_registered' WHERE workflow_state='advertised'"
+    )
+    cursor.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS result TEXT")
+    cursor.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS awarded_to TEXT")
+    cursor.execute("ALTER TABLE tenders ADD COLUMN IF NOT EXISTS award_date DATE")
 
     for ttype in ("EGP Portal", "Paper Tender", "NGO/UN Portal Tender"):
         cursor.execute(
@@ -471,9 +460,7 @@ def init_db():
             )
         )
         cursor.execute(
-            sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(
-                sql.Identifier(table)
-            )
+            sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(sql.Identifier(table))
         )
         cursor.execute(
             sql.SQL(
@@ -484,10 +471,17 @@ def init_db():
         )
 
     conn.commit()
+    cursor.close()
     conn.close()
+
+    try:
+        subprocess.run(["alembic", "stamp", "head"], check=True)
+        print("Alembic stamp: OK")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Alembic stamp skipped or failed.")
+
     print("Database initialized / schema ensured successfully.")
 
 
 if __name__ == "__main__":
     init_db()
-
