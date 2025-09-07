@@ -9,7 +9,6 @@ from telegram import (
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
     KeyboardButton,
-    Defaults,
 )
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -30,13 +29,11 @@ import os
 from db import get_db
 import sqlite3
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from erp.sql_compat import execute as safe_execute
 
 
 ph = PasswordHasher()
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-if TOKEN is None:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
 
 
 def hash_password(password: str) -> str:
@@ -52,7 +49,6 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -435,7 +431,7 @@ async def get_client_reg_pass(
             "Registration submitted. Awaiting management approval."
         )
         logger.info("Client registration submitted: %s", context.user_data["tin"])
-    except sqlite3.IntegrityError:
+    except (IntegrityError, sqlite3.IntegrityError):
         await update.message.reply_text(
             "TIN or email already registered. Try /client_registration again."
         )
@@ -539,7 +535,7 @@ async def get_employee_reg_salary(
         logger.info(
             "Employee registration submitted: %s", context.user_data["username"]
         )
-    except sqlite3.IntegrityError:
+    except (IntegrityError, sqlite3.IntegrityError):
         await update.message.reply_text(
             "Username already registered. Try /employee_registration again."
         )
@@ -1843,14 +1839,7 @@ async def maintenance_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 
-def main() -> None:
-    application = (
-        Application.builder()
-        .token(TOKEN)
-        .defaults(Defaults(parse_mode=ParseMode.HTML))
-        .proxy_url("socks5://123.141.181.7:5031")
-        .build()  # Replace with a valid proxy
-    )
+def register(application: Application) -> None:
 
     employee_login_conv = ConversationHandler(
         entry_points=[CommandHandler("employee_login", employee_login)],
@@ -2179,10 +2168,4 @@ def main() -> None:
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     )
 
-    application.run_polling(
-        timeout=120, allowed_updates=Update.ALL_TYPES
-    )  # Increased timeout to 120 seconds
-
-
-if __name__ == "__main__":
-    main()
+    # Application run occurs in bot.main
