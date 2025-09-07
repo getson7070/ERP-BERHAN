@@ -7,6 +7,7 @@ from erp import create_app  # noqa: E402
 
 
 def test_blueprints_autoregister(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "bp.db"))
     monkeypatch.setenv("USE_FAKE_REDIS", "1")
     app = create_app()

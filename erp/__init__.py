@@ -61,7 +61,7 @@ from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
-import bleach
+import bleach  # type: ignore[import-untyped]
 from erp.plugins import load_plugins
 from .cache import init_cache
 from .extensions import db

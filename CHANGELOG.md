@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file. The format 
 - Playwright tests skip when required browser dependencies are missing to avoid CI failures
 - Composite indexes added on `(status, org_id)` for `orders`, `maintenance`, and `tenders` tables to accelerate dashboards
 - Analytics reminders log via structured logging instead of `print`
+- Standalone `init_db.py` bootstraps core schema, seeds a default organisation and Admin role, and applies RLS policies
 
 ### Added
 - Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.
