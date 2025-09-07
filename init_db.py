@@ -1,5 +1,4 @@
 import subprocess
-import subprocess
 from datetime import datetime
 import os
 
@@ -152,7 +151,11 @@ def init_db():
         )
 
     seed_demo = os.environ.get("SEED_DEMO_DATA") == "1"
-    if seed_demo and os.environ.get("ENV") != "production" and _table_exists(cursor, "users"):
+    if (
+        seed_demo
+        and os.environ.get("ENV") != "production"
+        and _table_exists(cursor, "users")
+    ):
         admin_username = os.environ.get("ADMIN_USERNAME")
         admin_password = os.environ.get("ADMIN_PASSWORD")
         if not admin_username or not admin_password:
@@ -249,7 +252,9 @@ def init_db():
                 )
             )
             cursor.execute(
-                sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(sql.Identifier(table))
+                sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(
+                    sql.Identifier(table)
+                )
             )
             cursor.execute(
                 sql.SQL(
