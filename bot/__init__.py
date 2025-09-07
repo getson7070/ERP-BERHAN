@@ -1,7 +1,5 @@
 import logging
 import os
-import logging
-import os
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, Defaults
