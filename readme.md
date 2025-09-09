@@ -63,6 +63,7 @@ Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
 - [Access recertification guide](docs/access_recerts.md)
 - [Design system tokens](docs/design_system.md)
 - [JWT secret rotation runbook](docs/security/secret_rotation.md)
+- [Master SOP template and priority procedures](docs/berhan_sop_pack.md)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
