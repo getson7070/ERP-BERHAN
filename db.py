@@ -19,7 +19,7 @@ from typing import cast
 
 import redis
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.sql.elements import TextClause
 from flask import has_request_context, session
 
@@ -84,6 +84,18 @@ def _get_engine(url: str | None, path: str) -> Engine:
     )
 
 
+def get_dialect(url: str | None = None, path: str | None = None) -> str:
+    """Return the SQLAlchemy dialect name for the configured database."""
+
+    url = url or os.environ.get("DATABASE_URL")
+    if url:
+        return make_url(url).get_backend_name()
+    path = path or os.environ.get("DATABASE_PATH")
+    if path:
+        return "sqlite"
+    raise RuntimeError("DATABASE_URL or DATABASE_PATH must be configured")
+
+
 class _ConnectionWrapper:
     """Bridge SQLite-style helpers with SQLAlchemy engines.
 
@@ -132,7 +144,7 @@ def get_db():
     engine = _get_engine(url, path)
     raw = engine.raw_connection()
     # Only attempt to set tenant context when using PostgreSQL.
-    if engine.url.get_backend_name().startswith("postgres") and has_request_context():
+    if get_dialect(url, path).startswith("postgres") and has_request_context():
         org_id = session.get("org_id")
         if org_id is not None:
             cur = raw.cursor()
