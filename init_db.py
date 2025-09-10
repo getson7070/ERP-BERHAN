@@ -2,6 +2,8 @@ import subprocess
 from datetime import datetime
 import os
 
+import pyotp
+
 from argon2 import PasswordHasher
 from psycopg2 import sql
 
@@ -160,6 +162,7 @@ def init_db():
             )
 
         password_hash = hash_password(admin_password)
+        admin_secret = pyotp.random_base32()
         cursor.execute(
             """
             INSERT INTO users (
@@ -172,13 +175,14 @@ def init_db():
                 "employee",
                 admin_username,
                 password_hash,
-                "JBSWY3DPEHPK3PXP",
+                admin_secret,
                 "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
                 True,
                 "Admin",
                 datetime.now(),
             ),
         )
+        print(f"Seeded admin {admin_username} with MFA secret: {admin_secret}")
 
         admin_phones = ["0946423021", "0984707070", "0969111144"]
         employee_phones = [
@@ -192,6 +196,7 @@ def init_db():
         ]
         for phone in admin_phones:
             password_hash = hash_password(phone)
+            secret = pyotp.random_base32()
             cursor.execute(
                 """
                 INSERT INTO users (
@@ -204,15 +209,17 @@ def init_db():
                     "employee",
                     phone,
                     password_hash,
-                    "JBSWY3DPEHPK3PXP",
+                    secret,
                     "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
                     True,
                     "Admin",
                     datetime.now(),
                 ),
             )
+            print(f"Seeded admin {phone} with MFA secret: {secret}")
         for phone in employee_phones:
             password_hash = hash_password(phone)
+            secret = pyotp.random_base32()
             cursor.execute(
                 """
                 INSERT INTO users (
@@ -225,7 +232,7 @@ def init_db():
                     "employee",
                     phone,
                     password_hash,
-                    "JBSWY3DPEHPK3PXP",
+                    secret,
                     "add_report,put_order,view_orders",
                     True,
                     "Sales Rep",
