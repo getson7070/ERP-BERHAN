@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
-from flask_login import login_required
+from erp.utils import login_required
+import os
 
 # Blueprint for report builder and reporting endpoints
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
@@ -36,5 +37,8 @@ def run_report():
     would retrieve the saved configuration, build a SQL query dynamically and
     return the resulting data in JSON or render it in a template.
     """
+    if not os.getenv("REPORTS_ENABLED"):
+        return jsonify({"error": "reports feature disabled"}), 503
+
     # Placeholder: return an empty result set and message
     return jsonify({"data": [], "message": "Report execution placeholder"})

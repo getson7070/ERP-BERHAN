@@ -1,6 +1,6 @@
 # UX Guidelines
 
-This project follows industry-standard UX and accessibility practices:
+This project follows industry-standard UX and accessibility practices and adheres to the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md):
 
 - **Responsive design:** verify layouts across mobile (375px), tablet (768px), and desktop (1280px) viewports. Reference snapshots live in [`docs/ux/snapshots`](./ux/snapshots).
 - **Accessible markup:** templates include semantic headings and ARIA labels. Automated checks run via `pa11y-ci` (best effort) and `axe`.
@@ -10,6 +10,7 @@ This project follows industry-standard UX and accessibility practices:
 - **CSP nonces:** all inline scripts/styles use `csp_nonce()` to align with our Content Security Policy.
 - **PWA support:** service worker and web app manifest enable offline access and installable experience on mobile.
 - **Guided tour:** first-time users see a popover tour that highlights navigation and the theme toggle.
+- **Graceful placeholders:** unfinished pages should display clear "under development" notices and navigation back to the dashboard to avoid dead ends.
 
 Developers should run:
 

@@ -15,7 +15,9 @@ The UI is optimized for mobile devices and supports offline use via a Progressiv
 
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
-Requests are logged asynchronously with correlation IDs to avoid blocking database writes.
+Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md and the restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE).
+
+Structured JSON logs capture correlation IDs without blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
 `/health` (aliased as `/healthz`) exposes a lightweight database and Redis check for container probes.
@@ -434,20 +436,16 @@ Run `python scripts/benchmark.py` against a target URL to measure request
 throughput and validate connection pool tuning or scaling changes.
 
 ## Current Audit Priorities
-- Recent audits highlighted several cross-cutting gaps. The project is
-actively addressing the following items:
+The September 2025 audit scored the project **8.3/10** overall and surfaced several high‑leverage fixes. Active efforts focus on:
 
-- Enforce reverse-proxy rate limiting and publish 429 metrics.
-- Expand the CI pipeline so every push or pull request runs linting,
-  type checks, tests, dependency and container scans.
-- Document recovery objectives and run `scripts/dr_drill.sh` monthly to
-  validate backups and capture RPO/RTO metrics.
-- Maintain data retention rules and column-level lineage for analytical
-  exports.
-- Monitor cache hit rate and query counts to flag inefficient
-  database access.
-- Automate JWT secret rotation using `JWT_SECRET_ID` and
-  `scripts/rotate_secrets.py`, auditing each rollover.
+- Unifying authentication decorators and centralizing permission checks.
+- Completing HR recruitment and performance workflows with validations and persistence.
+- Replacing ad-hoc SQL in routes with SQLAlchemy models or service layers.
+- Guarding unfinished routes with feature flags and clearer messaging.
+- Adding structured logging plus health/ready probes for database and broker checks.
+- Documenting recovery objectives and executing `scripts/dr_drill.sh` monthly to capture RPO/RTO metrics.
+- Monitoring cache hit rate, query counts, and enabling slow-query logging with appropriate indices.
+- Automating JWT secret rotation via `JWT_SECRET_ID` using `scripts/rotate_secrets.py` and auditing each rollover.
 
 ## Governance & Roadmap
 

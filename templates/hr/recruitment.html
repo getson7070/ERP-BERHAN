@@ -1,5 +1,29 @@
 {% extends 'base.html' %}
 {% block content %}
 <h2>Recruitment Workflow</h2>
-<p>This is a placeholder page for HR recruitment workflow.</p>
+<form method="post" class="mb-4">
+  <div class="mb-3">
+    <label for="candidate_name" class="form-label">Candidate Name</label>
+    <input type="text" class="form-control" id="candidate_name" name="candidate_name" required>
+  </div>
+  <div class="mb-3">
+    <label for="position" class="form-label">Position</label>
+    <input type="text" class="form-control" id="position" name="position" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+<h3>Submitted Candidates</h3>
+<ul class="list-group">
+  {% for record in records %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ record.candidate_name }} - {{ record.position }}
+      <span class="text-muted">{{ record.applied_on.strftime('%Y-%m-%d') }}</span>
+    </li>
+  {% else %}
+    <li class="list-group-item">No records yet.</li>
+  {% endfor %}
+</ul>
+
+<a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary mt-3">Return to dashboard</a>
 {% endblock %}

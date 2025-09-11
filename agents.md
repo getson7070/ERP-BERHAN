@@ -3,6 +3,8 @@ Agent Operations & Safety Standard (AGENTS.md)
 Purpose. Define how conversational/automation agents are designed, secured, evaluated, deployed, and operated in ERP-BERHAN.
 Scope. Applies to all agent modules, bot adapters (Telegram/Slack), schedulers (Celery), plugins, and any future RPA/ML components.
 
+Corporate policy reference: all agent behavior must align with BERHAN Pharma SOP and corporate policy (restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE).
+
 1) Scope & Definitions
 
 Agent: A programmatic worker that receives structured input (event/API/prompt), performs ERP actions (e.g., progress a tender, approve an order), and returns structured output with full auditability.
@@ -391,3 +393,28 @@ On-call: <DRI>, rotation <link>
 20) Change History
 
 v1.0 — Initial, comprehensive standard aligned to ERP-BERHAN security/CI/DR/UX and the Tender, Orders, Marketing, and Maintenance definitions.
+v1.1 — Documented September 2025 audit (overall score 8.3/10) highlighting unified authentication, HR workflow forms, ORM migration guidance, and expanded observability.
+v1.2 — Added structured JSON logging with request IDs, feature-gated report builder, and linked corporate SOP repository.
+
+21) 2025 Audit Snapshot
+
+Latest assessment rated the platform **8.3/10** overall with the following focal points:
+
+- **Security 8.7:** strong CI gates and scans; continue consolidating auth and role checks.
+- **User-friendliness 7.8:** Bootstrap UI is clean but HR pages still evolving.
+- **Database 7.6:** KPI tables and retention routines in place; replace residual raw SQL with SQLAlchemy services.
+- **Code quality 8.1:** modular blueprints; tighten helper consistency.
+- **Web access 8.2:** blueprint routing solid; guard unfinished endpoints with feature flags.
+- **Integration 8.5:** CI pipeline exercises full stack; document Celery/Redis configs for operators.
+- **Inter-function communication 8.2:** analytics tasks coordinated; wire HR forms to persistence layer.
+- **Performance 8.3:** perf tests scheduled; add indices and slow-query logging.
+
+Top remediation items:
+1. Unify auth/permissions across all routes.
+2. Complete HR recruitment and performance workflows.
+3. Replace ad-hoc SQL with ORM models/services.
+4. Stabilize report builder with persistence and feature flagging.
+5. Polish style and add smoke tests for new pages.
+6. Add structured logging and health/ready probes. *(Completed)*
+7. Add DB indices and enable slow-query logs.
+8. Restrict unfinished features in navigation.

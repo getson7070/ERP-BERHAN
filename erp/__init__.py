@@ -42,6 +42,7 @@ except Exception:  # pragma: no cover - optional dependency fallback
 
 
 from celery import Celery, signals
+import logging
 import logging.config
 import os
 import time
@@ -78,6 +79,34 @@ def rate_limit_key():
     user = session.get("user_id")
     token = request.headers.get("Authorization", "")
     return user or token or get_remote_address()
+
+
+class RequestIdFilter(logging.Filter):
+    """Attach the current request correlation ID to log records."""
+
+    def filter(
+        self, record: logging.LogRecord
+    ) -> bool:  # pragma: no cover - simple filter
+        setattr(record, "request_id", getattr(g, "correlation_id", None))
+        return True
+
+
+class JsonFormatter(logging.Formatter):
+    """Render logs as structured JSON with optional request identifiers."""
+
+    def format(
+        self, record: logging.LogRecord
+    ) -> str:  # pragma: no cover - simple formatter
+        log = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+        }
+        req_id = getattr(record, "request_id", None)
+        if req_id:
+            log["request_id"] = req_id
+        return json.dumps(log)
 
 
 socketio = SocketIO()
@@ -213,13 +242,13 @@ def create_app():
     logging.config.dictConfig(
         {
             "version": 1,
-            "formatters": {
-                "default": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}
-            },
+            "filters": {"request_id": {"()": RequestIdFilter}},
+            "formatters": {"json": {"()": JsonFormatter}},
             "handlers": {
                 "console": {
                     "class": "logging.StreamHandler",
-                    "formatter": "default",
+                    "formatter": "json",
+                    "filters": ["request_id"],
                 }
             },
             "root": {"level": "INFO", "handlers": ["console"]},

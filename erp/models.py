@@ -103,3 +103,27 @@ class UserDashboard(db.Model):  # type: ignore[name-defined]
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+
+class Recruitment(TenantMixin, db.Model):  # type: ignore[name-defined]
+    __tablename__ = "hr_recruitment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_id = db.Column(db.Integer, nullable=False, index=True)
+    candidate_name = db.Column(db.String(120), nullable=False)
+    position = db.Column(db.String(120), nullable=False)
+    applied_on = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
+
+
+class PerformanceReview(TenantMixin, db.Model):  # type: ignore[name-defined]
+    __tablename__ = "hr_performance_reviews"
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_id = db.Column(db.Integer, nullable=False, index=True)
+    employee_name = db.Column(db.String(120), nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    review_date = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )

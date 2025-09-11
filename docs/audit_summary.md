@@ -2,6 +2,8 @@
 
 This document captures the results of an early audit of the ERP-BERHAN project when the codebase was largely undeveloped. The audit rated the repository **2/10** overall, noting that most features existed only as plans in documentation with little executable code.
 
+Berhan Pharma SOP and corporate policy documents live in `docs/berhan_sop_pack.md` and the restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE.
+
 ## Category Scores (0–3)
 | Area | Score | Notes |
 | --- | --- | --- |
@@ -56,5 +58,31 @@ The repository has since implemented several of the planned controls:
 - A data-retention matrix and `DataLineage` model tracking column origins and PII masking requirements.
 - Query efficiency tests and cache hit‑rate gauges to detect N+1 patterns and performance regressions.
 - Automated JWT secret rotation via `scripts/rotate_jwt_secret.py` with audit logging.
+- Structured JSON logging with request IDs and health/ready probes; report builder guarded by a feature flag.
 
 These changes significantly raise the project’s maturity relative to the initial audit and address many of the highlighted gaps.
+
+## September 2025 Audit Scorecard
+
+Overall score: **8.3 / 10**
+
+| Dimension | Score | Highlights | Gaps |
+| --- | --- | --- | --- |
+| Security | 8.7 | CI enforces linting, type checks, scans, container signing | Mixed auth decorators; centralize authorization |
+| User-friendliness | 7.8 | Clean Bootstrap layout, report builder UI | HR pages still have placeholders |
+| Database structure | 7.6 | Dedicated KPI tables and retention jobs | Some routes use raw SQL from request context |
+| Code quality | 8.1 | Modular blueprints and documented discovery | Inconsistent helper usage |
+| Web access quality | 8.2 | Distinct blueprints with clear URL prefixes | Placeholder endpoints may confuse users |
+| Integration | 8.5 | CI pipeline builds, tests, scans, and runs ZAP/pa11y | Ensure Celery broker/backends documented |
+| Inter-function communication | 8.2 | Coordinated analytics tasks | HR pages not fully wired to data-entry flows |
+| Overall performance | 8.3 | Separate perf workflow with scheduled tests | Need DB indices and query profiling |
+
+### Top Recommendations
+1. Unify auth/permission decorators.
+2. Finish HR workflows with forms, validations, and persistence.
+3. Replace ad-hoc SQL with SQLAlchemy models/services.
+4. Stabilize report builder via persistence, whitelists, and feature flags.
+5. Polish style, add smoke tests, document user flows.
+6. Add structured logging, request IDs, and health/ready probes. *(Completed)*
+7. Add DB indices, slow-query logging, and migration constraints.
+8. Hide unfinished routes in navigation and apply role-based menu visibility.
