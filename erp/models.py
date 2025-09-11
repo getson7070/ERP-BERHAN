@@ -147,6 +147,7 @@ class Recruitment(TenantMixin, db.Model):  # type: ignore[name-defined]
     applied_on = db.Column(
         db.DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
+    status = db.Column(db.String(20), nullable=False, default="applied", index=True)
 
     __table_args__ = (
         db.UniqueConstraint(
