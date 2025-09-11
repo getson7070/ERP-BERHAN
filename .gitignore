@@ -78,6 +78,7 @@ target/
 
 # dotenv
 .env
+.env.localhost
 .venv
 env/
 venv/

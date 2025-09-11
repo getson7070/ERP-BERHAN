@@ -28,6 +28,8 @@ provide disaster recovery coverage and highlight queries that require indexes.
 
 ## Local tooling
 
+Copy `.env.example` to `.env` and adjust values for your environment. The `.env` file is ignored by git and should never be committed.
+
 Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
 utilities (gitleaks, Trivy, kube-linter, kube-score, Pa11y, OWASP ZAP baseline,
 Playwright browsers) along with the system libraries they require.
