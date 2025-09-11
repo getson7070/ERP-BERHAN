@@ -418,3 +418,27 @@ Top remediation items:
 6. Add structured logging and health/ready probes. *(Completed)*
 7. Add DB indices and enable slow-query logs.
 8. Restrict unfinished features in navigation.
+
+
+## Quality & Compliance Agent
+
+**Purpose:** Automate reminders, collections, and validations for QMS/EQA artifacts.
+
+**Responsibilities**
+- Weekly prompt owners to submit: Training records, Inspection logs, Audit findings, CAPA updates.
+- Validate uploaded forms for required fields (owner, date, reference SOP, evidence link).
+- Open a GitHub Issue if a record is missing past due date; label `compliance`, `overdue`.
+
+**Key Artifacts**
+- `docs/qms/forms/training_record.md`
+- `docs/qms/forms/inspection_log.md`
+- `docs/qms/forms/internal_audit_checklist.md`
+- `docs/qms/forms/capa_form.md`
+- `docs/qms/forms/employee_evaluation_tracker.md`
+- `docs/qms/forms/document_control_register.md`
+
+**Future Enhancements**
+- Parse scanned forms (Tesseract) -> JSON -> post to `/api/compliance/ingest`.
+- Dashboard tiles: "Training coverage %", "Overdue CAPA", "Audit closure time".
+
+> NOTE: Telegram bot `@berhanpharmabot` posts daily reminders 17:00–20:00 EAT.
