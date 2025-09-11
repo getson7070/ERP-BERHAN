@@ -326,7 +326,20 @@ def create_app():
         content_security_policy=csp,
         content_security_policy_nonce_in=["script-src"],
         force_https=True,
+        strict_transport_security_preload=True,
+        referrer_policy="no-referrer",
+        permissions_policy={
+            "geolocation": "()",
+            "microphone": "()",
+            "camera": "()",
+        },
     )
+
+    @app.after_request
+    def _set_coop_coep(response: Response) -> Response:
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        return response
 
     @app.before_request
     def _waf():
