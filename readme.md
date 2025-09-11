@@ -23,6 +23,8 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 `/health` (aliased as `/healthz`) exposes a lightweight database and Redis check for container probes.
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
+Nightly backups (`scripts/pg_backup.sh`) and a `scripts/check_indexes.py` CI guard
+provide disaster recovery coverage and highlight queries that require indexes.
 
 ## Local tooling
 

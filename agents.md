@@ -395,6 +395,7 @@ On-call: <DRI>, rotation <link>
 v1.0 — Initial, comprehensive standard aligned to ERP-BERHAN security/CI/DR/UX and the Tender, Orders, Marketing, and Maintenance definitions.
 v1.1 — Documented September 2025 audit (overall score 8.3/10) highlighting unified authentication, HR workflow forms, ORM migration guidance, and expanded observability.
 v1.2 — Added structured JSON logging with request IDs, feature-gated report builder, and linked corporate SOP repository.
+v1.3 — Enforced RLS on HR tables, added nightly backup script with checksums, and introduced index-advice tooling.
 
 21) 2025 Audit Snapshot
 

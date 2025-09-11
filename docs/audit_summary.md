@@ -59,6 +59,8 @@ The repository has since implemented several of the planned controls:
 - Query efficiency tests and cache hit‑rate gauges to detect N+1 patterns and performance regressions.
 - Automated JWT secret rotation via `scripts/rotate_jwt_secret.py` with audit logging.
 - Structured JSON logging with request IDs and health/ready probes; report builder guarded by a feature flag.
+- HR tables enforce row-level security and schema constraints; nightly backup
+  jobs produce checksum-verified dumps.
 
 These changes significantly raise the project’s maturity relative to the initial audit and address many of the highlighted gaps.
 

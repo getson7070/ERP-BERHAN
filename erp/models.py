@@ -75,6 +75,13 @@ class User(db.Model, UserMixin):  # type: ignore[name-defined]
     )  # type: ignore[assignment]
 
 
+class Organization(db.Model):  # type: ignore[name-defined]
+    __tablename__ = "organizations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True)
+
+
 class DataLineage(db.Model):  # type: ignore[name-defined]
     __tablename__ = "data_lineage"
 
@@ -105,15 +112,50 @@ class UserDashboard(db.Model):  # type: ignore[name-defined]
     )
 
 
+class Employee(TenantMixin, db.Model):  # type: ignore[name-defined]
+    __tablename__ = "hr_employees"
+
+    id = db.Column(db.Integer, primary_key=True)
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("org_id", "name", name="uq_hr_employees_org_name"),
+    )
+
+
 class Recruitment(TenantMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "hr_recruitment"
 
     id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     candidate_name = db.Column(db.String(120), nullable=False)
     position = db.Column(db.String(120), nullable=False)
     applied_on = db.Column(
         db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "org_id", "candidate_name", "position", name="uq_hr_recruitment_candidate"
+        ),
+        db.CheckConstraint(
+            "status in ('applied','shortlisted','approved')",
+            name="chk_hr_recruitment_status",
+        ),
     )
 
 
@@ -121,9 +163,30 @@ class PerformanceReview(TenantMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "hr_performance_reviews"
 
     id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     employee_name = db.Column(db.String(120), nullable=False)
     score = db.Column(db.Integer, nullable=False)
     review_date = db.Column(
         db.DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
+
+    __table_args__ = (
+        db.CheckConstraint("score >= 1 AND score <= 5", name="chk_performance_score"),
+        db.UniqueConstraint(
+            "org_id", "employee_name", "review_date", name="uq_hr_performance_once"
+        ),
+    )
+
+
+db.Index(
+    "ix_hr_recruitment_pending",
+    Recruitment.org_id,
+    Recruitment.status,
+    postgresql_where=db.text("status != 'approved'"),
+)
+db.Index("ix_hr_performance_reviews_review_date", PerformanceReview.review_date)

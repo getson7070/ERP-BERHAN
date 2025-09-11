@@ -7,13 +7,15 @@ This document outlines recovery objectives and drill procedures.
 - **Recovery Time Objective (RTO):** 1 hour
 
 ## Backup Strategy
-- Nightly `pg_dump` stored in `backups/` with encryption.
+- `scripts/pg_backup.sh` runs nightly `pg_dump` and writes SHA‑256 checksums in
+  `backups/`.
 - Off‑site copies replicated to S3 with 30‑day retention.
 
 ## Restore Drill
 Nightly backups and monthly restore drills are automated via Celery beat
-(`backup.run_backup` and `backup.run_restore_drill`). The latest dump is restored
-into a staging database and results are logged to `logs/restore_drill.log`.
+(`backup.run_backup` and `backup.run_restore_drill`). Each drill verifies the
+backup checksum and restores the latest dump into a staging database with
+results logged to `logs/restore_drill.log`.
 
 1. Provision a staging database and set `DATABASE_URL` (include `?sslmode=require`).
 2. Execute the script manually if needed:

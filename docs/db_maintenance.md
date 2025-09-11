@@ -2,9 +2,11 @@
 
 ## Backup & Restore
 
-The `backup.py` helper creates timestamped backups of the active database. For
-PostgreSQL and MySQL connections, it invokes `pg_dump` or `mysqldump` to produce
-SQL files that can be shipped off-site for disaster recovery. Example:
+Nightly dumps are handled by `scripts/pg_backup.sh`, which writes timestamped
+archives and companion SHA-256 checksums to `backups/`. Run a monthly restore
+drill by selecting a dump and piping it through `psql` to a scratch database to
+verify integrity and retention policies. The `backup.py` helper remains
+available for ad-hoc snapshots.
 
 ```bash
 python backup.py postgresql://user:pass@host:5432/erp?sslmode=require
@@ -26,6 +28,13 @@ psql $DATABASE_URL -f backups/<file>.sql
 
 When storing dumps in S3 or another object store, enable a lifecycle policy to
 expire old backups after your retention period to limit storage costs.
+
+## Performance Visibility
+
+Enable the `pg_stat_statements` extension and set `log_min_duration_statement`
+to capture slow queries in non-production environments. The
+`scripts/check_indexes.py` helper can be wired into CI to fail when an EXPLAIN
+plan reveals a sequential scan, signaling that an index is required.
 
 ## Connection Pooling
 
