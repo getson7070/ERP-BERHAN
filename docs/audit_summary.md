@@ -2,7 +2,7 @@
 
 This document captures the results of an early audit of the ERP-BERHAN project when the codebase was largely undeveloped. The audit rated the repository **2/10** overall, noting that most features existed only as plans in documentation with little executable code.
 
-Berhan Pharma SOP and corporate policy documents live in `docs/berhan_sop_pack.md` and the restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE.
+Berhan Pharma SOP and corporate policy documents live in `docs/berhan_sop_pack.md`.
 
 ## Category Scores (0–3)
 | Area | Score | Notes |

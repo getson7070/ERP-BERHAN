@@ -2,7 +2,7 @@
 
 ## MASTER SOP TEMPLATE + 4 PRIORITY SOPs (GDP/GSP & QMS)
 
-Official corporate policy repository (restricted access): https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE
+Official corporate policy repository (restricted access)
 
 **Version:** 1.0
 **Date:** 09 September 2025

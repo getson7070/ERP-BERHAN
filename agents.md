@@ -3,7 +3,7 @@ Agent Operations & Safety Standard (AGENTS.md)
 Purpose. Define how conversational/automation agents are designed, secured, evaluated, deployed, and operated in ERP-BERHAN.
 Scope. Applies to all agent modules, bot adapters (Telegram/Slack), schedulers (Celery), plugins, and any future RPA/ML components.
 
-Corporate policy reference: all agent behavior must align with BERHAN Pharma SOP and corporate policy (restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE).
+Corporate policy reference: all agent behavior must align with BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
 
 1) Scope & Definitions
 

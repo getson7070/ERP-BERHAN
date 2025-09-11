@@ -15,7 +15,7 @@ The UI is optimized for mobile devices and supports offline use via a Progressiv
 
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
-Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md and the restricted OneDrive repository: https://1drv.ms/f/c/5feaca51675c833d/EnW_OSVLuBlAsZ17rGSmI1YB66_qhLO6DFNIwYqtMeLeQQ?e=9ZVVSE).
+Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
 
 Structured JSON logs capture correlation IDs without blocking database writes.
 
