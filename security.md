@@ -1,5 +1,8 @@
 # Security Policy
 
+This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001.
+Planned hardening tasks and CI gate expansions are outlined in [docs/audit_roadmap.md](docs/audit_roadmap.md).
+
 ## Supported Versions
 
 | Version | Supported |
