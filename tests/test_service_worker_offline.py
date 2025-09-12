@@ -1,7 +1,7 @@
 import threading
+import os
 import time
 
-import os
 import pytest
 from tests.playwright_utils import skip_if_browser_missing  # noqa: E402
 
@@ -31,4 +31,6 @@ def test_offline_fallback():
         context.set_offline(True)
         page.goto("http://localhost:5002/dashboard")
         assert "Offline" in page.content()
+        response = page.goto("http://localhost:5002/static/js/offline.js")
+        assert response and response.status == 200
         browser.close()

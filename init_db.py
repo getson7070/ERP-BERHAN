@@ -1,13 +1,29 @@
+"""Database bootstrap and seed helper using SQLAlchemy."""
+
+from __future__ import annotations
+
+import os
 import subprocess
 from datetime import datetime
-import os
 
 import pyotp
-
 from argon2 import PasswordHasher
-from psycopg2 import sql
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    insert,
+    select,
+    text,
+    inspect,
+)
+from sqlalchemy.engine import Engine
 
-from db import get_db
+from db import get_engine
 
 
 ph = PasswordHasher(
@@ -21,38 +37,59 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 
-def _table_exists(cur, table: str) -> bool:
-    cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
-    return cur.fetchone()[0] is not None
+metadata = MetaData()
+
+organizations = Table(
+    "organizations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String, unique=True, nullable=False),
+)
+
+regions_cities = Table(
+    "regions_cities",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("region", String, nullable=False),
+    Column("city", String, nullable=False),
+)
+
+tender_types = Table(
+    "tender_types",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("type_name", String, unique=True, nullable=False),
+)
+
+roles = Table(
+    "roles",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("org_id", Integer, nullable=False),
+    Column("name", String, nullable=False),
+    Column("description", String),
+)
+
+users = Table(
+    "users",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_type", String),
+    Column("username", String, unique=True, nullable=False),
+    Column("password_hash", String),
+    Column("mfa_secret", String),
+    Column("permissions", String),
+    Column("approved_by_ceo", Boolean),
+    Column("role", String),
+    Column("last_password_change", DateTime),
+)
 
 
-def _role_exists(cur, name: str) -> bool:
-    if not _table_exists(cur, "roles"):
-        return False
-    cur.execute("SELECT 1 FROM roles WHERE name=%s", (name,))
-    return cur.fetchone() is not None
+def _table_exists(engine: Engine, name: str) -> bool:
+    return inspect(engine).has_table(name)
 
 
-def _org_id_for(cur, org_name: str) -> int | None:
-    if not _table_exists(cur, "organizations"):
-        return None
-    cur.execute("SELECT id FROM organizations WHERE name=%s", (org_name,))
-    row = cur.fetchone()
-    return row[0] if row else None
-
-
-def _reset_schema() -> None:
-    """Drop and recreate the public schema to clear stray tables."""
-    conn = get_db()
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute("DROP SCHEMA IF EXISTS public CASCADE")
-    cur.execute("CREATE SCHEMA public")
-    cur.close()
-    conn.close()
-
-
-def init_db():
+def init_db() -> None:
     """Bootstrap a fresh/local DB so the app can import without errors."""
 
     try:
@@ -61,218 +98,180 @@ def init_db():
     except FileNotFoundError:
         print("Alembic upgrade skipped or failed.")
     except subprocess.CalledProcessError:
-        print("Alembic upgrade failed; resetting schema and retrying...")
-        _reset_schema()
-        subprocess.run(["alembic", "upgrade", "head"], check=True)
-        print("Alembic upgrade: OK")
+        print("Alembic upgrade failed; continuing with SQLAlchemy models.")
 
-    conn = get_db()
-    cursor = conn.cursor()
+    engine = get_engine()
+    metadata.create_all(engine)
 
-    app_user = os.environ.get("APP_DB_USER")
-    app_password = os.environ.get("APP_DB_PASSWORD")
-    if app_user and app_password:
-        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (app_user,))
-        if cursor.fetchone() is None:
-            cursor.execute(
-                sql.SQL("CREATE ROLE {} LOGIN PASSWORD %s").format(
-                    sql.Identifier(app_user)
+    with engine.begin() as conn:
+        app_user = os.environ.get("APP_DB_USER")
+        app_password = os.environ.get("APP_DB_PASSWORD")
+        if app_user and app_password and engine.dialect.name.startswith("postgres"):
+            conn.execute(
+                text(
+                    "DO $$BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :role) "
+                    "THEN CREATE ROLE \"{}\" LOGIN PASSWORD :pwd; END IF; END$$;".format(
+                        app_user
+                    )
                 ),
-                (app_password,),
-            )
-        cursor.execute("SELECT current_database()")
-        dbname = cursor.fetchone()[0]
-        cursor.execute(
-            sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
-                sql.Identifier(dbname), sql.Identifier(app_user)
-            )
-        )
-        cursor.execute(
-            sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
-                sql.Identifier(app_user)
-            )
-        )
-        cursor.execute(
-            sql.SQL(
-                "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}"
-            ).format(sql.Identifier(app_user))
-        )
-        cursor.execute(
-            sql.SQL(
-                "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
-                "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {}"
-            ).format(sql.Identifier(app_user))
-        )
-
-    regions_cities_data = [
-        ("Amhara", "Bahir Dar"),
-        ("Amhara", "Gondar"),
-        ("Afar", "Semera"),
-        ("Benishangul-Gumuz", "Asosa"),
-        ("Gambela", "Gambela"),
-        ("Harari", "Harar"),
-        ("Oromia", "Adama"),
-        ("Oromia", "Jimma"),
-        ("Sidama", "Hawassa"),
-        ("Somali", "Jijiga"),
-        ("South West Ethiopia Peoples Region", "Bonga"),
-        ("Southern Nations, Nationalities, and Peoples Region", "Arba Minch"),
-        ("Tigray", "Mekelle"),
-        ("Addis Ababa", "Addis Ababa"),
-        ("Dire Dawa", "Dire Dawa"),
-    ]
-    if _table_exists(cursor, "regions_cities"):
-        cursor.executemany(
-            "INSERT INTO regions_cities (region, city) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-            regions_cities_data,
-        )
-
-    if _table_exists(cursor, "tender_types"):
-        for ttype in ("EGP Portal", "Paper Tender", "NGO/UN Portal Tender"):
-            cursor.execute(
-                "INSERT INTO tender_types (type_name) VALUES (%s) ON CONFLICT DO NOTHING",
-                (ttype,),
+                {"role": app_user, "pwd": app_password},
             )
 
-    default_org_name = os.environ.get("DEFAULT_ORG_NAME", "Default Org")
-    if _table_exists(cursor, "organizations"):
-        cursor.execute(
-            "INSERT INTO organizations (name) VALUES (%s) ON CONFLICT DO NOTHING",
-            (default_org_name,),
-        )
-    org_id = _org_id_for(cursor, default_org_name)
-
-    if _table_exists(cursor, "roles") and not _role_exists(cursor, "Admin"):
-        cursor.execute(
-            "INSERT INTO roles (org_id, name, description) VALUES (%s, %s, %s)",
-            (org_id, "Admin", "Full platform access"),
-        )
-
-    seed_demo = os.environ.get("SEED_DEMO_DATA") == "1"
-    if (
-        _table_exists(cursor, "users")
-        and seed_demo
-        and os.environ.get("ENV") != "production"
-    ):
-        admin_username = os.environ.get("ADMIN_USERNAME")
-        admin_password = os.environ.get("ADMIN_PASSWORD")
-        if not admin_username or not admin_password:
-            raise RuntimeError(
-                "ADMIN_USERNAME and ADMIN_PASSWORD required when SEED_DEMO_DATA=1"
-            )
-
-        password_hash = hash_password(admin_password)
-        admin_secret = pyotp.random_base32()
-        cursor.execute(
-            """
-            INSERT INTO users (
-                user_type, username, password_hash, mfa_secret, permissions,
-                approved_by_ceo, role, last_password_change
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT DO NOTHING
-            """,
-            (
-                "employee",
-                admin_username,
-                password_hash,
-                admin_secret,
-                "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
-                True,
-                "Admin",
-                datetime.now(),
-            ),
-        )
-        print(f"Seeded admin {admin_username} with MFA secret: {admin_secret}")
-
-        admin_phones = ["0946423021", "0984707070", "0969111144"]
-        employee_phones = [
-            "0969351111",
-            "0969361111",
-            "0969371111",
-            "0969381111",
-            "0969161111",
-            "0923804931",
-            "0911183488",
+        regions_cities_data = [
+            ("Amhara", "Bahir Dar"),
+            ("Amhara", "Gondar"),
+            ("Afar", "Semera"),
+            ("Benishangul-Gumuz", "Asosa"),
+            ("Gambela", "Gambela"),
+            ("Harari", "Harar"),
+            ("Oromia", "Adama"),
+            ("Oromia", "Jimma"),
+            ("Sidama", "Hawassa"),
+            ("Somali", "Jijiga"),
+            ("South West Ethiopia Peoples Region", "Bonga"),
+            ("Southern Nations, Nationalities, and Peoples Region", "Arba Minch"),
+            ("Tigray", "Mekelle"),
+            ("Addis Ababa", "Addis Ababa"),
+            ("Dire Dawa", "Dire Dawa"),
         ]
-        for phone in admin_phones:
-            password_hash = hash_password(phone)
-            secret = pyotp.random_base32()
-            cursor.execute(
-                """
-                INSERT INTO users (
-                    user_type, username, password_hash, mfa_secret, permissions,
-                    approved_by_ceo, role, last_password_change
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT DO NOTHING
-                """,
-                (
-                    "employee",
-                    phone,
-                    password_hash,
-                    secret,
-                    "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
-                    True,
-                    "Admin",
-                    datetime.now(),
-                ),
-            )
-            print(f"Seeded admin {phone} with MFA secret: {secret}")
-        for phone in employee_phones:
-            password_hash = hash_password(phone)
-            secret = pyotp.random_base32()
-            cursor.execute(
-                """
-                INSERT INTO users (
-                    user_type, username, password_hash, mfa_secret, permissions,
-                    approved_by_ceo, role, last_password_change
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT DO NOTHING
-                """,
-                (
-                    "employee",
-                    phone,
-                    password_hash,
-                    secret,
-                    "add_report,put_order,view_orders",
-                    True,
-                    "Sales Rep",
-                    datetime.now(),
-                ),
-            )
-    elif seed_demo:
-        print("SEED_DEMO_DATA ignored in production environment")
-
-    for table in ("orders", "tenders", "inventory", "audit_logs"):
-        if _table_exists(cursor, table):
-            cursor.execute(
-                sql.SQL(
-                    "ALTER TABLE {} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
-                ).format(sql.Identifier(table))
-            )
-            cursor.execute(
-                sql.SQL("ALTER TABLE {} ENABLE ROW LEVEL SECURITY").format(
-                    sql.Identifier(table)
-                )
-            )
-            cursor.execute(
-                sql.SQL("DROP POLICY IF EXISTS org_rls ON {}").format(
-                    sql.Identifier(table)
-                )
-            )
-            cursor.execute(
-                sql.SQL(
-                    "CREATE POLICY org_rls ON {} "
-                    "USING (org_id = current_setting('erp.org_id')::INTEGER) "
-                    "WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)"
-                ).format(sql.Identifier(table))
+        if _table_exists(engine, "regions_cities"):
+            conn.execute(
+                insert(regions_cities).prefix_with("OR IGNORE"),
+                [{"region": r, "city": c} for r, c in regions_cities_data],
             )
 
-    conn.commit()
-    cursor.close()
-    conn.close()
+        if _table_exists(engine, "tender_types"):
+            for ttype in ("EGP Portal", "Paper Tender", "NGO/UN Portal Tender"):
+                conn.execute(
+                    insert(tender_types).prefix_with("OR IGNORE"),
+                    {"type_name": ttype},
+                )
+
+        default_org_name = os.environ.get("DEFAULT_ORG_NAME", "Default Org")
+        if _table_exists(engine, "organizations"):
+            conn.execute(
+                insert(organizations).prefix_with("OR IGNORE"),
+                {"name": default_org_name},
+            )
+            org_id = conn.execute(
+                select(organizations.c.id).where(organizations.c.name == default_org_name)
+            ).scalar()
+        else:
+            org_id = None
+
+        if org_id and _table_exists(engine, "roles"):
+            exists = conn.execute(
+                select(roles.c.id)
+                .where(roles.c.org_id == org_id)
+                .where(roles.c.name == "Admin")
+            ).first()
+            if not exists:
+                conn.execute(
+                    insert(roles),
+                    {
+                        "org_id": org_id,
+                        "name": "Admin",
+                        "description": "Full platform access",
+                    },
+                )
+
+        seed_demo = os.environ.get("SEED_DEMO_DATA") == "1"
+        if (
+            seed_demo
+            and _table_exists(engine, "users")
+            and os.environ.get("ENV") != "production"
+        ):
+            admin_username = os.environ.get("ADMIN_USERNAME")
+            admin_password = os.environ.get("ADMIN_PASSWORD")
+            if not admin_username or not admin_password:
+                raise RuntimeError(
+                    "ADMIN_USERNAME and ADMIN_PASSWORD required when SEED_DEMO_DATA=1"
+                )
+            password_hash = hash_password(admin_password)
+            admin_secret = pyotp.random_base32()
+            conn.execute(
+                insert(users).prefix_with("OR IGNORE"),
+                {
+                    "user_type": "employee",
+                    "username": admin_username,
+                    "password_hash": password_hash,
+                    "mfa_secret": admin_secret,
+                    "permissions": "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                    "approved_by_ceo": True,
+                    "role": "Admin",
+                    "last_password_change": datetime.now(),
+                },
+            )
+            print(f"Seeded admin {admin_username} with MFA secret: {admin_secret}")
+
+            admin_phones = ["0946423021", "0984707070", "0969111144"]
+            employee_phones = [
+                "0969351111",
+                "0969361111",
+                "0969371111",
+                "0969381111",
+                "0969161111",
+                "0923804931",
+                "0911183488",
+            ]
+            for phone in admin_phones:
+                password_hash = hash_password(phone)
+                secret = pyotp.random_base32()
+                conn.execute(
+                    insert(users).prefix_with("OR IGNORE"),
+                    {
+                        "user_type": "employee",
+                        "username": phone,
+                        "password_hash": password_hash,
+                        "mfa_secret": secret,
+                        "permissions": "add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                        "approved_by_ceo": True,
+                        "role": "Admin",
+                        "last_password_change": datetime.now(),
+                    },
+                )
+                print(f"Seeded admin {phone} with MFA secret: {secret}")
+            for phone in employee_phones:
+                password_hash = hash_password(phone)
+                secret = pyotp.random_base32()
+                conn.execute(
+                    insert(users).prefix_with("OR IGNORE"),
+                    {
+                        "user_type": "employee",
+                        "username": phone,
+                        "password_hash": password_hash,
+                        "mfa_secret": secret,
+                        "permissions": "add_report,put_order,view_orders",
+                        "approved_by_ceo": True,
+                        "role": "Sales Rep",
+                        "last_password_change": datetime.now(),
+                    },
+                )
+        elif seed_demo:
+            print("SEED_DEMO_DATA ignored in production environment")
+
+        for table in ("orders", "tenders", "inventory", "audit_logs"):
+            if _table_exists(engine, table):
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
+                    )
+                )
+                conn.execute(text(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY"))
+                conn.execute(text(f"DROP POLICY IF EXISTS org_rls ON {table}"))
+                conn.execute(
+                    text(
+                        "CREATE POLICY org_rls ON {} "
+                        "USING (org_id = current_setting('erp.org_id')::INTEGER) "
+                        "WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)".format(
+                            table
+                        )
+                    )
+                )
 
     print("Database initialized / schema ensured successfully.")
 
 
 if __name__ == "__main__":
     init_db()
+

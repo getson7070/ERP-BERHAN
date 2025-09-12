@@ -147,13 +147,13 @@ jobs:
             zap-report.json
           retention-days: 30
       - name: Accessibility audit
-        run: pa11y-ci http://localhost:5000 --json > pa11y-report.json
+        run: ./scripts/run_pa11y.sh | tee pa11y-report.txt
       - name: Upload pa11y report
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: pa11y-report
-          path: pa11y-report.json
+          path: pa11y-report.txt
           retention-days: 30
       - name: Axe accessibility checks
         run: axe http://localhost:5000 --timeout 30000 --exit 0 | tee axe-report.json

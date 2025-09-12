@@ -1,8 +1,8 @@
 def register(app, register_plugin):
-    try:
+    try:  # pragma: no cover - optional dependency
         from telegram import Update
         from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-    except Exception:
+    except ImportError:  # pragma: no cover - telegram not installed
         return
     limits = {}
     links = {}

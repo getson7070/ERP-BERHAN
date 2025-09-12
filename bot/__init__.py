@@ -1,8 +1,12 @@
 import logging
 import os
-from telegram import Update
-from telegram.constants import ParseMode
-from telegram.ext import Application, Defaults
+
+try:  # pragma: no cover - optional dependency
+    from telegram import Update
+    from telegram.constants import ParseMode
+    from telegram.ext import Application, Defaults
+except ImportError:  # pragma: no cover - telegram not installed
+    Update = ParseMode = Application = Defaults = None  # type: ignore[assignment]
 
 from . import handlers
 
@@ -11,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Run the Telegram bot."""
+    if Application is None:
+        raise RuntimeError("python-telegram-bot is not installed")
+
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")

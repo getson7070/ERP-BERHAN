@@ -3,22 +3,29 @@
 # mypy: ignore-errors
 
 from enum import IntEnum
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-)
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    filters,
-    ConversationHandler,
-    ContextTypes,
-    CallbackQueryHandler,
-)
+import types
+
+try:  # pragma: no cover - optional dependency
+    from telegram import (
+        Update,
+        InlineKeyboardButton,
+        InlineKeyboardMarkup,
+        ReplyKeyboardMarkup,
+        KeyboardButton,
+    )
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        MessageHandler,
+        filters,
+        ConversationHandler,
+        ContextTypes,
+        CallbackQueryHandler,
+    )
+except ImportError:  # pragma: no cover - telegram not installed
+    Update = InlineKeyboardButton = InlineKeyboardMarkup = ReplyKeyboardMarkup = KeyboardButton = object  # type: ignore
+    Application = CommandHandler = MessageHandler = filters = ConversationHandler = CallbackQueryHandler = object  # type: ignore
+    ContextTypes = types.SimpleNamespace(DEFAULT_TYPE=object)  # type: ignore
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 import logging

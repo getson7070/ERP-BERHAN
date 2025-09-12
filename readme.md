@@ -12,6 +12,7 @@ This release adds electronic signatures, GMP batch record tracking, native lot/s
 Signed webhooks and OAuth-friendly connectors expose a secure integration surface for services like Power BI and external manufacturing systems. A dedicated integration API exposes REST and GraphQL endpoints for connecting external systems.
 
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
+Offline caching is verified in CI with a Playwright test to ensure core routes remain available without network connectivity.
 
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
@@ -53,7 +54,8 @@ utilities (gitleaks, Trivy, kube-linter, kube-score, Pa11y, OWASP ZAP baseline,
 Playwright browsers) along with the system libraries they require.
 
 Pa11y needs the Chromium sandbox disabled when executed as root:
-`PUPPETEER_ARGS="--no-sandbox" pa11y http://localhost:5000`.
+`PUPPETEER_ARGS="--no-sandbox" pa11y http://localhost:5000` or run the
+preconfigured `scripts/run_pa11y.sh` script for common routes.
 Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
 
 | Report | Artifact |
