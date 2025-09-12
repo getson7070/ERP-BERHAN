@@ -6,7 +6,7 @@ Use `scripts/seed_data.py` to populate large datasets before running load tests.
 SEED_ITEMS=50000 SEED_USERS=5000 python scripts/seed_data.py
 ```
 
-Run the Locust-based load test with adjustable parameters:
+Run the Locust-based load test with adjustable parameters. The CI `perf.yml` workflow fails if the p95 latency exceeds **500 ms** or error rate surpasses **1%**.
 
 ```
 USERS=10000 RATE=500 DURATION=10m scripts/load_test.sh

@@ -82,6 +82,8 @@ for reviewer assignments.
 
 ## Setup
 
+See [docs/local_dev_quickstart.md](docs/local_dev_quickstart.md) for a condensed walkthrough.
+
 ```bash
 git clone https://github.com/getson7070/ERP-BERHAN.git
 cd ERP-BERHAN

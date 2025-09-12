@@ -1,6 +1,6 @@
 # Security Policy
 
-This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001.
+This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001. A mapping of ERP features to corporate policy pillars is maintained in [docs/corporate_policy_alignment.md](docs/corporate_policy_alignment.md).
 
 ## Supported Versions
 
@@ -28,4 +28,4 @@ Thank you for helping keep BERHAN PHARMA secure.
 - **RLS policy**: all tables carry an `org_id` column protected by an `org_rls` policy tied to `current_setting('erp.org_id')`.
 - **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
 - **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy and HTTP Strict Transport Security globally, with health checks opting out for probes.
-- **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early.
+- **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early. All scanners (gitleaks, Bandit, pip-audit, Trivy, ZAP) fail the build on critical findings.
