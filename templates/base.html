@@ -65,7 +65,9 @@
         window.fetch = (input, init = {}) => {
             const url = new URL(input instanceof Request ? input.url : input, location.href);
             if (url.origin === location.origin) {
-                init.headers = Object.assign({}, init.headers, { 'X-CSRFToken': csrfToken });
+                const headers = new Headers(init.headers || {});
+                headers.set('X-CSRFToken', csrfToken);
+                init.headers = headers;
             }
             return originalFetch(input, init);
         };

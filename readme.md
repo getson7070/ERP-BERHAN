@@ -36,11 +36,12 @@ cp .env.example .env  # update FLASK_SECRET_KEY, JWT_SECRETS, DATABASE_URL
 docker compose up -d db redis
 scripts/run_migrations.sh && python init_db.py
 flask run &
-celery -A erp.celery worker -B &
+celery -A erp.celery worker &
+celery -A erp.celery beat &
 pytest tests/smoke/test_homepage.py
 ```
 
-This sequence sets up the environment, seeds an admin user, runs the web app and Celery worker/beat, and finishes with a smoke test.
+This sequence sets up the environment, seeds an admin user, runs the web app and separate Celery worker and beat processes, and finishes with a smoke test.
 For a walkthrough with sample data see [docs/guided_setup.md](docs/guided_setup.md).
 
 ## Local tooling
