@@ -16,6 +16,7 @@ The UI is optimized for mobile devices and supports offline use via a Progressiv
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
 Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
+A high-level mapping of ERP features to corporate policy pillars is documented in [docs/corporate_policy_alignment.md](docs/corporate_policy_alignment.md).
 
 Structured JSON logs capture correlation IDs without blocking database writes.
 

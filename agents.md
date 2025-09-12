@@ -4,6 +4,7 @@ Purpose. Define how conversational/automation agents are designed, secured, eval
 Scope. Applies to all agent modules, bot adapters (Telegram/Slack), schedulers (Celery), plugins, and any future RPA/ML components.
 
 Corporate policy reference: all agent behavior must align with BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
+Agents must also uphold BERHAN Pharma policies on ethics, diversity, environmental stewardship, occupational health & safety, information security, and governance; see docs/corporate_policy_alignment.md for the feature mapping.
 
 1) Scope & Definitions
 
