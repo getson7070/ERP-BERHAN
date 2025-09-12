@@ -27,6 +27,22 @@ Row-level security policies derive the tenant ID from `current_setting('erp.org_
 Nightly backups (`scripts/pg_backup.sh`) and a `scripts/check_indexes.py` CI guard
 provide disaster recovery coverage and highlight queries that require indexes.
 
+## Local Development Quickstart
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.lock
+cp .env.example .env  # update FLASK_SECRET_KEY, JWT_SECRETS, DATABASE_URL
+docker compose up -d db redis
+scripts/run_migrations.sh && python init_db.py
+flask run &
+celery -A erp.celery worker -B &
+pytest tests/smoke/test_homepage.py
+```
+
+This sequence sets up the environment, seeds an admin user, runs the web app and Celery worker/beat, and finishes with a smoke test.
+For a walkthrough with sample data see [docs/guided_setup.md](docs/guided_setup.md).
+
 ## Local tooling
 
 Copy `.env.example` to `.env` and adjust values for your environment. The `.env` file is ignored by git and should never be committed.
@@ -461,6 +477,7 @@ The September 2025 audit scored the project **8.3/10** overall and surfaced seve
 - Detailed migration procedures live in `docs/migration_guide.md`.
 - User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
 - Planned milestones are tracked in `docs/roadmap.md`.
+- The phased audit remediation plan lives in `docs/audit_roadmap.md`.
 - An in-app `/help` page links to documentation and discussion forums.
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
