@@ -5,7 +5,7 @@ Scope. Applies to all agent modules, bot adapters (Telegram/Slack), schedulers (
 
 Corporate policy reference: all agent behavior must align with BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
 Agents must also uphold BERHAN Pharma policies on ethics, diversity, environmental stewardship, occupational health & safety, information security, and governance; see docs/corporate_policy_alignment.md for the feature mapping.
-Planned enhancements and gating steps are tracked in docs/audit_roadmap.md.
+For secure local setup refer to [docs/local_dev_quickstart.md](docs/local_dev_quickstart.md). Planned enhancements and gating steps are tracked in [docs/audit_roadmap.md](docs/audit_roadmap.md).
 
 1) Scope & Definitions
 

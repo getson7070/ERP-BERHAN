@@ -23,3 +23,25 @@ Progress is tracked in the issue tracker; update this roadmap each quarter for t
 - Add smoke tests and document user flows for new HR and dashboard pages.
 - Create indices for common query filters and enable slow-query logging.
 - Hide unfinished routes in navigation and apply role-based menu visibility.
+
+## Phased Audit Remediation Plan
+
+### Phase 1 – Developer Onboarding & Docs
+- Publish [Local Development Quickstart](local_dev_quickstart.md) and env-var matrix
+- Add ERD snapshots and migration guide refinements
+- Gate pulls on README/AGENTS updates for new modules
+
+### Phase 2 – Security Gates
+- Make gitleaks, Bandit, pip-audit, Trivy and ZAP fail the build on critical findings
+- Enforce signed commits and SBOM attestation in CI
+- Document secret rotation cadence
+
+### Phase 3 – Performance & UX
+- Define p95 < 500 ms API budget with regression thresholds in `perf.yml`
+- Expand pa11y/axe accessibility coverage and fix reported issues
+- Add inline validation and empty-state copy to HR and Reports pages
+
+### Phase 4 – Continuous Monitoring
+- Track latency and error-rate trends; alert on budget breaches
+- Schedule weekly dependency updates and vulnerability triage
+- Quarterly review of database indices and slow-query logs
