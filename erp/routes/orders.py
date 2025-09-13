@@ -1,25 +1,25 @@
 from flask import (
     Blueprint,
-    render_template,
-    redirect,
-    url_for,
-    session,
-    request,
     current_app,
     jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_wtf import FlaskForm
-from wtforms import SelectField, IntegerField, BooleanField, SubmitField, StringField
+from sqlalchemy import text
+from wtforms import BooleanField, IntegerField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
-from sqlalchemy import text
 from db import get_db
 from erp.utils import (
-    login_required,
     has_permission,
     idempotency_key_required,
-    sanitize_sort,
+    login_required,
     sanitize_direction,
+    sanitize_sort,
     stream_export,
 )
 
@@ -109,7 +109,7 @@ def _build_query(
     sort = sanitize_sort(sort, ALLOWED_SORTS, "id")
     direction = sanitize_direction(direction)
     order_sql = "DESC" if direction == "desc" else "ASC"
-    sql = f"SELECT id, item_id, quantity, customer, status FROM orders ORDER BY {sort} {order_sql}"
+    sql = f"SELECT id, item_id, quantity, customer, status FROM orders ORDER BY {sort} {order_sql}"  # nosec B608
     if limit is not None:
         sql += " LIMIT :limit"
     if offset is not None:
