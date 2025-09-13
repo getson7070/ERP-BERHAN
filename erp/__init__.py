@@ -45,7 +45,6 @@ except Exception:  # pragma: no cover - optional dependency fallback
 from celery import Celery, signals
 import logging
 import logging.config
-import os
 import time
 import json
 from prometheus_client import (
