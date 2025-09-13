@@ -1,3 +1,13 @@
+"""Telegram bot entry point.
+
+The bot is optional and only enabled when the ``python-telegram-bot``
+dependency is installed. Importing this module should not fail if the
+dependency is missing so that the rest of the application and test suite
+remain functional.
+"""
+
+from __future__ import annotations
+
 import logging
 import os
 
@@ -5,18 +15,18 @@ try:  # pragma: no cover - optional dependency
     from telegram import Update
     from telegram.constants import ParseMode
     from telegram.ext import Application, Defaults
-except ImportError:  # pragma: no cover - telegram not installed
-    Update = ParseMode = Application = Defaults = None  # type: ignore[assignment]
-
-from . import handlers
+    from . import handlers
+except ImportError:  # pragma: no cover
+    Update = ParseMode = Application = Defaults = None  # type: ignore
+    handlers = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Run the Telegram bot."""
-    if Application is None:
-        raise RuntimeError("python-telegram-bot is not installed")
+    """Run the Telegram bot if available."""
+    if Application is None or handlers is None:
+        raise RuntimeError("telegram is not installed; bot is disabled")
 
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:

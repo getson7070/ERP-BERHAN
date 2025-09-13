@@ -19,7 +19,6 @@ def test_init_db_seeds_core_tables(tmp_path, monkeypatch):
 
     engine = get_engine()
     with engine.connect() as conn:
-        rc = conn.execute(select(init_db.regions_cities)).fetchall()
-        assert rc, "regions_cities should be seeded"
-        org = conn.execute(select(init_db.organizations.c.name)).scalar_one()
-        assert org == "Default Org"
+        regions_rows = conn.execute(select(init_db.regions)).fetchall()
+        cities_rows = conn.execute(select(init_db.cities)).fetchall()
+        assert regions_rows and cities_rows, "seed data missing"

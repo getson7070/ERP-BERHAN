@@ -1,12 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
-
-URLS=(
-  "http://localhost:5000/"
-  "http://localhost:5000/login"
-  "http://localhost:5000/dashboard"
-)
-
-for url in "${URLS[@]}"; do
-  pa11y "$url" --reporter cli
-done
+BASE_URL=${1:-http://localhost:5000}
+pa11y-ci "$BASE_URL" "$BASE_URL/login" "$BASE_URL/dashboard" --json > pa11y-report.json

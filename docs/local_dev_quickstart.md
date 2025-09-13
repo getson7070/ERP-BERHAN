@@ -44,9 +44,9 @@ This quickstart bootstraps a secure ERP-BERHAN dev environment that mirrors prod
    curl -f http://localhost:5000/health
    pytest tests/smoke
    ```
-8. **Accessibility checks**
+8. **Run accessibility checks**
    ```bash
-   scripts/run_pa11y.sh
+   ./scripts/run_pa11y.sh http://localhost:5000
    ```
 
 For a guided tour with sample data, see [docs/guided_setup.md](guided_setup.md).

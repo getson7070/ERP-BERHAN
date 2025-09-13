@@ -1,8 +1,14 @@
+import logging
+
+
 def register(app, register_plugin):
     try:  # pragma: no cover - optional dependency
         from telegram import Update
         from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-    except ImportError:  # pragma: no cover - telegram not installed
+    except ImportError:
+        logging.getLogger(__name__).info(
+            "telegram not installed; skipping telegram_bot plugin"
+        )
         return
     limits = {}
     links = {}

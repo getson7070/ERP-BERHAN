@@ -449,6 +449,8 @@ against N+1 patterns. Cache performance is tracked with `cache_hits_total`,
 The UI registers a service worker (`static/js/sw.js`) to cache core assets and
 API responses. User actions are queued in IndexedDB when offline and replayed to
 the API once connectivity returns, providing a more resilient mobile experience.
+Playwright tests in `tests/test_service_worker_offline.py` exercise these
+offline behaviours during continuous integration.
 
 ## Security & Load Testing
 
