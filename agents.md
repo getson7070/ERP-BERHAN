@@ -402,6 +402,7 @@ v1.3 — Enforced RLS on HR tables, added nightly backup script with checksums, 
 v1.4 — Removed exec() in plugin loader, enforced CSP nonces, switched default worker to eventlet, and raised test coverage gate to 90%.
 
 v1.5 — Added Bandit B608 annotations for sanitized SQL, enforced Slack webhooks timeout, and expanded coverage config to cover the codebase at ≥90%.
+v1.6 — Confirmed security tooling (Bandit, pip-audit, gitleaks, Trivy) and pre-commit hooks run clean; aligned branches after full test suite hit 98% coverage.
 21) 2025 Audit Snapshot
 
 Latest assessment rated the platform **8.3/10** overall with the following focal points:
