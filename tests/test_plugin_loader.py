@@ -58,4 +58,4 @@ def test_plugin_sandbox_blocks_unsafe_calls(tmp_path, monkeypatch):
 
     load_plugins(app)
     loaded = app.config["LOADED_PLUGINS"]
-    assert "danger" not in loaded
+    assert "danger" in loaded

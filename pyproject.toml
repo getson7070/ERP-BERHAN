@@ -14,4 +14,7 @@ target-version = ["py311"]
 target-version = "py311"
 line-length = 88
 
+[tool.isort]
+profile = "black"
+
 [tool.pip-audit]

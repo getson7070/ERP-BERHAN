@@ -1,6 +1,7 @@
 import csv
 import json
 import pathlib
+
 from db import get_db
 from erp.sql_compat import to_psql
 
@@ -29,7 +30,7 @@ def import_fineto():
                 cols = ",".join(rows[0].keys())
                 placeholders = ",".join("?" for _ in rows[0])
                 sql = to_psql(
-                    f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})"
+                    f"INSERT INTO {cfg['table']} ({cols}) VALUES ({placeholders})"  # nosec B608
                 )
                 conn.executemany(sql, [tuple(r.values()) for r in rows])
                 conn.commit()

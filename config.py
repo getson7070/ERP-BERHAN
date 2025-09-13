@@ -3,6 +3,8 @@ from datetime import timedelta
 
 from erp.secrets import get_secret
 
+APP_ENV = os.environ.get("APP_ENV", "production").lower()
+
 
 class Config:
     _flask_secret_key = os.environ.get("FLASK_SECRET_KEY") or os.environ.get(
@@ -103,7 +105,7 @@ class Config:
     COST_MODEL_URL = os.environ.get("COST_MODEL_URL", "")
 
 
-env = os.environ.get("ENV")
+env = APP_ENV
 if env == "production":
     missing: list[str] = []
     insecure: list[str] = []

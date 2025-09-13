@@ -1,25 +1,25 @@
 from flask import (
     Blueprint,
-    render_template,
-    redirect,
-    url_for,
-    session,
-    flash,
-    request,
     current_app,
+    flash,
     jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, DateField, SubmitField
+from sqlalchemy import text
+from wtforms import DateField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
-from sqlalchemy import text
 from db import get_db
 from erp.utils import (
-    login_required,
     has_permission,
-    sanitize_sort,
+    login_required,
     sanitize_direction,
+    sanitize_sort,
     stream_export,
 )
 
@@ -62,7 +62,7 @@ def _build_query(
         "SELECT t.id, tt.type_name, t.description, t.due_date, t.workflow_state, t.result, "
         "t.awarded_to, t.award_date, t.username, t.institution, t.envelope_type "
         "FROM tenders t JOIN tender_types tt ON t.tender_type_id = tt.id "
-        f"ORDER BY {sort_col} {order_sql}"
+        f"ORDER BY {sort_col} {order_sql}"  # nosec B608
     )
     if limit is not None:
         sql += " LIMIT :limit"

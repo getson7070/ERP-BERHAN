@@ -4,6 +4,8 @@
 [![Coverage](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=coverage)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![ZAP](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=ZAP)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![Trivy](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Trivy)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![Pa11y](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=Pa11y)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
+[![SBOM](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml/badge.svg?label=SBOM)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/ci.yml)
 [![SLSA](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml/badge.svg?label=SLSA)](https://github.com/getson7070/ERP-BERHAN/actions/workflows/generator-generic-ossf-slsa3-publish.yml?query=branch%3Amain)
 
 BERHAN PHARMA: A Flask-based ERP for pharmaceutical management, including inventory, analytics, compliance, and traceability.
@@ -23,10 +25,15 @@ Structured JSON logs capture correlation IDs without blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
 `/health` (aliased as `/healthz`) exposes a lightweight database and Redis check for container probes.
+Deployment configuration is centralized in `apprunner.yaml`; the Dockerfile mirrors its runtime command.
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
 Nightly backups (`scripts/pg_backup.sh`) and a `scripts/check_indexes.py` CI guard
 provide disaster recovery coverage and highlight queries that require indexes.
+
+## Release & SLOs
+
+Service level objectives target p95 latency and error rates within documented budgets. Releases follow a weekly PATCH, monthly MINOR, and quarterly MAJOR cadence gated on green CI and canary health.
 
 ## Local Development Quickstart
 

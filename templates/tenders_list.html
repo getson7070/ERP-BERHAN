@@ -137,7 +137,7 @@
     {% endif %}
     <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Back</a>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.col-toggle').forEach(cb => {
     cb.addEventListener('change', () => {
       const idx = parseInt(cb.dataset.col);

@@ -1,7 +1,6 @@
 """create KPI sales materialized view"""
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "5f6g7h8i9j0k"

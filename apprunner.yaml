@@ -9,6 +9,6 @@ build:
       - python3 -m pip install --no-cache-dir -r requirements.lock
 
 run:
-  command: bash -c "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 8 --timeout 120 wsgi:app"
+  command: bash -c "gunicorn -k eventlet --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120 wsgi:app"
   network:
     port: 8080

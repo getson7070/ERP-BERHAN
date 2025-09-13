@@ -5,10 +5,10 @@ from __future__ import annotations
 import os
 import smtplib
 from email.message import EmailMessage
+from typing import cast
 
 import requests  # type: ignore[import-untyped]
 from celery import Celery
-from typing import cast
 
 from db import redis_client
 
@@ -41,7 +41,8 @@ def _send_email(message: str, subject: str) -> None:
 def _send_slack(message: str) -> None:
     if not SLACK_WEBHOOK:
         return
-    requests.post(SLACK_WEBHOOK, json={"text": message})
+    # Provide an explicit timeout to avoid hanging in case Slack is unresponsive
+    requests.post(SLACK_WEBHOOK, json={"text": message}, timeout=5)
 
 
 def main() -> None:
@@ -81,7 +82,7 @@ def main() -> None:
             (
                 int(line.split()[1])
                 for line in metrics
-                if 'http_requests_total' in line and 'status="500"' in line
+                if "http_requests_total" in line and 'status="500"' in line
             ),
             0,
         )
@@ -89,7 +90,7 @@ def main() -> None:
             (
                 int(line.split()[1])
                 for line in metrics
-                if 'http_requests_total' in line and 'status="429"' in line
+                if "http_requests_total" in line and 'status="429"' in line
             ),
             0,
         )
