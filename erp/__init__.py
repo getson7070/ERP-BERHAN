@@ -7,6 +7,8 @@ Flask-Babel for multi-language support.  Blueprints are registered lazily via
 ``docs/blueprints.md`` for additional background on the discovery strategy.
 """
 
+import os
+import uuid
 from flask import (
     Flask,
     request,
@@ -16,7 +18,6 @@ from flask import (
     render_template,
     current_app,
 )
-import uuid
 
 from datetime import datetime, UTC
 from dotenv import load_dotenv
@@ -287,7 +288,9 @@ def create_app():
         "RATE_LIMIT_DEFAULT", "100 per minute"
     )
     limiter.init_app(app)
-    app.config["BABEL_TRANSLATION_DIRECTORIES"] = "translations"
+    app.config["BABEL_TRANSLATION_DIRECTORIES"] = os.path.join(
+        app.root_path, "..", "translations"
+    )
 
     def select_locale():
         return (

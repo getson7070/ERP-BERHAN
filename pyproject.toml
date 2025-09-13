@@ -1,1 +1,17 @@
+[project]
+name = "erp-berhan"
+version = "0.1.0"
+description = "ERP-BERHAN platform"
+readme = "readme.md"
+requires-python = ">=3.11"
+license = { file = "license" }
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
 [tool.pip-audit]

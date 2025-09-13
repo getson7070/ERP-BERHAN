@@ -147,7 +147,7 @@ jobs:
             zap-report.json
           retention-days: 30
       - name: Accessibility audit
-        run: pa11y-ci http://localhost:5000 --json > pa11y-report.json
+        run: ./scripts/run_pa11y.sh http://localhost:5000
       - name: Upload pa11y report
         if: always()
         uses: actions/upload-artifact@v3

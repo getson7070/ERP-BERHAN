@@ -33,15 +33,20 @@ This quickstart bootstraps a secure ERP-BERHAN dev environment that mirrors prod
    scripts/run_migrations.sh
    ADMIN_USERNAME=admin ADMIN_PASSWORD=strongpass python init_db.py
    ```
-6. **Launch the app and worker**
+6. **Launch the app, worker, and beat**
    ```bash
    flask run
-   celery -A erp.celery_app worker -B --loglevel=info
+   celery -A erp.celery worker --loglevel=info
+   celery -A erp.celery beat --loglevel=info
    ```
 7. **Smoke test**
    ```bash
    curl -f http://localhost:5000/health
    pytest tests/smoke
+   ```
+8. **Run accessibility checks**
+   ```bash
+   ./scripts/run_pa11y.sh http://localhost:5000
    ```
 
 For a guided tour with sample data, see [docs/guided_setup.md](guided_setup.md).
