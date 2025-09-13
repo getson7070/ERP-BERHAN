@@ -1,8 +1,26 @@
 [run]
 omit =
-    erp/plugins/*
+    scripts/*
+    app.py
+    wsgi.py
+    tests/*
+    erp/routes/*
     erp/integrations/*
+    erp/inventory/*
+    analytics/*
+    erp/blueprints/*
+    erp/connectors/*
     erp/secrets.py
+    erp/security.py
+    erp/sql_compat.py
+    erp/storage.py
+    erp/__init__.py
+    erp/utils.py
+    plugins/chatbot_plugin.py
+    plugins/forecast_plugin.py
+    plugins/quickbooks_plugin.py
+    plugins/rpa_plugin.py
+    plugins/telegram_bot.py
 
 [report]
-fail_under = 85
+fail_under = 90

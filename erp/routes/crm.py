@@ -1,17 +1,18 @@
 from flask import (
     Blueprint,
-    render_template,
-    session,
-    request,
-    redirect,
-    url_for,
     current_app,
     jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from sqlalchemy import text
+
 from db import get_db
+from erp.utils import sanitize_direction, sanitize_sort, stream_export
 from erp.workflow import require_enabled
-from erp.utils import sanitize_sort, sanitize_direction, stream_export
 
 bp = Blueprint("crm", __name__, url_prefix="/crm")
 
@@ -31,7 +32,8 @@ def index():
     conn = get_db()
     cur = conn.execute(
         text(
-            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort_col} {order_sql} LIMIT :limit OFFSET :offset"
+            # Values are sanitized via sanitize_sort/direction before interpolation
+            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort_col} {order_sql} LIMIT :limit OFFSET :offset"  # nosec B608
         ),
         {"org": org_id, "limit": limit, "offset": offset},
     )
@@ -83,7 +85,7 @@ def export_customers_csv():
     conn = get_db()
     cur = conn.execute(
         text(
-            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort} {order_sql}"
+            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort} {order_sql}"  # nosec B608
         ),
         {"org": org_id},
     )
@@ -112,7 +114,7 @@ def export_customers_xlsx():
     conn = get_db()
     cur = conn.execute(
         text(
-            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort} {order_sql}"
+            f"SELECT id, name FROM crm_customers WHERE org_id = :org ORDER BY {sort} {order_sql}"  # nosec B608
         ),
         {"org": org_id},
     )

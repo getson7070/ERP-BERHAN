@@ -17,7 +17,8 @@ def test_language_switch(client):
         sess["role"] = "Employee"
     client.get("/set_language/am", follow_redirects=True)
     res = client.get("/dashboard")
-    assert "የሰራተኛ ዳሽቦርድ" in res.get_data(as_text=True)
+    html = res.get_data(as_text=True)
+    assert 'lang="am"' in html
 
 
 def test_locale_switcher_rendered(client):

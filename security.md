@@ -27,5 +27,8 @@ Thank you for helping keep BERHAN PHARMA secure.
 - **Threat model**: multi-tenant ERP exposed to the internet; each organization is isolated via PostgreSQL row-level security.
 - **RLS policy**: all tables carry an `org_id` column protected by an `org_rls` policy tied to `current_setting('erp.org_id')`.
 - **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
-- **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy and HTTP Strict Transport Security globally, with health checks opting out for probes.
+- **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy with nonces on inline scripts and HTTP Strict Transport Security globally, with health checks opting out for probes.
 - **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early. All scanners (gitleaks, Bandit, pip-audit, Trivy, ZAP) fail the build on critical findings.
+- **Secrets management**: all secrets are sourced from environment variables or the secret manager; no plaintext tokens are committed.
+- **Dependency policy**: pinned requirements in `requirements.lock`; pip-audit and Trivy enforce zero high/medium vulnerabilities.
+- **CSRF**: Flask-WTF provides global CSRF protection for form submissions.

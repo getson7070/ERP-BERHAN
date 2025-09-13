@@ -31,12 +31,7 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium firefox webkit
       - name: Lint
-        run: |
-          ruff .
-          flake8
-          MYPYPATH=erp mypy --ignore-missing-imports --explicit-package-bases \
-            db.py erp/cache.py erp/models.py erp/security.py erp/secrets.py \
-            scripts/rotate_jwt_secret.py erp/routes/feedback.py
+        run: pre-commit run --all-files
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit
@@ -72,7 +67,7 @@ jobs:
       - name: Validate CSP
         run: python scripts/validate_csp.py
       - name: Tests
-        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov-report=xml --cov-report=html --cov-fail-under=80
+        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov=plugins --cov-report=xml --cov-report=html --cov-fail-under=90
       - name: Accessibility tests
         run: pytest -m accessibility
       - name: Upload coverage XML
