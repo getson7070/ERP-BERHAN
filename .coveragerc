@@ -1,8 +1,11 @@
 [run]
 omit =
-    erp/plugins/*
-    erp/integrations/*
-    erp/secrets.py
+    scripts/*
+    app.py
+    wsgi.py
 
 [report]
-fail_under = 85
+include =
+    erp/plugins/__init__.py
+    plugins/sample_plugin.py
+fail_under = 90

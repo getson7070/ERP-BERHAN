@@ -55,7 +55,7 @@
   </nav>
   <a href="{{ url_for('crm.add_customer') }}" class="btn btn-primary">Add Customer</a>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.col-toggle').forEach(cb => {
     cb.addEventListener('change', () => {
       const idx = parseInt(cb.dataset.col);

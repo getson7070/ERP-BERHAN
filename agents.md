@@ -399,6 +399,8 @@ v1.1 — Documented September 2025 audit (overall score 8.3/10) highlighting uni
 v1.2 — Added structured JSON logging with request IDs, feature-gated report builder, and linked corporate SOP repository.
 v1.3 — Enforced RLS on HR tables, added nightly backup script with checksums, and introduced index-advice tooling.
 
+v1.4 — Removed exec() in plugin loader, enforced CSP nonces, switched default worker to eventlet, and raised test coverage gate to 90%.
+
 21) 2025 Audit Snapshot
 
 Latest assessment rated the platform **8.3/10** overall with the following focal points:

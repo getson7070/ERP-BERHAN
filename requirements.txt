@@ -1,6 +1,7 @@
 # Core server
 Flask>=2.3,<3.1
 gunicorn>=21.2
+eventlet>=0.36
 
 # DB stack
 SQLAlchemy>=1.4,<3
@@ -23,6 +24,7 @@ flask-wtf
 flask-limiter
 flask-caching
 bleach
+beautifulsoup4
 
 # Data and ML utilities
 numpy

@@ -70,7 +70,7 @@
     </ul>
   </nav>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.querySelectorAll('.col-toggle').forEach(cb => {
     cb.addEventListener('change', () => {
       const idx = parseInt(cb.dataset.col) + 1;
