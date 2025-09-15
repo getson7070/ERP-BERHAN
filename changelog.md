@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file. The format 
 - Composite indexes added on `(status, org_id)` for `orders`, `maintenance`, and `tenders` tables to accelerate dashboards
 - Analytics reminders log via structured logging instead of `print`
 - Standalone `init_db.py` bootstraps core schema, seeds a default organisation and Admin role, and applies RLS policies
+- Enforce branch coverage with mutation testing and commit message linting for Conventional Commits
 
 ### Added
 - Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.
