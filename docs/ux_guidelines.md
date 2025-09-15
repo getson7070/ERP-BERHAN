@@ -1,6 +1,6 @@
 # UX Guidelines
 
-This project follows industry-standard UX and accessibility practices and adheres to the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md):
+This project follows industry-standard UX and accessibility practices and adheres to the BERHAN Pharma SOP and corporate policy (see docs/BERHAN_SOP_PACK.md):
 
 - **Responsive design:** verify layouts across mobile (375px), tablet (768px), and desktop (1280px) viewports. Reference snapshots live in [`docs/ux/snapshots`](./ux/snapshots).
 - **Accessible markup:** templates include semantic headings and ARIA labels. Automated checks run via `pa11y-ci` (best effort) and `axe`.

@@ -36,4 +36,4 @@ This document outlines the support policies and community guidelines for the ERP
 
 ## Code of Conduct
 
-We expect all contributors and users to adhere to a community code of conduct. Participants should be respectful, considerate, and constructive. Harassment, discrimination, or abusive behavior will not be tolerated. See the [code_of_conduct](../code_of_conduct.md) for full details.
+We expect all contributors and users to adhere to a community code of conduct. Participants should be respectful, considerate, and constructive. Harassment, discrimination, or abusive behavior will not be tolerated. See the [code_of_conduct](../CODE_OF_CONDUCT.md) for full details.
