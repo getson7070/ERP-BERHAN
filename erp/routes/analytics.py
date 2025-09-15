@@ -41,7 +41,6 @@ VITALS_SCHEMA = {
     },
     "additionalProperties": False,
 }
-
 celery = Celery(__name__)
 logger = logging.getLogger(__name__)
 
@@ -521,5 +520,8 @@ def collect_vitals():
         current_app.logger.warning("invalid vitals payload", extra={"error": str(exc)})
         abort(400, description="invalid payload")
     for name, value in data.items():
-        WEB_VITALS.labels(name=name).observe(float(value))
+        try:
+            WEB_VITALS.labels(name=name).observe(float(value))
+        except (TypeError, ValueError):
+            current_app.logger.warning("invalid web vital", extra={"name": name})
     return "", 204
