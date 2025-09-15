@@ -94,6 +94,8 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/async.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/web-vitals.iife.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/vitals.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

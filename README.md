@@ -16,6 +16,8 @@ Signed webhooks and OAuth-friendly connectors expose a secure integration surfac
 The UI is optimized for mobile devices and supports offline use via a Progressive Web App manifest and service worker.
 Offline caching is verified in CI with a Playwright test to ensure core routes remain available without network connectivity.
 
+Core Web Vitals are monitored in-browser via the `web-vitals` library, and server-side Apdex scores track latency against a 0.5 s target. Static assets ship with ETags and long-lived cache headers to accelerate repeat visits.
+
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
 Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/BERHAN_SOP_PACK.md).

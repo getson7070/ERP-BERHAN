@@ -2,28 +2,25 @@ import io
 import logging
 import os
 import statistics
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from celery import Celery
 from celery.schedules import crontab
-from flask import (
-    Blueprint,
-    Response,
-    render_template,
-    request,
-    session,
-    current_app,
-)
+from flask import Blueprint, Response, current_app, render_template, request, session
 from flask_socketio import emit
+from prometheus_client import Histogram
 from sqlalchemy import create_engine, text
+
+from db import get_db
+from erp import KPI_SALES_MV_AGE, socketio
+from erp.utils import login_required, roles_required, task_idempotent
 
 # Forecasting uses simple averages to avoid heavy ML dependencies.
 
-from db import get_db
-from erp import socketio, KPI_SALES_MV_AGE
-from erp.utils import login_required, roles_required, task_idempotent
 
 bp = Blueprint("analytics", __name__)
+
+WEB_VITALS = Histogram("web_vitals", "Reported Core Web Vitals", ["name"])
 
 celery = Celery(__name__)
 logger = logging.getLogger(__name__)
@@ -462,8 +459,8 @@ def export_report(fmt):
         ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         ext = "xlsx"
     else:
-        from reportlab.platypus import SimpleDocTemplate, Table
         from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table
 
         out = io.BytesIO()
         doc = SimpleDocTemplate(out, pagesize=letter)
@@ -484,3 +481,14 @@ def detect_anomalies(values):
     mean = statistics.mean(values)
     stdev = statistics.pstdev(values) or 1
     return [v for v in values if abs(v - mean) > 3 * stdev]
+
+
+@bp.route("/analytics/vitals", methods=["POST"])
+def collect_vitals():
+    data = request.get_json(silent=True) or {}
+    for name, value in data.items():
+        try:
+            WEB_VITALS.labels(name=name).observe(float(value))
+        except (TypeError, ValueError):
+            current_app.logger.warning("invalid web vital", extra={"name": name})
+    return "", 204

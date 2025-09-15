@@ -23,6 +23,7 @@ flask-babel
 flask-wtf
 flask-limiter
 flask-caching
+flask-compress
 bleach
 beautifulsoup4
 

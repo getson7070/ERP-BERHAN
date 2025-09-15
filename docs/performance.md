@@ -14,6 +14,14 @@ USERS=10000 RATE=500 DURATION=10m scripts/load_test.sh
 
 Record throughput and error rates, then tune application and database settings accordingly.
 
+## Core Web Vitals & Apdex
+
+Client-side metrics (CLS, FID, LCP, INP, TTFB) are captured via the `web-vitals` library and sent to `/analytics/vitals`. Server-side response times feed an Apdex score with a default threshold of 0.5 s.
+
+## HTTP Caching
+
+Static assets are served with long-lived `Cache-Control` headers and ETags. Responses are compressed to reduce transfer size, improving initial load times.
+
 ## WebSocket Fan-out
 
 Live dashboards rely on WebSocket broadcasts. Monitor the number of connected

@@ -37,6 +37,8 @@ class Config:
     SESSION_LIFETIME_MINUTES = int(os.environ.get("SESSION_LIFETIME_MINUTES", "30"))
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=SESSION_LIFETIME_MINUTES)
     WTF_CSRF_TIME_LIMIT = None
+    USE_ETAGS = True
+    SEND_FILE_MAX_AGE_DEFAULT = 31536000
 
     ARGON2_TIME_COST = int(os.environ.get("ARGON2_TIME_COST", "3"))
     ARGON2_MEMORY_COST = int(os.environ.get("ARGON2_MEMORY_COST", "65536"))

@@ -17,6 +17,10 @@ All notable changes to this project will be documented in this file. The format 
 - Service worker securely reattaches fresh auth tokens when replaying background-sync requests
 - Dynamically revealed inventory expiration field now toggles `aria` attributes for screen-reader support
 
+### Performance
+- Capture Core Web Vitals in-browser and expose Apdex metrics
+- Serve static assets with gzip compression, ETags, and long-lived cache headers
+
 ### Ops
 - Add missing Alembic revision for data lineage table to ensure migration chain completeness
 - Container health checks reference `/healthz` endpoint for consistent probe configuration
