@@ -18,8 +18,8 @@ Offline caching is verified in CI with a Playwright test to ensure core routes r
 
 An accessible locale switcher enables English, Amharic, and Farsi translations, and a lightweight guided tour introduces key UI controls for new users.
 
-Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/berhan_sop_pack.md).
-A high-level mapping of ERP features to corporate policy pillars is documented in [docs/corporate_policy_alignment.md](docs/corporate_policy_alignment.md).
+Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/BERHAN_SOP_PACK.md).
+A high-level mapping of ERP features to corporate policy pillars is documented in [docs/CORPORATE_POLICY_ALIGNMENT.md](docs/CORPORATE_POLICY_ALIGNMENT.md).
 
 Structured JSON logs capture correlation IDs without blocking database writes.
 
@@ -28,8 +28,10 @@ Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes
 Deployment configuration is centralized in `apprunner.yaml`; the Dockerfile mirrors its runtime command.
 SQL operations use parameterized queries for database portability, and the service worker securely reattaches auth tokens when replaying queued requests.
 Row-level security policies derive the tenant ID from `current_setting('erp.org_id')` to enforce per-organization isolation.
-Nightly backups (`scripts/pg_backup.sh`) and a `scripts/check_indexes.py` CI guard
-provide disaster recovery coverage and highlight queries that require indexes.
+Nightly backups (`scripts/pg_backup.sh`), a `scripts/check_indexes.py` CI guard,
+and the `scripts/index_audit.py` report provide disaster recovery coverage and
+highlight queries that require indexes.
+Database maintenance practices, including RPO/RTO targets and indexing benchmarks, are documented in `DATABASE.md`.
 
 ## Release & SLOs
 
@@ -96,7 +98,7 @@ Run `zap-baseline.py -t http://localhost:5000` for the OWASP ZAP baseline scan.
 - [Access recertification guide](docs/access_recerts.md)
 - [Design system tokens](docs/design_system.md)
 - [JWT secret rotation runbook](docs/security/secret_rotation.md)
-- [Master SOP template and priority procedures](docs/berhan_sop_pack.md)
+- [Master SOP template and priority procedures](docs/BERHAN_SOP_PACK.md)
 
 Latest operational metrics are published in the [status page](docs/status.md).
 
@@ -216,7 +218,7 @@ improvement plan are captured in [docs/audit_summary.md](docs/audit_summary.md).
 
 ## Code of Conduct
 
-Please follow our [Code of Conduct](code_of_conduct.md) when interacting with the project.
+Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) when interacting with the project.
 
 ## Design System
 
@@ -484,7 +486,7 @@ The September 2025 audit scored the project **8.3/10** overall and surfaced seve
 
 ## Governance & Roadmap
 
-- Refer to `docs/versioning.md` for release numbering and branching conventions.
+- Refer to `docs/VERSIONING.md` for release numbering and branching conventions.
 - Quarterly access recertification steps are outlined in `docs/access_recerts.md`.
 - Detailed migration procedures live in `docs/migration_guide.md`.
 - User assistance is covered in `docs/in_app_help.md` and `docs/training_tutorials.md`.
@@ -493,7 +495,7 @@ The September 2025 audit scored the project **8.3/10** overall and surfaced seve
 - An in-app `/help` page links to documentation and discussion forums.
 - Control mappings to ISO-27001 and Ethiopian data law reside in `docs/control_matrix.md`.
 - Quarterly access reviews produce WORM exports via `scripts/access_recert_export.py`.
-- Release notes are tracked in `changelog.md` with rollback steps in `docs/rollback.md`.
+- Release notes are tracked in `CHANGELOG.md` with rollback steps in `docs/rollback.md`.
 
 ## Contributing
 

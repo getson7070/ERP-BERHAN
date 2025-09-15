@@ -1,6 +1,6 @@
 # Corporate Policy Alignment
 
-This document maps ERP-BERHAN features to the corporate policies defined in the **BERHAN PHARMA PLC Consolidated Manual** (v1.0, 09 September 2025). See [berhan_sop_pack.md](berhan_sop_pack.md) for the full policy pack.
+This document maps ERP-BERHAN features to the corporate policies defined in the **BERHAN PHARMA PLC Consolidated Manual** (v1.0, 09 September 2025). See [BERHAN_SOP_PACK.md](BERHAN_SOP_PACK.md) for the full policy pack.
 
 ## Quality, Regulatory & Patient Safety
 - SOP-driven workflows implement GDP/GSP, ISO 9001, ISO 13485 and ISO 14971 requirements.
@@ -24,7 +24,7 @@ This document maps ERP-BERHAN features to the corporate policies defined in the 
 
 ## Information Security
 - MFA, JWT rotation, encrypted secrets and database RLS satisfy ISO/IEC 27001 controls.
-- See [security.md](../security.md) for vulnerability reporting and handling procedures.
+- See [security.md](../SECURITY.md) for vulnerability reporting and handling procedures.
 
 ## Social Responsibility & Community
 - Training features and marketing agents enable ethical promotion and community outreach.

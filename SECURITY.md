@@ -1,6 +1,6 @@
 # Security Policy
 
-This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001. A mapping of ERP features to corporate policy pillars is maintained in [docs/corporate_policy_alignment.md](docs/corporate_policy_alignment.md). Planned hardening tasks and CI gate expansions are outlined in [docs/audit_roadmap.md](docs/audit_roadmap.md).
+This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001. A mapping of ERP features to corporate policy pillars is maintained in [docs/CORPORATE_POLICY_ALIGNMENT.md](docs/CORPORATE_POLICY_ALIGNMENT.md). Planned hardening tasks and CI gate expansions are outlined in [docs/audit_roadmap.md](docs/audit_roadmap.md).
 
 ## Supported Versions
 

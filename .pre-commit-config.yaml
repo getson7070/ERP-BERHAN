@@ -28,3 +28,8 @@ repos:
     hooks:
       - id: gitleaks
         args: ["--config=.gitleaks.toml"]
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

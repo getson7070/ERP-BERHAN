@@ -21,7 +21,7 @@ Official corporate policy repository (restricted access)
 * **ISO 14001:2015** – Environmental management systems — Requirements with guidance for use
 * **ISO 45001:2018** – Occupational health and safety management systems — Requirements with guidance for use
 * **ISO/IEC 27001:2022** – Information security, cybersecurity and privacy protection — Information security management systems — Requirements
-* Berhan Pharma [Code of Conduct](../code_of_conduct.md) – expectations for professional conduct and policy compliance
+* Berhan Pharma [Code of Conduct](../CODE_OF_CONDUCT.md) – expectations for professional conduct and policy compliance
 * **EU MDR 2017/745** & **IVDR 2017/746** (interface), **US FDA QMSR/21 CFR 820** (alignment with ISO 13485), **GCC/SFDA** and other destination‑market requirements
 
 ---
@@ -238,7 +238,7 @@ Applies to all Berhan policies, procedures (SOPs), work instructions, forms, log
 * **Document Controller (Quality):** R/A for numbering, versioning, publishing, withdrawal, and the Master List.
 * **Process Owner:** R for drafting and periodic review; C for cross-functional impact.
 * **QA/Compliance Lead:** A for approval; C for regulatory fit.
-* **All Staff:** I; ensure only current versions are used and uphold the corporate [Code of Conduct](../code_of_conduct.md).
+* **All Staff:** I; ensure only current versions are used and uphold the corporate [Code of Conduct](../CODE_OF_CONDUCT.md).
 
 ## 6. Required Tools/Docs
 
@@ -364,7 +364,7 @@ Covers all inbound consignments at Berhan warehouses and receiving areas, includ
 * **Procurement:** C for PO/spec, supplier issues.
 * **Security:** R for gate control and initial vehicle/pack integrity checks.
 * **Transporter/Driver:** R to present documents and temperature data logger if applicable.
-* **All Staff:** I; adhere to the corporate [Code of Conduct](../code_of_conduct.md).
+* **All Staff:** I; adhere to the corporate [Code of Conduct](../CODE_OF_CONDUCT.md).
 
 ## 6. Required Equipment & Documents
 
@@ -488,7 +488,7 @@ All departments, processes, and sites of Berhan Pharma including warehouse opera
 * **Auditors:** R to conduct audits objectively; trained and independent from audited area.
 * **Auditees/Process Owners:** R to provide evidence and implement CAPA.
 * **MD/GM:** I; reviews results at QMR.
-* **All Staff:** I; adhere to the corporate [Code of Conduct](../code_of_conduct.md).
+* **All Staff:** I; adhere to the corporate [Code of Conduct](../CODE_OF_CONDUCT.md).
 
 ## 6. Annual Audit Program
 
@@ -595,7 +595,7 @@ Applies to all deviations, audit findings, complaints, supplier issues, temperat
 * **CAPA Coordinator (QA):** A for system oversight; ensures data integrity and timeliness.
 * **CAPA Owner (Process Lead):** R to execute actions; maintain evidence.
 * **Approver (QA Lead/MD):** A to approve closure after VoE.
-* **All Staff:** R to report issues immediately and comply with the corporate [Code of Conduct](../code_of_conduct.md).
+* **All Staff:** R to report issues immediately and comply with the corporate [Code of Conduct](../CODE_OF_CONDUCT.md).
 
 ## 6. Procedure
 
