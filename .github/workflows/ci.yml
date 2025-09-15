@@ -32,6 +32,8 @@ jobs:
         run: playwright install --with-deps chromium firefox webkit
       - name: Lint
         run: pre-commit run --all-files
+      - name: Type check
+        run: mypy .
       - name: Security scan
         run: ./scripts/security_scan.sh
       - name: Dependency audit
@@ -67,7 +69,7 @@ jobs:
       - name: Validate CSP
         run: python scripts/validate_csp.py
       - name: Tests
-        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov=plugins --cov-report=xml --cov-report=html --cov-fail-under=90
+        run: pytest --maxfail=1 --disable-warnings --cov=erp --cov=plugins --cov-report=xml --cov-report=html --cov-fail-under=90 --cov-branch
       - name: Accessibility tests
         run: pytest -m accessibility
       - name: Upload coverage XML
@@ -84,6 +86,10 @@ jobs:
           name: coverage-html
           path: htmlcov
           retention-days: 30
+      - name: Mutation tests
+        run: |
+          mutmut run --paths erp --tests-dir tests --runner pytest
+          mutmut results --show-mutant 0 --exit-code
       - name: Build Docker image
         run: docker build -t erp-berhan .
       - name: Save image tarball
