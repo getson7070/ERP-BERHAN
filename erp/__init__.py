@@ -51,9 +51,6 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
     REGISTRY,
     CollectorRegistry,
-    Counter,
-    Gauge,
-    Histogram,
     generate_latest,
     multiprocess,
 )
@@ -67,6 +64,25 @@ from erp.plugins import load_plugins
 
 from .cache import init_cache
 from .extensions import db
+from .observability import (
+    APDEX_FRUSTRATED,
+    APDEX_SATISFIED,
+    APDEX_SCORE,
+    APDEX_THRESHOLD,
+    APDEX_TOLERATING,
+)
+from .observability import AUDIT_CHAIN_BROKEN as AUDIT_CHAIN_BROKEN
+from .observability import GRAPHQL_REJECTS as GRAPHQL_REJECTS
+from .observability import KPI_SALES_MV_AGE
+from .observability import OLAP_EXPORT_SUCCESS as OLAP_EXPORT_SUCCESS
+from .observability import (
+    QUEUE_LAG,
+    RATE_LIMIT_REJECTIONS,
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+    TOKEN_ERRORS,
+    configure_opentelemetry,
+)
 
 load_dotenv()
 
@@ -102,6 +118,12 @@ class JsonFormatter(logging.Formatter):
         req_id = getattr(record, "request_id", None)
         if req_id:
             log["request_id"] = req_id
+        trace_id = getattr(record, "otelTraceID", None)
+        if trace_id:
+            log["trace_id"] = trace_id
+        span_id = getattr(record, "otelSpanID", None)
+        if span_id:
+            log["span_id"] = span_id
         return json.dumps(log)
 
 
@@ -189,46 +211,6 @@ def _record_queue_depth(*args: Any, **kwargs: Any) -> None:
         current_app.logger.warning("queue lag metric update failed", exc_info=exc)
 
 
-REQUEST_COUNT = Counter(
-    "request_count",
-    "HTTP Request Count",
-    ["method", "endpoint", "http_status"],
-)
-REQUEST_LATENCY = Histogram("request_latency_seconds", "Request latency", ["endpoint"])
-TOKEN_ERRORS = Counter("token_errors_total", "Invalid or expired token events")
-QUEUE_LAG = Gauge("queue_lag", "Celery queue backlog size", ["queue"])
-KPI_SALES_MV_AGE = Gauge(
-    "kpi_sales_mv_age_seconds",
-    "Age of the kpi_sales materialized view in seconds",
-)
-RATE_LIMIT_REJECTIONS = Counter(
-    "rate_limit_rejections_total", "Requests rejected due to rate limiting"
-)
-GRAPHQL_REJECTS = Counter(
-    "graphql_rejects_total",
-    "GraphQL queries rejected for depth or complexity limits",
-)
-AUDIT_CHAIN_BROKEN = Counter(
-    "audit_chain_broken_total",
-    "Detected breaks in the audit log hash chain",
-)
-OLAP_EXPORT_SUCCESS = Counter(
-    "olap_export_success_total",
-    "Number of successful OLAP exports",
-)
-APDEX_THRESHOLD = float(os.environ.get("APDEX_T", "0.5"))
-APDEX_SATISFIED = Counter(
-    "apdex_satisfied_total", "Requests with latency <= threshold/2"
-)
-APDEX_TOLERATING = Counter(
-    "apdex_tolerating_total", "Requests with latency <= threshold"
-)
-APDEX_FRUSTRATED = Counter(
-    "apdex_frustrated_total", "Requests with latency > threshold"
-)
-APDEX_SCORE = Gauge("apdex_score", "Current Apdex score")
-
-
 def create_app():
     # Import inside the factory to avoid circular dependencies during
     # application initialisation where ``app`` imports models which in turn
@@ -238,6 +220,7 @@ def create_app():
     app.config.from_object(Config)
     debug_templates = os.getenv("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
     app.config["TEMPLATES_AUTO_RELOAD"] = debug_templates
+    app.config["APDEX_LATENCY_THRESHOLD"] = APDEX_THRESHOLD
 
     db_url = os.environ.get("DATABASE_URL")
     db_path = os.environ.get("DATABASE_PATH", "erp.db")
@@ -279,6 +262,7 @@ def create_app():
     oauth.init_app(app)
     db.init_app(app)
     init_cache(app)
+    configure_opentelemetry(app, db)
     compress.init_app(app)
     csrf.init_app(app)
     from .app import (  # deferred to avoid circular import

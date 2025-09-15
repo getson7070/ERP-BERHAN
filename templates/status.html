@@ -1,8 +1,92 @@
 {% extends "base.html" %}
 {% block title %}{{ _('System Status') }}{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  <h1>{{ _('System Status') }}</h1>
-  <p>{{ _('All systems operational.') }}</p>
+<div class="container py-4">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="mb-1">{{ _('System Status') }}</h1>
+      <p class="text-muted mb-1">{{ _('Real-time summary of service-level objectives, error budgets, and recovery posture.') }}</p>
+      <p class="text-muted small mb-0">
+        {{ _('Last updated %(timestamp)s', timestamp=snapshot.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')) }}
+      </p>
+    </div>
+    <span class="badge text-bg-{{ snapshot.overall_badge }} fs-6 px-3 py-2" role="status">
+      {{ _(snapshot.overall_label) }}
+    </span>
+  </div>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+    {% for card in snapshot.cards %}
+    <div class="col">
+      <section class="card h-100 shadow-sm border-0" aria-labelledby="{{ card.slug }}-title">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h2 id="{{ card.slug }}-title" class="h5 mb-0">{{ _(card.title) }}</h2>
+            <span class="badge text-bg-{{ card.badge_class }}">{{ _(card.status_label) }}</span>
+          </div>
+          <p class="text-muted small mb-3">{{ _(card.description) }}</p>
+          <dl class="row small mb-3">
+            <dt class="col-6 text-uppercase text-muted">{{ _('Target') }}</dt>
+            <dd class="col-6 text-end fw-semibold">{{ card.target }}</dd>
+            <dt class="col-6 text-uppercase text-muted">{{ _('Current') }}</dt>
+            <dd class="col-6 text-end fw-semibold">{{ card.current }}</dd>
+            {% if card.error_budget_remaining %}
+            <dt class="col-6 text-uppercase text-muted">{{ _('Error budget remaining') }}</dt>
+            <dd class="col-6 text-end fw-semibold">{{ card.error_budget_remaining }}</dd>
+            {% endif %}
+            {% if card.detail %}
+            <dt class="col-6 text-uppercase text-muted">{{ _('Detail') }}</dt>
+            <dd class="col-6 text-end">{{ card.detail }}</dd>
+            {% endif %}
+          </dl>
+          {% if card.progress is not none %}
+          <div class="mb-2" aria-label="{{ _('Error budget consumed') }}">
+            <div class="progress" style="height: 0.75rem;" role="progressbar" aria-valuenow="{{ card.progress }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar bg-{{ card.badge_class }}" style="width: {{ card.progress }}%;"></div>
+            </div>
+            <p class="small text-muted mt-1 mb-0">{{ _('Error budget consumed: %(pct)s%%', pct=card.progress) }}</p>
+          </div>
+          {% endif %}
+        </div>
+        {% if card.footnote %}
+        <div class="card-footer bg-transparent border-top-0">
+          <p class="small text-muted mb-0">{{ _(card.footnote) }}</p>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-4 mt-4">
+    <div class="col-lg-6">
+      <section class="card h-100 shadow-sm border-0">
+        <div class="card-body">
+          <h2 class="h5">{{ _('Incident runbook highlights') }}</h2>
+          <p class="text-muted small">{{ _('Follow the triage workflow for paging, stakeholder comms, and rollback decisions.') }}</p>
+          <ul class="small text-muted mb-0">
+            <li>{{ _('Page on-call if the burn rate exceeds 2× for 15 minutes or more.') }}</li>
+            <li>{{ _('Spin up the incident channel using the templates provided in the runbook.') }}</li>
+            <li>{{ _('Record key events and customer impact in the shared timeline.') }}</li>
+          </ul>
+          <a class="btn btn-outline-primary btn-sm mt-3" href="https://github.com/getson7070/ERP-BERHAN/blob/main/docs/SRE_RUNBOOK.md" target="_blank" rel="noopener noreferrer">{{ _('View SRE runbook') }}</a>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="card h-100 shadow-sm border-0">
+        <div class="card-body">
+          <h2 class="h5">{{ _('Postmortem checklist') }}</h2>
+          <p class="text-muted small">{{ _('Use the standardized template after every Sev1 or Sev2 incident to capture learnings.') }}</p>
+          <ul class="small text-muted mb-0">
+            <li>{{ _('Document contributing factors, detection gaps, and recovery timeline.') }}</li>
+            <li>{{ _('Assign accountable owners and due dates for every corrective action.') }}</li>
+            <li>{{ _('Track remediation through closure with automated reminders.') }}</li>
+          </ul>
+          <a class="btn btn-outline-secondary btn-sm mt-3" href="https://github.com/getson7070/ERP-BERHAN/blob/main/docs/POSTMORTEM_TEMPLATE.md" target="_blank" rel="noopener noreferrer">{{ _('Download postmortem template') }}</a>
+        </div>
+      </section>
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -12,4 +12,5 @@ def test_status_route():
     resp = client.get("/status")
     assert resp.status_code == 200
     assert b"System Status" in resp.data
-    assert b"Home" in resp.data
+    assert b"Error budget remaining" in resp.data
+    assert b"Incident runbook highlights" in resp.data

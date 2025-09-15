@@ -66,6 +66,11 @@
                     href="{{ url_for('plugins.index') }}"
                 >{{ _('Plugins') }}</a>
                 <a
+                    class="nav-link {% if request.blueprint == 'privacy' %}active{% endif %}"
+                    {% if request.blueprint == 'privacy' %}aria-current="page"{% endif %}
+                    href="{{ url_for('privacy.privacy_center') }}"
+                >{{ _('Privacy') }}</a>
+                <a
                     class="nav-link {% if request.endpoint == 'main.status_page' %}active{% endif %}"
                     {% if request.endpoint == 'main.status_page' %}aria-current="page"{% endif %}
                     href="{{ url_for('main.status_page') }}"

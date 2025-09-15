@@ -18,4 +18,4 @@ To avoid downtime when evolving the database schema, run Alembic migrations in
    - Track migration status via logs and database metrics.
    - Roll back using `alembic downgrade` if errors occur.
 
-See also `docs/dsar_runbook.md` for handling data requests during migrations.
+See also `docs/DSAR_RUNBOOK.md` for handling data requests during migrations.

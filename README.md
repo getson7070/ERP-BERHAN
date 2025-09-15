@@ -386,6 +386,11 @@ Table‑level retention windows and column lineage are defined in
 the origin of analytics fields, and exports mask PII to meet Ethiopian privacy
 requirements.
 
+## Privacy & Compliance Program
+
+The `/privacy` dashboard summarises ISO/IEC 27001/27701 and SOC 2 readiness, tracks privacy impact assessments, and surfaces upcoming audits.
+Refer to [docs/PRIVACY_PROGRAM.md](docs/PRIVACY_PROGRAM.md) for governance roles and KPIs, [docs/DATA_HANDLING_PROCEDURES.md](docs/DATA_HANDLING_PROCEDURES.md) for GDPR/CCPA workflows, and [docs/DPIA_TEMPLATE.md](docs/DPIA_TEMPLATE.md) when evaluating new features.
+
 ### Multi-Factor Authentication
 
 Both employee and client accounts are protected with TOTP based multi-factor
@@ -451,10 +456,18 @@ For AWS App Runner source-based deployments, an `apprunner.yaml` file specifies 
 
 ## Observability & Offline Use
 
-Requests are instrumented with Prometheus metrics and exposed at `/metrics` for
-collection by a monitoring system. Additional ServiceMonitors scrape Celery
-workers, PgBouncer, and Redis as defined in `deploy/k8s/prometheus.yaml`.
-Structured logs are emitted to standard output to aid in tracing and alerting.
+Requests now emit both Prometheus metrics and OpenTelemetry spans. Setting
+`OTEL_ENABLED=true` (or `OTEL_EXPORTER_OTLP_ENDPOINT`) instruments Flask,
+SQLAlchemy, Redis, Celery, Requests, and logging, enriching JSON logs with
+`trace_id`/`span_id` correlation. `/metrics` continues to expose Prometheus
+counters and gauges for compatibility.
+
+Additional ServiceMonitors scrape Celery workers, PgBouncer, and Redis as
+defined in `deploy/k8s/prometheus.yaml`. Structured logs are emitted to standard
+output, while `/status` renders live SLO cards (availability, Apdex, queue
+backlog, materialized view freshness) with error budget progress and links to
+the [SRE runbook](docs/SRE_RUNBOOK.md).
+
 Key metrics include `graphql_rejects_total` for GraphQL depth/complexity
 violations and `audit_chain_broken_total` for tamper‑evident audit log checks.
 Database efficiency is monitored through `db_query_count` tests that guard

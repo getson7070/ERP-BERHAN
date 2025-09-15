@@ -75,6 +75,30 @@ class Config:
     LOCK_WINDOW = int(os.environ.get("LOCK_WINDOW", "300"))
     ACCOUNT_LOCK_SECONDS = int(os.environ.get("ACCOUNT_LOCK_SECONDS", "900"))
     MAX_BACKOFF = int(os.environ.get("MAX_BACKOFF", "60"))
+    OTEL_ENABLED = os.environ.get("OTEL_ENABLED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    OTEL_EXPORTER_OTLP_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    OTEL_EXPORTER_OTLP_HEADERS = os.environ.get("OTEL_EXPORTER_OTLP_HEADERS")
+    OTEL_SERVICE_NAME = os.environ.get("OTEL_SERVICE_NAME", "erp-berhan")
+    OTEL_SERVICE_INSTANCE_ID = os.environ.get("OTEL_SERVICE_INSTANCE_ID")
+    OTEL_EXPORT_TIMEOUT = float(os.environ.get("OTEL_EXPORT_TIMEOUT", "10"))
+    OTEL_METRIC_EXPORT_INTERVAL = float(
+        os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", "15")
+    )
+    SLO_AVAILABILITY_TARGET = float(os.environ.get("SLO_AVAILABILITY_TARGET", "99.9"))
+    SLO_AVAILABILITY_WINDOW_DAYS = int(
+        os.environ.get("SLO_AVAILABILITY_WINDOW_DAYS", "30")
+    )
+    SLO_APDEX_TARGET = float(os.environ.get("SLO_APDEX_TARGET", "0.85"))
+    SLO_QUEUE_BACKLOG_TARGET = float(os.environ.get("SLO_QUEUE_BACKLOG_TARGET", "50"))
+    SLO_QUEUE_BACKLOG_WARNING = float(os.environ.get("SLO_QUEUE_BACKLOG_WARNING", "75"))
+    SLO_QUEUE_BACKLOG_BREACH = float(os.environ.get("SLO_QUEUE_BACKLOG_BREACH", "100"))
+    SLO_MV_FRESHNESS_TARGET = float(os.environ.get("SLO_MV_FRESHNESS_TARGET", "900"))
+    SLO_MV_FRESHNESS_WARNING = float(os.environ.get("SLO_MV_FRESHNESS_WARNING", "1200"))
+    SLO_MV_FRESHNESS_BREACH = float(os.environ.get("SLO_MV_FRESHNESS_BREACH", "1800"))
     # --- Additional security, plugin, and support configuration ---
     # Enable encryption at rest (True/False). When True, the system should integrate with
     # database/disk encryption mechanisms provided by the deployment environment.
@@ -107,6 +131,39 @@ class Config:
     )
     COMMUNITY_FORUM_URL = os.environ.get(
         "COMMUNITY_FORUM_URL", "https://community.example.com"
+    )
+    # Privacy & compliance configuration
+    PRIVACY_OFFICER_EMAIL = os.environ.get(
+        "PRIVACY_OFFICER_EMAIL", "privacy@berhan.example"
+    )
+    PRIVACY_DATA_RESIDENCY = os.environ.get("PRIVACY_DATA_RESIDENCY", "eu-west-1")
+    GDPR_ERASURE_WINDOW_DAYS = int(os.environ.get("GDPR_ERASURE_WINDOW_DAYS", "30"))
+    GDPR_EXPORT_WINDOW_DAYS = int(os.environ.get("GDPR_EXPORT_WINDOW_DAYS", "30"))
+    CCPA_RESPONSE_WINDOW_DAYS = int(os.environ.get("CCPA_RESPONSE_WINDOW_DAYS", "45"))
+    PRIVACY_REVIEW_WARNING_DAYS = int(
+        os.environ.get("PRIVACY_REVIEW_WARNING_DAYS", "45")
+    )
+    PRIVACY_IMPACT_REQUIRED_TAGS = [
+        tag.strip()
+        for tag in os.environ.get(
+            "PRIVACY_IMPACT_REQUIRED_TAGS", "pii,biometric,location"
+        ).split(",")
+        if tag.strip()
+    ]
+    SOC2_TRUST_SERVICE_CRITERIA = [
+        crit.strip()
+        for crit in os.environ.get(
+            "SOC2_TRUST_SERVICE_CRITERIA",
+            "security,availability,processing-integrity,confidentiality,privacy",
+        ).split(",")
+        if crit.strip()
+    ]
+    PRIVACY_DPIA_TEMPLATE_PATH = os.environ.get(
+        "PRIVACY_DPIA_TEMPLATE_PATH", "docs/DPIA_TEMPLATE.md"
+    )
+    PRIVACY_POLICY_VERSION = os.environ.get("PRIVACY_POLICY_VERSION", "2025.09")
+    PRIVACY_DOCS_BASE_URL = os.environ.get(
+        "PRIVACY_DOCS_BASE_URL", "https://github.com/getson7070/ERP-BERHAN/blob/main/"
     )
     # Licensing and cost model configuration
     LICENSE_MODEL = os.environ.get("LICENSE_MODEL", "MIT")

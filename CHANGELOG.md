@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. The format 
 - Refactor authentication and order routes to use parameterised SQL queries for injection safety and cross-database support
 - Docker Compose connections to PostgreSQL now require TLS (`sslmode=require`)
 - Integrate PKCE for OAuth login, add WebAuthn passkey support, and track revoked JWTs in Redis with key rotation
+- Formalize privacy compliance scoring with ISO/IEC 27001/27701 & SOC 2 metrics surfaced in `/privacy`
 
 ### UX
 - Document accessibility and responsive design standards in `docs/UX_GUIDELINES.md` with reference snapshots
@@ -18,6 +19,7 @@ All notable changes to this project will be documented in this file. The format 
 - Service worker securely reattaches fresh auth tokens when replaying background-sync requests
 - Dynamically revealed inventory expiration field now toggles `aria` attributes for screen-reader support
 - Enforce WCAG 2.1 AA landmarks and live regions across templates
+- Introduced an accessible privacy centre with responsive cards, keyboard navigation, and DSAR callouts
 
 ### API
 - Publish OpenAPI 3.1 specification (`docs/OPENAPI.yaml`)
@@ -44,6 +46,8 @@ All notable changes to this project will be documented in this file. The format 
 - Standalone `init_db.py` bootstraps core schema, seeds a default organisation and Admin role, and applies RLS policies
 - Enforce branch coverage with mutation testing and commit message linting for Conventional Commits
 - Introduced `scripts/index_audit.py` and `DATABASE.md` to track indexing health and RPO/RTO targets
+- Auto-instrument Flask, Celery, SQLAlchemy, Requests, and Redis with OpenTelemetry when exporters are configured
+- `/status` now surfaces live SLO cards with error budget burn tracking and runbook shortcuts
 
 ### Added
 - Gunicorn now respects `WEB_CONCURRENCY`, `GUNICORN_THREADS`, and `GUNICORN_TIMEOUT` environment variables and exports per-worker metrics.
@@ -57,6 +61,11 @@ All notable changes to this project will be documented in this file. The format 
 - Application startup skips role seeding when the `roles` table is missing, preventing migration failures on fresh databases
 - WebAuthn credential storage with row‑level security and PKCE-enabled OAuth login
 - Redis-backed JWT revocation endpoint and passkey-friendly UI script
+- Privacy impact assessment data model, migration, and compliance snapshot builder powering `/privacy`
+
+### Documentation
+- Added `docs/SRE_RUNBOOK.md`, `docs/POSTMORTEM_TEMPLATE.md`, and expanded `docs/observability.md` to cover SLOs, error budgets, and incident response workflows
+- Published `docs/PRIVACY_PROGRAM.md`, `docs/DATA_HANDLING_PROCEDURES.md`, and refreshed `docs/DPIA_TEMPLATE.md` for GDPR/CCPA operations
 
 ## [0.1.0] - 2025-08-28
 - Add PgBouncer deployment manifests

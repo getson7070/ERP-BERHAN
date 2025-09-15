@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from hashlib import sha256
 
 from ..extensions import db
+from .privacy import (
+    AssessmentSummary,
+    PolicyLink,
+    PrivacyFrameworkStatus,
+    PrivacyImpactAssessment,
+    PrivacyProgramSnapshot,
+    UpcomingReview,
+    build_privacy_program_snapshot,
+)
 
 
 class ElectronicSignature(db.Model):  # type: ignore[name-defined]
@@ -73,3 +82,17 @@ class NonConformance(db.Model):  # type: ignore[name-defined]
     status = db.Column(db.String(32), default="open", nullable=False)
 
     batch_record = db.relationship("BatchRecord", backref="non_conformances")
+
+
+__all__ = [
+    "ElectronicSignature",
+    "BatchRecord",
+    "NonConformance",
+    "AssessmentSummary",
+    "PolicyLink",
+    "PrivacyFrameworkStatus",
+    "PrivacyImpactAssessment",
+    "PrivacyProgramSnapshot",
+    "UpcomingReview",
+    "build_privacy_program_snapshot",
+]

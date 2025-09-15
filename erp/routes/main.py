@@ -1,16 +1,19 @@
+from urllib.parse import urljoin, urlparse
+
 from flask import (
     Blueprint,
-    render_template,
-    session,
-    redirect,
-    url_for,
-    request,
     current_app,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
-from urllib.parse import urlparse, urljoin
 from sqlalchemy import text
-from erp.utils import login_required
+
 from db import get_db
+from erp.observability import build_slo_dashboard
+from erp.utils import login_required
 
 bp = Blueprint("main", __name__)
 
@@ -93,7 +96,8 @@ def set_language(lang):
 
 @bp.route("/status")
 def status_page():
-    return render_template("status.html")
+    snapshot = build_slo_dashboard(current_app.config)
+    return render_template("status.html", snapshot=snapshot)
 
 
 @bp.route("/calendar")

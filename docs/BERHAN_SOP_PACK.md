@@ -21,6 +21,7 @@ Official corporate policy repository (restricted access)
 * **ISO 14001:2015** – Environmental management systems — Requirements with guidance for use
 * **ISO 45001:2018** – Occupational health and safety management systems — Requirements with guidance for use
 * **ISO/IEC 27001:2022** – Information security, cybersecurity and privacy protection — Information security management systems — Requirements
+* **ISO/IEC 27701:2019** – Privacy information management — guidance for augmenting the ISMS (see `docs/PRIVACY_PROGRAM.md`).
 * Berhan Pharma [Code of Conduct](../CODE_OF_CONDUCT.md) – expectations for professional conduct and policy compliance
 * **EU MDR 2017/745** & **IVDR 2017/746** (interface), **US FDA QMSR/21 CFR 820** (alignment with ISO 13485), **GCC/SFDA** and other destination‑market requirements
 
