@@ -2,28 +2,45 @@ import io
 import logging
 import os
 import statistics
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from celery import Celery
 from celery.schedules import crontab
 from flask import (
     Blueprint,
     Response,
+    abort,
+    current_app,
     render_template,
     request,
     session,
-    current_app,
 )
-from flask_socketio import emit
+from flask_jwt_extended import decode_token
+from flask_socketio import disconnect, emit
+from jsonschema import ValidationError, validate
+from prometheus_client import Histogram
 from sqlalchemy import create_engine, text
+
+from db import get_db
+from erp import KPI_SALES_MV_AGE, socketio
+from erp.utils import login_required, roles_required, task_idempotent
 
 # Forecasting uses simple averages to avoid heavy ML dependencies.
 
-from db import get_db
-from erp import socketio, KPI_SALES_MV_AGE
-from erp.utils import login_required, roles_required, task_idempotent
 
 bp = Blueprint("analytics", __name__)
+
+WEB_VITALS = Histogram("web_vitals", "Reported Core Web Vitals", ["name"])
+
+VITALS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "lcp": {"type": "number"},
+        "cls": {"type": "number"},
+        "inp": {"type": "number"},
+    },
+    "additionalProperties": False,
+}
 
 celery = Celery(__name__)
 logger = logging.getLogger(__name__)
@@ -201,6 +218,15 @@ def dashboard():
 
 @socketio.on("connect")
 def push_kpis():
+    token = request.args.get("token")
+    if not token:
+        disconnect()
+        return
+    try:
+        decode_token(token)
+    except Exception:
+        disconnect()
+        return
     emit("kpi_update", fetch_kpis(session.get("org_id")))
 
 
@@ -462,8 +488,8 @@ def export_report(fmt):
         ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         ext = "xlsx"
     else:
-        from reportlab.platypus import SimpleDocTemplate, Table
         from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table
 
         out = io.BytesIO()
         doc = SimpleDocTemplate(out, pagesize=letter)
@@ -484,3 +510,16 @@ def detect_anomalies(values):
     mean = statistics.mean(values)
     stdev = statistics.pstdev(values) or 1
     return [v for v in values if abs(v - mean) > 3 * stdev]
+
+
+@bp.route("/analytics/vitals", methods=["POST"])
+def collect_vitals():
+    data = request.get_json(silent=True) or {}
+    try:
+        validate(data, VITALS_SCHEMA)
+    except ValidationError as exc:  # pragma: no cover - simple validation
+        current_app.logger.warning("invalid vitals payload", extra={"error": str(exc)})
+        abort(400, description="invalid payload")
+    for name, value in data.items():
+        WEB_VITALS.labels(name=name).observe(float(value))
+    return "", 204

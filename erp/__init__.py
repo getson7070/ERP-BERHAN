@@ -9,26 +9,20 @@ Flask-Babel for multi-language support.  Blueprints are registered lazily via
 
 import os
 import uuid
-from flask import (
-    Flask,
-    request,
-    session,
-    Response,
-    g,
-    render_template,
-    current_app,
-)
-
-from datetime import datetime, UTC
-from dotenv import load_dotenv
-from flask_talisman import Talisman
-from flask_socketio import SocketIO, join_room, disconnect
-from authlib.integrations.flask_client import OAuth
+from datetime import UTC, datetime
 from typing import Any, Awaitable, cast
 from urllib.parse import parse_qsl
 
+from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+from flask import Flask, Response, current_app, g, render_template, request, session
+from flask_compress import Compress
+from flask_socketio import SocketIO, disconnect, join_room
+from flask_talisman import Talisman
+
 try:
-    from flask_babel import Babel, get_locale, gettext as _
+    from flask_babel import Babel, get_locale
+    from flask_babel import gettext as _
 except Exception:  # pragma: no cover - optional dependency fallback
 
     class Babel:  # type: ignore[override, no-redef]
@@ -42,35 +36,37 @@ except Exception:  # pragma: no cover - optional dependency fallback
         return text
 
 
-from celery import Celery, signals
+import json
 import logging
 import logging.config
 import time
-import json
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-    CollectorRegistry,
-    REGISTRY,
-)
-from prometheus_client import multiprocess
+
+import bleach  # type: ignore[import-untyped]
+import sentry_sdk
+from celery import Celery, signals
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-import sentry_sdk
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
 from sentry_sdk.integrations.flask import FlaskIntegration
-import bleach  # type: ignore[import-untyped]
-from erp.plugins import load_plugins
-from .cache import init_cache
-from .extensions import db
+from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from config import Config
 from db import get_db, redis_client
-from sqlalchemy import inspect
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from erp.plugins import load_plugins
+
+from .cache import init_cache
+from .extensions import db
 
 load_dotenv()
 
@@ -116,6 +112,7 @@ celery = Celery(__name__)
 limiter = Limiter(key_func=rate_limit_key)
 csrf = CSRFProtect()
 talisman = Talisman()
+compress = Compress()
 
 
 @celery.task(name="erp.log_access")
@@ -219,6 +216,17 @@ OLAP_EXPORT_SUCCESS = Counter(
     "olap_export_success_total",
     "Number of successful OLAP exports",
 )
+APDEX_THRESHOLD = float(os.environ.get("APDEX_T", "0.5"))
+APDEX_SATISFIED = Counter(
+    "apdex_satisfied_total", "Requests with latency <= threshold/2"
+)
+APDEX_TOLERATING = Counter(
+    "apdex_tolerating_total", "Requests with latency <= threshold"
+)
+APDEX_FRUSTRATED = Counter(
+    "apdex_frustrated_total", "Requests with latency > threshold"
+)
+APDEX_SCORE = Gauge("apdex_score", "Current Apdex score")
 
 
 def create_app():
@@ -271,11 +279,12 @@ def create_app():
     oauth.init_app(app)
     db.init_app(app)
     init_cache(app)
+    compress.init_app(app)
     csrf.init_app(app)
-    from .app import (
-        register_blueprints,
+    from .app import (  # deferred to avoid circular import
         init_security,
-    )  # deferred to avoid circular import
+        register_blueprints,
+    )
 
     user_datastore = init_security(app)
     init_celery(app)
@@ -336,6 +345,14 @@ def create_app():
             "camera": "()",
         },
     )
+
+    @app.after_request
+    def add_cache_headers(response: Response) -> Response:
+        if request.endpoint == "static":
+            response.headers.setdefault(
+                "Cache-Control", "public, max-age=31536000, immutable"
+            )
+        return response
 
     @app.after_request
     def _set_coop_coep(response: Response) -> Response:
@@ -442,7 +459,24 @@ def create_app():
         endpoint = request.endpoint or "unknown"
         start = getattr(g, "start_time", None)
         if start is not None:
-            REQUEST_LATENCY.labels(endpoint).observe(time.time() - start)
+            duration = time.time() - start
+            REQUEST_LATENCY.labels(endpoint).observe(duration)
+            if duration <= APDEX_THRESHOLD / 2:
+                APDEX_SATISFIED.inc()
+            elif duration <= APDEX_THRESHOLD:
+                APDEX_TOLERATING.inc()
+            else:
+                APDEX_FRUSTRATED.inc()
+            total = (
+                APDEX_SATISFIED._value.get()
+                + APDEX_TOLERATING._value.get()
+                + APDEX_FRUSTRATED._value.get()
+            )
+            if total:
+                score = (
+                    APDEX_SATISFIED._value.get() + 0.5 * APDEX_TOLERATING._value.get()
+                ) / total
+                APDEX_SCORE.set(score)
         REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
         if response.status_code == 429:
             RATE_LIMIT_REJECTIONS.inc()

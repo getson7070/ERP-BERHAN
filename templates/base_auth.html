@@ -12,4 +12,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/webauthn.js') }}" defer></script>
+{% endblock %}

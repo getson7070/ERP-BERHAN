@@ -19,12 +19,15 @@ flask_talisman
 flask_socketio
 flask-security-too
 flask_jwt_extended
+webauthn
 flask-babel
 flask-wtf
 flask-limiter
 flask-caching
+flask-compress
 bleach
 beautifulsoup4
+jsonschema>=4.25
 
 # Data and ML utilities
 numpy

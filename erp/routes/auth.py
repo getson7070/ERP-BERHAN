@@ -1,50 +1,57 @@
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    session,
-    flash,
-    current_app,
-    jsonify,
-)
-from flask_wtf import FlaskForm
-from wtforms import (
-    StringField,
-    PasswordField,
-    SubmitField,
-    SelectField,
-    DateField,
-    FloatField,
-    SelectMultipleField,
-)
-from wtforms.validators import DataRequired, Length, NumberRange
-from datetime import datetime, timedelta
-import pyotp
 import json
 import secrets
+from datetime import datetime, timedelta
 from typing import cast
+
+import pyotp
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
-    jwt_required,
-    get_jwt_identity,
-    get_jwt,
     decode_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
 )
-
+from flask_wtf import FlaskForm
 from sqlalchemy import text
-from db import get_db, redis_client
-from erp.utils import (
-    hash_password,
-    verify_password,
-    login_required,
-    has_permission,
-    roles_required,
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
 )
+from wtforms import (
+    DateField,
+    FloatField,
+    PasswordField,
+    SelectField,
+    SelectMultipleField,
+    StringField,
+    SubmitField,
+)
+from wtforms.validators import DataRequired, Length, NumberRange
+
+from db import get_db, redis_client
+from erp import limiter, oauth
 from erp.audit import log_audit
-from erp import oauth, limiter
+from erp.utils import (
+    has_permission,
+    hash_password,
+    login_required,
+    roles_required,
+    verify_password,
+)
 
 bp = Blueprint("auth", __name__)
 
@@ -194,6 +201,16 @@ def refresh_token():
     return {"access_token": access, "refresh_token": refresh}
 
 
+@bp.post("/auth/revoke")
+@jwt_required()
+def revoke_token():
+    """Revoke the current JWT by storing its jti in Redis."""
+    jti = get_jwt()["jti"]
+    ttl = current_app.config.get("JWT_REVOCATION_TTL", 3600)
+    redis_client.setex(f"revoked:{jti}", ttl, 1)
+    return "", 204
+
+
 @bp.post("/auth/socket-token")
 @login_required
 def socket_token():
@@ -232,7 +249,7 @@ def choose_login():
 @bp.route("/oauth_login")
 def oauth_login():
     redirect_uri = url_for("auth.oauth_callback", _external=True)
-    return oauth.sso.authorize_redirect(redirect_uri)
+    return oauth.sso.authorize_redirect(redirect_uri, code_challenge_method="S256")
 
 
 @bp.route("/oauth_callback")
@@ -681,3 +698,103 @@ def employee_registration():
         conn.close()
         return redirect(url_for("main.dashboard"))
     return render_template("employee_registration.html", form=form)
+
+
+@bp.get("/auth/webauthn/register")
+@login_required
+def webauthn_register_begin():
+    """Start WebAuthn registration for the logged-in user."""
+    user_id = session.get("user_id")
+    email = session.get("email")
+    options = generate_registration_options(
+        rp_id=current_app.config["WEBAUTHN_RP_ID"],
+        rp_name=current_app.config["WEBAUTHN_RP_NAME"],
+        user_id=str(user_id),
+        user_name=email or str(user_id),
+    )
+    session["webauthn_reg"] = options.model_dump()
+    return jsonify(options.model_dump())
+
+
+@bp.post("/auth/webauthn/register")
+@login_required
+def webauthn_register_verify():
+    data = request.get_json()
+    opts = session.pop("webauthn_reg", None)
+    if not opts:
+        return {"error": "challenge_expired"}, 400
+    verification = verify_registration_response(
+        credential=data,
+        expected_challenge=opts["challenge"],
+        expected_rp_id=current_app.config["WEBAUTHN_RP_ID"],
+        expected_origin=current_app.config.get("WEBAUTHN_ORIGIN"),
+    )
+    conn = get_db()
+    conn.execute(
+        text(
+            """
+            INSERT INTO webauthn_credentials (user_id, org_id, credential_id, public_key, sign_count)
+            VALUES (:uid, :org, :cid, :pk, :sc)
+            ON CONFLICT (credential_id) DO NOTHING
+            """
+        ),
+        {
+            "uid": session.get("user_id"),
+            "org": session.get("org_id"),
+            "cid": verification.credential_id,
+            "pk": verification.credential_public_key,
+            "sc": verification.sign_count,
+        },
+    )
+    conn.commit()
+    return "", 204
+
+
+@bp.get("/auth/webauthn/login")
+def webauthn_login_begin():
+    """Begin WebAuthn authentication."""
+    options = generate_authentication_options(
+        rp_id=current_app.config["WEBAUTHN_RP_ID"]
+    )
+    session["webauthn_auth"] = options.model_dump()
+    return jsonify(options.model_dump())
+
+
+@bp.post("/auth/webauthn/login")
+def webauthn_login_verify():
+    data = request.get_json()
+    opts = session.pop("webauthn_auth", None)
+    if not opts:
+        return {"error": "challenge_expired"}, 400
+    credential_id = data.get("id")
+    conn = get_db()
+    cur = conn.execute(
+        text(
+            "SELECT user_id, org_id, public_key, sign_count FROM webauthn_credentials WHERE credential_id = :cid"
+        ),
+        {"cid": credential_id},
+    )
+    cred = cur.fetchone()
+    if cred is None:
+        return {"error": "unknown_credential"}, 404
+    verification = verify_authentication_response(
+        credential=data,
+        expected_challenge=opts["challenge"],
+        expected_rp_id=current_app.config["WEBAUTHN_RP_ID"],
+        expected_origin=current_app.config.get("WEBAUTHN_ORIGIN"),
+        credential_public_key=cred["public_key"],
+        credential_current_sign_count=cred["sign_count"],
+    )
+    conn.execute(
+        text(
+            "UPDATE webauthn_credentials SET sign_count = :sc WHERE credential_id = :cid"
+        ),
+        {"sc": verification.new_sign_count or cred["sign_count"], "cid": credential_id},
+    )
+    conn.commit()
+    access = create_access_token(
+        identity=cred["user_id"],
+        additional_claims={"org_id": cred["org_id"]},
+        additional_headers={"kid": current_app.config.get("JWT_SECRET_ID", "v1")},  # type: ignore[call-arg]
+    )
+    return jsonify(token=access)

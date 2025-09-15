@@ -23,4 +23,5 @@
 </form>
 <a href="{{ url_for('main.index') }}" class="btn btn-secondary w-100 mt-2">{{ _('Back') }}</a>
 <a href="{{ url_for('auth.oauth_login') }}" class="btn btn-outline-primary w-100 mt-2">{{ _('Login with SSO') }}</a>
+<button type="button" id="webauthn-login" class="btn btn-outline-secondary w-100 mt-2">{{ _('Login with Passkey') }}</button>
 {% endblock %}

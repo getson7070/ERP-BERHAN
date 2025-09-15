@@ -15,4 +15,4 @@ This module introduces basic primitives for FDA 21 CFR Part 11 and GMP workflows
 
 Endpoints are exposed under `/api/compliance/*` and require authenticated users with the `auditor` role.
 
-See [berhan_sop_pack.md](berhan_sop_pack.md) for the full master SOP template and priority GDP/QMS procedures that underpin these compliance features, and consult the [Code of Conduct](../code_of_conduct.md) for overarching policy requirements.
+See [BERHAN_SOP_PACK.md](BERHAN_SOP_PACK.md) for the full master SOP template and priority GDP/QMS procedures that underpin these compliance features, and consult the [Code of Conduct](../CODE_OF_CONDUCT.md) for overarching policy requirements.

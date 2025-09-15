@@ -20,7 +20,7 @@
     {% block navbar %}{% include 'partials/navbar.html' %}{% endblock %}
     {% include 'partials/messages.html' %}
     {% block breadcrumbs %}{% include 'partials/breadcrumbs.html' %}{% endblock %}
-    <main id="main-content" class="container-fluid py-4">
+    <main id="main-content" class="container-fluid py-4" role="main">
         <h1 class="visually-hidden">{{ _('BERHAN ERP') }}</h1>
         {% block body %}{% block content %}{% endblock %}{% endblock %}
     </main>
@@ -94,6 +94,8 @@
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/async.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/web-vitals.iife.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/vitals.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

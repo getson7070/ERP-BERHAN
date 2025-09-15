@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: ERP-BERHAN API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /analytics/vitals:
+    post:
+      summary: Collect Core Web Vitals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vitals'
+      responses:
+        '204':
+          description: Accepted
+  /webhooks/notify:
+    post:
+      summary: Receive signed webhook notifications
+      security:
+        - webhookSig: []
+      responses:
+        '204':
+          description: Accepted
+  /ws/kpis:
+    get:
+      summary: KPI realtime updates via WebSocket
+      description: Connect with a JWT token query parameter.
+      responses:
+        '101':
+          description: Switching Protocols
+components:
+  securitySchemes:
+    webhookSig:
+      type: apiKey
+      in: header
+      name: X-Signature
+  schemas:
+    Vitals:
+      type: object
+      properties:
+        lcp:
+          type: number
+        cls:
+          type: number
+        inp:
+          type: number
+      additionalProperties: false

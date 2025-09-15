@@ -19,11 +19,13 @@ from typing import Iterable
 
 import pyotp
 from flask import Blueprint, current_app
-from flask_security import Security, SQLAlchemyUserDatastore
 from flask_jwt_extended import JWTManager, create_access_token
+from flask_security import Security, SQLAlchemyUserDatastore
+
+from db import redis_client
 
 from .extensions import db
-from .models import User, Role
+from .models import Role, User
 
 security = Security()
 jwt = JWTManager()
@@ -56,6 +58,11 @@ def init_security(app):
     user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, datastore=user_datastore)
     jwt.init_app(app)
+
+    @jwt.token_in_blocklist_loader
+    def _check_revoked(_, payload):
+        jti = payload.get("jti")
+        return redis_client.get(f"revoked:{jti}") is not None
 
     @jwt.encode_key_loader
     def _encode_key(_: str) -> str:

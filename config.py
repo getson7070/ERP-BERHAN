@@ -37,6 +37,8 @@ class Config:
     SESSION_LIFETIME_MINUTES = int(os.environ.get("SESSION_LIFETIME_MINUTES", "30"))
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=SESSION_LIFETIME_MINUTES)
     WTF_CSRF_TIME_LIMIT = None
+    USE_ETAGS = True
+    SEND_FILE_MAX_AGE_DEFAULT = 31536000
 
     ARGON2_TIME_COST = int(os.environ.get("ARGON2_TIME_COST", "3"))
     ARGON2_MEMORY_COST = int(os.environ.get("ARGON2_MEMORY_COST", "65536"))
@@ -89,6 +91,12 @@ class Config:
     MFA_PROVIDER = os.environ.get("MFA_PROVIDER", "totp")
     # Issuer name for MFA tokens (used by authenticator apps)
     MFA_ISSUER = os.environ.get("MFA_ISSUER", "ERP-BERHAN")
+    # WebAuthn relying party configuration
+    WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "localhost")
+    WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "ERP-BERHAN")
+    WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN")
+    # Time in seconds to retain revoked JWT IDs
+    JWT_REVOCATION_TTL = int(os.environ.get("JWT_REVOCATION_TTL", "3600"))
     # Enable sandboxing for plugins to isolate third-party extensions
     PLUGIN_SANDBOX_ENABLED = (
         os.environ.get("PLUGIN_SANDBOX_ENABLED", "False").lower() == "true"

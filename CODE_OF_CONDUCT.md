@@ -14,7 +14,7 @@ Examples of behavior that contributes to a positive environment include:
 ## Enforcement Responsibilities
 
 Project maintainers are responsible for clarifying and enforcing our standards of acceptable behavior.
-Adherence to the corporate procedures in the [SOP pack](docs/berhan_sop_pack.md) is expected, and RACI tables within each SOP outline roles for policy compliance.
+Adherence to the corporate procedures in the [SOP pack](docs/BERHAN_SOP_PACK.md) is expected, and RACI tables within each SOP outline roles for policy compliance.
 
 ## Reporting
 
