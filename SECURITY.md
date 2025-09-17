@@ -31,3 +31,43 @@ Thank you for helping keep BERHAN PHARMA secure.
   - audit trail documenting usage and confirming removal prior to production enablement.
 - **Dependency policy**: pinned requirements in `requirements.lock`; pip-audit and Trivy enforce zero high/medium vulnerabilities.
 - **CSRF**: Flask-WTF provides global CSRF protection for form submissions.
+
+## Additional Security Policies
+
+### Incident Response
+
+For detailed incident response procedures including roles, communication templates, severity levels and triage flowcharts, refer to the [Incident Response Playbooks](docs/incident_response/README.md).
+
+### TLS/mTLS Policy
+
+- **TLS version**: Only TLS 1.2 or higher is permitted. Legacy protocols (TLS 1.1/1.0, SSL) are disabled.
+- **Cipher suites**: Use modern cipher suites that provide forward secrecy (e.g., `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` and `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`).
+- **HSTS**: HTTP Strict Transport Security is enabled with a max-age of at least one year (`max-age=31536000; includeSubDomains; preload`).
+- **Mutual TLS (mTLS)**: Internal services and webhooks require mutual TLS authentication where feasible to ensure both client and server identity. Certificates are issued via the organization’s CA and rotated regularly.
+
+### Email Authentication
+
+To prevent email spoofing and improve deliverability, configure DNS records as follows:
+
+- **SPF (Sender Policy Framework)**: Publish a SPF record (`v=spf1 include:spf.protection.outlook.com -all`) authorizing your sending IPs and reject unauthenticated sources.
+- **DKIM (DomainKeys Identified Mail)**: Generate at least two 2048‑bit DKIM keys and add corresponding `TXT` records. Keys should be rotated annually.
+- **DMARC (Domain-based Message Authentication, Reporting & Conformance)**: Enforce a reject policy with aggregated and forensic reporting:
+
+  ```
+  v=DMARC1; p=reject; rua=mailto:dmarc-aggregate@example.com; ruf=mailto:dmarc-forensics@example.com; pct=100
+  ```
+
+### Mapping to OWASP ASVS and NIST 800‑53
+
+The controls implemented in this repository trace to the OWASP Application Security Verification Standard (ASVS) and NIST SP 800‑53 families. A high‑level mapping is provided below:
+
+| Control Area | OWASP ASVS Section | NIST 800‑53 Control |
+| --- | --- | --- |
+| Access control / RBAC | V2 – Authentication and session management | AC‑2, AC‑3 |
+| Input validation & encoding | V5 – Validation, sanitization and encoding | SI‑10 |
+| Secrets management & encryption | V10 – Communications security | SC‑12, SC‑13 |
+| Logging & monitoring | V10 – Logging and monitoring | AU‑2, AU‑6 |
+| Software supply chain | V14 – Dependency management | SA‑12 |
+| Incident response | V1 – Security architecture requirements | IR‑4, IR‑5 |
+
+This mapping is maintained in `docs/security/system_security_updates.md` and will be refined as additional controls are implemented.
