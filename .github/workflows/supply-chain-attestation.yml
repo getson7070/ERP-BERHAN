@@ -13,8 +13,13 @@ permissions:
   id-token: write
 
 jobs:
-  build-sign-attest:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      image_digest: ${{ steps.build-image.outputs.digest }}
+      image_ref: ${{ steps.build-image.outputs.image_ref }}
+      image_repository: ${{ steps.build-image.outputs.image_repository }}
+      sha_tag: ${{ steps.build-image.outputs.sha_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -32,47 +37,101 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build container image with provenance
+      - name: Build and push container image
+        id: build-image
         run: |
-          docker build \
-            --provenance=true \
-            --tag ghcr.io/${{ github.repository }}:${{ github.sha }} \
+          set -euo pipefail
+          IMAGE_REPOSITORY="ghcr.io/${{ github.repository }}"
+          SHA_TAG="${IMAGE_REPOSITORY}:${{ github.sha }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --tag "${SHA_TAG}" \
+            --tag "${IMAGE_REPOSITORY}:latest" \
+            --metadata-file build-metadata.json \
             .
+
+          DIGEST=$(jq -r '."containerimage.digest" // .containerimage.digest // empty' build-metadata.json)
+          if [ -z "$DIGEST" ] || [ "$DIGEST" = "null" ]; then
+            DIGEST=$(docker buildx imagetools inspect "${SHA_TAG}" | grep -m1 Digest | awk '{print $2}')
+          fi
+
+          if [ -z "$DIGEST" ] || [ "$DIGEST" = "null" ]; then
+            echo "Failed to determine image digest" >&2
+            exit 1
+          fi
+
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE_REPOSITORY}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image_repository=${IMAGE_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+          echo "Captured build metadata:"
+          cat build-metadata.json
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'v2.2.2'
 
-      - name: Generate cosign key pair if not present
+      - name: Authenticate cosign to ghcr.io
+        env:
+          COSIGN_EXPERIMENTAL: "true"
         run: |
-          if [ ! -f cosign.key ]; then
-            cosign generate-key-pair \
-              --output-key cosign.key \
-              --output-pub cosign.pub \
-              --yes;
-          fi
+          echo "${{ secrets.GITHUB_TOKEN }}" | cosign login ghcr.io --username "${{ github.actor }}" --password-stdin
 
-      - name: Sign container image
+      - name: Sign container image (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
         run: |
           cosign sign \
-            --key cosign.key \
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            --keyless \
+            --yes \
+            ${{ steps.build-image.outputs.image_ref }}
 
-      - name: Generate SLSA provenance predicate
-        run: |
-          echo '{}' > slsa-provenance.json
+  generate-provenance:
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+      packages: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ needs.build.outputs.image_repository }}
+      digest: ${{ needs.build.outputs.image_digest }}
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+      private-repository: ${{ github.event.repository.private }}
 
-      - name: Generate SLSA provenance attestation
-        run: |
-          cosign attest \
-            --predicate slsa-provenance.json \
-            --type slsaprovenance \
-            --key cosign.key \
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-
-      - name: Upload attestation artifact
-        uses: actions/upload-artifact@v3
+  verify-attestation:
+    needs:
+      - build
+      - generate-provenance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
         with:
-          name: supply-chain-attestation
-          path: slsa-provenance.json
+          cosign-release: 'v2.2.2'
+
+      - name: Authenticate cosign to ghcr.io
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | cosign login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Verify published SLSA attestation
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign verify-attestation \
+            --keyless \
+            --type slsaprovenance \
+            --certificate-identity "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2.1.0" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ${{ needs.build.outputs.image_ref }}

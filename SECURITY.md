@@ -31,4 +31,5 @@ Thank you for helping keep BERHAN PHARMA secure.
   - tokens rotated or revoked immediately after the authorized automation workflow completes and at least daily during the exception window;
   - audit trail documenting usage and confirming removal prior to production enablement.
 - **Dependency policy**: pinned requirements in `requirements.lock`; pip-audit and Trivy enforce zero high/medium vulnerabilities.
+- **Supply chain verification**: container images in GHCR are signed with Sigstore keyless identities and ship with SLSA Level 3 provenance. Follow `docs/security/supply_chain.md` to verify signatures and provenance before promoting a release artifact.
 - **CSRF**: Flask-WTF provides global CSRF protection for form submissions.
