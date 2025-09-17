@@ -24,9 +24,9 @@ spec:
                 name: erp-berhan
                 port:
                   number: 80
-
-
-    tls:
-    - hosts:
-        - erp.example.com
+  
+  
+      tls:
+        - hosts:
+          - erp.example.com
           secretName: erp-berhan-tls  
