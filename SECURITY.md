@@ -1,9 +1,3 @@
-# Security Policy
-
-This project follows the BERHAN Pharma Information Security Policy and implements controls consistent with ISO/IEC 27001. A mapping of ERP features to corporate policy pillars is maintained in [docs/CORPORATE_POLICY_ALIGNMENT.md](docs/CORPORATE_POLICY_ALIGNMENT.md). Planned hardening tasks and CI gate expansions are outlined in [docs/audit_roadmap.md](docs/audit_roadmap.md).
-
-## Supported Versions
-
 | Version | Supported |
 | ------- | --------- |
 | 0.1.x   | ✅ |
@@ -29,6 +23,11 @@ Thank you for helping keep BERHAN PHARMA secure.
 - **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
 - **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy with nonces on inline scripts and HTTP Strict Transport Security globally, with health checks opting out for probes.
 - **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early. All scanners (gitleaks, Bandit, pip-audit, Trivy, ZAP) fail the build on critical findings.
-- **Secrets management**: all secrets are sourced from environment variables or the secret manager; no plaintext tokens are committed.
+- **Secrets management**: all secrets are sourced from environment variables or the secret manager; no plaintext tokens are committed outside of explicitly approved exceptions.
+- **Temporary development exception**: while the product remains in active development and prior to the production launch sign-off, the security steering group may grant a time-boxed exception allowing ephemeral tokens (for example, Git personal access tokens) to reside in local tooling such as Git remote configurations. The following controls are mandatory:
+  - approval recorded in the security exception register with an explicit expiry date tied to the production go-live decision;
+  - tokens scoped to the minimum repository permissions and stored only in the local `.git/config` (never committed, shared, or pushed to remote state);
+  - tokens rotated or revoked immediately after the authorized automation workflow completes and at least daily during the exception window;
+  - audit trail documenting usage and confirming removal prior to production enablement.
 - **Dependency policy**: pinned requirements in `requirements.lock`; pip-audit and Trivy enforce zero high/medium vulnerabilities.
 - **CSRF**: Flask-WTF provides global CSRF protection for form submissions.
