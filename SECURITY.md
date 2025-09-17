@@ -61,6 +61,7 @@ To prevent email spoofing and improve deliverability, configure DNS records as f
 
 ### Mapping to OWASP ASVS and NIST 800‑53
 
+    
 The controls implemented in this repository trace to the OWASP Application Security Verification Standard (ASVS) and NIST SP 800‑53 families. A high‑level mapping is provided below:
 
 | Control Area | OWASP ASVS Section | NIST 800‑53 Control |
@@ -73,3 +74,15 @@ The controls implemented in this repository trace to the OWASP Application Secur
 | Incident response | V1 – Security architecture requirements | IR‑4, IR‑5 |
 
 This mapping is maintained in `docs/security/system_security_updates.md` and will be refined as additional controls are implemented.
+
+### Automated Agent (Codex) Access & Controls
+
+To streamline code updates from our AI-based automated agent (Codex), the repository permits limited direct push access to the `main` branch under tightly controlled conditions. This policy complements the detailed guidelines in `docs/agents.md`.
+
+- **Dedicated machine account**: Codex uses a dedicated GitHub machine user (e.g., `codex-bot`) with the least-privilege Personal Access Token (PAT) scoped to repository write access. This token must be stored in a secure secrets manager and rotated every 90 days.
+- **Authentication and attribution**: The agent configures Git author and committer information (e.g., `Codex Bot <codex-bot@example.com>`) and uses a remote URL that embeds the PAT (`https://<token>@github.com/getson7070/ERP-BERHAN.git`) to authenticate pushes. Commits are signed and follow Conventional Commits.
+- **Safe commit and push process**: Before pushing, the agent runs all unit tests, lint/type checks, and security scans. Direct pushes to `main` are allowed only when these quality gates succeed; otherwise the push fails.
+- **Monitoring and revocation**: All automated actions are logged; SLSA attestations and commit signatures provide tamper‑evidence. Administrators regularly audit bot activity and can revoke or rotate tokens if suspicious behaviour is detected.
+- **No secrets in code**: The agent must never output or commit secrets. All credentials are injected via environment variables at runtime, and secrets are removed from logs.
+
+This section documents the additional security considerations required to allow a non-human agent to interact with the repository while preserving integrity and auditability.
