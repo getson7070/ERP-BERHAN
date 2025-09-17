@@ -268,7 +268,7 @@ Incident severity matrix, escalation contacts, communications template.
 
 12) Delivery & Change Control
 
-PR-only (direct pushes to main when eexplictly requested); branch protection requires all checks + code review.
+PR-only (except direct pushes to main when explictly requested); branch protection requires all checks + code review.
 
 Signed commits/images; release notes per change; version prompts/templates alongside code.
 
