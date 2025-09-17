@@ -51,13 +51,17 @@ For detailed incident response procedures including roles, communication templat
 
 To prevent email spoofing and improve deliverability, configure DNS records as follows:
 
-- **SPF (Sender Policy Framework)**: Publish a SPF record (`v=spf1 include:spf.protection.outlook.com -all`) authorizing your sending IPs and reject unauthenticated sources.
+- SPF (Sender Policy Framework)**: Publish a SPF record (`v=spf1 include:spf.protection.outlook.com -all`) authorizing your sending IPs and reject unauthenticated sources.
 - **DKIM (DomainKeys Identified Mail)**: Generate at least two 2048‑bit DKIM keys and add corresponding `TXT` records. Keys should be rotated annually.
 - **DMARC (Domain-based Message Authentication, Reporting & Conformance)**: Enforce a reject policy with aggregated and forensic reporting:
 
-  ```
+  
   v=DMARC1; p=reject; rua=mailto:dmarc-aggregate@example.com; ruf=mailto:dmarc-forensics@example.com; pct=100
   ```
+
+
+
+
 
 ### Mapping to OWASP ASVS and NIST 800‑53
 
