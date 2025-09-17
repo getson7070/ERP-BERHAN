@@ -27,7 +27,7 @@ Safety by default: input sanitation, rate limits, lockouts, HITL gates, GraphQL 
 
 Idempotency & replayability: idempotency keys; bounded retries; DLQ + safe replay.
 
-Repeatable delivery: PR-only merges; CI gates must pass; signed artifacts; documented runbooks.
+Repeatable delivery: PR merges; CI gates must pass; signed artifacts; documented runbooks.
 
 Observability: metrics, tracing, dashboards/status page; SLOs with alerts.
 
@@ -268,7 +268,7 @@ Incident severity matrix, escalation contacts, communications template.
 
 12) Delivery & Change Control
 
-PR-only (no direct pushes to main); branch protection requires all checks + code review.
+PR-only (direct pushes to main when eexplictly requested); branch protection requires all checks + code review.
 
 Signed commits/images; release notes per change; version prompts/templates alongside code.
 
