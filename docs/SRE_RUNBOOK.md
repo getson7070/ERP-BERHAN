@@ -19,6 +19,21 @@ Escalate immediately if the burn rate exceeds **2×** for 15 consecutive minutes
 - **Comms Lead:** manages stakeholder messaging (internal/external) using pre-approved templates.
 - **Scribe:** documents actions and decisions, opens the postmortem issue, tracks follow-ups.
 
+## Control Alignment (NIST 800-53)
+- **IR-4 / IR-5 – Incident Handling & Monitoring:** Follow the procedures below and record actions in the [postmortem template](POSTMORTEM_TEMPLATE.md). All drill evidence, including the automated restore exercises, is archived in [`logs/restore_drill.log`](../logs/restore_drill.log) with supporting CSV exports from [`scripts/dr_drill.py`](../scripts/dr_drill.py).
+- **IR-6 – Incident Reporting:** The communications cadence uses templates in `docs/incident_response/` to ensure consistent notifications and regulator outreach when required.
+- **CP-2 / CP-4 – Contingency Planning & Testing:** Disaster recovery drills executed by the SRE team are logged above and summarized in [docs/dr_plan.md](dr_plan.md). Completion of each drill is reviewed during the weekly SRE sync and referenced in audit packages.
+
+### Threat Modeling and IR Controls
+- Map emergent threats to mitigations before mitigation work begins; reference the ASVS matrix and [control matrix](control_matrix.md) when selecting controls. The threat modeling checklist satisfies **PM-11** and supports **IR-4** readiness.
+- Ensure incident tickets identify affected OWASP ASVS requirements and corresponding NIST identifiers. The IC is responsible for capturing this mapping in the timeline and ensuring the Scribe uploads artifacts to the evidence repository.
+- Link the final postmortem to drill output such as [`logs/restore_drill.log`](../logs/restore_drill.log) and metrics snapshots stored alongside the incident ID in the audit bucket.
+
+### Session Management Controls
+- Token issuance, refresh, and revocation are implemented in `erp/routes/auth.py` and `erp/utils.py`. These flows enforce MFA and revocation consistent with **IA-5** and **AC-12**.
+- Redis-backed lockouts and JWT revocation lists are exercised by `tests/test_lockout.py::test_lockout_and_unlock` and `tests/test_auth_queries.py::test_issue_token`. The IC should verify these automated checks remain green after mitigation and note the outcome in the postmortem under the NIST control references.
+- Session management evidence (revocation exports, lockout screenshots) must be attached to the incident record when controls are tested during response.
+
 ## Detection & Paging
 1. Alerts originate from Prometheus, OpenTelemetry exporters, or synthetic monitors.
 2. PagerDuty routing policies target the on-call rotation. Secondary notification via Slack `#incidents` channel.

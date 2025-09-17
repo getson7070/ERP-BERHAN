@@ -9,6 +9,8 @@ Use this template for every Sev1/Sev2 incident within 24 hours of resolution.
 - **Severity:**
 - **Customer Impact:**
 - **Detected By:**
+- **NIST 800-53 Controls Engaged:**
+- **Linked Evidence:** (e.g., logs/restore_drill.log entry, dashboards, comms templates)
 
 ## 2. Timeline
 | Time (UTC) | Event | Owner |
@@ -50,6 +52,7 @@ List concrete actions with owners and due dates.
 - Update runbooks/playbooks:
 - Update monitoring/alerts:
 - Required compliance notifications:
+- Update NIST/ASVS traceability entry (Y/N, reference ID):
 
 ## 8. Lessons Learned
 - What went well:
@@ -65,4 +68,4 @@ List concrete actions with owners and due dates.
 ## Appendix
 - Related OTEL trace IDs:
 - Links to dashboards/queries:
-- Attachments/log bundles:
+- Attachments/log bundles (include drill references, e.g., `logs/restore_drill.log` line numbers):

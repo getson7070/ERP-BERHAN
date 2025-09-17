@@ -1,6 +1,6 @@
 # Incident Response Playbook
 
-This directory contains the organization's incident response (IR) playbooks. These documents define roles and responsibilities, communication templates, severity classifications and triage procedures used when responding to security and reliability incidents.
+This directory contains the organization's incident response (IR) playbooks. These documents define roles and responsibilities, communication templates, severity classifications and triage procedures used when responding to security and reliability incidents. Each asset aligns to NIST 800-53 IR controls and references the evidence locations required for audits (for example, [`logs/restore_drill.log`](../../logs/restore_drill.log) and the ASVS traceability matrix).
 
 ## Contents
 

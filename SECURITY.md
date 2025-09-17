@@ -23,6 +23,7 @@ Thank you for helping keep BERHAN PHARMA secure.
 - **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
 - **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy with nonces on inline scripts and HTTP Strict Transport Security globally, with health checks opting out for probes.
 - **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early. All scanners (gitleaks, Bandit, pip-audit, Trivy, ZAP) fail the build on critical findings.
+- **ASVS traceability**: run `python scripts/verify_asvs.py` locally before opening a pull request to ensure every OWASP ASVS requirement maps to code, tests, or runbooks. The CI pipeline runs the same check after blueprint validation.
 - **Secrets management**: all secrets are sourced from environment variables or the secret manager; no plaintext tokens are committed outside of explicitly approved exceptions.
 - **Temporary development exception**: while the product remains in active development and prior to the production launch sign-off, the security steering group may grant a time-boxed exception allowing ephemeral tokens (for example, Git personal access tokens) to reside in local tooling such as Git remote configurations. The following controls are mandatory:
   - approval recorded in the security exception register with an explicit expiry date tied to the production go-live decision;

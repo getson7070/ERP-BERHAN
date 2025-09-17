@@ -58,6 +58,8 @@ jobs:
           retention-days: 30
       - name: Blueprint validation
         run: python scripts/check_blueprints.py
+      - name: Verify ASVS coverage
+        run: python scripts/verify_asvs.py
       - name: Migration smoke test
         run: python scripts/migration_smoke.py | tee migration-time.txt
       - name: Upload migration timing
