@@ -3,7 +3,7 @@ name = "erp-berhan"
 version = "0.1.0"
 description = "ERP-BERHAN platform"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = { file = "license" }
 
 [tool.black]

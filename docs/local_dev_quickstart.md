@@ -3,7 +3,7 @@
 This quickstart bootstraps a secure ERP-BERHAN dev environment that mirrors production controls.
 
 ## Prerequisites
-- Python 3.11+
+- Python 3.11–3.13 (CPython, tested)
 - Docker (for PostgreSQL and Redis)
 - Git and GPG configured for signed commits
 

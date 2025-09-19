@@ -3,7 +3,12 @@ from datetime import timedelta
 
 from erp.secrets import get_secret
 
-APP_ENV = os.environ.get("APP_ENV", "production").lower()
+_raw_app_env = os.environ.get("APP_ENV", "development")
+# Normalise the environment name while ensuring an unset/blank value
+# resolves to ``development``. Production deployments must therefore set
+# ``APP_ENV=production`` explicitly which keeps the hardening checks
+# below intact without breaking local development or the test suite.
+APP_ENV = (_raw_app_env or "development").strip().lower()
 
 
 class Config:

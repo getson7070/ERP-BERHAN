@@ -334,7 +334,9 @@ def configure_opentelemetry(app, db) -> None:
                 "OTEL_SERVICE_INSTANCE_ID",
                 os.environ.get("HOSTNAME", str(uuid.uuid4())),
             ),
-            "deployment.environment": os.environ.get("APP_ENV", "production"),
+            "deployment.environment": (
+                (os.environ.get("APP_ENV") or "development").strip().lower()
+            ),
             SERVICE_VERSION: app.config.get(
                 "RELEASE_VERSION",
                 os.environ.get("RELEASE_VERSION", "dev"),

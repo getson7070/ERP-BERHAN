@@ -144,6 +144,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 - Port: `8080`
  - Build command: `python3 -m pip install --upgrade pip setuptools wheel && python3 -m pip install --no-cache-dir -r requirements.lock`
 - Runtime env (from Secrets Manager):
+  - `APP_ENV` = `production`
   - `FLASK_SECRET_KEY`
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)

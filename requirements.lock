@@ -74,7 +74,7 @@ flask-talisman==1.1.0
 graphene==3.4.3
 graphql-core==3.2.6
 graphql-relay==3.2.0
-greenlet==3.0.3
+greenlet==3.2.4
 gunicorn==23.0.0
 h11==0.16.0
 httpcore==1.0.9
@@ -132,7 +132,7 @@ pip-api==0.0.34
 pip-requirements-parser==32.0.1
 pip_audit==2.9.0
 platformdirs==4.3.8
-playwright==1.45.0
+playwright==1.50.0
 pluggy==1.6.0
 pre_commit==4.3.0
 prometheus_client==0.22.1
@@ -141,7 +141,7 @@ psycopg2-binary==2.9.10
 py-serializable==2.1.0
 pycodestyle==2.14.0
 pycparser==2.22
-pyee==11.1.0
+pyee==12.0.0
 pyflakes==3.4.0
 pyotp==2.9.0
 pyparsing==3.2.3
