@@ -57,6 +57,8 @@ pytest tests/smoke/test_homepage.py
 This sequence sets up the environment, seeds an admin user, runs the web app and separate Celery worker and beat processes, and finishes with a smoke test.
 For a walkthrough with sample data see [docs/guided_setup.md](docs/guided_setup.md).
 
+**Windows tips:** use `py -3.11 -m venv .venv` followed by `.\.venv\Scripts\Activate.ps1`, and ensure PostgreSQL is running (`docker compose up -d db`) or export `DATABASE_URL`/`ALEMBIC_URL` before executing `scripts/run_migrations.sh`.
+
 ## Local tooling
 
 Copy `.env.example` to `.env` and adjust values for your environment. The `.env` file is ignored by git and should never be committed.
@@ -133,7 +135,7 @@ flask run
 `FLASK_DEBUG` controls template auto-reload. Leave it unset in production to
 avoid unnecessary file-system checks.
 If Docker is unavailable, `scripts/setup_postgres.sh` provisions a local
-PostgreSQL service before running migrations.
+PostgreSQL service before running migrations. Alternatively export `DATABASE_URL` (and optionally `ALEMBIC_URL`) to reuse an existing database or a SQLite file; the migration helper and Alembic environment will honour the override.
 See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample data and first-run tips.
 
 ## Deploying on AWS App Runner

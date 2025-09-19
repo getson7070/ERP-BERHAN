@@ -1,4 +1,6 @@
 from logging.config import fileConfig
+import os
+from typing import Any, Dict
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -25,6 +27,35 @@ target_metadata = None
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def _get_database_url() -> str:
+    """Resolve the database URL for Alembic operations.
+
+    Preference order:
+    1. ``alembic -x url=...`` CLI override.
+    2. ``ALEMBIC_URL`` environment variable (explicit override for Alembic).
+    3. ``DATABASE_URL`` environment variable (shared with the Flask app).
+    4. The value from ``alembic.ini``.
+    """
+
+    overrides = context.get_x_argument(as_dictionary=True)
+    url_override = overrides.get("url") if overrides else None
+    if url_override:
+        return url_override
+
+    env_url = os.getenv("ALEMBIC_URL") or os.getenv("DATABASE_URL")
+    if env_url:
+        return env_url
+
+    return config.get_main_option("sqlalchemy.url")
+
+
+def _build_config_section() -> Dict[str, Any]:
+    """Return a copy of the Alembic configuration with the resolved URL."""
+
+    section = dict(config.get_section(config.config_ini_section, {}) or {})
+    section["sqlalchemy.url"] = _get_database_url()
+    return section
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -38,7 +69,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = _get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -58,7 +89,7 @@ def run_migrations_online() -> None:
 
     """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        _build_config_section(),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
