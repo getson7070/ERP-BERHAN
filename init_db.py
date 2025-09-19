@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
 import pyotp
 from argon2 import PasswordHasher
@@ -127,6 +128,27 @@ def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
 
 def _reset_schema() -> None:
     engine = get_engine()
+    dialect = engine.dialect.name
+
+    if dialect.startswith("sqlite"):
+        database = engine.url.database
+        # Dispose the engine before touching on-disk files so SQLite
+        # releases any outstanding locks from the failed migration
+        # attempt.
+        engine.dispose()
+        if database and database != ":memory:":
+            Path(database).unlink(missing_ok=True)
+        else:  # in-memory database – drop all tables instead
+            with engine.begin() as conn:
+                tables = conn.execute(
+                    text(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                ).all()
+                for (table_name,) in tables:
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+        return
+
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))

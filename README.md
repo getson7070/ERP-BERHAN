@@ -54,6 +54,8 @@ celery -A erp.celery beat &
 pytest tests/smoke/test_homepage.py
 ```
 
+> **Windows users:** follow the PowerShell walkthrough in [docs/local_dev_quickstart.md](docs/local_dev_quickstart.md) to install Python 3.11 with the launcher, generate strong secrets, and choose between Docker-backed PostgreSQL or the SQLite fallback. Always install dependencies from `requirements.lock` to avoid slow wheel builds on Windows.
+
 This sequence sets up the environment, seeds an admin user, runs the web app and separate Celery worker and beat processes, and finishes with a smoke test.
 For a walkthrough with sample data see [docs/guided_setup.md](docs/guided_setup.md).
 

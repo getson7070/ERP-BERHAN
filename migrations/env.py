@@ -1,5 +1,5 @@
-from logging.config import fileConfig
 import os
+from logging.config import fileConfig
 from typing import Any, Dict
 
 from sqlalchemy import engine_from_config
@@ -32,8 +32,8 @@ def _get_database_url() -> str:
 
     Preference order:
     1. ``alembic -x url=...`` CLI override.
-    2. ``ALEMBIC_URL`` environment variable (explicit override for Alembic).
-    3. ``DATABASE_URL`` environment variable (shared with the Flask app).
+    2. ``ALEMBIC_URL`` / ``ALEMBIC_DATABASE_URL`` environment variables.
+    3. ``DATABASE_URL`` / ``SQLALCHEMY_DATABASE_URI`` (shared with the Flask app).
     4. The value from ``alembic.ini``.
     """
 
@@ -42,7 +42,12 @@ def _get_database_url() -> str:
     if url_override:
         return url_override
 
-    env_url = os.getenv("ALEMBIC_URL") or os.getenv("DATABASE_URL")
+    env_url = (
+        os.getenv("ALEMBIC_URL")
+        or os.getenv("ALEMBIC_DATABASE_URL")
+        or os.getenv("DATABASE_URL")
+        or os.getenv("SQLALCHEMY_DATABASE_URI")
+    )
     if env_url:
         return env_url
 

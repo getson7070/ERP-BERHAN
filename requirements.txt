@@ -1,12 +1,15 @@
+# Prefer installing from requirements.lock for reproducible local builds.
+
 # Core server
-Flask>=2.3,<3.1
+Flask>=3.1,<3.2
 gunicorn>=21.2
-eventlet>=0.36
+eventlet>=0.40
 
 # DB stack
-SQLAlchemy>=1.4,<3
+SQLAlchemy>=2.0,<2.1
 alembic>=1.13
 psycopg2-binary>=2.9  # binary wheel to avoid native compile
+greenlet>=3.2,<3.3
 
 # Optional: Redis features
 redis>=5
@@ -27,11 +30,11 @@ flask-caching
 flask-compress
 bleach
 beautifulsoup4
-jsonschema>=4.25
+jsonschema>=4.25,<5
 
 # Data and ML utilities
-numpy
-scikit-learn
+numpy>=2.1,<2.4
+scikit-learn>=1.5,<1.8
 openpyxl
 argon2-cffi
 
