@@ -1,0 +1,35 @@
+name: UI Preview
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ui-preview/**'
+      - '.github/workflows/ui-preview.yml'
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        working-directory: ui-preview
+        run: npm ci || npm i
+      - name: Build
+        working-directory: ui-preview
+        run: npm run build
+      - name: Deploy to Netlify (Preview)
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: ./ui-preview/dist
+          production-deploy: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Preview for PR #${{ github.event.number }}"
+          enable-commit-comment: true
+          enable-pull-request-comment: true
+          overwrites-pull-request-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
