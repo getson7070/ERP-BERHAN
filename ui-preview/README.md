@@ -11,3 +11,4 @@
 - GitHub will comment a **Preview URL** you can click and review.
 
 > Note: previews use mockless calls to your API base URL; point it at staging to avoid prod data.
+Preview pipeline check.
