@@ -1,29 +1,33 @@
-# gunicorn.conf.py
+# Gunicorn config for Flask-SocketIO (eventlet) on Render
 import os
 
-# Render assigns a port via the PORT env var. Never hardcode.
-bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
+bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
 
-# Flask-SocketIO + Gunicorn should use an async worker.
-# eventlet is already in your requirements and avoids the greenlet/thread switch error.
+# IMPORTANT: eventlet worker for WebSocket support
 worker_class = "eventlet"
-workers = 1          # eventlet: 1 worker handles many sockets cooperatively
+
+# With eventlet one worker is usually fine; scale out with Render autoscaling if needed
+workers = int(os.getenv("WEB_CONCURRENCY", "1"))
+
+# Do NOT preload; we must monkey_patch before imports (done in wsgi.py)
+preload_app = False
+
+# Keep defaults sensible
 threads = 1
-preload_app = True
-
-# Keep logs helpful but not too noisy.
-accesslog = "-"
-errorlog = "-"
-loglevel = "info"
-
-# Make sure this is a STRING, not a list, or Gunicorn will abort at startup.
-# Your logs showed: Invalid value for forwarded_allow_ips: ['*']
-forwarded_allow_ips = "*"
-
-# A couple of sensible limits for basic stability.
-timeout = 120
+worker_connections = 1000
+timeout = int(os.getenv("WEB_TIMEOUT", "120"))
 graceful_timeout = 30
 keepalive = 2
 
-# If you previously set any sync-specific options (e.g., worker_connections for gevent/eventlet
-# is fine; gunicorn defaults are OK) you can add them here; not strictly needed.
+# Trust Render’s proxy headers
+forwarded_allow_ips = ['*']
+secure_scheme_headers = {
+    "X-FORWARDED-PROTO": "https",
+    "X-FORWARDED-PROTOCOL": "ssl",
+    "X-FORWARDED-SSL": "on",
+}
+
+# Logging
+accesslog = "-"
+errorlog = "-"
+loglevel = os.getenv("LOG_LEVEL", "debug")
