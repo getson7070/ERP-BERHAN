@@ -1,26 +1,19 @@
-# wsgi.py
+# Always monkey-patch FIRST, before ANY other imports.
+import eventlet
+eventlet.monkey_patch()  # <- fixes the "monkey_patching" & app/request context explosions
+
 import os
 
-# Your app factory lives in your project package. In your logs the logger name is "erp",
-# so we try that first and fall back to a generic "app" package if needed.
-try:
-    from erp import create_app  # preferred (matches your logger name)
-except ImportError:  # fallback, in case the package is named "app"
-    from app import create_app
+# Your application package is "erp" (as seen in log records: name="erp")
+from erp import create_app, socketio  # create_app must build the Flask app; socketio is your SocketIO() instance
 
-# Render sets FLASK_ENV via your Dashboard. Use it if present; default to "production".
-flask_env = os.environ.get("FLASK_ENV", "production")
+# Build app AFTER monkey_patch so imports are safe
+app = create_app()
 
-# Some codebases define create_app() with no parameters; others accept an env string.
-# Call compatibly so we don’t crash at import time.
-try:
-    app = create_app(flask_env)  # try passing env
-except TypeError:
-    app = create_app()  # factory that takes no args
-
-# Ensure there is a lightweight health endpoint for Render’s health checks.
-# (Won’t override if you already have one wired up.)
-if not any(r.rule == "/healthz" for r in getattr(app, "url_map", []).iter_rules()):
-    @app.route("/healthz", methods=["GET"])
-    def _healthz():
-        return "ok", 200
+# When running under gunicorn -k eventlet, exposing the Flask app object is enough.
+# Gunicorn handles the eventlet worker. For local dev: `python wsgi.py`
+if __name__ == "__main__":
+    # Make local runs behave the same (eventlet)
+    port = int(os.getenv("PORT", "10000"))
+    # cert/keys can be added here if you terminate TLS locally
+    socketio.run(app, host="0.0.0.0", port=port)
