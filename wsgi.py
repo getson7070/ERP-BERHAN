@@ -1,43 +1,51 @@
 # wsgi.py
-# ─────────────────────────────────────────────────────────────────────────────
-# MUST be the very first imports so all stdlib is greenlet-patched
+# ------------------------------------------------------------
+# MUST be the first imports to avoid greenlet/thread errors.
+import eventlet
+eventlet.monkey_patch()
+
 import os
 
-# Eventlet is required by Flask-SocketIO when using the 'eventlet' async mode.
-# The monkey patch MUST happen before importing ANY other blocking libs
-# (Flask, requests, Redis, etc.).
-import eventlet
-eventlet.monkey_patch(all=True, thread=True, socket=True, select=True, time=True)
+# Import your Flask app in a way that works whether the package
+# is named "app" or "erp". Only ONE of these will succeed.
+flask_app = None
+socketio = None
 
-from dotenv import load_dotenv
-load_dotenv()  # lets Render env and .env both work locally
-
-# Import the application factory and the global Socket.IO object.
-# NOTE: keep these imports AFTER monkey_patch.
 try:
-    # if your package is named 'erp' (your logger shows name 'erp')
-    from erp import create_app, socketio  # type: ignore
-except ImportError:
-    # fallback if app is at top-level as app.py
-    from app import create_app, socketio  # type: ignore
+    # If your project exposes factory & socketio here
+    from app import create_app, socketio as _socketio  # type: ignore
+    flask_app = create_app()
+    socketio = _socketio
+except Exception:
+    pass
 
-# Create the Flask app via factory
-# FLASK_ENV can be 'production' | 'development' etc.; default production
-flask_env = os.getenv("FLASK_ENV", "production")
-app = create_app(flask_env)
+if flask_app is None:
+    try:
+        # Alternate common layout: package is "erp"
+        from erp import create_app, socketio as _socketio  # type: ignore
+        flask_app = create_app()
+        socketio = _socketio
+    except Exception as e:
+        # Last fallback: the app object may already be constructed
+        try:
+            from app import app as flask_app  # type: ignore
+        except Exception:
+            from erp import app as flask_app  # type: ignore
+        socketio = None  # will still work for plain HTTP
 
-# Gunicorn entrypoint expects an `app` object in this module
-# Keep this file lean – all blueprints/config load inside create_app()
+# Gunicorn looks for a variable called "app".
+app = flask_app
 
-# Optional: a simple health-check root (keeps "/" from erroring when no route)
-# If you already have a "/" route, you can drop this.
-@app.route("/", methods=["GET", "HEAD"])
-def _health_root():
-    return "OK", 200
-
-# Local dev runner (not used on Render – gunicorn runs this module)
+# Local development (Render won’t execute this block)
 if __name__ == "__main__":
-    # Bind to PORT for local runs; default 5000
-    port = int(os.getenv("PORT", "5000"))
-    # IMPORTANT: use eventlet web server so Socket.IO works in dev too
-    socketio.run(app, host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", "10000"))
+    host = "0.0.0.0"
+    if socketio:
+        # Ensure eventlet async mode
+        from flask_socketio import SocketIO  # noqa
+        socketio.async_mode = "eventlet"  # enforce
+        socketio.run(app, host=host, port=port)
+    else:
+        # No socketio object exposed -> run plain Flask
+        from werkzeug.serving import run_simple
+        run_simple(host, port, app)
