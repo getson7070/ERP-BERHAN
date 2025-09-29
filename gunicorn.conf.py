@@ -1,8 +1,8 @@
-# gunicorn.conf.py  — low-memory + verbose logs
+# gunicorn.conf.py
 workers = 1
-threads = 2
-worker_class = "sync"
-preload_app = False
+threads = 1              # eventlet doesn't need threads
+worker_class = "eventlet"
+preload_app = False      # your log showed True; turn it off
 timeout = 120
 max_requests = 200
 max_requests_jitter = 50
