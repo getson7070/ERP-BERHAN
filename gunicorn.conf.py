@@ -1,37 +1,29 @@
 # gunicorn.conf.py
-# ------------------------------------------------------------
-# Render sets PORT; default to 10000 for local.
 import os
 
+# Render assigns a port via the PORT env var. Never hardcode.
 bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
 
-# With eventlet, use a single worker and threads=1.
-# Scale by processes only when needed.
-workers = int(os.environ.get("WEB_CONCURRENCY", "1"))
+# Flask-SocketIO + Gunicorn should use an async worker.
+# eventlet is already in your requirements and avoids the greenlet/thread switch error.
 worker_class = "eventlet"
+workers = 1          # eventlet: 1 worker handles many sockets cooperatively
 threads = 1
+preload_app = True
 
-# Eventlet + preload_app is a common source of greenlet errors.
-preload_app = False
+# Keep logs helpful but not too noisy.
+accesslog = "-"
+errorlog = "-"
+loglevel = "info"
 
-# Reasonable defaults for a small Render instance.
-timeout = int(os.environ.get("WEB_TIMEOUT", "120"))
+# Make sure this is a STRING, not a list, or Gunicorn will abort at startup.
+# Your logs showed: Invalid value for forwarded_allow_ips: ['*']
+forwarded_allow_ips = "*"
+
+# A couple of sensible limits for basic stability.
+timeout = 120
 graceful_timeout = 30
 keepalive = 2
 
-# Logging to stdout/err so Render captures it.
-accesslog = "-"
-errorlog = "-"
-loglevel = os.environ.get("LOG_LEVEL", "debug")
-
-# Limit requests to mitigate slow leaks on free dynos.
-max_requests = int(os.environ.get("MAX_REQUESTS", "200"))
-max_requests_jitter = int(os.environ.get("MAX_REQUESTS_JITTER", "50"))
-
-# Respect HTTPS from Render’s proxy
-forwarded_allow_ips = ["*"]
-secure_scheme_headers = {
-    "X-FORWARDED-PROTO": "https",
-    "X-FORWARDED-SSL": "on",
-    "X-FORWARDED-PROTOCOL": "ssl",
-}
+# If you previously set any sync-specific options (e.g., worker_connections for gevent/eventlet
+# is fine; gunicorn defaults are OK) you can add them here; not strictly needed.
