@@ -241,4 +241,17 @@ def create_app(test_config: Optional[dict] = None) -> Flask:
 
     # Blueprints
     from .routes.auth import auth_bp
-    app.re
+    app.register_blueprint(auth_bp)
+
+    @app.route("/")
+    def index():
+        return redirect(url_for("auth.choose_login"))
+
+    @app.route("/favicon.ico")
+    def favicon():
+        return "", 204
+
+    return app
+
+
+__all__ = ["create_app", "socketio"]
