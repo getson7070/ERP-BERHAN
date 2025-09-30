@@ -93,4 +93,17 @@ def create_app() -> Flask:
     def index():
         return redirect(url_for("auth.login"))
 
+    # ... keep the rest of your unified create_app exactly as we set earlier ...
+
+    @app.route("/")
+    def index():
+        # primary landing: always direct to the login endpoint
+        return redirect(url_for("auth.login"))
+
+    @app.route("/login")
+    def login_redirect():
+        # secondary convenience: /login -> the same endpoint
+        return redirect(url_for("auth.login"))
+
     return app
+
