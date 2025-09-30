@@ -1,22 +1,28 @@
 # gunicorn.conf.py
+import multiprocessing
 import os
 
-# gunicorn.conf.py
-import multiprocessing
+# Render provides $PORT
+bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
 
-bind = "0.0.0.0:10000"
-workers = 1  # Render free tier small, keep 1 worker
+# Use eventlet for Flask-SocketIO
 worker_class = "eventlet"
-threads = 2
+workers = 1               # for Socket.IO without message_queue, keep to 1
+threads = 1
+worker_connections = 1000
+
+# Reasonable timeouts for long-poll/websocket
 timeout = 120
-preload_app = True
+graceful_timeout = 30
+keepalive = 2
 
+# DO NOT preload with eventlet + socketio
+preload_app = False
 
-# Health: restart workers periodically to avoid leaks
-max_requests = 200
-max_requests_jitter = 50
+# Logging
+accesslog = "-"
+errorlog = "-"
+loglevel = "info"
 
-# Environment consistency
-raw_env = [
-    f"APP_ENV={os.environ.get('APP_ENV', 'development')}",
-]
+# Security headers already handled by your proxy; leave defaults here
+forwarded_allow_ips = ["*"]
