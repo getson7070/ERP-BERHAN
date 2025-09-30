@@ -3,13 +3,12 @@ import os
 from flask import Flask, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_socketio import SocketIO
-
 from .extensions import db, limiter, oauth, jwt, cache, compress, csrf, babel
 
 socketio = SocketIO(
     async_mode="eventlet",
     cors_allowed_origins=os.getenv("CORS_ORIGINS", "*"),
-    message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"),  # set redis://... when scaling workers
+    message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"),  # set to redis://... when scaling
 )
 
 def _security_hardening(app: Flask) -> None:
@@ -32,7 +31,7 @@ def _security_hardening(app: Flask) -> None:
 def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=True)
 
-    # Required secrets / DB
+    # Secrets / DB
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY")
     if not app.config["SECRET_KEY"]:
         raise RuntimeError("FLASK_SECRET_KEY/SECRET_KEY not set")
@@ -44,14 +43,16 @@ def create_app() -> Flask:
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # JWT / Rate limit / Cache
+    # JWT / Cache / Rate limiting
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", app.config["SECRET_KEY"])
     app.config.setdefault("CACHE_TYPE", "SimpleCache")
     app.config.setdefault("RATELIMIT_ENABLED", True)
-    app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
+    # Prefer explicit RATELIMIT_STORAGE_URI; else reuse Redis if provided
+    ratelimit_uri = os.getenv("RATELIMIT_STORAGE_URI") or os.getenv("REDIS_URL") or "memory://"
+    app.config["RATELIMIT_STORAGE_URI"] = ratelimit_uri
     app.config.setdefault("RATELIMIT_DEFAULT", os.getenv("DEFAULT_RATE_LIMITS", "60 per minute"))
 
-    # Init extensions
+    # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
     cache.init_app(app)
@@ -61,7 +62,7 @@ def create_app() -> Flask:
     limiter.init_app(app)
     socketio.init_app(app)
 
-    # OAuth (optional; only activated if env vars exist)
+    # OAuth (routes import oauth even if you don’t configure providers; that’s fine)
     client_id = os.getenv("OAUTH_CLIENT_ID")
     client_secret = os.getenv("OAUTH_CLIENT_SECRET")
     token_url = os.getenv("OAUTH_TOKEN_URL")
@@ -84,8 +85,7 @@ def create_app() -> Flask:
 
     # Blueprints
     from .routes.auth import auth_bp
-    from .routes.dashboard_customize import dashboard_bp  # adjust if your main BP differs
-
+    from .routes.dashboard_customize import dashboard_bp  # change if your main BP differs
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp)
 
