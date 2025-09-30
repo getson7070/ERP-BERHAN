@@ -1,17 +1,29 @@
-# wsgi.py
+"""
+WSGI entrypoint for Render. Uses eventlet (required by Flask-SocketIO).
+Exports `app` for gunicorn -c gunicorn.conf.py wsgi:app
+"""
 import os
-import eventlet
 
-# IMPORTANT: monkey patch BEFORE importing anything else that uses networking
+# IMPORTANT: monkey-patch BEFORE importing anything that does I/O
+import eventlet
 eventlet.monkey_patch()
 
-from app import create_app, socketio  # <-- no circular import anymore
+from erp.app import create_app, socketio  # import your factory + socketio instance
 
-# Create the Flask app via the factory
+# Create the Flask app
 app = create_app()
 
-# When running directly (e.g., local dev: `python wsgi.py`), start Socket.IO server
+# Optional healthcheck endpoint for Render
+@app.route("/status")
+def _status():
+    return {"status": "ok"}, 200
+
+# Local dev: `python wsgi.py`
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    # With eventlet this will serve both HTTP and WebSocket on one port
-    socketio.run(app, host="0.0.0.0", port=port)
+    # Socket.IO dev server (not used in Render – Gunicorn runs it)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        allow_unsafe_werkzeug=True,  # only for local dev
+    )
