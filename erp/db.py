@@ -2,7 +2,6 @@
 import os
 import time
 from typing import Any, Dict, Optional
-
 from sqlalchemy import create_engine, text  # noqa: F401
 from sqlalchemy.engine import Engine, Connection, CursorResult
 
@@ -37,29 +36,29 @@ class ConnShim:
 def get_db() -> ConnShim:
     return ConnShim(engine.connect())
 
+# Redis client with safe fallback (works with your CELERY_* or REDIS_URL settings)
 class _MemoryTTL:
     def __init__(self):
         self._store: Dict[str, Any] = {}
         self._ttl: Dict[str, float] = {}
-
     def setex(self, key: str, ttl, value: str):
         seconds = int(getattr(ttl, "total_seconds", lambda: int(ttl))())
         self._store[key] = value
         self._ttl[key] = time.time() + seconds
-
     def get(self, key: str):
         if key in self._ttl and time.time() > self._ttl[key]:
-            self._store.pop(key, None)
-            self._ttl.pop(key, None)
-            return None
+            self._store.pop(key, None); self._ttl.pop(key, None); return None
         return self._store.get(key)
-
     def delete(self, key: str):
-        self._store.pop(key, None)
-        self._ttl.pop(key, None)
+        self._store.pop(key, None); self._ttl.pop(key, None)
 
 redis_client = None
-REDIS_URL = os.getenv("REDIS_URL") or os.getenv("SOCKETIO_MESSAGE_QUEUE")
+REDIS_URL = (
+    os.getenv("REDIS_URL")
+    or os.getenv("SOCKETIO_MESSAGE_QUEUE")
+    or os.getenv("CELERY_BROKER_URL")
+    or os.getenv("CELERY_RESULT_BACKEND")
+)
 if REDIS_URL and REDIS_URL.startswith("redis://"):
     try:
         import redis  # type: ignore
