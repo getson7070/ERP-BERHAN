@@ -1,15 +1,12 @@
 # wsgi.py
-import os
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch(all=True)
 
-from erp.app import create_app, socketio
+from erp.app import create_app, socketio  # noqa: E402
 
 app = create_app()
 
-@app.route("/status")
-def _status():
-    return {"status": "ok"}, 200
-
+# Optional: allow `gunicorn wsgi:app` and `socketio.run()` locally
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")), allow_unsafe_werkzeug=True)
+    # Local dev runner (not used on Render)
+    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
