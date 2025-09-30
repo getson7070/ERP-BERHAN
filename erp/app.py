@@ -1,198 +1,179 @@
 # erp/app.py
-import os
-from typing import List, Optional
+from __future__ import annotations
 
-from flask import Flask, jsonify, redirect, url_for
-from flask_socketio import SocketIO
-from werkzeug.middleware.proxy_fix import ProxyFix
-from sqlalchemy import text  # NEW: used in bootstrap
-# add near top
 import os
+import logging
+from logging import StreamHandler
+from typing import Optional
+
+from flask import Flask, redirect, url_for
+from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_jwt_extended import JWTManager
+from flask_socketio import SocketIO
+from authlib.integrations.flask_client import OAuth
 from jinja2 import ChoiceLoader, FileSystemLoader
 
-# inside create_app() after the Flask(...) app is created,
-# immediately after the current code that sets template_folder/static_folder:
-root_templates = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-if os.path.isdir(root_templates):
-    app.jinja_loader = ChoiceLoader([
-        app.jinja_loader,
-        FileSystemLoader(root_templates),
-    ])
+# Make these importable from erp for other modules (e.g., routes/auth.py)
+cache = Cache()
+jwt = JWTManager()
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+oauth = OAuth()
 
-# App extensions
-from .extensions import db, limiter, oauth, jwt, cache, compress, csrf, babel
 
-# We use the raw engine shim for bootstrap so we don't depend on models
-from .db import get_db
+def _configure_logging(app: Flask) -> None:
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    app.logger.setLevel(level)
+    # Gunicorn provides its own handlers; attach one for local/dev too
+    if not app.logger.handlers:
+        handler = StreamHandler()
+        handler.setLevel(level)
+        app.logger.addHandler(handler)
 
-socketio = SocketIO(
-    async_mode="eventlet",
-    message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"),
-    cors_allowed_origins=os.getenv("CORS_ORIGINS", "*"),
-    logger=False,
-    engineio_logger=False,
-)
 
-def _as_list(value: Optional[str]) -> List[str]:
-    if not value:
-        return []
-    return [v.strip() for v in value.split(",") if v.strip()]
-
-def _load_config(app: Flask) -> None:
-    app.config["ENV"] = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "production"))
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
-    app.config["SECURITY_PASSWORD_SALT"] = os.getenv("SECURITY_PASSWORD_SALT", "change-me-salt")
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///instance/erp.db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", app.config["SECRET_KEY"])
-    app.config["JWT_SECRET_ID"] = os.getenv("JWT_SECRET_ID", "v1")
-    app.config["JWT_TOKEN_LOCATION"] = _as_list(os.getenv("JWT_TOKEN_LOCATION", "headers,cookies"))
-
-    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or "memory://"
-    app.config["RATELIMIT_DEFAULT"] = os.getenv("RATELIMIT_DEFAULT", "60 per minute")
-
-    app.config["LOCK_WINDOW"] = int(os.getenv("LOCK_WINDOW", "300"))
-    app.config["LOCK_THRESHOLD"] = int(os.getenv("LOCK_THRESHOLD", "5"))
-    app.config["ACCOUNT_LOCK_SECONDS"] = int(os.getenv("ACCOUNT_LOCK_SECONDS", "900"))
-    app.config["MAX_BACKOFF"] = int(os.getenv("MAX_BACKOFF", "60"))
-    app.config["JWT_REVOCATION_TTL"] = int(os.getenv("JWT_REVOCATION_TTL", "3600"))
-
-    app.config["MFA_ISSUER"] = os.getenv("MFA_ISSUER", "ERP-BERHAN")
-    app.config["WEBAUTHN_RP_ID"] = os.getenv("WEBAUTHN_RP_ID", "onrender.com")
-    app.config["WEBAUTHN_RP_NAME"] = os.getenv("WEBAUTHN_RP_NAME", "ERP Berhan")
-    app.config["WEBAUTHN_ORIGIN"] = os.getenv("WEBAUTHN_ORIGIN")
-
-    app.config["OAUTH_CLIENT_ID"] = os.getenv("OAUTH_CLIENT_ID")
-    app.config["OAUTH_CLIENT_SECRET"] = os.getenv("OAUTH_CLIENT_SECRET")
-    app.config["OAUTH_DISCOVERY_URL"] = os.getenv("OAUTH_DISCOVERY_URL")
-    app.config["OAUTH_USERINFO_URL"] = os.getenv("OAUTH_USERINFO_URL")
-    app.config["OAUTH_PROVIDER"] = os.getenv("OAUTH_PROVIDER", "sso")
-
-    app.config["CORS_ORIGINS"] = os.getenv("CORS_ORIGINS", "*")
-
-def _init_extensions(app: Flask) -> None:
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)  # type: ignore
-
-    try: db.init_app(app)
-    except Exception: pass
-
-    try: cache.init_app(app)
-    except Exception: pass
-
-    try: compress.init_app(app)
-    except Exception: pass
-
-    try: csrf.init_app(app)
-    except Exception: pass
-
-    try: babel.init_app(app)
-    except Exception: pass
-
-    try: jwt.init_app(app)
-    except Exception: pass
-
-    try:
-        limiter.init_app(app)
-    except Exception:
-        pass
-
-    try:
-        oauth.init_app(app)
-        if app.config.get("OAUTH_DISCOVERY_URL"):
-            oauth.register(
-                name="sso",
-                server_metadata_url=app.config["OAUTH_DISCOVERY_URL"],
-                client_id=app.config.get("OAUTH_CLIENT_ID"),
-                client_secret=app.config.get("OAUTH_CLIENT_SECRET"),
-                client_kwargs={"scope": "openid email profile"},
-            )
-    except Exception:
-        pass
-
-    socketio.init_app(app)
-
-def _security_hardening(app: Flask) -> None:
-    try:
-        from flask_talisman import Talisman
-        Talisman(
-            app,
-            content_security_policy=None,
-            force_https=True,
-            frame_options="SAMEORIGIN",
-            strict_transport_security=True,
+def _register_oauth_clients(app: Flask) -> None:
+    """
+    Registers an 'sso' client if the standard env settings are present.
+    Safe to call even if not configured.
+    """
+    issuer = app.config.get("OAUTH_ISSUER")
+    client_id = app.config.get("OAUTH_CLIENT_ID")
+    client_secret = app.config.get("OAUTH_CLIENT_SECRET")
+    well_known = app.config.get("OAUTH_WELL_KNOWN_URL")
+    userinfo_url = app.config.get("OAUTH_USERINFO_URL")
+    if client_id and (issuer or well_known) and userinfo_url:
+        oauth.register(
+            name="sso",
+            client_id=client_id,
+            client_secret=client_secret,
+            server_metadata_url=well_known,
+            client_kwargs={"scope": "openid email profile"},
         )
-    except Exception:
-        pass
+        app.logger.info("OAuth 'sso' client registered.")
+    else:
+        app.logger.info("OAuth not configured; skipping register.")
 
-def _bootstrap_optional_tables() -> None:
+
+def _maybe_bootstrap_regions(app: Flask) -> None:
     """
-    Create and seed regions_cities if it doesn't exist.
-    Safe for Postgres and SQLite. No-ops if table exists.
+    Ensures regions_cities exists and has basic rows.
+    Uses plain SQL to avoid Alembic dependency during first boot.
     """
-    conn = get_db()
     try:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS regions_cities (
-                region TEXT NOT NULL,
-                city   TEXT NOT NULL
+        from .db import get_db
+        from sqlalchemy import text
+
+        conn = get_db()
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS regions_cities (
+                    region TEXT NOT NULL,
+                    city   TEXT NOT NULL
+                )
+                """
             )
-        """))
-        # Only seed if empty
-        rows = conn.execute(text("SELECT COUNT(*) AS c FROM regions_cities")).fetchone()
-        count = rows[0] if rows is not None else 0
-        if not count:
-            conn.execute(text("""
+        )
+        # Minimal seed to keep client_registration form working
+        conn.execute(
+            text(
+                """
                 INSERT INTO regions_cities (region, city) VALUES
                 ('Addis Ababa','Addis Ababa'),
                 ('Amhara','Bahir Dar'),
                 ('Oromia','Adama'),
                 ('SNNPR','Hawassa'),
                 ('Tigray','Mekelle')
-            """))
-            conn.commit()
-    except Exception:
-        # Don't block the app if this fails; client_registration will still handle empty choices.
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-    finally:
-        conn.close()
+                ON CONFLICT DO NOTHING
+                """
+            )
+        )
+        conn.commit()
+    except Exception as e:
+        app.logger.warning("regions_cities bootstrap skipped: %s", e)
 
-def create_app() -> Flask:
+
+def create_app(test_config: Optional[dict] = None) -> Flask:
+    # IMPORTANT: app must be created before anything touches app.jinja_loader
     app = Flask(
         __name__,
-        instance_relative_config=True,
-        template_folder=os.path.join(os.path.dirname(__file__), "templates"),
-        static_folder=os.path.join(os.path.dirname(__file__), "static"),
+        template_folder="templates",  # erp/templates
+        static_folder="static",       # erp/static (if present)
     )
 
-    _load_config(app)
-    _init_extensions(app)
-    _security_hardening(app)
+    # Base config
+    app.config.update(
+        SECRET_KEY=os.getenv("SECRET_KEY", os.urandom(32)),
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        WTF_CSRF_TIME_LIMIT=None,
+        # JWT
+        JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY", os.urandom(32)),
+        JWT_TOKEN_LOCATION=["headers"],
+        JWT_COOKIE_SECURE=True,
+        # MFA
+        MFA_ISSUER=os.getenv("MFA_ISSUER", "ERP-BERHAN"),
+        # WebAuthn
+        WEBAUTHN_RP_ID=os.getenv("WEBAUTHN_RP_ID", "erp-berhan-backend.onrender.com"),
+        WEBAUTHN_RP_NAME=os.getenv("WEBAUTHN_RP_NAME", "ERP-BERHAN"),
+        WEBAUTHN_ORIGIN=os.getenv("WEBAUTHN_ORIGIN", "https://erp-berhan-backend.onrender.com"),
+        # Flask-Caching (null cache by default)
+        CACHE_TYPE=os.getenv("CACHE_TYPE", "null"),
+    )
+    if test_config:
+        app.config.update(test_config)
 
-    # Bootstrap optional lookup tables (idempotent)
-    _bootstrap_optional_tables()
+    _configure_logging(app)
 
-    from .routes.auth import bp as auth_bp
-    from .routes.dashboard_customize import bp as dashboard_bp
+    # Extend template search path to also include <repo-root>/templates
+    repo_root = os.path.dirname(os.path.dirname(__file__))  # .../erp/.. (repo root)
+    root_templates = os.path.join(repo_root, "templates")
+    if os.path.isdir(root_templates):
+        app.jinja_loader = ChoiceLoader([  # type: ignore[attr-defined]
+            app.jinja_loader,              # default: erp/templates
+            FileSystemLoader(root_templates),
+        ])
+        app.logger.info("Added repo-root templates path: %s", root_templates)
 
-    # Don't add another prefix for auth; some routes already include "/auth/..."
+    # Initialize extensions (safe to call even if minimally configured)
+    try:
+        cache.init_app(app)
+    except Exception as e:
+        app.logger.warning("Cache init skipped: %s", e)
+
+    limiter.init_app(app)
+    jwt.init_app(app)
+    socketio.init_app(app)
+    oauth.init_app(app)
+    _register_oauth_clients(app)
+
+    # Bootstrap critical lookup data for first boot (idempotent)
+    _maybe_bootstrap_regions(app)
+
+    # Blueprints
+    from .routes.auth import auth_bp  # uses limiter, oauth exposed above
     app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard_bp)
 
-    @app.get("/status")
-    def status():
-        return jsonify({"status": "ok"}), 200
+    # If you have other blueprints like 'main', register them here
+    # from .routes.main import main_bp
+    # app.register_blueprint(main_bp)
 
+    # Root → login chooser
     @app.route("/")
     def index():
         return redirect(url_for("auth.choose_login"))
 
-    @app.route("/login")
-    def login_redirect():
-        return redirect(url_for("auth.choose_login"))
+    # Favicon (optional, avoids 404 spam in logs)
+    @app.route("/favicon.ico")
+    def favicon():
+        return "", 204
 
     return app
+
+
+# Expose objects for "from erp.app import create_app, socketio"
+__all__ = ["create_app", "socketio"]
