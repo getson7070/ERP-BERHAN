@@ -6,6 +6,18 @@ from flask import Flask, jsonify, redirect, url_for
 from flask_socketio import SocketIO
 from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy import text  # NEW: used in bootstrap
+# add near top
+import os
+from jinja2 import ChoiceLoader, FileSystemLoader
+
+# inside create_app() after the Flask(...) app is created,
+# immediately after the current code that sets template_folder/static_folder:
+root_templates = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+if os.path.isdir(root_templates):
+    app.jinja_loader = ChoiceLoader([
+        app.jinja_loader,
+        FileSystemLoader(root_templates),
+    ])
 
 # App extensions
 from .extensions import db, limiter, oauth, jwt, cache, compress, csrf, babel
