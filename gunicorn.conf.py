@@ -1,28 +1,24 @@
-# gunicorn.conf.py
+# Gunicorn config for Render + Flask-SocketIO (eventlet)
 import multiprocessing
 import os
 
-# Render provides $PORT
-bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
-
-# Use eventlet for Flask-SocketIO
+bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
+workers = int(os.getenv("WEB_CONCURRENCY", "1"))  # eventlet does not need many
 worker_class = "eventlet"
-workers = 1               # for Socket.IO without message_queue, keep to 1
-threads = 1
-worker_connections = 1000
-
-# Reasonable timeouts for long-poll/websocket
+threads = 1               # don't combine threads with eventlet
+worker_connections = 1000 # sockets per worker
 timeout = 120
 graceful_timeout = 30
 keepalive = 2
-
-# DO NOT preload with eventlet + socketio
-preload_app = False
-
-# Logging
+preload_app = False       # eventlet + socketio prefers not to preload
 accesslog = "-"
 errorlog = "-"
-loglevel = "info"
+loglevel = os.getenv("LOG_LEVEL", "info")
 
-# Security headers already handled by your proxy; leave defaults here
+# Security headers forwarded by Render
+secure_scheme_headers = {
+    "X-FORWARDED-PROTOCOL": "ssl",
+    "X-FORWARDED-PROTO": "https",
+    "X-FORWARDED-SSL": "on",
+}
 forwarded_allow_ips = ["*"]
