@@ -9,9 +9,8 @@ from flask_compress import Compress
 from flask_wtf import CSRFProtect
 from flask_babel import Babel
 
-# Centralized singletons so routes can do: from erp import limiter, oauth, db, ...
 db = SQLAlchemy()
-limiter = Limiter(key_func=get_remote_address)  # storage configured via app.config
+limiter = Limiter(key_func=get_remote_address)  # storage URI set in app.config
 oauth = OAuth()
 jwt = JWTManager()
 cache = Cache()
