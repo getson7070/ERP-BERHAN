@@ -1,2 +1,2 @@
-# db.py (compat shim at repo root)
+# db.py
 from erp.db import get_db, redis_client  # noqa: F401
