@@ -1,2 +1,3 @@
 # erp/__init__.py
-__all__ = []  # avoid heavy imports at package import time
+# Keep this empty/light so "import erp" never imports heavy extensions early.
+__all__ = []
