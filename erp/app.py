@@ -1,78 +1,114 @@
 import os
+from pathlib import Path
 from flask import Flask, redirect, url_for
+from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_caching import Cache
 from flask_compress import Compress
 from flask_socketio import SocketIO
-from flask_jwt_extended import JWTManager
-from flask_babel import Babel
-from jinja2 import ChoiceLoader, FileSystemLoader
-from erp import limiter, oauth
-from db import ensure_schema
 
+from db import get_engine, ensure_schema, RedisClient
+
+# Globals used by other modules
+jwt = JWTManager()
 cache = Cache()
 compress = Compress()
-jwt = JWTManager()
-babel = Babel()
-socketio = SocketIO(async_mode="threading")  # no eventlet/gevent
+socketio = SocketIO(async_mode="threading")  # no eventlet
+limiter = Limiter(key_func=get_remote_address, default_limits=["200 per hour"])
+oauth = None  # initialized lazily in create_app()
 
-def _register_blueprints(app: Flask):
+
+def _template_search_paths():
+    """
+    Look in both:
+      - project root /templates   (your repository's main templates)
+      - erp/templates             (module-local templates)
+    """
+    root = Path(__file__).resolve().parents[1]
+    return [root / "templates", Path(__file__).resolve().parent / "templates"]
+
+
+def _register_blueprints(app: Flask) -> None:
+    # Auth (required for login flows)
     from .routes.auth import bp as auth_bp
-    from .routes.main import bp as main_bp
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)
+
+    # Main dashboard (register if present; don’t crash if missing)
+    try:
+        from .routes.main import bp as main_bp
+        app.register_blueprint(main_bp)
+    except Exception as e:
+        app.logger.warning("main blueprint not registered: %s", e)
+
+    # Add other blueprints here if you have them
+    # try:
+    #     from .routes.api import bp as api_bp
+    #     app.register_blueprint(api_bp, url_prefix="/api")
+    # except Exception as e:
+    #     app.logger.warning("api blueprint not registered: %s", e)
+
 
 def create_app() -> Flask:
-    app = Flask(__name__, instance_relative_config=False)
+    # Build template search list
+    search_paths = _template_search_paths()
 
-    # ---- Config (safe defaults) ----
+    app = Flask(
+        __name__,
+        template_folder=None,            # we’ll install a ChoiceLoader below
+        static_folder="static",          # keep default if you have /static
+        instance_relative_config=True,
+    )
+
+    # Secret key & config
     app.config.update(
         SECRET_KEY=os.environ.get("SECRET_KEY", os.urandom(32)),
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_SAMESITE="Lax",
-        WTF_CSRF_TIME_LIMIT=None,
-        CACHE_TYPE=os.environ.get("CACHE_TYPE", "SimpleCache"),
-        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", os.environ.get("SECRET_KEY", "change-me")),
-        MFA_ISSUER=os.environ.get("MFA_ISSUER", "BERHAN ERP"),
+        JWT_SECRET_KEY=os.environ.get("JWT_SECRET_KEY", os.urandom(32)),
+        JWT_TOKEN_LOCATION=["headers"],
+        JWT_SECRET_ID=os.environ.get("JWT_SECRET_ID", "v1"),
+        # Caching (can be None on Render free tier; just avoid crashes)
+        CACHE_TYPE=os.environ.get("CACHE_TYPE", "null"),
+        # WebAuthn defaults (override in env if you use them)
         WEBAUTHN_RP_ID=os.environ.get("WEBAUTHN_RP_ID", "localhost"),
-        WEBAUTHN_RP_NAME=os.environ.get("WEBAUTHN_RP_NAME", "BERHAN ERP"),
-        WEBAUTHN_ORIGIN=os.environ.get("WEBAUTHN_ORIGIN"),  # optional
+        WEBAUTHN_RP_NAME=os.environ.get("WEBAUTHN_RP_NAME", "ERP Berhan"),
+        WEBAUTHN_ORIGIN=os.environ.get("WEBAUTHN_ORIGIN"),
+        # Rate limits
+        RATELIMIT_DEFAULT="200 per hour",
+        # OAuth placeholders (used by auth.py)
+        OAUTH_USERINFO_URL=os.environ.get("OAUTH_USERINFO_URL", ""),
+        MFA_ISSUER=os.environ.get("MFA_ISSUER", "ERP-Berhan"),
     )
 
-    # ---- Extensions ----
-    cache.init_app(app)
-    compress.init_app(app)
+    # Jinja: search both /templates and erp/templates
+    from jinja2 import ChoiceLoader, FileSystemLoader
+    loaders = [FileSystemLoader(str(p)) for p in search_paths if p.exists()]
+    if not loaders:
+        app.logger.warning("No template directories found in %s", search_paths)
+    app.jinja_loader = ChoiceLoader(loaders)
+
+    # Extensions
     jwt.init_app(app)
-    babel.init_app(app)
     limiter.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
+    try:
+        cache.init_app(app)
+    except Exception as e:
+        app.logger.warning("Cache init warning: %s", e)
+    compress.init_app(app)
+    socketio.init_app(app, cors_allowed_origins="*")  # works fine with gthread
 
-    # OAuth client (SSO); keeps routes happy even if not used
-    oauth.init_app(app)
-    oauth.register(
-        name="sso",
-        client_id=os.environ.get("OAUTH_CLIENT_ID", "placeholder"),
-        client_secret=os.environ.get("OAUTH_CLIENT_SECRET", "placeholder"),
-        client_kwargs={"scope": "openid profile email"},
-        authorize_url=os.environ.get("OAUTH_AUTHORIZE_URL", "https://example.com/authorize"),
-        access_token_url=os.environ.get("OAUTH_TOKEN_URL", "https://example.com/token"),
-        api_base_url=os.environ.get("OAUTH_BASE_URL", "https://example.com"),
-    )
-    app.config["OAUTH_USERINFO_URL"] = os.environ.get("OAUTH_USERINFO_URL", "https://example.com/userinfo")
+    # Database engine & schema
+    engine = get_engine()
+    ensure_schema(engine)  # <— creates users, regions_cities, webauthn_credentials if missing
 
-    # ---- Jinja: search both locations ----
-    app.jinja_loader = ChoiceLoader([
-        FileSystemLoader(os.path.abspath("templates")),           # repo root
-        FileSystemLoader(os.path.abspath(os.path.join(os.path.dirname(__file__), "templates"))),  # erp/templates
-        app.jinja_loader,  # package defaults
-    ])
+    # Minimal Redis client sanity check for rate limiting & auth backoff
+    RedisClient.ensure_connection(app)  # will not crash if Redis_URL missing; logs a warning
 
-    # ---- DB bootstrap (idempotent) ----
-    ensure_schema()
+    # Blueprints
+    _register_blueprints(app)
 
-    # ---- Routes ----
-    @app.get("/")
+    # Default route -> login chooser
+    @app.route("/")
     def index():
         return redirect(url_for("auth.choose_login"))
 
-    _register_blueprints(app)
     return app
