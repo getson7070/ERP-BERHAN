@@ -1,27 +1,15 @@
+# erp/app.py
 import os
 from flask import Flask, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
-from flask_caching import Cache
-from flask_compress import Compress
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_babel import Babel
-from flask_wtf import CSRFProtect
-from flask_socketio import SocketIO
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_socketio import SocketIO
 
-db = SQLAlchemy()
-jwt = JWTManager()
-cache = Cache()
-compress = Compress()
-csrf = CSRFProtect()
-babel = Babel()
+from .extensions import db, limiter, oauth, jwt, cache, compress, csrf, babel
 
 socketio = SocketIO(
     async_mode="eventlet",
     cors_allowed_origins=os.getenv("CORS_ORIGINS", "*"),
-    message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"),
+    message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"),  # set redis://... when scaling workers
 )
 
 def _security_hardening(app: Flask) -> None:
@@ -41,43 +29,62 @@ def _security_hardening(app: Flask) -> None:
         resp.headers.setdefault("Permissions-Policy", "geolocation=()")
         return resp
 
-def _limiter() -> Limiter:
-    return Limiter(
-        key_func=get_remote_address,
-        default_limits=os.getenv("DEFAULT_RATE_LIMITS", "60/minute"),
-        storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
-        enabled=os.getenv("RATELIMIT_ENABLED", "1") == "1",
-    )
-
 def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=True)
 
+    # Required secrets / DB
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY")
     if not app.config["SECRET_KEY"]:
         raise RuntimeError("FLASK_SECRET_KEY/SECRET_KEY not set")
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", f"sqlite:///{os.path.join(app.instance_path, 'erp.db')}"
+    os.makedirs(app.instance_path, exist_ok=True)
+    app.config.setdefault(
+        "SQLALCHEMY_DATABASE_URI",
+        os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(app.instance_path, 'erp.db')}"),
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # JWT / Rate limit / Cache
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", app.config["SECRET_KEY"])
-    app.config["CACHE_TYPE"] = "SimpleCache"
+    app.config.setdefault("CACHE_TYPE", "SimpleCache")
+    app.config.setdefault("RATELIMIT_ENABLED", True)
+    app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
+    app.config.setdefault("RATELIMIT_DEFAULT", os.getenv("DEFAULT_RATE_LIMITS", "60 per minute"))
 
-    os.makedirs(app.instance_path, exist_ok=True)
-
+    # Init extensions
     db.init_app(app)
     jwt.init_app(app)
     cache.init_app(app)
     compress.init_app(app)
     csrf.init_app(app)
-    _limiter().init_app(app)
     babel.init_app(app)
+    limiter.init_app(app)
     socketio.init_app(app)
+
+    # OAuth (optional; only activated if env vars exist)
+    client_id = os.getenv("OAUTH_CLIENT_ID")
+    client_secret = os.getenv("OAUTH_CLIENT_SECRET")
+    token_url = os.getenv("OAUTH_TOKEN_URL")
+    auth_url = os.getenv("OAUTH_AUTH_URL")
+    userinfo_url = os.getenv("OAUTH_USERINFO_URL")
+    if client_id and client_secret and auth_url and token_url:
+        oauth.init_app(app)
+        oauth.register(
+            name="sso",
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token_url=token_url,
+            authorize_url=auth_url,
+            api_base_url=os.getenv("OAUTH_API_BASE", ""),
+            client_kwargs={"scope": "openid profile email"},
+        )
+        app.config.setdefault("OAUTH_USERINFO_URL", userinfo_url or "")
 
     _security_hardening(app)
 
-    from erp.routes.auth import auth_bp
-    from erp.routes.dashboard_customize import dashboard_bp  # adjust to your main blueprint
+    # Blueprints
+    from .routes.auth import auth_bp
+    from .routes.dashboard_customize import dashboard_bp  # adjust if your main BP differs
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp)
