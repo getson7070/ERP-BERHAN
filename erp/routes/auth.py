@@ -663,3 +663,7 @@ def webauthn_login_verify():
 # Compatibility alias (single export, no duplicates)
 auth_bp = bp
 __all__ = ["bp", "auth_bp"]
+# compatibility alias so imports like "from erp.routes.auth import auth_bp" work
+auth_bp = bp
+__all__ = ["bp", "auth_bp"]
+
