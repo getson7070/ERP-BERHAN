@@ -1,10 +1,6 @@
-import eventlet
-eventlet.monkey_patch(all=True)
+# wsgi.py
+# Entry point used by Gunicorn
+from erp.app import create_app, socketio
 
-from erp.app import create_app, socketio  # noqa: E402
-
+# Gunicorn just needs the WSGI callable named `app`
 app = create_app()
-
-if __name__ == "__main__":
-    import os
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
