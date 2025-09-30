@@ -3,6 +3,13 @@ import eventlet
 eventlet.monkey_patch()  # <- fixes the "monkey_patching" & app/request context explosions
 
 import os
+# wsgi.py
+from app import create_app, socketio  # assuming your app factory is in app.py
+
+app = create_app()
+
+if __name__ == "__main__":
+    socketio.run(app, host="0.0.0.0", port=10000)
 
 # Your application package is "erp" (as seen in log records: name="erp")
 from erp import create_app, socketio  # create_app must build the Flask app; socketio is your SocketIO() instance
