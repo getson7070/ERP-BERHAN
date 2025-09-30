@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Choose Login{% endblock %}
+{% block body %}
+  <h1>Choose Login</h1>
+  <form method="post">
+    {{ form.csrf_token }}
+    <div class="row">
+      <label for="login_type">Login Type</label>
+      {{ form.login_type(id="login_type") }}
+    </div>
+    <div class="row">
+      {{ form.submit() }}
+    </div>
+  </form>
+  <div class="links">
+    <a href="{{ url_for('auth.client_registration') }}">Register as Client</a>
+  </div>
+{% endblock %}
