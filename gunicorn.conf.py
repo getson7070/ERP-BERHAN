@@ -1,33 +1,20 @@
-# Gunicorn config for Flask-SocketIO (eventlet) on Render
+# gunicorn.conf.py
 import os
 
-bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
-
-# IMPORTANT: eventlet worker for WebSocket support
+bind = "0.0.0.0:10000"  # Render discovers the port automatically
+workers = 1             # increase after DB/Redis are ready
+threads = 2
 worker_class = "eventlet"
-
-# With eventlet one worker is usually fine; scale out with Render autoscaling if needed
-workers = int(os.getenv("WEB_CONCURRENCY", "1"))
-
-# Do NOT preload; we must monkey_patch before imports (done in wsgi.py)
-preload_app = False
-
-# Keep defaults sensible
-threads = 1
-worker_connections = 1000
-timeout = int(os.getenv("WEB_TIMEOUT", "120"))
+timeout = 120
 graceful_timeout = 30
-keepalive = 2
+loglevel = "debug"
+preload_app = True
 
-# Trust Render’s proxy headers
-forwarded_allow_ips = ['*']
-secure_scheme_headers = {
-    "X-FORWARDED-PROTO": "https",
-    "X-FORWARDED-PROTOCOL": "ssl",
-    "X-FORWARDED-SSL": "on",
-}
+# Health: restart workers periodically to avoid leaks
+max_requests = 200
+max_requests_jitter = 50
 
-# Logging
-accesslog = "-"
-errorlog = "-"
-loglevel = os.getenv("LOG_LEVEL", "debug")
+# Environment consistency
+raw_env = [
+    f"APP_ENV={os.environ.get('APP_ENV', 'development')}",
+]
