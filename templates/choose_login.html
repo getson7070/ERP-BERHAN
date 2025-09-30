@@ -1,27 +1,10 @@
-{% extends "base_auth.html" %}
-{% block title %}{{ _('Choose Login') }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Choose Login{% endblock %}
 {% block content %}
-<h2 class="mb-4 text-center">{{ _('Choose Login Type') }}</h2>
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-danger">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-<form method="POST" action="" class="needs-validation" novalidate>
-  {{ form.hidden_tag() }}
-  <div class="mb-3">
-    {{ form.login_type.label(class="form-label") }}
-    {{ form.login_type(class="form-select", required=True) }}
-    {% for error in form.login_type.errors %}
-      <div class="text-danger">{{ error }}</div>
-    {% endfor %}
-    <div class="invalid-feedback">{{ _('Please select a login type.') }}</div>
-  </div>
-  {{ form.submit(class="btn btn-primary w-100", value=_('Submit')) }}
-</form>
-<a href="{{ url_for('main.index') }}" class="btn btn-secondary w-100 mt-2">{{ _('Back') }}</a>
-<a href="{{ url_for('auth.oauth_login') }}" class="btn btn-outline-primary w-100 mt-2">{{ _('Login with SSO') }}</a>
-<button type="button" id="webauthn-login" class="btn btn-outline-secondary w-100 mt-2">{{ _('Login with Passkey') }}</button>
+  <h1>Choose Login</h1>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    {{ form.login_type.label }} {{ form.login_type() }}
+    {{ form.submit() }}
+  </form>
 {% endblock %}
