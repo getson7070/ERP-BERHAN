@@ -1,82 +1,127 @@
 import os
+import logging
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Connection
-from redis import Redis
+from sqlalchemy.engine import Engine, Connection
+import redis as _redis
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres")
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 
-redis_client: Redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=False)
+# ---- SQLAlchemy engine -------------------------------------------------------
 
-class DB:
-    def __init__(self, conn: Connection) -> None:
-        self._conn = conn
-    def execute(self, stmt, params: Optional[Dict[str, Any]] = None):
-        return self._conn.execute(stmt if hasattr(stmt, "compile") else text(str(stmt)), params or {})
-    def commit(self):
-        self._conn.commit()
-    def close(self):
-        self._conn.close()
+_ENGINE: Optional[Engine] = None
 
-def get_db() -> DB:
-    conn = engine.connect()
-    return DB(conn)
+def _database_url() -> str:
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL is not set")
+    # Render sometimes provides postgres URL without sslmode; explicit is safer
+    if "sslmode=" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}sslmode=require"
+    return url
 
-# Idempotent schema bootstrap to prevent "relation does not exist" crashes.
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  user_type VARCHAR(20) NOT NULL,               -- 'employee' or 'client'
-  username VARCHAR(64),                         -- phone for employees
-  email VARCHAR(255) UNIQUE,
-  password_hash TEXT,
-  role VARCHAR(64),
-  permissions TEXT,                             -- comma-separated
-  org_id INTEGER,
-  account_locked BOOLEAN DEFAULT FALSE,
-  approved_by_ceo BOOLEAN DEFAULT FALSE,
-  failed_attempts INTEGER DEFAULT 0,
-  last_login TIMESTAMP,
-  hire_date DATE,
-  salary NUMERIC(14,2),
-  tin VARCHAR(20),
-  institution_name VARCHAR(255),
-  address VARCHAR(255),
-  phone VARCHAR(32),
-  region VARCHAR(64),
-  city VARCHAR(64),
-  mfa_secret VARCHAR(64)
-);
+def get_engine() -> Engine:
+    global _ENGINE
+    if _ENGINE is None:
+        _ENGINE = create_engine(_database_url(), pool_pre_ping=True, future=True)
+    return _ENGINE
 
-CREATE TABLE IF NOT EXISTS regions_cities (
-  id SERIAL PRIMARY KEY,
-  region VARCHAR(64) NOT NULL,
-  city VARCHAR(64) NOT NULL
-);
 
-CREATE UNIQUE INDEX IF NOT EXISTS regions_cities_unique ON regions_cities(region, city);
+@contextmanager
+def get_db() -> Connection:
+    """Context manager returning a SQLAlchemy Connection with commit/close."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        yield conn
 
-CREATE TABLE IF NOT EXISTS webauthn_credentials (
-  credential_id TEXT PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  org_id INTEGER,
-  public_key BYTEA NOT NULL,
-  sign_count BIGINT DEFAULT 0
-);
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id BIGSERIAL PRIMARY KEY,
-  user_id INTEGER,
-  org_id INTEGER,
-  action VARCHAR(64) NOT NULL,
-  details TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-"""
+# ---- Schema bootstrap --------------------------------------------------------
 
-def ensure_schema():
+def ensure_schema(engine: Engine) -> None:
+    """
+    Create the minimal tables used by erp.routes.auth if they don't exist.
+    Non-destructive: uses CREATE TABLE IF NOT EXISTS.
+    """
     with engine.begin() as conn:
-        conn.exec_driver_sql(SCHEMA_SQL)
+        # users
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          user_type TEXT NOT NULL,          -- 'employee' | 'client'
+          username TEXT UNIQUE,
+          email TEXT UNIQUE,
+          password_hash TEXT,
+          role TEXT,
+          permissions TEXT,
+          hire_date DATE,
+          salary NUMERIC,
+          tin TEXT,
+          institution_name TEXT,
+          address TEXT,
+          phone TEXT,
+          region TEXT,
+          city TEXT,
+          approved_by_ceo BOOLEAN DEFAULT FALSE,
+          failed_attempts INTEGER DEFAULT 0,
+          account_locked BOOLEAN DEFAULT FALSE,
+          last_login TIMESTAMP,
+          mfa_secret TEXT,
+          org_id INTEGER
+        );
+        """))
+
+        # regions_cities
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS regions_cities (
+          region TEXT NOT NULL,
+          city   TEXT NOT NULL
+        );
+        """))
+
+        # webauthn_credentials
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS webauthn_credentials (
+          credential_id TEXT PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          org_id INTEGER,
+          public_key BYTEA,
+          sign_count INTEGER DEFAULT 0
+        );
+        """))
+
+        # Seed at least one region/city to avoid empty dropdowns
+        conn.execute(text("""
+        INSERT INTO regions_cities (region, city)
+        SELECT 'Addis Ababa', 'Addis Ababa'
+        WHERE NOT EXISTS (SELECT 1 FROM regions_cities);
+        """))
+
+
+# ---- Redis client (rate limiting, login backoff, token storage) --------------
+
+class RedisClient:
+    client: Optional[_redis.Redis] = None
+
+    @classmethod
+    def ensure_connection(cls, app=None) -> Optional[_redis.Redis]:
+        if cls.client:
+            return cls.client
+        url = os.environ.get("REDIS_URL")
+        if not url:
+            if app:
+                app.logger.warning("REDIS_URL not set; using in-memory fallback for dev.")
+            return None
+        try:
+            cls.client = _redis.from_url(url, decode_responses=False)
+            # liveness check
+            cls.client.ping()
+            return cls.client
+        except Exception as e:
+            if app:
+                app.logger.warning("Redis connection failed: %s", e)
+            return None
+
+# Backward-compat alias expected by your code
+redis_client = RedisClient.ensure_connection()
