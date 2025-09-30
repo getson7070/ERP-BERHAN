@@ -1,56 +1,12 @@
-{% extends "base_auth.html" %}
+{% extends "base.html" %}
 {% block title %}Employee Login{% endblock %}
 {% block content %}
-<h2 class="mb-4 text-center">Employee Login</h2>
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-danger">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
-<form method="POST" class="needs-validation" novalidate>
+  <h1>Employee Login</h1>
+  <form method="post">
     {{ form.hidden_tag() }}
-    <div class="mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control", placeholder="Enter email", required=True) }}
-        <div class="invalid-feedback">Please enter your email.</div>
-    </div>
-    <div class="mb-3">
-        {{ form.password.label(class="form-label") }}
-        {{ form.password(class="form-control", placeholder="Enter password", required=True) }}
-        <div class="invalid-feedback">Please enter your password.</div>
-    </div>
-    <div class="mb-3">
-        {{ form.totp.label(class="form-label") }}
-        {{ form.totp(class="form-control", placeholder="Enter MFA code", required=True) }}
-        <div class="invalid-feedback">Please enter your MFA code.</div>
-    </div>
-    {{ form.submit(class="btn btn-primary w-100") }}
-</form>
-<div class="mt-3 text-end">
-    <a href="#" data-bs-toggle="modal" data-bs-target="#resetModal">Forgot Password?</a>
-</div>
-<div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="POST" action="{{ url_for('auth.password_reset') }}" class="needs-validation" novalidate>
-        <div class="modal-header">
-          <h5 class="modal-title">Reset Password</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="resetEmail" class="form-label">Email</label>
-            <input type="email" class="form-control" id="resetEmail" name="email" required>
-            <div class="invalid-feedback">Please enter a valid email.</div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Send Reset Link</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+    <p>{{ form.email.label }} {{ form.email() }}</p>
+    <p>{{ form.password.label }} {{ form.password() }}</p>
+    <p>{{ form.totp.label }} {{ form.totp() }}</p>
+    <p>{{ form.submit() }}</p>
+  </form>
 {% endblock %}
