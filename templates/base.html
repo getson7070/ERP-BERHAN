@@ -1,101 +1,22 @@
-<!DOCTYPE html>
-<html lang="{{ get_locale() }}" dir="{{ 'rtl' if get_locale() in ['ar', 'he', 'fa'] else 'ltr' }}" data-bs-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="color-scheme" content="light dark">
-    <title>{% block title %}{{ _('BERHAN ERP') }}{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr.min.css') }}">
-    {% block extra_css %}{% endblock %}
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
-    <meta name="theme-color" content="#0d6efd">
-</head>
-<body class="{% block body_class %}{% endblock %}">
-    <a class="skip-link" href="#main-content">{{ _('Skip to main content') }}</a>
-    {% block navbar %}{% include 'partials/navbar.html' %}{% endblock %}
-    {% include 'partials/messages.html' %}
-    {% block breadcrumbs %}{% include 'partials/breadcrumbs.html' %}{% endblock %}
-    <main id="main-content" class="container-fluid py-4" role="main">
-        <h1 class="visually-hidden">{{ _('BERHAN ERP') }}</h1>
-        {% block body %}{% block content %}{% endblock %}{% endblock %}
-    </main>
-    <div id="loading-spinner" class="spinner-border text-primary position-fixed top-50 start-50 d-none" role="status">
-        <span class="visually-hidden">{{ _('Loading...') }}</span>
-    </div>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/flatpickr.min.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}">
-        flatpickr("input[type='date']");
-        window.tourStrings = {
-            nav: "{{ _('Use the navigation menu to switch modules.') }}",
-            theme: "{{ _('Toggle dark mode to reduce eye strain.') }}"
-        };
-        (() => {
-            'use strict';
-            const forms = document.querySelectorAll('.needs-validation');
-            Array.from(forms).forEach(form => {
-                form.addEventListener('submit', event => {
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-        })();
-        const toggle = document.getElementById('themeToggle');
-        const setTheme = theme => {
-            document.documentElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-            toggle.textContent = theme === 'dark' ? '{{ _('Light Mode') }}' : '{{ _('Dark Mode') }}';
-        };
-        const stored = localStorage.getItem('theme') || 'light';
-        setTheme(stored);
-        toggle?.addEventListener('click', () => {
-            const newTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-        });
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        const originalFetch = window.fetch;
-        window.fetch = (input, init = {}) => {
-            const url = new URL(input instanceof Request ? input.url : input, location.href);
-            if (url.origin === location.origin) {
-                const headers = new Headers(init.headers || {});
-                headers.set('X-CSRFToken', csrfToken);
-                init.headers = headers;
-            }
-            return originalFetch(input, init);
-        };
-        window.showMessage = (type, text) => {
-            const container = document.getElementById('messages');
-            if (!container) return;
-            const wrapper = document.createElement('div');
-            wrapper.className = `alert alert-${type} alert-dismissible fade show`;
-            wrapper.setAttribute('role', 'alert');
-            const message = document.createElement('span');
-            message.textContent = text;
-            wrapper.appendChild(message);
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn-close';
-            btn.setAttribute('data-bs-dismiss', 'alert');
-            btn.setAttribute('aria-label', 'Close');
-            wrapper.appendChild(btn);
-            container.appendChild(wrapper);
-        };
-    </script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/tour.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/offline.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/voice.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/async.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='vendor/web-vitals.iife.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/vitals.js') }}"></script>
-    {% block scripts %}{% endblock %}
-</body>
-</html>
+<nav>
+  {% if current_user.is_authenticated %}
+    <!-- Authenticated app modules -->
+    <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+    <a href="{{ url_for('tenders.list') }}">Tenders</a>
+    <a href="{{ url_for('orders.index') }}">Orders</a>
+    <a href="{{ url_for('crm.index') }}">CRM</a>
+    <a href="{{ url_for('hr.index') }}">HR</a>
+    <a href="{{ url_for('procurement.index') }}">Procurement</a>
+    <a href="{{ url_for('manufacturing.index') }}">Manufacturing</a>
+    <a href="{{ url_for('projects.index') }}">Projects</a>
+    {# hide Plugins as a page unless the user has permission #}
+    {% if current_user.has_role('admin') %}
+      <a href="{{ url_for('plugins.index') }}">Plugins</a>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}">Logout</a>
+  {% else %}
+    <!-- Public links only -->
+    <a href="{{ url_for('auth.login') }}">Login</a>
+    <a href="{{ url_for('legal.privacy') }}">Privacy</a>
+  {% endif %}
+</nav>
