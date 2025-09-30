@@ -1,4 +1,3 @@
-# gunicorn.conf.py
 import os
 
 bind = "0.0.0.0:" + os.getenv("PORT", "10000")
