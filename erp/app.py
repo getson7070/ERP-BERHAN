@@ -1,6 +1,7 @@
 # erp/app.py
 # at the top with other imports
 from flask_socketio import SocketIO
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
 
 # ...
 # replace the previous socketio init line with eventlet mode:
