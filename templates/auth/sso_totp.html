@@ -1,21 +1,10 @@
-{% extends "base_auth.html" %}
-{% block title %}MFA Verification{% endblock %}
+{% extends "base.html" %}
+{% block title %}SSO MFA{% endblock %}
 {% block content %}
-<h2 class="mb-4 text-center">Verify MFA</h2>
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-danger" aria-live="polite">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
-<form method="POST" class="needs-validation" novalidate>
+  <h1>Enter your MFA code</h1>
+  <form method="post">
     {{ form.hidden_tag() }}
-    <div class="mb-3">
-        {{ form.totp.label(class="form-label") }}
-        {{ form.totp(class="form-control", placeholder="Enter MFA code", required=True, autocomplete="one-time-code") }}
-        <div class="invalid-feedback">Please enter your MFA code.</div>
-    </div>
-    {{ form.submit(class="btn btn-primary w-100") }}
-</form>
+    <p>{{ form.totp.label }} {{ form.totp() }}</p>
+    <p>{{ form.submit() }}</p>
+  </form>
 {% endblock %}
