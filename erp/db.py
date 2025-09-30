@@ -2,40 +2,31 @@
 from __future__ import annotations
 
 import os
-import json
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 import redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, Connection, CursorResult
 
-# -------------------------------------------------------------------
-# Engine bootstrap & access
-# -------------------------------------------------------------------
+# ----------------------------- Engine --------------------------------
 
 _ENGINE: Optional[Engine] = None
-
 
 def _database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url:
-        # Render/Heroku style config usually provides this. Fail loud if missing.
         raise RuntimeError("DATABASE_URL is not set")
-    # SQLAlchemy prefers postgresql+psycopg2
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgresql://") and "+psycopg2" not in url:
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     return url
 
-
 def get_engine() -> Engine:
     global _ENGINE
     if _ENGINE is None:
-        # Pool settings are conservative to play nicely on Render
         _ENGINE = create_engine(
             _database_url(),
             pool_pre_ping=True,
@@ -46,24 +37,12 @@ def get_engine() -> Engine:
         )
     return _ENGINE
 
-
-# -------------------------------------------------------------------
-# Result wrapper giving a DB-API-ish interface that routes expect
-# (description, fetchone, fetchall)
-# -------------------------------------------------------------------
+# ------------------------- Result wrapper -----------------------------
 
 class _ResultWrapper:
-    """
-    Wrap SQLAlchemy CursorResult into a DB-API-like object with:
-      - .description: sequence of (name,) tuples (the code expects desc[0])
-      - .fetchone()  -> tuple | None
-      - .fetchall()  -> list[tuple]
-      - .keys()      -> list[str]
-    """
     def __init__(self, result: CursorResult):
         self._result = result
         self._keys = list(result.keys())
-        # mimic DB-API description shape used by the app: [ (colname,), ... ]
         self.description = [(k,) for k in self._keys]
 
     def keys(self):
@@ -71,27 +50,14 @@ class _ResultWrapper:
 
     def fetchone(self) -> Optional[Tuple[Any, ...]]:
         row = self._result.fetchone()
-        if row is None:
-            return None
-        return tuple(row)
+        return None if row is None else tuple(row)
 
     def fetchall(self) -> Iterable[Tuple[Any, ...]]:
-        rows = self._result.fetchall()
-        return [tuple(r) for r in rows]
+        return [tuple(r) for r in self._result.fetchall()]
 
-
-# -------------------------------------------------------------------
-# Connection wrapper that the app uses in routes
-# -------------------------------------------------------------------
+# --------------------------- DB wrapper -------------------------------
 
 class _DBConnection(AbstractContextManager["_DBConnection"]):
-    """
-    Provides:
-      - execute(text(sql), params) -> _ResultWrapper
-      - commit()
-      - close()
-    Starts a transaction on open so commit() works as expected.
-    """
     def __init__(self, engine: Engine):
         self._engine = engine
         self._conn: Connection = engine.connect()
@@ -104,7 +70,6 @@ class _DBConnection(AbstractContextManager["_DBConnection"]):
     def commit(self) -> None:
         if self._trans.is_active:
             self._trans.commit()
-        # open a fresh transaction for any subsequent statements
         self._trans = self._conn.begin()
 
     def rollback(self) -> None:
@@ -126,55 +91,57 @@ class _DBConnection(AbstractContextManager["_DBConnection"]):
             self.commit()
         self.close()
 
-
 def get_db() -> _DBConnection:
-    """Return a DB connection wrapper (call .close() when done)."""
     return _DBConnection(get_engine())
 
+# --------------------------- Redis (lazy) -----------------------------
 
-# -------------------------------------------------------------------
-# Redis client & helpers
-# -------------------------------------------------------------------
+class _InMemoryRedisStub:
+    """Minimal stub so app can run without Redis. NOT shared across workers."""
+    def __init__(self):
+        self._store: Dict[bytes, bytes] = {}
+
+    # Commonly used subset:
+    def ping(self): return True
+    def get(self, key: bytes) -> Optional[bytes]: return self._store.get(key)
+    def set(self, key: bytes, value: bytes, ex: Optional[int] = None): self._store[key] = value; return True
+    def setex(self, key: bytes, ttl: int, value: bytes): self._store[key] = value; return True
+    def delete(self, *keys: bytes): 
+        for k in keys: self._store.pop(k, None)
+        return True
 
 @dataclass
 class RedisClient:
     _client: Optional[redis.Redis] = None
+    _stub: Optional[_InMemoryRedisStub] = None
 
     @classmethod
-    def _url(cls) -> str:
+    def client(cls):
         url = os.environ.get("REDIS_URL")
-        if not url:
-            raise RuntimeError("REDIS_URL is not set")
-        return url
-
-    @classmethod
-    def client(cls) -> redis.Redis:
-        if cls._client is None:
-            cls._client = redis.from_url(cls._url(), decode_responses=False)
-        return cls._client
+        if url:
+            if cls._client is None:
+                cls._client = redis.from_url(url, decode_responses=False)
+            return cls._client
+        # Fallback
+        if cls._stub is None:
+            cls._stub = _InMemoryRedisStub()
+        return cls._stub
 
     @classmethod
     def ensure_connection(cls) -> None:
-        # a light ping to fail-fast on misconfig
-        cls.client().ping()
+        # Only verify when real Redis is configured
+        if os.environ.get("REDIS_URL"):
+            cls.client().ping()
 
+# Lazy: do NOT instantiate at import time
+def get_redis():
+    return RedisClient.client()
 
-# expose a bytes-based client to match existing code usage
-redis_client: redis.Redis = RedisClient.client()
-
-
-# -------------------------------------------------------------------
-# First-run schema bootstrap
-# -------------------------------------------------------------------
+# ------------------------- Schema bootstrap ---------------------------
 
 def ensure_schema(engine: Optional[Engine] = None) -> None:
-    """
-    Creates the minimal tables used by the app if they do not exist.
-    This is idempotent and safe to call on every boot.
-    """
     eng = engine or get_engine()
     with eng.begin() as conn:
-        # Users table
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS users (
                 id BIGSERIAL PRIMARY KEY,
@@ -200,8 +167,6 @@ def ensure_schema(engine: Optional[Engine] = None) -> None:
                 org_id TEXT
             )
         """))
-
-        # WebAuthn credentials table
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS webauthn_credentials (
                 credential_id TEXT PRIMARY KEY,
@@ -211,16 +176,12 @@ def ensure_schema(engine: Optional[Engine] = None) -> None:
                 sign_count INTEGER
             )
         """))
-
-        # Regions & cities
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS regions_cities (
                 region TEXT NOT NULL,
                 city   TEXT NOT NULL
             )
         """))
-
-        # Helpful indexes
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_users_user_type ON users(user_type)"))
@@ -230,11 +191,4 @@ def ensure_schema(engine: Optional[Engine] = None) -> None:
             ON regions_cities(region)
         """))
 
-
-__all__ = [
-    "get_engine",
-    "get_db",
-    "ensure_schema",
-    "RedisClient",
-    "redis_client",
-]
+__all__ = ["get_engine", "get_db", "ensure_schema", "RedisClient", "get_redis"]
