@@ -1,263 +1,41 @@
 from functools import wraps
-from typing import Iterable, Sequence
-
-from flask import (
-    session,
-    redirect,
-    url_for,
-    request,
-    abort,
-    Response,
-    stream_with_context,
-    send_file,
-)
-from io import BytesIO, StringIO
-import csv
-from openpyxl import Workbook
+from typing import Callable, Iterable, Optional
+from flask import session, redirect, url_for, flash
 from argon2 import PasswordHasher
-import os
-from argon2.exceptions import VerifyMismatchError
-from db import get_db
-from erp.cache import cache_get, cache_set
-from erp import csrf
-from sqlalchemy import text
-from sqlalchemy.orm import selectinload, joinedload
-from erp.models import User
 
-
-ROLE_HIERARCHY = {
-    "Admin": {"Admin", "Manager", "Staff", "Auditor"},
-    "Manager": {"Manager", "Staff"},
-    "Auditor": {"Auditor", "Staff"},
-    "Staff": {"Staff"},
-}
-
-
-def sanitize_sort(sort: str, allowed: Iterable[str], default: str) -> str:
-    """Return sort if allowed, else default."""
-    return sort if sort in allowed else default
-
-
-def sanitize_direction(direction: str, default: str = "asc") -> str:
-    """Return direction if valid, else default."""
-    return direction if direction in {"asc", "desc"} else default
-
-
-def stream_csv(
-    rows: Iterable[Sequence], headers: Sequence[str], filename: str
-) -> Response:
-    """Stream rows as a CSV attachment."""
-
-    def generate():
-        sio = StringIO()
-        writer = csv.writer(sio)
-        writer.writerow(headers)
-        yield sio.getvalue()
-        sio.seek(0)
-        sio.truncate(0)
-        for row in rows:
-            writer.writerow(row)
-            yield sio.getvalue()
-            sio.seek(0)
-            sio.truncate(0)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}.csv"},
-    )
-
-
-def stream_xlsx(
-    rows: Iterable[Sequence], headers: Sequence[str], filename: str
-) -> Response:
-    """Stream rows as an XLSX attachment."""
-    wb = Workbook()
-    ws = wb.active
-    ws.append(list(headers))
-    for row in rows:
-        ws.append(list(row))
-    bio = BytesIO()
-    wb.save(bio)
-    bio.seek(0)
-    return send_file(
-        bio,
-        as_attachment=True,
-        download_name=f"{filename}.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-
-def stream_export(
-    rows: Iterable[Sequence], headers: Sequence[str], filename: str, fmt: str
-) -> Response:
-    """Export helper switching between CSV and XLSX."""
-    if fmt == "xlsx":
-        return stream_xlsx(rows, headers, filename)
-    return stream_csv(rows, headers, filename)
-
-
-def has_permission(permission: str) -> bool:
-    """Check database for permission tied to current organization."""
-    # During tests, a permissions list may be stored in the session.
-    session_perms = session.get("permissions")
-    if session_perms is not None:
-        return permission in session_perms
-    role = session.get("role")
-    if role == "Management":
-        return True
-    user_id = session.get("user_id")
-    org_id = session.get("org_id")
-    if not user_id or not org_id:
-        # Fallback to session-based permissions for legacy tests and
-        # unauthenticated flows.  This preserves previous behaviour while
-        # the RBAC tables are populated.
-        return permission in session.get("permissions", [])
-
-    conn = get_db()
-    sql = text(
-        """
-        SELECT 1
-        FROM role_assignments ra
-        JOIN role_permissions rp ON ra.role_id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.id
-        WHERE ra.user_id = :user_id AND ra.org_id = :org_id
-        AND p.name = :permission
-        """
-    )
-    cur = conn.execute(
-        sql, {"user_id": user_id, "org_id": org_id, "permission": permission}
-    )
-    has_perm = cur.fetchone() is not None
-    conn.close()
-    return has_perm
-
-
-def roles_required(*roles):
-    """Decorator to restrict access to users with specific roles."""
-
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            # Fast-path for tests or legacy flows where the role is stored
-            # directly in the session. This avoids needing full RBAC tables
-            # populated while still enforcing access control.
-            session_role = session.get("role")
-            if session_role:
-                allowed = ROLE_HIERARCHY.get(session_role, {session_role})
-                if allowed.intersection(roles):
-                    return f(*args, **kwargs)
-
-            user_id = session.get("user_id")
-            org_id = session.get("org_id")
-            if not user_id or not org_id:
-                return redirect(url_for("main.dashboard"))
-
-            conn = get_db()
-            sql = text(
-                """
-                SELECT r.name FROM role_assignments ra
-                JOIN roles r ON ra.role_id = r.id
-                WHERE ra.user_id = :user_id AND ra.org_id = :org_id
-                """
-            )
-            cur = conn.execute(sql, {"user_id": user_id, "org_id": org_id})
-            rows = cur.fetchall()
-            conn.close()
-            user_roles = [row[0] for row in rows]
-            expanded = set()
-            for r in user_roles:
-                expanded.update(ROLE_HIERARCHY.get(r, {r}))
-            if not expanded.intersection(roles):
-                return redirect(url_for("main.dashboard"))
-            return f(*args, **kwargs)
-
-        return wrapped
-
-    return decorator
-
-
-ph = PasswordHasher(
-    time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
-    memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
-    parallelism=int(os.environ.get("ARGON2_PARALLELISM", "2")),
-)
-
+_hasher = PasswordHasher()  # strong defaults
 
 def hash_password(password: str) -> str:
-    return ph.hash(password)
-
+    return _hasher.hash(password)
 
 def verify_password(password: str, password_hash: str) -> bool:
-    if not password_hash.startswith("$argon2"):
-        return False
     try:
-        return ph.verify(password_hash, password)
-    except VerifyMismatchError:
+        return _hasher.verify(password_hash, password)
+    except Exception:
         return False
 
-
-def login_required(f):
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if "logged_in" not in session or not session["logged_in"]:
+def login_required(view: Callable):
+    @wraps(view)
+    def wrapper(*a, **k):
+        if not session.get("logged_in"):
+            flash("Please log in.")
             return redirect(url_for("auth.choose_login"))
-        return f(*args, **kwargs)
-
-    return wrap
-
-
-def mfa_required(f):
-    """Ensure the user has completed MFA before accessing a route."""
-
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-        if not session.get("mfa_verified"):
-            abort(403)
-        return f(*args, **kwargs)
-
-    return wrapped
-
-
-def idempotency_key_required(f):
-    """Ensure requests with the same Idempotency-Key are processed once."""
-
-    @csrf.exempt
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        key = request.headers.get("Idempotency-Key")
-        if not key:
-            abort(400, "Missing Idempotency-Key")
-        cache_key = f"idempotency:{key}"
-        if cache_get(cache_key):
-            abort(409, "Duplicate request")
-        cache_set(cache_key, 1, ttl=86400)
-        return f(*args, **kwargs)
-
+        return view(*a, **k)
     return wrapper
 
+def roles_required(*roles: Iterable[str]):
+    roles = set(roles)
+    def deco(view: Callable):
+        @wraps(view)
+        def wrapper(*a, **k):
+            role = session.get("role")
+            if role not in roles:
+                flash("Not authorized.")
+                return redirect(url_for("main.dashboard"))
+            return view(*a, **k)
+        return wrapper
+    return deco
 
-def task_idempotent(func):
-    """Prevent duplicate Celery task execution using an idempotency key."""
-
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        key = kwargs.pop("idempotency_key", None)
-        if key:
-            cache_key = f"task:{func.__name__}:{key}"
-            if cache_get(cache_key):
-                return
-            cache_set(cache_key, 1, ttl=86400)
-        return func(*args, **kwargs)
-
-    return wrapped
-
-
-def load_users_with_roles():
-    """Return users with roles preloaded to avoid N+1 queries."""
-    return User.query.options(selectinload(User.roles)).all()
-
-
-def load_users_with_roles_joined():
-    """Joined-load variant for small user sets."""
-    return User.query.options(joinedload(User.roles)).all()
+def has_permission(name: str) -> bool:
+    perms = session.get("permissions") or []
+    return name in perms
