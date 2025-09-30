@@ -1,128 +1,82 @@
-# erp/db.py
 import os
-import time
+from contextlib import contextmanager
 from typing import Any, Dict, Optional
 
-from sqlalchemy import create_engine, text  # noqa: F401
-from sqlalchemy.engine import Engine, Connection, CursorResult
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection
+from redis import Redis
 
-INSTANCE_DIR = os.path.join(os.getcwd(), "instance")
-os.makedirs(INSTANCE_DIR, exist_ok=True)
-DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{os.path.join(INSTANCE_DIR, 'erp.db')}"
-engine: Engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres")
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 
-class ResultShim:
-    def __init__(self, result: CursorResult):
-        self._result = result
-        self._rows = self._result.fetchall()
-        self.description = [(name,) for name in self._result.keys()]
+redis_client: Redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=False)
 
-    def fetchone(self):
-        return self._rows[0] if self._rows else None
-
-    def fetchall(self):
-        return list(self._rows)
-
-class ConnShim:
-    def __init__(self, conn: Connection):
+class DB:
+    def __init__(self, conn: Connection) -> None:
         self._conn = conn
-
-    def execute(self, stmt, params: Optional[Dict[str, Any]] = None) -> ResultShim:
-        res = self._conn.execute(stmt, params or {})
-        return ResultShim(res)
-
+    def execute(self, stmt, params: Optional[Dict[str, Any]] = None):
+        return self._conn.execute(stmt if hasattr(stmt, "compile") else text(str(stmt)), params or {})
     def commit(self):
-        try:
-            self._conn.commit()
-        except Exception:
-            # Some DBs/engines autocommit reads; no-op is fine here.
-            pass
-
-    def rollback(self):
-        try:
-            self._conn.rollback()
-        except Exception:
-            pass
-
+        self._conn.commit()
     def close(self):
         self._conn.close()
 
-def get_db() -> ConnShim:
-    return ConnShim(engine.connect())
+def get_db() -> DB:
+    conn = engine.connect()
+    return DB(conn)
 
-# -------- Redis (or in-memory) client ----------
-class _MemoryTTL:
-    def __init__(self):
-        self._store: Dict[str, Any] = {}
-        self._ttl: Dict[str, float] = {}
+# Idempotent schema bootstrap to prevent "relation does not exist" crashes.
+SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  user_type VARCHAR(20) NOT NULL,               -- 'employee' or 'client'
+  username VARCHAR(64),                         -- phone for employees
+  email VARCHAR(255) UNIQUE,
+  password_hash TEXT,
+  role VARCHAR(64),
+  permissions TEXT,                             -- comma-separated
+  org_id INTEGER,
+  account_locked BOOLEAN DEFAULT FALSE,
+  approved_by_ceo BOOLEAN DEFAULT FALSE,
+  failed_attempts INTEGER DEFAULT 0,
+  last_login TIMESTAMP,
+  hire_date DATE,
+  salary NUMERIC(14,2),
+  tin VARCHAR(20),
+  institution_name VARCHAR(255),
+  address VARCHAR(255),
+  phone VARCHAR(32),
+  region VARCHAR(64),
+  city VARCHAR(64),
+  mfa_secret VARCHAR(64)
+);
 
-    def _expired(self, key: str) -> bool:
-        if key in self._ttl and time.time() > self._ttl[key]:
-            self._store.pop(key, None)
-            self._ttl.pop(key, None)
-            return True
-        return False
+CREATE TABLE IF NOT EXISTS regions_cities (
+  id SERIAL PRIMARY KEY,
+  region VARCHAR(64) NOT NULL,
+  city VARCHAR(64) NOT NULL
+);
 
-    def setex(self, key: str, ttl, value: Any):
-        seconds = int(ttl.total_seconds()) if hasattr(ttl, "total_seconds") else int(ttl)
-        self._store[key] = value
-        self._ttl[key] = time.time() + seconds
+CREATE UNIQUE INDEX IF NOT EXISTS regions_cities_unique ON regions_cities(region, city);
 
-    def get(self, key: str):
-        if self._expired(key):
-            return None
-        return self._store.get(key)
+CREATE TABLE IF NOT EXISTS webauthn_credentials (
+  credential_id TEXT PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  org_id INTEGER,
+  public_key BYTEA NOT NULL,
+  sign_count BIGINT DEFAULT 0
+);
 
-    def delete(self, key: str):
-        self._store.pop(key, None)
-        self._ttl.pop(key, None)
-        return 1
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  user_id INTEGER,
+  org_id INTEGER,
+  action VARCHAR(64) NOT NULL,
+  details TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+"""
 
-    # Methods used by auth.py
-    def exists(self, key: str) -> int:
-        if self._expired(key):
-            return 0
-        return 1 if key in self._store else 0
-
-    def ttl(self, key: str) -> int:
-        if self._expired(key) or key not in self._ttl:
-            return -2  # Redis style: key does not exist
-        remaining = int(self._ttl[key] - time.time())
-        return remaining if remaining >= 0 else -2
-
-    def incr(self, key: str) -> int:
-        if self._expired(key):
-            self._store.pop(key, None)
-        val = self._store.get(key, 0)
-        try:
-            val = int(val)
-        except Exception:
-            val = 0
-        val += 1
-        self._store[key] = val
-        # no TTL unless previously set
-        return val
-
-    def expire(self, key: str, seconds: int):
-        if key in self._store:
-            self._ttl[key] = time.time() + int(seconds)
-            return 1
-        return 0
-
-redis_client = None
-REDIS_URL = (
-    os.getenv("REDIS_URL")
-    or os.getenv("SOCKETIO_MESSAGE_QUEUE")
-    or os.getenv("CELERY_BROKER_URL")
-    or os.getenv("CELERY_RESULT_BACKEND")
-)
-if REDIS_URL and REDIS_URL.startswith("redis://"):
-    try:
-        import redis  # type: ignore
-        # decode_responses=True returns str (not bytes) which is safer in Flask apps
-        redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
-        redis_client.setex("__healthcheck__", 5, "ok")
-    except Exception:
-        redis_client = _MemoryTTL()
-else:
-    redis_client = _MemoryTTL()
+def ensure_schema():
+    with engine.begin() as conn:
+        conn.exec_driver_sql(SCHEMA_SQL)
