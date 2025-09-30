@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Employee Login{% endblock %}
+{% block body %}
+  <h1>Employee Login</h1>
+  <form method="post">
+    {{ form.csrf_token }}
+    <div class="row">
+      <label>Email</label>
+      {{ form.email() }}
+    </div>
+    <div class="row">
+      <label>Password</label>
+      {{ form.password(type="password") }}
+    </div>
+    <div class="row">
+      <label>MFA Code</label>
+      {{ form.totp(maxlength="6") }}
+    </div>
+    <div class="row">
+      {{ form.submit() }}
+    </div>
+  </form>
+  <div class="links"><a href="{{ url_for('auth.choose_login') }}">Back</a></div>
+{% endblock %}
