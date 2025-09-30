@@ -1,112 +1,19 @@
+# migrations/env.py (near the top where the URL is configured)
 import os
 from logging.config import fileConfig
-from typing import Any, Dict
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
+from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
-config = context.config
+# ...
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# Use SQLALCHEMY_DATABASE_URI if set; otherwise fall back to DATABASE_URL
+db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("No database URL provided. Set DATABASE_URL.")
+config.set_main_option("sqlalchemy.url", db_url)
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
-def _get_database_url() -> str:
-    """Resolve the database URL for Alembic operations.
-
-    Preference order:
-    1. ``alembic -x url=...`` CLI override.
-    2. ``ALEMBIC_URL`` / ``ALEMBIC_DATABASE_URL`` environment variables.
-    3. ``DATABASE_URL`` / ``SQLALCHEMY_DATABASE_URI`` (shared with the Flask app).
-    4. The value from ``alembic.ini``.
-    """
-
-    overrides = context.get_x_argument(as_dictionary=True)
-    url_override = overrides.get("url") if overrides else None
-    if url_override:
-        return url_override
-
-    env_url = (
-        os.getenv("ALEMBIC_URL")
-        or os.getenv("ALEMBIC_DATABASE_URL")
-        or os.getenv("DATABASE_URL")
-        or os.getenv("SQLALCHEMY_DATABASE_URI")
-    )
-    if env_url:
-        return env_url
-
-    return config.get_main_option("sqlalchemy.url")
-
-
-def _build_config_section() -> Dict[str, Any]:
-    """Return a copy of the Alembic configuration with the resolved URL."""
-
-    section = dict(config.get_section(config.config_ini_section, {}) or {})
-    section["sqlalchemy.url"] = _get_database_url()
-    return section
-
-
-def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    url = _get_database_url()
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
-
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-    connectable = engine_from_config(
-        _build_config_section(),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-
-        with context.begin_transaction():
-            context.run_migrations()
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+# rest of file unchanged...
