@@ -1,265 +1,125 @@
-# erp/app.py
-# at the top with other imports
-from flask_socketio import SocketIO
-socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
-
-# ...
-# replace the previous socketio init line with eventlet mode:
-socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
-
+# erp/app.py (clean, audited)
 from __future__ import annotations
-
 import os
-import logging
-from logging import StreamHandler
-from typing import Optional
+from pathlib import Path
+from typing import List
 
 from flask import Flask, redirect, url_for
-from flask_caching import Cache
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
-from authlib.integrations.flask_client import OAuth
 from jinja2 import ChoiceLoader, FileSystemLoader
 
-cache = Cache()
-jwt = JWTManager()
-# IMPORTANT: move away from eventlet → gevent
-socketio = SocketIO(async_mode="gevent", cors_allowed_origins="*")
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
-oauth = OAuth()
+from .extensions import db, limiter, oauth, jwt, cache, compress, csrf, babel
 
+# Single global SocketIO instance so other modules can import `socketio` from erp.app
+socketio: SocketIO = SocketIO(
+    async_mode="threading",  # avoid eventlet/gevent on Py3.13
+    cors_allowed_origins="*",
+    logger=False,
+    engineio_logger=False,
+)
 
-def _configure_logging(app: Flask) -> None:
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-    level = getattr(logging, level_name, logging.INFO)
-    app.logger.setLevel(level)
-    if not app.logger.handlers:
-        handler = StreamHandler()
-        handler.setLevel(level)
-        app.logger.addHandler(handler)
+def _default_config() -> dict:
+    return {
+        "SECRET_KEY": os.environ.get("SECRET_KEY", "change-me"),
+        "SQLALCHEMY_DATABASE_URI": os.environ.get("DATABASE_URL", ""),
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+        "RATELIMIT_STORAGE_URI": os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+        "CACHE_TYPE": os.environ.get("CACHE_TYPE", "null"),
+        "JWT_SECRET_KEY": os.environ.get("JWT_SECRET_KEY", os.environ.get("SECRET_KEY", "change-me")),
+        "JWT_TOKEN_LOCATION": ["headers", "cookies"],
+        "JWT_COOKIE_CSRF_PROTECT": True,
+        "SESSION_COOKIE_SECURE": True,
+        "SESSION_COOKIE_HTTPONLY": True,
+        "PREFERRED_URL_SCHEME": "https",
+        "MFA_ISSUER": os.environ.get("MFA_ISSUER", "ERP-Berhan"),
+        # WebAuthn
+        "WEBAUTHN_RP_ID": os.environ.get("WEBAUTHN_RP_ID", "erp-berhan-backend.onrender.com"),
+        "WEBAUTHN_RP_NAME": os.environ.get("WEBAUTHN_RP_NAME", "ERP Berhan"),
+        "WEBAUTHN_ORIGIN": os.environ.get("WEBAUTHN_ORIGIN"),
+        # OAuth (if used)
+        "OAUTH_USERINFO_URL": os.environ.get("OAUTH_USERINFO_URL", ""),
+        "OAUTH_PROVIDER": os.environ.get("OAUTH_PROVIDER", "sso"),
+        # Account lock/backoff defaults
+        "LOCK_WINDOW": 300,
+        "LOCK_THRESHOLD": 5,
+        "MAX_BACKOFF": 60,
+        "ACCOUNT_LOCK_SECONDS": 900,
+        # i18n
+        "BABEL_DEFAULT_LOCALE": os.environ.get("BABEL_DEFAULT_LOCALE", "en"),
+        "BABEL_DEFAULT_TIMEZONE": os.environ.get("BABEL_DEFAULT_TIMEZONE", "UTC"),
+        # Auto-migrate DB on startup (set AUTO_MIGRATE=0 to disable)
+        "AUTO_MIGRATE": os.environ.get("AUTO_MIGRATE", "1"),
+    }
 
+def _configure_jinja_loaders(app: Flask) -> None:
+    """Search templates in both /erp/templates and repo-root /templates."""
+    loaders: List[FileSystemLoader] = []
+    pkg_templates = Path(__file__).with_name("templates")        # erp/templates
+    project_root = Path(app.root_path).parent                    # repo root
+    root_templates = project_root / "templates"                  # /templates
+    loaders.append(FileSystemLoader(str(pkg_templates)))
+    loaders.append(FileSystemLoader(str(root_templates)))
+    extra = os.environ.get("EXTRA_TEMPLATES_DIR")
+    if extra:
+        loaders.append(FileSystemLoader(extra))
+    app.jinja_loader = ChoiceLoader(loaders)  # type: ignore[assignment]
 
-def _register_oauth_clients(app: Flask) -> None:
-    issuer = app.config.get("OAUTH_ISSUER")
-    client_id = app.config.get("OAUTH_CLIENT_ID")
-    client_secret = app.config.get("OAUTH_CLIENT_SECRET")
-    well_known = app.config.get("OAUTH_WELL_KNOWN_URL")
-    userinfo_url = app.config.get("OAUTH_USERINFO_URL")
-    if client_id and (issuer or well_known) and userinfo_url:
-        oauth.register(
-            name="sso",
-            client_id=client_id,
-            client_secret=client_secret,
-            server_metadata_url=well_known,
-            client_kwargs={"scope": "openid email profile"},
-        )
-        app.logger.info("OAuth 'sso' client registered.")
-    else:
-        app.logger.info("OAuth not configured; skipping register.")
-
-
-def _maybe_bootstrap_regions(app: Flask) -> None:
-    try:
-        from .db import get_db
-        from sqlalchemy import text
-
-        conn = get_db()
-        conn.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS regions_cities (
-                    region TEXT NOT NULL,
-                    city   TEXT NOT NULL
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                INSERT INTO regions_cities (region, city) VALUES
-                ('Addis Ababa','Addis Ababa'),
-                ('Amhara','Bahir Dar'),
-                ('Oromia','Adama'),
-                ('SNNPR','Hawassa'),
-                ('Tigray','Mekelle')
-                ON CONFLICT DO NOTHING
-                """
-            )
-        )
-        conn.commit()
-    except Exception as e:
-        app.logger.warning("regions_cities bootstrap skipped: %s", e)
-
-
-def _maybe_bootstrap_core_tables_and_admin(app: Flask) -> None:
-    """
-    Ensure 'users' and 'webauthn_credentials' exist.
-    If 'users' is empty, create a first admin using env:
-      ADMIN_EMAIL, ADMIN_PASSWORD  (required for production)
-    """
-    try:
-        from .db import get_db
-        from sqlalchemy import text
-        import pyotp
-
-        conn = get_db()
-
-        # users table (fields used across the app)
-        conn.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    user_type TEXT,
-                    username TEXT UNIQUE,
-                    email TEXT UNIQUE,
-                    password_hash TEXT,
-                    mfa_secret TEXT,
-                    permissions TEXT,
-                    approved_by_ceo BOOLEAN DEFAULT FALSE,
-                    hire_date DATE,
-                    salary NUMERIC,
-                    role TEXT,
-                    account_locked BOOLEAN DEFAULT FALSE,
-                    failed_attempts INTEGER DEFAULT 0,
-                    last_login TIMESTAMP,
-                    org_id INTEGER,
-                    tin TEXT,
-                    institution_name TEXT,
-                    address TEXT,
-                    phone TEXT,
-                    region TEXT,
-                    city TEXT
-                )
-                """
-            )
-        )
-
-        # webauthn credentials
-        conn.execute(
-            text(
-                """
-                CREATE TABLE IF NOT EXISTS webauthn_credentials (
-                    credential_id TEXT PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    org_id INTEGER,
-                    public_key BYTEA NOT NULL,
-                    sign_count INTEGER DEFAULT 0
-                )
-                """
-            )
-        )
-        conn.commit()
-
-        # seed admin if table empty
-        cur = conn.execute(text("SELECT COUNT(*) AS c FROM users"))
-        count = cur.fetchone()["c"]
-        if count == 0:
-            admin_email = os.getenv("ADMIN_EMAIL", "").strip()
-            admin_password = os.getenv("ADMIN_PASSWORD", "").strip()
-            if not admin_email or not admin_password:
-                app.logger.warning(
-                    "No users and ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin seed."
-                )
-                return
-
-            from .utils import hash_password  # local import to avoid cycles
-            mfa_secret = pyotp.random_base32()
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO users (user_type, username, email, password_hash, mfa_secret, permissions, approved_by_ceo, role)
-                    VALUES (:ut, :un, :em, :ph, :mfa, :perm, TRUE, :role)
-                    """
-                ),
-                {
-                    "ut": "employee",
-                    "un": admin_email,
-                    "em": admin_email,
-                    "ph": hash_password(admin_password),
-                    "mfa": mfa_secret,
-                    "perm": "user_management,put_order,my_orders,order_status,maintenance_request,maintenance_status,message",
-                    "role": "Admin",
-                },
-            )
-            conn.commit()
-            app.logger.warning(
-                "Seeded first admin user %s. TOTP secret: %s (store in authenticator).",
-                admin_email,
-                mfa_secret,
-            )
-    except Exception as e:
-        app.logger.warning("core tables/admin bootstrap skipped: %s", e)
-
-
-def create_app(test_config: Optional[dict] = None) -> Flask:
-    app = Flask(
-        __name__,
-        template_folder="templates",
-        static_folder="static",
-    )
-
-    app.config.update(
-        SECRET_KEY=os.getenv("SECRET_KEY", os.urandom(32)),
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax",
-        WTF_CSRF_TIME_LIMIT=None,
-        JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY", os.urandom(32)),
-        JWT_TOKEN_LOCATION=["headers"],
-        JWT_COOKIE_SECURE=True,
-        MFA_ISSUER=os.getenv("MFA_ISSUER", "ERP-BERHAN"),
-        WEBAUTHN_RP_ID=os.getenv("WEBAUTHN_RP_ID", "erp-berhan-backend.onrender.com"),
-        WEBAUTHN_RP_NAME=os.getenv("WEBAUTHN_RP_NAME", "ERP-BERHAN"),
-        WEBAUTHN_ORIGIN=os.getenv("WEBAUTHN_ORIGIN", "https://erp-berhan-backend.onrender.com"),
-        CACHE_TYPE=os.getenv("CACHE_TYPE", "null"),
-    )
-    if test_config:
-        app.config.update(test_config)
-
-    _configure_logging(app)
-
-    # Make both erp/templates and repo-root/templates available
-    repo_root = os.path.dirname(os.path.dirname(__file__))
-    root_templates = os.path.join(repo_root, "templates")
-    if os.path.isdir(root_templates):
-        app.jinja_loader = ChoiceLoader([  # type: ignore[attr-defined]
-            app.jinja_loader,
-            FileSystemLoader(root_templates),
-        ])
-        app.logger.info("Added repo-root templates path: %s", root_templates)
-
-    # Extensions
-    try:
-        cache.init_app(app)
-    except Exception as e:
-        app.logger.warning("Cache init skipped: %s", e)
-    limiter.init_app(app)
-    jwt.init_app(app)
-    socketio.init_app(app)  # gevent
-    oauth.init_app(app)
-    _register_oauth_clients(app)
-
-    # DB bootstraps (idempotent)
-    _maybe_bootstrap_regions(app)
-    _maybe_bootstrap_core_tables_and_admin(app)
-
-    # Blueprints
-    from .routes.auth import auth_bp
+def _register_blueprints(app: Flask) -> None:
+    from .routes.auth import bp as auth_bp
+    from .routes.main import bp as main_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(main_bp)
 
-    @app.route("/")
+def _configure_oauth(app: Flask) -> None:
+    oauth.register(
+        "sso",
+        client_id=os.environ.get("OAUTH_CLIENT_ID"),
+        client_secret=os.environ.get("OAUTH_CLIENT_SECRET"),
+        server_metadata_url=os.environ.get("OAUTH_DISCOVERY_URL"),
+        client_kwargs={"scope": "openid email profile"},
+    )
+
+def create_app() -> Flask:
+    app = Flask(__name__)
+    app.config.update(_default_config())
+
+    # Initialize extensions
+    db.init_app(app)
+    limiter.init_app(app)
+    oauth.init_app(app)
+    jwt.init_app(app)
+    cache.init_app(app)
+    compress.init_app(app)
+    csrf.init_app(app)
+    babel.init_app(app)
+    socketio.init_app(app, message_queue=os.environ.get("SOCKETIO_MESSAGE_QUEUE"))
+
+    _configure_jinja_loaders(app)
+    _register_blueprints(app)
+    _configure_oauth(app)
+
+    @app.get("/healthz")
+    def healthz():
+        return "ok", 200
+
+    @app.get("/")
     def index():
+        # always start at the chooser (login gate)
         return redirect(url_for("auth.choose_login"))
 
-    @app.route("/favicon.ico")
-    def favicon():
-        return "", 204
+    # Run Alembic migrations automatically (if configured)
+    if app.config.get("AUTO_MIGRATE") in ("1", "true", "True"):
+        try:
+            from alembic import command
+            from alembic.config import Config as AlembicConfig
+            alembic_ini = Path(app.root_path).parent / "alembic.ini"
+            if alembic_ini.exists():
+                cfg = AlembicConfig(str(alembic_ini))
+                cfg.set_main_option("sqlalchemy.url", app.config["SQLALCHEMY_DATABASE_URI"] or "")
+                command.upgrade(cfg, "head")
+            else:
+                app.logger.warning("alembic.ini not found; skipping auto-migrate")
+        except Exception as e:
+            app.logger.error("Database auto-migration failed: %s", e)
 
     return app
-
-
-__all__ = ["create_app", "socketio"]
