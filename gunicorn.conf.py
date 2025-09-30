@@ -1,12 +1,12 @@
+# gunicorn.conf.py
 import os
 
-bind = "0.0.0.0:" + os.getenv("PORT", "10000")
-worker_class = "eventlet"
+bind = "0.0.0.0:10000"
 workers = int(os.getenv("WEB_CONCURRENCY", "1"))
-worker_connections = 1000
-timeout = 60
-graceful_timeout = 60
+threads = int(os.getenv("WEB_THREADS", "8"))
+worker_class = "gthread"        # <-- drop eventlet/gevent entirely
+timeout = int(os.getenv("WEB_TIMEOUT", "120"))
+graceful_timeout = 30
 keepalive = 5
-loglevel = os.getenv("LOG_LEVEL", "info")
-accesslog = "-"
 errorlog = "-"
+accesslog = "-"
