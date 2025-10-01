@@ -1,32 +1,25 @@
-# wsgi.py
-"""
-Export the WSGI app for gunicorn as `app` and ensure eventlet monkey_patch
-happens BEFORE anything that touches sockets/threads.
-"""
-
-# --- Patch first (and keep it minimal/safe for PaaS) -------------------------
+# Patch BEFORE importing anything that might touch sockets/threads
 try:
     import os
     os.environ.setdefault("EVENTLET_NO_GREENDNS", "yes")  # avoid greendns surprises
 
     import eventlet
+    # Patch common subsystems; doing it here keeps it earliest in import order
     eventlet.monkey_patch(
         socket=True,
         select=True,
         time=True,
         thread=True,
-        os=False,       # safer in many PaaS environments
+        os=False,        # safer in many PaaS environments
         ssl=True,
-        dns=False,      # greendns disabled above
-        subprocess=False,
+        dns=False,       # greendns disabled above
+        subprocess=False
     )
 except Exception:
-    # If eventlet isn't available at build time, don't block import.
-    # The eventlet gunicorn worker will still run or fail loudly later.
+    # Don't block startup—Gunicorn's eventlet worker still runs; we just lose some greening
     pass
 
-# --- Now import the app factory (after patching) -----------------------------
-from erp.app import create_app  # noqa: E402
+from erp.app import create_app  # noqa: E402  (import after patching)
 
-# Gunicorn looks for this attribute when you use "wsgi:app"
+# Gunicorn looks for "app"
 app = create_app()
