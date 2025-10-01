@@ -1,101 +1,120 @@
+from __future__ import annotations
+
+import importlib
 import os
-from importlib import import_module
+import pkgutil
 from typing import Iterable, Optional
 
-from flask import Flask, jsonify, redirect, url_for, request
+from flask import Blueprint, Flask, jsonify, redirect, url_for
 
-from .extensions import init_extensions, db, socketio
+from .extensions import (
+    babel,
+    cache,
+    compress,
+    cors,
+    db,
+    init_extensions,
+    limiter,
+    migrate,
+    oauth,
+    socketio,
+)
+
+DEFAULT_CONFIG: dict = {
+    "JSON_SORT_KEYS": False,
+    "JSONIFY_PRETTYPRINT_REGULAR": False,
+}
 
 
-def _maybe_register_blueprint(app: Flask, module_name: str, candidates: Iterable[str], url_prefix: Optional[str] = None) -> None:
+def _maybe_register_blueprint(app: Flask, module_name: str, url_prefix: Optional[str] = None) -> Optional[Blueprint]:
     """
-    Tries to import `module_name` and register the first attribute that looks like a Blueprint.
-    `candidates` is a list of attribute names to try (e.g. ["bp", "blueprint", "auth_bp"]).
-    Silently skips if module or attribute is not present. This keeps the app robust when some
-    feature modules are optional.
+    Import module_name and, if it exposes a 'bp' (Blueprint), register it.
+    Returns the blueprint or None.
     """
     try:
-        module = import_module(module_name)
+        mod = importlib.import_module(module_name)
     except Exception:
-        return
-
-    for attr in candidates:
-        bp = getattr(module, attr, None)
-        if bp is not None:
-            try:
-                app.register_blueprint(bp, url_prefix=url_prefix)
-            except Exception:
-                # If importing/registration errors occur, don't crash the whole app
-                pass
-            return
+        return None
+    bp = getattr(mod, "bp", None)
+    if isinstance(bp, Blueprint):
+        app.register_blueprint(bp, url_prefix=url_prefix)
+        return bp
+    return None
 
 
-def create_app() -> Flask:
-    from dotenv import load_dotenv
+def _iter_package_modules(package_name: str) -> Iterable[str]:
+    """Yield importable module names inside a package."""
+    try:
+        pkg = importlib.import_module(package_name)
+    except Exception:
+        return []
+    if not hasattr(pkg, "__path__"):
+        return []
+    for info in pkgutil.iter_modules(pkg.__path__, package_name + "."):
+        yield info.name
 
-    load_dotenv()
 
-    app = Flask(__name__)
+def _auto_register_blueprints(app: Flask) -> None:
+    """
+    Register blueprints from our known locations.
 
-    # --- Minimal, safe configuration defaults ---
-    app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
-    # DB
-    app.config.setdefault(
-        "SQLALCHEMY_DATABASE_URI",
-        os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI") or "sqlite:///erp.db",
-    )
-    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    We support both:
+      - erp.routes.<module>
+      - erp.blueprints.<module>
+    And we also try a few explicit modules if present.
+    """
+    # Explicit, common ones
+    for name in (
+        "erp.routes.health",
+        "erp.routes.auth",
+        "erp.routes.api",
+        "erp.blueprints.inventory",
+    ):
+        _maybe_register_blueprint(app, name)
 
-    # JWT
-    app.config.setdefault("JWT_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "dev-jwt-secret"))
+    # Dynamic discovery
+    for pkg in ("erp.routes", "erp.blueprints"):
+        for module_name in _iter_package_modules(pkg):
+            _maybe_register_blueprint(app, module_name)
 
-    # CORS
-    app.config.setdefault("CORS_ORIGINS", os.getenv("CORS_ORIGINS", "*"))
 
-    # Socket.IO queue (optional)
-    app.config.setdefault("SOCKETIO_MESSAGE_QUEUE", os.getenv("REDIS_URL"))
+def create_app(config: Optional[dict] = None) -> Flask:
+    app = Flask(__name__, instance_relative_config=False)
+    app.config.update(DEFAULT_CONFIG)
 
-    # Init all extensions (DB, Migrate, OAuth, CORS, Limiter, Cache, Compress, CSRF, Babel, JWT, SocketIO)
+    # Allow env to inject secrets/URLs
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", app.config.get("SECRET_KEY", "change-me"))
+    cors_origins = os.getenv("CORS_ORIGINS", "*")
+    if cors_origins:
+        app.config["CORS_ORIGINS"] = cors_origins
+
+    if config:
+        app.config.update(config)
+
+    # Init all extensions (JWT is initialized lazily inside init_extensions)
     init_extensions(app)
 
-    # --- Blueprint registration (best-effort) ---
-    # Try common auth locations/names; adjust to your project if needed.
-    _maybe_register_blueprint(app, "erp.auth", ["bp", "blueprint", "auth_bp", "auth"], url_prefix="/auth")
-    _maybe_register_blueprint(app, "erp.api", ["bp", "blueprint", "api_bp", "api"], url_prefix="/api")
-    _maybe_register_blueprint(app, "erp.views", ["bp", "blueprint", "views_bp", "views"])
+    # Register blueprints we can find
+    _auto_register_blueprints(app)
 
-    # --- Healthcheck ---
-    @app.get("/health")
-    def health():
-        return jsonify(status="ok")
+    # Fallback /health if no health blueprint exists
+    if "health.health" not in app.view_functions:
+        @app.get("/health")
+        def _fallback_health():
+            return jsonify({"status": "ready"})
 
-    # --- Root: send users to an available auth page, otherwise say we're up ---
+    # Root: prefer auth endpoints if present; otherwise explain what's available.
     @app.route("/", methods=["GET", "HEAD"])
     def _root():
-        # Prefer explicit login chooser if present
-        for endpoint in ("auth.choose_login", "auth.login", "auth.index"):
+        candidates = ("auth.choose_login", "auth.login", "auth.index")
+        for endpoint in candidates:
             if endpoint in app.view_functions:
-                # Avoid redirect loops if someone hits /health with HEAD
-                if request.method == "HEAD":
-                    return "", 302, {"Location": url_for(endpoint)}
                 return redirect(url_for(endpoint))
-        # Fallback: plain JSON to confirm app is healthy but no auth blueprint is wired
         return jsonify(
-            status="ready",
-            note="No auth blueprint endpoint found. Expected one of: auth.choose_login, auth.login, auth.index.",
+            {
+                "note": "No auth blueprint endpoint found. Expected one of: auth.choose_login, auth.login, auth.index.",
+                "status": "ready",
+            }
         )
 
-    # --- Shell context (handy for `flask shell`) ---
-    @app.shell_context_processor
-    def _shell_ctx():
-        return {"db": db}
-
     return app
-
-
-# If you ever run `python -m erp.app` locally:
-if __name__ == "__main__":
-    # NOTE: For local debugging only. In Render, gunicorn runs this via wsgi:app.
-    app = create_app()
-    # Socket.IO dev server with eventlet
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
