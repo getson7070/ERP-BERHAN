@@ -63,27 +63,4 @@ def init_extensions(app):
     babel.init_app(app)
 
     # Lazily import and init JWTManager now (AFTER eventlet monkey_patch has run)
-    global jwt
-    from flask_jwt_extended import JWTManager  # noqa: WPS433 (intentional local import)
-
-    jwt = JWTManager()
-    jwt.init_app(app)
-
-    # Socket.IO (optionally with a message queue like Redis)
-    socketio.init_app(app, message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"))
-
-
-__all__ = [
-    "db",
-    "migrate",
-    "oauth",
-    "limiter",
-    "cors",
-    "cache",
-    "compress",
-    "csrf",
-    "babel",
-    "jwt",
-    "socketio",
-    "init_extensions",
-]
+    global jw
