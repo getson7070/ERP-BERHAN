@@ -1,23 +1,23 @@
+# erp/api/webhook.py
 from __future__ import annotations
-
-import hmac
-import hashlib
+import hmac, hashlib, json
 from flask import Blueprint, current_app, request, jsonify
+from erp.extensions import csrf, limiter
+from db import redis_client  # re-exported from erp.db via root db.py
 
-from erp import csrf, limiter, _dead_letter_handler
-from erp.routes.api import token_required
-from erp.utils import idempotency_key_required
+bp = Blueprint("webhook_api", __name__, url_prefix="/api/webhook")
 
-bp = Blueprint("webhook", __name__, url_prefix="/api/webhook")
-
+def _dead_letter_handler(payload: bytes, source: str, error: str | None = None) -> None:
+    data = {"task": "api.webhook", "source": source, "payload": payload.decode(errors="ignore")}
+    if error:
+        data["error"] = error
+    if redis_client.is_real and redis_client.client:
+        redis_client.client.lpush("dead_letter", json.dumps(data))
 
 @bp.post("/<source>")
 @csrf.exempt
-@token_required
-@idempotency_key_required
 @limiter.limit("20 per minute")
 def receive_webhook(source: str):
-    """Validate signed webhook payloads and enqueue failures."""
     secret = current_app.config.get("WEBHOOK_SECRET")
     if not secret:
         return jsonify({"error": "secret_not_configured"}), 500
@@ -25,15 +25,7 @@ def receive_webhook(source: str):
     sig = request.headers.get("X-Signature", "")
     expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
     if not sig or not hmac.compare_digest(sig, expected):
+        _dead_letter_handler(payload, source, "invalid_signature")
         return jsonify({"error": "invalid_signature"}), 401
     data = request.get_json(silent=True) or {}
-    if data.get("simulate_failure"):
-        _dead_letter_handler(
-            sender=None,
-            task_id=None,
-            exception=Exception("simulate_failure"),
-            args=(source,),
-            kwargs=data,
-        )
-        return jsonify({"status": "queued"}), 500
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "source": source, "received": bool(data)}), 200
