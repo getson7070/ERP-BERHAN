@@ -28,11 +28,6 @@ from .extensions import (
 
 
 def _coerce_db_url(url: Optional[str]) -> Optional[str]:
-    """
-    Normalize DB URLs:
-      - postgres:// -> postgresql+psycopg2://
-      - ensure sslmode=require if missing
-    """
     if not url:
         return None
     if url.startswith("postgres://"):
@@ -46,24 +41,22 @@ def _coerce_db_url(url: Optional[str]) -> Optional[str]:
 
 
 def _configure_defaults(app: Flask) -> None:
-    """Provide sane defaults to cut down on startup warnings."""
-    # Secret keys (override in env for prod)
+    # Secrets (override via env in prod)
     app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "replace-me"))
     app.config.setdefault("JWT_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "replace-me-too"))
 
     # CORS
     app.config.setdefault("CORS_ORIGINS", os.getenv("CORS_ORIGINS", "*"))
 
-    # Rate limiting backend (avoid 'in-memory' warning if possible)
-    # If you have Redis, set RATELIMIT_STORAGE_URI=redis://:password@host:port/0
+    # Rate limiting backend & defaults
     app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
     app.config.setdefault("RATELIMIT_DEFAULT", os.getenv("RATELIMIT_DEFAULT", "60 per minute"))
 
-    # Caching
+    # Cache
     app.config.setdefault("CACHE_TYPE", os.getenv("CACHE_TYPE", "SimpleCache"))
     app.config.setdefault("CACHE_DEFAULT_TIMEOUT", int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300")))
 
-    # Socket.IO message queue (optional Redis)
+    # Socket.IO message queue (optional)
     mq = os.getenv("SOCKETIO_MESSAGE_QUEUE") or os.getenv("REDIS_URL")
     if mq:
         app.config["SOCKETIO_MESSAGE_QUEUE"] = mq
@@ -78,7 +71,6 @@ def _configure_defaults(app: Flask) -> None:
 
 
 def _maybe_register_blueprint(app: Flask, bp: Blueprint, *, url_prefix: Optional[str] = None) -> None:
-    """Register a blueprint only once (avoid 'already registered' errors)."""
     if bp.name in app.blueprints:
         app.logger.info("Skipping duplicate blueprint registration: %s", bp.name)
         return
@@ -88,13 +80,13 @@ def _maybe_register_blueprint(app: Flask, bp: Blueprint, *, url_prefix: Optional
 def _auto_register_blueprints(app: Flask) -> None:
     """
     Auto-import and register blueprints from erp.routes.* modules.
-    Expects each module to export 'bp' or 'blueprint' as a Flask Blueprint.
+    Each module may export `bp` or `blueprint` (Flask Blueprint).
+    Optional: URL_PREFIX/url_prefix variable for prefix.
     """
     package_name = "erp.routes"
     try:
         pkg = importlib.import_module(package_name)
     except ModuleNotFoundError:
-        # No routes package; nothing to do.
         app.logger.info("No routes package found at %s; skipping auto-registration.", package_name)
         return
 
@@ -105,22 +97,16 @@ def _auto_register_blueprints(app: Flask) -> None:
 
         bp = getattr(module, "bp", None) or getattr(module, "blueprint", None)
         if isinstance(bp, Blueprint):
-            # Optional module-specified prefix
             url_prefix = getattr(module, "URL_PREFIX", None) or getattr(module, "url_prefix", None)
             _maybe_register_blueprint(app, bp, url_prefix=url_prefix)
 
 
 def _install_fallback_home_if_missing(app: Flask) -> None:
-    """
-    Some modules may call url_for('home'). If no 'home' endpoint exists,
-    define a minimal one to avoid BuildError crashes.
-    """
     if "home" in app.view_functions:
         return
 
     @app.get("/home")
     def home():  # endpoint name = 'home'
-        # Redirect to something concrete if available; otherwise show simple JSON.
         try:
             return redirect(url_for("health"))
         except BuildError:
@@ -134,8 +120,8 @@ def _install_health_and_root(app: Flask) -> None:
 
     @app.get("/")
     def _root():
-        # Prefer login page if it exists; otherwise fall back to health
-        for endpoint in ("auth.login", "home", "health"):
+        # Try likely endpoints in order; fall back to health.
+        for endpoint in ("auth.login", "auth.choose_login", "home", "health"):
             try:
                 return redirect(url_for(endpoint))
             except BuildError:
@@ -146,20 +132,13 @@ def _install_health_and_root(app: Flask) -> None:
 def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=False)
 
-    # Provide sane defaults, including DB and limiter/cache config
     _configure_defaults(app)
-
-    # Initialize all extensions (DB, migrate, oauth, limiter, cors, cache, compress, csrf, babel, jwt, socketio)
-    init_extensions(app)
-
-    # Auto-register blueprints from erp.routes.* (without duplicates)
-    _auto_register_blueprints(app)
-
-    # Minimal routes everyone expects
+    init_extensions(app)           # DB, migrate, oauth, limiter, cors, cache, compress, csrf, babel, jwt, socketio
+    _auto_register_blueprints(app) # Avoid duplicates
     _install_health_and_root(app)
     _install_fallback_home_if_missing(app)
 
-    # Shell context (handy for flask shell)
+    # Shell ctx convenience
     @app.shell_context_processor
     def _make_shell_context():
         return {"app": app, "db": db}
