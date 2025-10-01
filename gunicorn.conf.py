@@ -1,11 +1,18 @@
-# gunicorn.conf.py
-import multiprocessing, os
-bind = "0.0.0.0:" + os.getenv("PORT", "10000")
-workers = 1  # eventlet works with single worker
+# Eventlet worker for long-lived Socket.IO connections
 worker_class = "eventlet"
-timeout = int(os.getenv("GUNICORN_TIMEOUT", "120"))
-graceful_timeout = int(os.getenv("GUNICORN_GRACEFUL_TIMEOUT", "120"))
-keepalive = int(os.getenv("GUNICORN_KEEPALIVE", "5"))
+workers = 1
+worker_connections = 1000
+
+# Network
+bind = "0.0.0.0:10000"
+timeout = 120
+keepalive = 5
+graceful_timeout = 30
+
+# App loading
+preload_app = False  # keep False when using eventlet unless you control import order
+
+# Logging
+loglevel = "info"
 accesslog = "-"
 errorlog = "-"
-loglevel = os.getenv("LOGLEVEL", "info")
