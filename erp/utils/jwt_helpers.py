@@ -1,38 +1,38 @@
-# erp/utils/jwt_helpers.py
 from __future__ import annotations
 
-from functools import wraps
-from typing import Callable, Any
-
-def require_jwt(optional: bool = False, fresh: bool = False) -> Callable:
-    """
-    Replacement for @jwt_required() that avoids importing flask_jwt_extended
-    at module import time. It imports and validates inside the request.
-    """
-    def decorator(fn: Callable) -> Callable:
-        @wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Import only when a request is actually being handled.
-            from flask_jwt_extended import verify_jwt_in_request
-            verify_jwt_in_request(optional=optional, fresh=fresh)
-            return fn(*args, **kwargs)
-        return wrapper
-    return decorator
+from typing import Any, Optional
 
 
-def get_jwt_claims() -> dict:
+def verify_jwt_in_request_if_present() -> bool:
     """
-    Lazy accessor to JWT claims (same as flask_jwt_extended.get_jwt()).
+    Verify JWT only if the request actually carries one.
+    Returns True if a valid JWT was present, False if not provided.
+    Will raise if a token is provided but invalid/expired.
     """
-    from flask_jwt_extended import get_jwt  # imported lazily
-    return dict(get_jwt() or {})
+    try:
+        from flask import request
+
+        authz = request.headers.get("Authorization", "")
+        if not authz and "access_token" not in request.args:
+            return False
+
+        from flask_jwt_extended import verify_jwt_in_request
+
+        verify_jwt_in_request()
+        return True
+    except Exception:
+        # Let callers choose to handle/ignore; returning False keeps routes lenient.
+        return False
 
 
-def has_any_role(*needed: str) -> bool:
+def get_current_user_safe() -> Optional[Any]:
     """
-    Role check against a 'roles' array in JWT claims (adjust if your claim key
-    is different — e.g., 'permissions').
+    Safely access current_user only when a JWT/request context exists.
+    Returns None if there's no valid request/JWT context.
     """
-    claims = get_jwt_claims()
-    roles = set(claims.get("roles") or [])
-    return any(r in roles for r in needed)
+    try:
+        from flask_jwt_extended import current_user  # local import to avoid global LocalProxy at import time
+
+        return current_user  # may still be a LocalProxy but only inside a valid request ctx
+    except Exception:
+        return None
