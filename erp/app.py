@@ -1,104 +1,130 @@
 # erp/app.py
 from __future__ import annotations
 import os
+from importlib import import_module
 from pathlib import Path
+from typing import Iterable
 
 from flask import Flask, redirect, url_for
-from flask_caching import Cache
-from flask_compress import Compress
-from flask_wtf.csrf import CSRFProtect
-from flask_babel import Babel
-from flask_jwt_extended import JWTManager
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_socketio import SocketIO
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from erp.extensions import db as sqla_db
-from erp.db import get_db, redis_client  # actual helpers live in erp/db.py
+from .extensions import (
+    db, cache, compress, csrf, babel, jwt, limiter, socketio, oauth
+)
 
-# Resolve repo-root templates/static (your repo stores them at top level)
-PACKAGE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PACKAGE_DIR.parent
-TEMPLATES_DIR = REPO_ROOT / "templates"
-STATIC_DIR = REPO_ROOT / "static"
+DEFAULT_LIMITS = ["2000 per hour", "20000 per day"]  # tune for prod
 
-cache = Cache()
-compress = Compress()
-csrf = CSRFProtect()
-babel = Babel()
-jwt = JWTManager()
-socketio = SocketIO(async_mode="threading", cors_allowed_origins="*")  # no eventlet
+def _load_config(app: Flask) -> None:
+    app.config.setdefault("SECRET_KEY", os.getenv("FLASK_SECRET_KEY", "change-me"))
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.getenv("DATABASE_URL", "sqlite:///instance/erp_dev.db"))
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
 
-def _register_blueprints(app: Flask) -> None:
-    # Import inside function to avoid import-time crashes
-    from .routes.auth import bp as auth_bp
-    # Register other blueprints similarly
-    app.register_blueprint(auth_bp)
+    # Cache / Limiter backends (Redis recommended in prod)
+    app.config.setdefault("CACHE_TYPE", os.getenv("CACHE_TYPE", "SimpleCache"))
+    app.config.setdefault("CACHE_DEFAULT_TIMEOUT", 300)
 
-def _configure_security(app: Flask) -> None:
-    app.config.setdefault("SESSION_COOKIE_SECURE", True)
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-    app.config.setdefault("WTF_CSRF_ENABLED", True)
-    app.config.setdefault("PREFERRED_URL_SCHEME", "https")
+    limiter_backend = os.getenv("RATELIMIT_STORAGE_URI")  # e.g., "redis://:pass@host:6379/0"
+    if limiter_backend:
+        app.config["RATELIMIT_STORAGE_URI"] = limiter_backend
 
-def _configure_cache(app: Flask) -> None:
+    # JWT
+    app.config.setdefault("JWT_SECRET_KEY", os.getenv("JWT_SECRET", app.config["SECRET_KEY"]))
+
+    # Babel
+    app.config.setdefault("BABEL_DEFAULT_LOCALE", os.getenv("BABEL_DEFAULT_LOCALE", "en"))
+
+    # SocketIO async mode picked by installed deps (eventlet/gevent/threading)
+    # For Render: ensure eventlet or gevent is installed and set in start cmd.
+
+def _init_extensions(app: Flask) -> None:
+    db.init_app(app)
     cache.init_app(app)
     compress.init_app(app)
-
-def _configure_babel(app: Flask) -> None:
+    csrf.init_app(app)
     babel.init_app(app)
-
-def _configure_jwt(app: Flask) -> None:
     jwt.init_app(app)
 
-def _configure_rate_limits(app: Flask) -> None:
-    # Use Redis if configured; otherwise memory storage
-    storage_uri = os.getenv("REDIS_URL")
-    limiter = Limiter(
-        key_func=get_remote_address,
-        storage_uri=storage_uri or "memory://",
-        strategy="fixed-window",
-    )
+    # Limiter: use configured backend if present
+    storage_uri = app.config.get("RATELIMIT_STORAGE_URI")
+    limiter._storage_uri = storage_uri  # set at runtime if provided
+    limiter._default_limits = DEFAULT_LIMITS
     limiter.init_app(app)
-    app.extensions["limiter"] = limiter
 
-def _configure_sqlalchemy(app: Flask) -> None:
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise RuntimeError("DATABASE_URL is not set")
+    # OAuth providers can be configured via env (example placeholders)
+    oauth.init_app(app)
+    # Example:
+    # oauth.register(
+    #     name="google",
+    #     client_id=os.getenv("OAUTH_CLIENT_ID"),
+    #     client_secret=os.getenv("OAUTH_CLIENT_SECRET"),
+    #     access_token_url=os.getenv("OAUTH_TOKEN_URL"),
+    #     authorize_url=os.getenv("OAUTH_AUTH_URL"),
+    #     api_base_url=os.getenv("OAUTH_USERINFO_URL"),
+    #     client_kwargs={"scope": "openid email profile"},
+    # )
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
-    sqla_db.init_app(app)
+    # SocketIO is initialized after blueprints (to avoid circular imports)
+    # socketio.init_app(app) is called at the end of create_app()
+
+def _register_blueprints(app: Flask) -> None:
+    """
+    Import and register all blueprints declared as `bp` inside erp.routes.* modules.
+    """
+    routes_pkg = "erp.routes"
+    # Explicit list for predictability; add/remove modules as needed.
+    modules: Iterable[str] = (
+        "auth", "main", "admin", "analytics", "api", "crm", "finance",
+        "health", "help", "hr", "hr_workflows", "inventory", "kanban",
+        "manufacturing", "orders", "plugins", "privacy", "procurement",
+        "projects", "receive_inventory", "report_builder", "tenders", "webhooks",
+        "dashboard_customize",
+    )
+    for name in modules:
+        try:
+            mod = import_module(f"{routes_pkg}.{name}")
+            bp = getattr(mod, "bp", None)
+            if bp is not None:
+                app.register_blueprint(bp)
+        except Exception as e:
+            # Don’t fail boot if a non-critical blueprint misconfigures; log in real app.
+            # Use your audit logger here if available.
+            pass
+
+def _configure_proxies(app: Flask) -> None:
+    # For Render / reverse proxies
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)  # type: ignore[attr-defined]
+
+def _secure_headers(app: Flask) -> None:
+    @app.after_request
+    def _set_headers(resp):
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "no-referrer")
+        resp.headers.setdefault("X-XSS-Protection", "0")
+        # Add CSP/COOP/COEP/CORP per your policy if not already templated
+        return resp
 
 def create_app() -> Flask:
     app = Flask(
         __name__,
-        template_folder=str(TEMPLATES_DIR),  # repo-root/templates
-        static_folder=str(STATIC_DIR),       # repo-root/static
+        instance_relative_config=True,
+        template_folder=str(Path(__file__).resolve().parent.parent / "templates"),
+        static_folder=str(Path(__file__).resolve().parent.parent / "static"),
     )
 
-    # Secrets / proxies
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(32))
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+    # Ensure instance folder
+    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
-    # Configure components
-    _configure_security(app)
-    _configure_cache(app)
-    _configure_babel(app)
-    _configure_jwt(app)
-    _configure_sqlalchemy(app)
-    _configure_rate_limits(app)
+    _load_config(app)
+    _init_extensions(app)
+    _configure_proxies(app)
+    _secure_headers(app)
 
-    # Blueprints
     _register_blueprints(app)
 
-    # Default route => login chooser (adjust if you use different first page)
-    @app.route("/")
+    # Root -> login chooser (template exists at templates/choose_login.html)
+    @app.get("/")
     def _root():
-        # if your "choose login" is in auth blueprint
         return redirect(url_for("auth.choose_login"))
 
     # SocketIO last
