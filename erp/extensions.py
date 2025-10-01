@@ -1,4 +1,3 @@
-# erp/extensions.py
 import os
 
 from flask_sqlalchemy import SQLAlchemy
@@ -15,22 +14,22 @@ from flask_socketio import SocketIO
 
 # IMPORTANT:
 # Do NOT import from flask_jwt_extended at module-top. It defines LocalProxy
-# objects that eventlet tries to traverse during monkey_patch. We import it
-# lazily in init_extensions() after patching has already happened.
+# objects that eventlet may try to traverse during monkey_patch. We import it
+# lazily in init_extensions() after patching has happened.
 
 # Core
 db = SQLAlchemy()
 migrate = Migrate()
 oauth = OAuth()
 
-# Rate limiting (storage configured in init_extensions)
+# Limiter (configure storage via app.config in init_extensions)
 limiter = Limiter(key_func=get_remote_address)
 
 # CORS
 cors = CORS()
 
 # Optional extras
-cache = Cache()          # default configured in init_extensions
+cache = Cache()          # configured in init_extensions
 compress = Compress()
 csrf = CSRFProtect()
 babel = Babel()
@@ -64,16 +63,18 @@ def init_extensions(app):
     # Prefer Redis if available; fall back to in-memory (acceptable for dev)
     storage_uri = app.config.get("RATELIMIT_STORAGE_URI")
     if not storage_uri:
-        redis_url = os.getenv("REDIS_URL") or os.getenv("REDIS_URI")
-        if redis_url:
-            storage_uri = redis_url
-        else:
-            storage_uri = "memory://"
-    limiter.init_app(app, storage_uri=storage_uri)
+        storage_uri = os.getenv("RATELIMIT_STORAGE_URI") or os.getenv("REDIS_URL") or "memory://"
+    # In Flask-Limiter 3.x, configure via app.config then call init_app(app)
+    app.config["RATELIMIT_STORAGE_URI"] = storage_uri
+    limiter.init_app(app)
 
     # --- Caching / compression / CSRF / i18n ---------------------------------
-    cache_type = app.config.get("CACHE_TYPE", "simple")  # avoid 'null' warning
+    # Coerce null/empty values to "simple" to avoid warnings
+    cache_type = app.config.get("CACHE_TYPE", os.getenv("CACHE_TYPE", "simple"))
+    if not cache_type or str(cache_type).lower() in {"none", "null"}:
+        cache_type = "simple"
     app.config["CACHE_TYPE"] = cache_type
+
     cache.init_app(app)
     compress.init_app(app)
     csrf.init_app(app)
@@ -86,7 +87,7 @@ def init_extensions(app):
     jwt.init_app(app)
 
     # --- Socket.IO (optionally with a message queue like Redis) --------------
-    mq = app.config.get("SOCKETIO_MESSAGE_QUEUE") or os.getenv("REDIS_URL") or None
+    mq = app.config.get("SOCKETIO_MESSAGE_QUEUE") or os.getenv("SOCKETIO_MESSAGE_QUEUE") or os.getenv("REDIS_URL")
     socketio.init_app(app, message_queue=mq)
 
 
