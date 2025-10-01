@@ -1,26 +1,26 @@
-# Patch BEFORE importing anything that might touch sockets/threads
+# Patch BEFORE importing anything that might touch sockets/threads.
+# This prevents Eventlet from trying to "upgrade" objects created by other libs.
 try:
     import os
-    # Avoid greendns surprises in PaaS
-    os.environ.setdefault("EVENTLET_NO_GREENDNS", "yes")
+    os.environ.setdefault("EVENTLET_NO_GREENDNS", "yes")  # avoid greendns surprises
 
     import eventlet
-    # Patch only what we need; leave threading alone to avoid LocalProxy traversal issues
     eventlet.monkey_patch(
         socket=True,
         select=True,
         time=True,
-        thread=False,     # <— key change: do NOT green threading to avoid JWT proxies issues
+        thread=True,
         os=False,
         ssl=True,
         dns=False,
         subprocess=False,
     )
 except Exception:
-    # Don't block startup—Gunicorn's eventlet worker will still run
+    # If eventlet isn't available at build time, don't block import; the
+    # eventlet worker will still fail loudly if required.
     pass
 
-from erp.app import create_app  # noqa: E402 (import after patching)
+from erp.app import create_app  # noqa: E402
 
-# Gunicorn looks for this
+# Gunicorn looks for this 'app' object.
 app = create_app()
