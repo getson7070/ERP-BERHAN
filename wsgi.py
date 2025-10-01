@@ -1,14 +1,28 @@
-# IMPORTANT: green the stdlib before importing anything else that touches sockets/threads
+# Patch BEFORE importing anything that might touch sockets/threads
 try:
-    import eventlet
+    # A couple of env toggles that make patching less invasive in containerized envs
+    import os
+    os.environ.setdefault("EVENTLET_NO_GREENDNS", "yes")  # avoid greendns surprises
 
-    # Patch all: sockets, threading, time, etc. Must happen first.
-    eventlet.monkey_patch(all=True)
+    import eventlet
+    # Patch common subsystems; doing it here keeps it earliest in import order
+    eventlet.monkey_patch(
+        socket=True,
+        select=True,
+        time=True,
+        thread=True,
+        os=False,        # safer in many PaaS environments
+        ssl=True,
+        dns=False,       # greendns disabled above
+        subprocess=False
+        # (aggressive defaults to True; leaving it as default is fine now that
+        # flask_jwt_extended won't be imported yet—see extensions.py)
+    )
 except Exception:
-    # If eventlet is not available at build time, don't block import; gunicorn's worker will still fail loudly.
+    # Don't block startup—Gunicorn's eventlet worker still runs; we just lose some greening
     pass
 
-from erp.app import create_app
+from erp.app import create_app  # noqa: E402  (import after patching)
 
-# Gunicorn will look for this
+# Gunicorn looks for "app"
 app = create_app()
