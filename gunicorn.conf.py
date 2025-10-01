@@ -1,22 +1,19 @@
 # gunicorn.conf.py
-import multiprocessing
 import os
 
-wsgi_app = "wsgi:app"
-
-# Eventlet for Flask-SocketIO
-worker_class = "eventlet"
-workers = 1  # eventlet is async; one worker is typical with SocketIO
-
-# Bind to Render's assigned port
+# Render sets PORT; default to 10000 for local/run.
 bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
 
-# Timeouts
+# Eventlet worker for Socket.IO / long polling
+worker_class = "eventlet"
+workers = int(os.getenv("WEB_CONCURRENCY", "1"))
+
+# Timeouts appropriate for Eventlet
 timeout = int(os.getenv("GUNICORN_TIMEOUT", "120"))
 graceful_timeout = int(os.getenv("GUNICORN_GRACEFUL_TIMEOUT", "120"))
+keepalive = int(os.getenv("GUNICORN_KEEPALIVE", "5"))
 
-# Logging
+# Logging to stdout/stderr
+accesslog = "-"
+errorlog = "-"
 loglevel = os.getenv("GUNICORN_LOGLEVEL", "info")
-
-# Avoid tmpfs issues
-worker_tmp_dir = "/dev/shm"
