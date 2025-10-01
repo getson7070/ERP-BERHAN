@@ -1,29 +1,4 @@
-from .extensions import (  # noqa: F401
-    db,
-    migrate,
-    oauth,
-    limiter,
-    cors,
-    cache,
-    compress,
-    csrf,
-    babel,
-    jwt,
-    socketio,
-    init_extensions,
-)
+# erp/__init__.py
+from .app import create_app  # re-export for convenience
 
-__all__ = [
-    "db",
-    "migrate",
-    "oauth",
-    "limiter",
-    "cors",
-    "cache",
-    "compress",
-    "csrf",
-    "babel",
-    "jwt",
-    "socketio",
-    "init_extensions",
-]
+__all__ = ["create_app"]
