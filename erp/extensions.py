@@ -16,16 +16,15 @@ from flask_wtf import CSRFProtect
 from flask_babel import Babel
 from flask_socketio import SocketIO
 
-# IMPORTANT
-# Do NOT import anything from flask_jwt_extended at module import time.
-# JWTManager is created lazily in init_extensions() AFTER eventlet monkey_patch.
+# IMPORTANT:
+# Do NOT import from flask_jwt_extended at module import time.
+# Lazily import JWTManager inside init_extensions() AFTER Eventlet greening.
 
-# Core extensions (created once; initialized in init_extensions)
+# Core extensions
 db = SQLAlchemy()
 migrate = Migrate()
 oauth = OAuth()
-# With Flask-Limiter 3.x, pass key_func at construction; storage is taken from app.config
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address)  # storage configured via app.config
 cors = CORS()
 
 # Optional extras
@@ -62,13 +61,11 @@ def _coerce_db_url(url: Optional[str]) -> Optional[str]:
 def init_extensions(app):
     """
     Initialize all Flask extensions with the Flask app.
-    Keep this centralized; call from erp.app:create_app().
+    Call this from erp.app:create_app().
     """
-
     # ----------------------------
     # Database & migrations
     # ----------------------------
-    # Allow either SQLALCHEMY_DATABASE_URI or DATABASE_URL
     raw_url = app.config.get("SQLALCHEMY_DATABASE_URI") or os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
     final_url = _coerce_db_url(raw_url)
     if not final_url:
@@ -93,22 +90,19 @@ def init_extensions(app):
     cors.init_app(app, resources={r"/*": {"origins": origins}})
 
     # ----------------------------
-    # Rate Limiting (Flask-Limiter 3.x)
+    # Rate Limiter (Flask-Limiter 3.x)
     # ----------------------------
-    # Prefer config variable; fall back to env; default to memory:// to avoid warnings.
     storage_uri = app.config.get("RATELIMIT_STORAGE_URI") or os.getenv("RATELIMIT_STORAGE_URI")
     if not storage_uri:
-        # If you have Redis, set RATELIMIT_STORAGE_URI=redis://:password@host:port/0
+        # To use Redis in prod: RATELIMIT_STORAGE_URI=redis://:password@host:6379/0
         storage_uri = "memory://"
     app.config["RATELIMIT_STORAGE_URI"] = storage_uri
-    # Optionally provide a default strategy, e.g., "60 per minute"
     app.config.setdefault("RATELIMIT_DEFAULT", "60 per minute")
     limiter.init_app(app)
 
     # ----------------------------
-    # Caching / Compression / CSRF / i18n
+    # Cache / Compression / CSRF / i18n
     # ----------------------------
-    # Silence "CACHE_TYPE null" by providing a sensible default
     app.config.setdefault("CACHE_TYPE", "SimpleCache")
     app.config.setdefault("CACHE_DEFAULT_TIMEOUT", 300)
     cache.init_app(app)
@@ -117,20 +111,18 @@ def init_extensions(app):
     babel.init_app(app)
 
     # ----------------------------
-    # JWT (import lazily AFTER eventlet patch and app created)
+    # JWT (lazy import AFTER greening)
     # ----------------------------
     global jwt
-    from flask_jwt_extended import JWTManager  # noqa: WPS433 (intentional local import)
+    from flask_jwt_extended import JWTManager  # noqa: WPS433
 
     jwt = JWTManager()
-    # Ensure secrets exist; these should really come from env in production
     app.config.setdefault("JWT_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "change-me-please"))
     jwt.init_app(app)
 
     # ----------------------------
-    # Socket.IO
+    # Socket.IO (optional Redis message queue)
     # ----------------------------
-    # If you have Redis, set SOCKETIO_MESSAGE_QUEUE=redis://:password@host:port/0
     socketio.init_app(app, message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"))
 
 
