@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from authlib.integrations.flask_client import OAuth
@@ -12,10 +14,9 @@ from flask_babel import Babel
 from flask_socketio import SocketIO
 
 # IMPORTANT:
-# We deliberately DO NOT import "from flask_jwt_extended import JWTManager" here.
-# Importing that module creates a LocalProxy (current_user) at import time, which
-# eventlet's monkey_patch would try to traverse. We import it lazily inside
-# init_extensions() *after* eventlet is patched.
+# Do NOT import from flask_jwt_extended at module top level.
+# (It creates LocalProxy objects that trip Eventlet's patcher.)
+# We'll import JWTManager lazily inside init_extensions().
 
 # Core
 db = SQLAlchemy()
@@ -30,7 +31,7 @@ compress = Compress()
 csrf = CSRFProtect()
 babel = Babel()
 
-# Will be created lazily in init_extensions
+# Will be created lazily in init_extensions()
 jwt = None  # type: ignore[assignment]
 
 # Realtime (eventlet backend)
@@ -38,10 +39,7 @@ socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
 
 
 def init_extensions(app):
-    """
-    Initialize all Flask extensions with the Flask app.
-    Kept centralized so erp.__init__ / erp.app can simply call this.
-    """
+    """Initialize all Flask extensions with the Flask app."""
     # Database & migrations
     db.init_app(app)
     migrate.init_app(app, db)
@@ -63,4 +61,27 @@ def init_extensions(app):
     babel.init_app(app)
 
     # Lazily import and init JWTManager now (AFTER eventlet monkey_patch has run)
-    global jw
+    global jwt
+    from flask_jwt_extended import JWTManager  # local import on purpose
+
+    jwt = JWTManager()
+    jwt.init_app(app)
+
+    # Socket.IO (optionally with a message queue like Redis)
+    socketio.init_app(app, message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"))
+
+
+__all__ = [
+    "db",
+    "migrate",
+    "oauth",
+    "limiter",
+    "cors",
+    "cache",
+    "compress",
+    "csrf",
+    "babel",
+    "jwt",
+    "socketio",
+    "init_extensions",
+]
