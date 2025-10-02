@@ -8,9 +8,9 @@ from flask import jsonify, request
 
 # ──────────────────────────────────────────────────────────────────────────────
 # IMPORTANT
-# We avoid importing from flask_jwt_extended at module import time. Each
-# decorator/function that needs it imports inside the request call path. This
-# prevents creating LocalProxy objects before Eventlet monkey-patching.
+# Do NOT import from flask_jwt_extended at module import time.
+# Import INSIDE request/route functions only (see decorators below).
+# This prevents LocalProxy objects being created before Eventlet monkey-patching.
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -172,17 +172,6 @@ def stream_export(
 ):
     """
     Stream an export response (CSV or JSONL) without loading everything in memory.
-
-    Args:
-        rows: iterable of dicts OR iterable of iterables (lists/tuples)
-        fieldnames: when rows are dicts, controls column order; if None and
-                    rows are dicts, inferred from first row.
-        filename: download filename
-        fmt: 'csv' or 'jsonl'
-        mimetype: override content-type. Defaults to text/csv or application/json.
-
-    Returns:
-        Flask Response (streamed)
     """
     from flask import Response, stream_with_context
     import io
@@ -213,6 +202,7 @@ def stream_export(
         if isinstance(first, Mapping):
             if fieldnames is None:
                 fieldnames = list(first.keys())
+
             def gen() -> Iterator[Mapping[str, Any]]:
                 yield first
                 for r in it:
@@ -223,6 +213,7 @@ def stream_export(
             if not fieldnames:
                 # fall back to generic colN names
                 fieldnames = [f"col{i}" for i in range(len(first))]
+
             def gen() -> Iterator[Mapping[str, Any]]:
                 yield {k: v for k, v in zip(fieldnames, first)}
                 for r in it:
@@ -251,7 +242,11 @@ def stream_export(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "X-Accel-Buffering": "no",  # hint for some proxies to not buffer
         }
-        return Response(stream_with_context(generate_csv()), mimetype=mimetype, headers=headers)
+        return Response(
+            stream_with_context(generate_csv()),
+            mimetype=mimetype,
+            headers=headers,
+        )
 
     # jsonl (one JSON object per line)
     def generate_jsonl():
@@ -270,7 +265,11 @@ def stream_export(
         "Content-Disposition": f'attachment; filename="{filename.replace(".csv", ".jsonl")}"',
         "X-Accel-Buffering": "no",
     }
-    return Response(stream_with_context(generate_jsonl()), mimetype=mimetype, headers=headers)
+    return Response(
+        stream_with_context(generate_jsonl()),
+        mimetype=mimetype,
+        headers=headers,
+    )
 
 
 # ────────────────────────────── Misc small helpers ───────────────────────────
@@ -288,11 +287,37 @@ def clamp_int(value: Any, default: int, min_value: int, max_value: int) -> int:
 def get_pagination_from_args(
     default_page: int = 1,
     default_per_page: int = 20,
-    max_per_page: int = 200
+    max_per_page: int = 200,
 ) -> Tuple[int, int]:
     """
     Read ?page= and ?per_page= from request.args with sane clamping.
     """
-    page = clamp_int(request.args.get("page"), default=default_page, min_value=1, max_value=10**9)
-    per_page = clamp_int(request.args.get("per_page"), default=default_per_page, min_value=1, max_value=max_per_page)
-    return p
+    page = clamp_int(
+        request.args.get("page"),
+        default=default_page,
+        min_value=1,
+        max_value=10**9,
+    )
+    per_page = clamp_int(
+        request.args.get("per_page"),
+        default=default_per_page,
+        min_value=1,
+        max_value=max_per_page,
+    )
+    return page, per_page
+
+
+__all__ = [
+    # decorators
+    "login_required",
+    "mfa_required",
+    "roles_required",
+    "optional_jwt",
+    # sorting / export
+    "sanitize_direction",
+    "sanitize_sort",
+    "stream_export",
+    # misc
+    "clamp_int",
+    "get_pagination_from_args",
+]
