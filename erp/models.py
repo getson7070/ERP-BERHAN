@@ -1,193 +1,162 @@
-"""Database models for core ERP entities."""
+# erp/models.py
+from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
-from decimal import Decimal
+import typing as _t
+from datetime import datetime
 
-from erp.security_shim import RoleMixin, UserMixin
+from erp.extensions import db
 
-from .extensions import db
-from .tenant import TenantMixin
+# ──────────────────────────────────────────────────────────────────────────────
+# Optional Postgres JSONB; gracefully fall back to generic JSON if unavailable
+# ──────────────────────────────────────────────────────────────────────────────
+try:
+    from sqlalchemy.dialects.postgresql import JSONB as _JSON
+except Exception:  # pragma: no cover
+    _JSON = db.JSON  # works on any DB; on Postgres use JSONB
+# -----------------------------------------------------------------------------
 
-# Association table for many-to-many user/role relationship
-roles_users = db.Table(
-    "roles_users",
-    db.Column("user_id", db.Integer(), db.ForeignKey("users.id")),
-    db.Column("role_id", db.Integer(), db.ForeignKey("roles.id")),
+# ──────────────────────────────────────────────────────────────────────────────
+# Role/User mixins: use Flask-Security if present; otherwise use our shim
+# ──────────────────────────────────────────────────────────────────────────────
+try:
+    # If you later add Flask-Security-Too this will automatically use it
+    from flask_security import RoleMixin, UserMixin  # type: ignore
+except Exception:  # pragma: no cover
+    from erp.security_shim import RoleMixin, UserMixin
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Naming convention helps Alembic autogenerate deterministic constraint names
+# ──────────────────────────────────────────────────────────────────────────────
+# If you already set metadata naming convention elsewhere, you can remove this.
+# Flask-SQLAlchemy 3.x exposes metadata via db.metadata
+db.metadata.naming_convention.update({
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Small mixins
+# ──────────────────────────────────────────────────────────────────────────────
+class SurrogatePK:
+    id = db.Column(db.Integer, primary_key=True)
+
+
+class TimestampMixin:
+    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(),
+                           onupdate=db.func.now(), nullable=False)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Association tables
+# ──────────────────────────────────────────────────────────────────────────────
+user_roles = db.Table(
+    "user_roles",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("role_id", db.Integer, db.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
-class Inventory(TenantMixin, db.Model):  # type: ignore[name-defined]
-    __tablename__ = "inventory_items"
-
-    id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
-    name = db.Column(db.String(128), nullable=False)
-    sku = db.Column(db.String(64), nullable=False, unique=True, index=True)
-    quantity = db.Column(db.Integer, nullable=False, default=0)
-
-    def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
-        return f"<Inventory {self.name}={self.quantity}>"
-
-
-class Invoice(TenantMixin, db.Model):  # type: ignore[name-defined]
-    __tablename__ = "invoices"
-
-    id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
-    number = db.Column(db.String(64), unique=True, nullable=False)
-    total = db.Column(db.Numeric(scale=2), nullable=False, default=Decimal("0.00"))
-    issued_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
-    )
-    delete_after = db.Column(db.DateTime)
-
-    def __repr__(self) -> str:  # pragma: no cover - repr is for debugging
-        return f"<Invoice {self.number} total={self.total}>"
-
-
-class Role(db.Model, RoleMixin):  # type: ignore[name-defined]
+# ──────────────────────────────────────────────────────────────────────────────
+# Role / User
+# ──────────────────────────────────────────────────────────────────────────────
+class Role(SurrogatePK, TimestampMixin, RoleMixin, db.Model):
     __tablename__ = "roles"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True)
+    name = db.Column(db.String(80), unique=True, nullable=False, index=True)
     description = db.Column(db.String(255))
+    # Optional: store a JSON/CSV of permissions if you use them
+    permissions_ = db.Column(db.Text)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Role {self.id} {self.name!r}>"
 
 
-class User(db.Model, UserMixin):  # type: ignore[name-defined]
+class User(SurrogatePK, TimestampMixin, UserMixin, db.Model):
     __tablename__ = "users"
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    active = db.Column(db.Boolean(), default=True)
-    fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
-    mfa_secret = db.Column(db.String(32))
-    anonymized = db.Column(db.Boolean, default=False, nullable=False)
-    retain_until = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC) + timedelta(days=365 * 7),
-    )
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    # Store a hash, not a raw password. Field name is generic to avoid coupling.
+    password_hash = db.Column(db.String(255))
+    active = db.Column(db.Boolean, nullable=False, server_default=db.text("true"))
+    mfa_enabled = db.Column(db.Boolean, nullable=False, server_default=db.text("false"))
+
+    # Profile-ish fields (optional; safe defaults)
+    first_name = db.Column(db.String(120))
+    last_name = db.Column(db.String(120))
+    last_login_at = db.Column(db.DateTime(timezone=True))
+
+    # Many-to-many roles
     roles = db.relationship(
         "Role",
-        secondary=roles_users,
+        secondary=user_roles,
         backref=db.backref("users", lazy="dynamic"),
-    )  # type: ignore[assignment]
-
-
-class Organization(db.Model):  # type: ignore[name-defined]
-    __tablename__ = "organizations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False, unique=True)
-
-
-class DataLineage(db.Model):  # type: ignore[name-defined]
-    __tablename__ = "data_lineage"
-
-    id = db.Column(db.Integer, primary_key=True)
-    table_name = db.Column(db.String(128), nullable=False)
-    column_name = db.Column(db.String(128), nullable=False)
-    source = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
+        lazy="selectin",
     )
 
+    # Dashboards (one-to-many)
+    dashboards = db.relationship(
+        "UserDashboard",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
 
-class UserDashboard(db.Model):  # type: ignore[name-defined]
-    """Persist user-specific dashboard layouts."""
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<User {self.id} {self.email!r}>"
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Token blocklist (useful for JWT revocation) – optional but common
+# ──────────────────────────────────────────────────────────────────────────────
+class TokenBlocklist(SurrogatePK, db.Model):
+    __tablename__ = "token_blocklist"
+
+    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    revoked_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<TokenBlocklist jti={self.jti!r}>"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# User dashboard customization referenced by routes/dashboard_customize.py
+# ──────────────────────────────────────────────────────────────────────────────
+class UserDashboard(SurrogatePK, TimestampMixin, db.Model):
     __tablename__ = "user_dashboards"
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True
-    )
-    layout = db.Column(db.Text, nullable=False)
-    updated_at = db.Column(
-        db.DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-
-
-class Employee(TenantMixin, db.Model):  # type: ignore[name-defined]
-    __tablename__ = "hr_employees"
-
-    id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(
-        db.Integer,
-        db.ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    name = db.Column(db.String(120), nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
-    )
-
     __table_args__ = (
-        db.UniqueConstraint("org_id", "name", name="uq_hr_employees_org_name"),
+        # Enforce uniqueness of (user_id, name) so each user can have named layouts
+        db.UniqueConstraint("user_id", "name", name="uq_user_dashboards_user_name"),
     )
 
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False, server_default=db.text("'default'"))
+    # Arbitrary layout configuration (e.g., list of widgets with sizes/positions)
+    layout = db.Column(_JSON, nullable=False, server_default=db.text("'[]'"))
+    # Optional filters or settings associated with this dashboard
+    settings = db.Column(_JSON, nullable=False, server_default=db.text("'{}'"))
 
-class Recruitment(TenantMixin, db.Model):  # type: ignore[name-defined]
-    __tablename__ = "hr_recruitment"
+    user = db.relationship("User", back_populates="dashboards", lazy="joined")
 
-    id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(
-        db.Integer,
-        db.ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    candidate_name = db.Column(db.String(120), nullable=False)
-    position = db.Column(db.String(120), nullable=False)
-    applied_on = db.Column(
-        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
-    )
-    status = db.Column(db.String(20), nullable=False, default="applied", index=True)
-
-    __table_args__ = (
-        db.UniqueConstraint(
-            "org_id", "candidate_name", "position", name="uq_hr_recruitment_candidate"
-        ),
-        db.CheckConstraint(
-            "status in ('applied','shortlisted','approved')",
-            name="chk_hr_recruitment_status",
-        ),
-    )
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<UserDashboard {self.id} user={self.user_id} name={self.name!r}>"
 
 
-class PerformanceReview(TenantMixin, db.Model):  # type: ignore[name-defined]
-    __tablename__ = "hr_performance_reviews"
-
-    id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(
-        db.Integer,
-        db.ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    employee_name = db.Column(db.String(120), nullable=False)
-    score = db.Column(db.Integer, nullable=False)
-    review_date = db.Column(
-        db.DateTime, default=lambda: datetime.now(UTC), nullable=False
-    )
-
-    __table_args__ = (
-        db.CheckConstraint("score >= 1 AND score <= 5", name="chk_performance_score"),
-        db.UniqueConstraint(
-            "org_id", "employee_name", "review_date", name="uq_hr_performance_once"
-        ),
-    )
-
-
-db.Index(
-    "ix_hr_recruitment_pending",
-    Recruitment.org_id,
-    Recruitment.status,
-    postgresql_where=db.text("status != 'approved'"),
-)
-db.Index("ix_hr_performance_reviews_review_date", PerformanceReview.review_date)
+# ──────────────────────────────────────────────────────────────────────────────
+# Helper: convenient typed export (optional)
+# ──────────────────────────────────────────────────────────────────────────────
+__all__ = [
+    "db",
+    "Role",
+    "User",
+    "TokenBlocklist",
+    "UserDashboard",
+    "user_roles",
+]
