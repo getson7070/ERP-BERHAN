@@ -1,9 +1,8 @@
-"""tighten hr schema and enforce rls (idempotent & sqlite-safe)"""
+"""tighten hr schema and enforce rls (sqlite-safe & idempotent)"""
 
 from alembic import op
 import sqlalchemy as sa
 
-# Revision identifiers, used by Alembic.
 revision = "h9i0j1k2l3m"
 down_revision = "d4e5f6g7h8i"
 branch_labels = None
@@ -40,15 +39,21 @@ def upgrade() -> None:
         else:
             op.add_column("hr_employees", col)
 
-    # --- hr_employees: unique (org_id, name) ---
+    # --- hr_employees: UNIQUE (org_id, name) ---
+    # SQLite can’t ALTER TABLE to add a UNIQUE constraint; create a UNIQUE INDEX instead.
     if dialect == "sqlite":
-        with op.batch_alter_table("hr_employees") as batch:
-            batch.create_unique_constraint("uq_hr_employees_org_name", ["org_id", "name"])
+        op.create_index(
+            "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"], unique=True
+        )
     elif dialect == "postgresql":
         if not _pg_constraint_exists(conn, "uq_hr_employees_org_name"):
-            op.create_unique_constraint("uq_hr_employees_org_name", "hr_employees", ["org_id", "name"])
+            op.create_unique_constraint(
+                "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"]
+            )
     else:
-        op.create_unique_constraint("uq_hr_employees_org_name", "hr_employees", ["org_id", "name"])
+        op.create_unique_constraint(
+            "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"]
+        )
 
     # --- hr_recruitment: FKs/uniques/checks/index/RLS ---
     if dialect == "sqlite":
@@ -63,7 +68,6 @@ def upgrade() -> None:
                 "chk_hr_recruitment_status",
                 "status in ('applied','shortlisted','approved')",
             )
-        # partial index emulation for SQLite
         op.create_index(
             "ix_hr_recruitment_pending",
             "hr_recruitment",
@@ -177,20 +181,32 @@ def downgrade() -> None:
             batch.drop_constraint("chk_performance_score", type_="check")
             batch.drop_constraint("fk_hr_performance_reviews_org", type_="foreignkey")
         with op.batch_alter_table("hr_employees") as batch:
-            batch.drop_constraint("uq_hr_employees_org_name", type_="unique")
-            if _has_column(conn, "hr_employees", "created_at"):
-                batch.drop_column("created_at")
+            # drop unique index (we used index for sqlite)
+            pass
+        op.drop_index("uq_hr_employees_org_name", table_name="hr_employees")
         with op.batch_alter_table("hr_recruitment") as batch:
             batch.drop_constraint("chk_hr_recruitment_status", type_="check")
             batch.drop_constraint("uq_hr_recruitment_candidate", type_="unique")
             batch.drop_constraint("fk_hr_recruitment_org", type_="foreignkey")
+        # (created_at) drop only if you truly need to revert the column
+        if _has_column(conn, "hr_employees", "created_at"):
+            with op.batch_alter_table("hr_employees") as batch:
+                batch.drop_column("created_at")
     else:
         op.drop_constraint("uq_hr_performance_once", "hr_performance_reviews", type_="unique")
         op.drop_constraint("chk_performance_score", "hr_performance_reviews", type_="check")
         op.drop_constraint("fk_hr_performance_reviews_org", "hr_performance_reviews", type_="foreignkey")
-        op.drop_constraint("uq_hr_employees_org_name", "hr_employees", type_="unique")
+
+        # hr_employees unique
+        if dialect == "postgresql":
+            op.drop_constraint("uq_hr_employees_org_name", "hr_employees", type_="unique")
+        else:
+            op.drop_constraint("uq_hr_employees_org_name", "hr_employees", type_="unique")
+
+        # optionally drop created_at
         if _has_column(conn, "hr_employees", "created_at"):
             op.drop_column("hr_employees", "created_at")
+
         op.drop_constraint("chk_hr_recruitment_status", "hr_recruitment", type_="check")
         op.drop_constraint("uq_hr_recruitment_candidate", "hr_recruitment", type_="unique")
         op.drop_constraint("fk_hr_recruitment_org", "hr_recruitment", type_="foreignkey")
