@@ -1,15 +1,19 @@
 # wsgi.py
-# ── IMPORTANT: monkey-patch BEFORE any other imports ───────────────────────────
+"""
+WSGI entrypoint for Render & Gunicorn.
+Eventlet must be monkey-patched BEFORE any other imports.
+"""
+import os
 import eventlet
+
 eventlet.monkey_patch()
 
-from erp.app import create_app  # no other imports above this line
+from erp.app import create_app  # noqa: E402  (import after monkey_patch)
 
-# Gunicorn will import this `app`
 app = create_app()
 
-# Optional local run (not used on Render)
 if __name__ == "__main__":
-    # Running via `python wsgi.py` for local debugging
-    from werkzeug.serving import run_simple
-    run_simple("0.0.0.0", 5000, app, use_reloader=True)
+    # Local dev convenience (not used by Render)
+    from eventlet import wsgi
+    port = int(os.getenv("PORT", "5000"))
+    wsgi.server(eventlet.listen(("0.0.0.0", port)), app)
