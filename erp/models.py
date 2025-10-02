@@ -1,162 +1,136 @@
 # erp/models.py
 from __future__ import annotations
 
-import typing as _t
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from erp.extensions import db
+from sqlalchemy import UniqueConstraint, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Optional Postgres JSONB; gracefully fall back to generic JSON if unavailable
-# ──────────────────────────────────────────────────────────────────────────────
-try:
-    from sqlalchemy.dialects.postgresql import JSONB as _JSON
-except Exception:  # pragma: no cover
-    _JSON = db.JSON  # works on any DB; on Postgres use JSONB
-# -----------------------------------------------------------------------------
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Role/User mixins: use Flask-Security if present; otherwise use our shim
-# ──────────────────────────────────────────────────────────────────────────────
-try:
-    # If you later add Flask-Security-Too this will automatically use it
-    from flask_security import RoleMixin, UserMixin  # type: ignore
-except Exception:  # pragma: no cover
-    from erp.security_shim import RoleMixin, UserMixin
+from .extensions import db
+from .security_shim import RoleMixin, UserMixin
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Naming convention helps Alembic autogenerate deterministic constraint names
-# ──────────────────────────────────────────────────────────────────────────────
-# If you already set metadata naming convention elsewhere, you can remove this.
-# Flask-SQLAlchemy 3.x exposes metadata via db.metadata
-db.metadata.naming_convention.update({
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-})
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Small mixins
-# ──────────────────────────────────────────────────────────────────────────────
-class SurrogatePK:
-    id = db.Column(db.Integer, primary_key=True)
-
-
+# ───────────────────────────── Base mixins ────────────────────────────────────
 class TimestampMixin:
-    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
-    updated_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(),
-                           onupdate=db.func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Association tables
-# ──────────────────────────────────────────────────────────────────────────────
-user_roles = db.Table(
-    "user_roles",
+class PKMixin:
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+# ───────────────────── Association table: users ↔ roles ───────────────────────
+users_roles = db.Table(
+    "users_roles",
+    db.metadata,
     db.Column("user_id", db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     db.Column("role_id", db.Integer, db.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Role / User
-# ──────────────────────────────────────────────────────────────────────────────
-class Role(SurrogatePK, TimestampMixin, RoleMixin, db.Model):
+# ─────────────────────────────── Role model ───────────────────────────────────
+class Role(db.Model, PKMixin, TimestampMixin, RoleMixin):
     __tablename__ = "roles"
 
-    name = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    description = db.Column(db.String(255))
-    # Optional: store a JSON/CSV of permissions if you use them
-    permissions_ = db.Column(db.Text)
+    # Simple role model (compatible with RoleMixin shim)
+    name: Mapped[str] = mapped_column(db.String(80), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(db.String(255))
 
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<Role {self.id} {self.name!r}>"
+    def __repr__(self) -> str:
+        return f"<Role {self.name!r}>"
 
 
-class User(SurrogatePK, TimestampMixin, UserMixin, db.Model):
+# ─────────────────────────────── User model ───────────────────────────────────
+class User(db.Model, PKMixin, TimestampMixin, UserMixin):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_users_email"),
+    )
 
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    # Store a hash, not a raw password. Field name is generic to avoid coupling.
-    password_hash = db.Column(db.String(255))
-    active = db.Column(db.Boolean, nullable=False, server_default=db.text("true"))
-    mfa_enabled = db.Column(db.Boolean, nullable=False, server_default=db.text("false"))
+    email: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    password_hash: Mapped[Optional[str]] = mapped_column(db.String(255))
+    active: Mapped[bool] = mapped_column(db.Boolean, default=True, nullable=False)
 
-    # Profile-ish fields (optional; safe defaults)
-    first_name = db.Column(db.String(120))
-    last_name = db.Column(db.String(120))
-    last_login_at = db.Column(db.DateTime(timezone=True))
+    # Optional flags/fields that many apps expect
+    first_name: Mapped[Optional[str]] = mapped_column(db.String(80))
+    last_name: Mapped[Optional[str]] = mapped_column(db.String(80))
+    mfa_enabled: Mapped[bool] = mapped_column(db.Boolean, default=False, nullable=False)
 
-    # Many-to-many roles
-    roles = db.relationship(
+    # Relations
+    roles = relationship(
         "Role",
-        secondary=user_roles,
+        secondary=users_roles,
         backref=db.backref("users", lazy="dynamic"),
         lazy="selectin",
     )
 
-    # Dashboards (one-to-many)
-    dashboards = db.relationship(
+    dashboards = relationship(
         "UserDashboard",
         back_populates="user",
         cascade="all, delete-orphan",
-        passive_deletes=True,
         lazy="selectin",
     )
 
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<User {self.id} {self.email!r}>"
+    def __repr__(self) -> str:
+        return f"<User {self.email!r}>"
+
+    # Convenience helpers used by some views
+    @property
+    def full_name(self) -> str:
+        parts = [self.first_name or "", self.last_name or ""]
+        return " ".join(p for p in parts if p).strip() or self.email
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "active": self.active,
+            "mfa_enabled": self.mfa_enabled,
+            "roles": [r.name for r in self.roles] if self.roles else [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Token blocklist (useful for JWT revocation) – optional but common
-# ──────────────────────────────────────────────────────────────────────────────
-class TokenBlocklist(SurrogatePK, db.Model):
-    __tablename__ = "token_blocklist"
-
-    jti = db.Column(db.String(36), nullable=False, unique=True, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    revoked_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<TokenBlocklist jti={self.jti!r}>"
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# User dashboard customization referenced by routes/dashboard_customize.py
-# ──────────────────────────────────────────────────────────────────────────────
-class UserDashboard(SurrogatePK, TimestampMixin, db.Model):
+# ─────────────────────────── UserDashboard model ──────────────────────────────
+class UserDashboard(db.Model, PKMixin, TimestampMixin):
+    """
+    Stores per-user dashboard layout/config. Your route `dashboard_customize.py`
+    imports `UserDashboard` and `db`.
+    """
     __tablename__ = "user_dashboards"
     __table_args__ = (
-        # Enforce uniqueness of (user_id, name) so each user can have named layouts
-        db.UniqueConstraint("user_id", "name", name="uq_user_dashboards_user_name"),
+        UniqueConstraint("user_id", "name", name="uq_user_dashboards_user_name"),
     )
 
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = db.Column(db.String(120), nullable=False, server_default=db.text("'default'"))
-    # Arbitrary layout configuration (e.g., list of widgets with sizes/positions)
-    layout = db.Column(_JSON, nullable=False, server_default=db.text("'[]'"))
-    # Optional filters or settings associated with this dashboard
-    settings = db.Column(_JSON, nullable=False, server_default=db.text("'{}'"))
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(db.String(120), nullable=False, index=True)
 
-    user = db.relationship("User", back_populates="dashboards", lazy="joined")
+    # Layout/config payload. Use JSON to keep it flexible.
+    layout: Mapped[Optional[dict]] = mapped_column(db.JSON)
 
-    def __repr__(self) -> str:  # pragma: no cover
-        return f"<UserDashboard {self.id} user={self.user_id} name={self.name!r}>"
+    # Relationship back to User
+    user = relationship("User", back_populates="dashboards", lazy="joined")
+
+    def __repr__(self) -> str:
+        return f"<UserDashboard user={self.user_id} name={self.name!r}>"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Helper: convenient typed export (optional)
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────── export convenience ───────────────────────────────
 __all__ = [
     "db",
-    "Role",
     "User",
-    "TokenBlocklist",
+    "Role",
     "UserDashboard",
-    "user_roles",
+    "users_roles",
 ]
