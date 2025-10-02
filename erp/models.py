@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, UTC
 from decimal import Decimal
 
-from flask_security import RoleMixin, UserMixin
+from erp.security_shim import RoleMixin, UserMixin
 
 from .extensions import db
 from .tenant import TenantMixin
