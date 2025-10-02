@@ -1,5 +1,8 @@
 # wsgi.py
-# Do NOT call eventlet.monkey_patch() here; Gunicorn eventlet worker patches early.
 from erp.app import create_app
 
 app = create_app()
+
+if __name__ == "__main__":
+    # For local debugging only
+    app.run(host="0.0.0.0", port=10000, debug=True)
