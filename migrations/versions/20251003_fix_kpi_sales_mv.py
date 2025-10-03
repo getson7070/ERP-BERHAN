@@ -1,9 +1,8 @@
-"""Fix KPI sales MV to tolerate missing order_date (PG only; sqlite no-op)."""
+"""Fix KPI sales MV to tolerate missing order_date (PG only; sqlite no-op)"""
 
 from alembic import op
-import sqlalchemy as sa  # keep import for Alembic compatibility
+import sqlalchemy as sa  # required by Alembic env even if unused
 
-# Alembic IDs
 revision = "20251003_fix_kpi_sales_mv"
 down_revision = "5f6g7h8i9j0k"
 branch_labels = None
@@ -13,13 +12,12 @@ depends_on = None
 def upgrade():
     bind = op.get_bind()
     if bind.dialect.name == "sqlite":
-        # No materialized views on SQLite -> no-op
+        # SQLite does not support materialized views
         return
 
-    # Postgres: check for table/columns and (re)create MV safely
     op.execute(
         """
-        DO $$
+        DO $plpgsql$
         DECLARE
           has_orders      BOOLEAN;
           has_order_date  BOOLEAN;
@@ -32,7 +30,7 @@ def upgrade():
           ) INTO has_orders;
 
           IF NOT has_orders THEN
-            RAISE NOTICE 'orders table not found; skipping MV';
+            RAISE NOTICE $$orders table not found; skipping MV$$;
             RETURN;
           END IF;
 
@@ -47,7 +45,7 @@ def upgrade():
           ) INTO has_created_at;
 
           IF NOT (has_order_date OR has_created_at) THEN
-            RAISE NOTICE 'orders table exists but has neither order_date nor created_at; skipping MV';
+            RAISE NOTICE $$orders table exists but has neither order_date nor created_at; skipping MV$$;
             RETURN;
           END IF;
 
@@ -56,12 +54,10 @@ def upgrade():
                       ELSE 'created_at'
                     END;
 
-          -- Drop if present to avoid dependency issues; then create (no IF NOT EXISTS needed)
           IF to_regclass('public.kpi_sales_monthly') IS NOT NULL THEN
             EXECUTE 'DROP MATERIALIZED VIEW public.kpi_sales_monthly';
           END IF;
 
-          -- Use dollar-quoting + format() with %I to safely inject identifier
           EXECUTE format($fmt$
             CREATE MATERIALIZED VIEW public.kpi_sales_monthly AS
             SELECT
@@ -72,7 +68,8 @@ def upgrade():
             GROUP BY org_id, DATE_TRUNC('month', %1$I)
           $fmt$, ts_col);
 
-        END $$;
+        END
+        $plpgsql$;
         """
     )
 
