@@ -1,4 +1,4 @@
-"""tighten hr schema and enforce rls (sqlite-safe & idempotent)"""
+"""tighten hr schema and enforce rls (existence-aware & sqlite-safe)"""
 
 from alembic import op
 import sqlalchemy as sa
@@ -9,207 +9,224 @@ branch_labels = None
 depends_on = None
 
 
-# ───────────────────────── helpers ─────────────────────────
-def _has_column(conn, table: str, column: str) -> bool:
-    insp = sa.inspect(conn)
+def _table_exists(insp, name: str) -> bool:
     try:
-        return any(col["name"] == column for col in insp.get_columns(table))
+        return insp.has_table(name)
     except Exception:
         return False
 
 
-def _pg_constraint_exists(conn, name: str) -> bool:
-    if conn.dialect.name != "postgresql":
-        return False
-    row = conn.execute(sa.text("SELECT 1 FROM pg_constraint WHERE conname=:n"), {"n": name}).fetchone()
-    return bool(row)
+def _columns(insp, table):
+    try:
+        return {c["name"] for c in insp.get_columns(table)}
+    except Exception:
+        return set()
 
 
-# ───────────────────────── upgrade ─────────────────────────
 def upgrade() -> None:
-    conn = op.get_bind()
-    dialect = conn.dialect.name
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    dialect = bind.dialect.name
 
-    # --- hr_employees: created_at (guarded) ---
-    if not _has_column(conn, "hr_employees", "created_at"):
-        col = sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now())
-        if dialect == "sqlite":
-            with op.batch_alter_table("hr_employees") as batch:
-                batch.add_column(col)
-        else:
-            op.add_column("hr_employees", col)
+    # -------------------------
+    # hr_employees adjustments
+    # -------------------------
+    if _table_exists(insp, "hr_employees"):
+        cols = _columns(insp, "hr_employees")
 
-    # --- hr_employees: UNIQUE (org_id, name) ---
-    # SQLite can’t ALTER TABLE to add a UNIQUE constraint; create a UNIQUE INDEX instead.
-    if dialect == "sqlite":
-        op.create_index(
-            "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"], unique=True
-        )
-    elif dialect == "postgresql":
-        if not _pg_constraint_exists(conn, "uq_hr_employees_org_name"):
-            op.create_unique_constraint(
-                "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"]
-            )
-    else:
-        op.create_unique_constraint(
-            "uq_hr_employees_org_name", "hr_employees", ["org_id", "name"]
+        # Add created_at if missing
+        if "created_at" not in cols:
+            if dialect == "sqlite":
+                with op.batch_alter_table("hr_employees") as batch:
+                    batch.add_column(
+                        sa.Column(
+                            "created_at",
+                            sa.DateTime(),
+                            nullable=False,
+                            server_default=sa.text("CURRENT_TIMESTAMP"),
+                        )
+                    )
+            else:
+                op.add_column(
+                    "hr_employees",
+                    sa.Column(
+                        "created_at",
+                        sa.DateTime(),
+                        nullable=False,
+                        server_default=sa.text("CURRENT_TIMESTAMP"),
+                    ),
+                )
+
+        # Unique (org_id, name) via index (works on SQLite & Postgres)
+        op.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_employees_org_name ON hr_employees (org_id, name)"
         )
 
-    # --- hr_recruitment: FKs/uniques/checks/index/RLS ---
-    if dialect == "sqlite":
-        with op.batch_alter_table("hr_recruitment") as batch:
-            batch.create_foreign_key(
-                "fk_hr_recruitment_org", "organizations", ["org_id"], ["id"], ondelete="CASCADE"
+    # -------------------------
+    # hr_recruitment constraints / indexes / RLS
+    # -------------------------
+    if _table_exists(insp, "hr_recruitment"):
+        r_cols = _columns(insp, "hr_recruitment")
+
+        # FK to organizations (Postgres only, add if missing)
+        if (
+            dialect != "sqlite"
+            and _table_exists(insp, "organizations")
+            and "org_id" in r_cols
+        ):
+            op.execute(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                      SELECT 1 FROM pg_constraint
+                      WHERE conname = 'fk_hr_recruitment_org'
+                  ) THEN
+                    ALTER TABLE hr_recruitment
+                    ADD CONSTRAINT fk_hr_recruitment_org
+                    FOREIGN KEY (org_id) REFERENCES organizations(id)
+                    ON DELETE CASCADE;
+                  END IF;
+                END $$;
+                """
             )
-            batch.create_unique_constraint(
-                "uq_hr_recruitment_candidate", ["org_id", "candidate_name", "position"]
+
+        # Unique (org_id, candidate_name, position) via index
+        if {"org_id", "candidate_name", "position"}.issubset(r_cols):
+            op.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_recruitment_candidate
+                ON hr_recruitment (org_id, candidate_name, position)
+                """
             )
-            batch.create_check_constraint(
-                "chk_hr_recruitment_status",
-                "status in ('applied','shortlisted','approved')",
+
+        # Pending index
+        if {"org_id", "status"}.issubset(r_cols):
+            if dialect == "sqlite":
+                op.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS ix_hr_recruitment_pending
+                    ON hr_recruitment (org_id, status)
+                    """
+                )
+            else:
+                op.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS ix_hr_recruitment_pending
+                    ON hr_recruitment (org_id, status)
+                    WHERE status <> 'approved'
+                    """
+                )
+
+        # RLS (Postgres only)
+        if dialect != "sqlite":
+            op.execute("ALTER TABLE IF EXISTS hr_recruitment ENABLE ROW LEVEL SECURITY")
+            op.execute(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                      SELECT 1 FROM pg_policies
+                      WHERE schemaname = 'public'
+                        AND tablename  = 'hr_recruitment'
+                        AND policyname = 'hr_recruitment_org_isolation'
+                  ) THEN
+                    CREATE POLICY hr_recruitment_org_isolation
+                    ON hr_recruitment
+                    USING (org_id = current_setting('erp.org_id', true)::int);
+                  END IF;
+                END $$;
+                """
             )
-        op.create_index(
-            "ix_hr_recruitment_pending",
-            "hr_recruitment",
-            ["org_id", "status"],
-            sqlite_where=sa.text("status != 'approved'"),
-        )
-    else:
-        op.create_foreign_key(
-            "fk_hr_recruitment_org",
-            "hr_recruitment",
-            "organizations",
-            ["org_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
-        op.create_unique_constraint(
-            "uq_hr_recruitment_candidate",
-            "hr_recruitment",
-            ["org_id", "candidate_name", "position"],
-        )
-        op.create_check_constraint(
-            "chk_hr_recruitment_status",
-            "hr_recruitment",
-            "status in ('applied','shortlisted','approved')",
+
+    # -------------------------
+    # hr_performance_reviews constraints / indexes / RLS
+    # -------------------------
+    if _table_exists(insp, "hr_performance_reviews"):
+        p_cols = _columns(insp, "hr_performance_reviews")
+
+        # Check constraint (Postgres)
+        if dialect != "sqlite" and {"score"}.issubset(p_cols):
+            op.execute(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                      SELECT 1 FROM pg_constraint
+                      WHERE conname = 'chk_performance_score'
+                  ) THEN
+                    ALTER TABLE hr_performance_reviews
+                    ADD CONSTRAINT chk_performance_score
+                    CHECK (score >= 1 AND score <= 5);
+                  END IF;
+                END $$;
+                """
+            )
+
+        # Unique once per (org_id, employee_name, review_date)
+        if {"org_id", "employee_name", "review_date"}.issubset(p_cols):
+            op.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_hr_performance_once
+                ON hr_performance_reviews (org_id, employee_name, review_date)
+                """
+            )
+
+        # Index on review_date
+        if "review_date" in p_cols:
+            op.execute(
+                "CREATE INDEX IF NOT EXISTS ix_hr_performance_reviews_review_date ON hr_performance_reviews (review_date)"
+            )
+
+        # RLS (Postgres)
+        if dialect != "sqlite":
+            op.execute("ALTER TABLE IF EXISTS hr_performance_reviews ENABLE ROW LEVEL SECURITY")
+            op.execute(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                      SELECT 1 FROM pg_policies
+                      WHERE schemaname = 'public'
+                        AND tablename  = 'hr_performance_reviews'
+                        AND policyname = 'hr_performance_reviews_org_isolation'
+                  ) THEN
+                    CREATE POLICY hr_performance_reviews_org_isolation
+                    ON hr_performance_reviews
+                    USING (org_id = current_setting('erp.org_id', true)::int);
+                  END IF;
+                END $$;
+                """
+            )
+
+
+def downgrade() -> None:
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    dialect = bind.dialect.name
+
+    if dialect != "sqlite":
+        op.execute(
+            "DROP POLICY IF EXISTS hr_performance_reviews_org_isolation ON hr_performance_reviews"
         )
         op.execute(
-            sa.text(
-                "CREATE INDEX IF NOT EXISTS ix_hr_recruitment_pending "
-                "ON hr_recruitment (org_id, status) WHERE status <> 'approved'"
-            )
+            "DROP POLICY IF EXISTS hr_recruitment_org_isolation ON hr_recruitment"
         )
-        if dialect == "postgresql":
-            op.execute(sa.text("ALTER TABLE hr_recruitment ENABLE ROW LEVEL SECURITY"))
-            op.execute(
-                sa.text(
-                    "DO $$ BEGIN "
-                    "IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE polname='hr_recruitment_org_isolation') THEN "
-                    "CREATE POLICY hr_recruitment_org_isolation ON hr_recruitment "
-                    "USING (org_id = current_setting('erp.org_id')::int); "
-                    "END IF; END $$;"
-                )
-            )
 
-    # --- hr_performance_reviews: FKs/uniques/checks/index/RLS ---
-    if dialect == "sqlite":
-        with op.batch_alter_table("hr_performance_reviews") as batch:
-            batch.create_foreign_key(
-                "fk_hr_performance_reviews_org", "organizations", ["org_id"], ["id"], ondelete="CASCADE"
-            )
-            batch.create_check_constraint("chk_performance_score", "score >= 1 AND score <= 5")
-            batch.create_unique_constraint(
-                "uq_hr_performance_once", ["org_id", "employee_name", "review_date"]
-            )
-        op.create_index(
-            "ix_hr_performance_reviews_review_date",
-            "hr_performance_reviews",
-            ["review_date"],
-        )
-    else:
-        op.create_foreign_key(
-            "fk_hr_performance_reviews_org",
-            "hr_performance_reviews",
-            "organizations",
-            ["org_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
-        op.create_check_constraint(
-            "chk_performance_score",
-            "hr_performance_reviews",
-            "score >= 1 AND score <= 5",
-        )
-        op.create_unique_constraint(
-            "uq_hr_performance_once",
-            "hr_performance_reviews",
-            ["org_id", "employee_name", "review_date"],
-        )
-        op.create_index(
-            "ix_hr_performance_reviews_review_date",
-            "hr_performance_reviews",
-            ["review_date"],
-        )
-        if dialect == "postgresql":
-            op.execute(sa.text("ALTER TABLE hr_performance_reviews ENABLE ROW LEVEL SECURITY"))
-            op.execute(
-                sa.text(
-                    "DO $$ BEGIN "
-                    "IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE polname='hr_performance_reviews_org_isolation') THEN "
-                    "CREATE POLICY hr_performance_reviews_org_isolation ON hr_performance_reviews "
-                    "USING (org_id = current_setting('erp.org_id')::int); "
-                    "END IF; END $$;"
-                )
-            )
+    if _table_exists(insp, "hr_performance_reviews"):
+        op.execute("DROP INDEX IF EXISTS ix_hr_performance_reviews_review_date")
+        op.execute("DROP INDEX IF EXISTS uq_hr_performance_once")
 
+    if _table_exists(insp, "hr_recruitment"):
+        op.execute("DROP INDEX IF EXISTS ix_hr_recruitment_pending")
+        op.execute("DROP INDEX IF EXISTS uq_hr_recruitment_candidate")
 
-# ───────────────────────── downgrade ─────────────────────────
-def downgrade() -> None:
-    conn = op.get_bind()
-    dialect = conn.dialect.name
-
-    # indexes
-    op.drop_index("ix_hr_performance_reviews_review_date", table_name="hr_performance_reviews")
-    if dialect == "sqlite":
-        op.drop_index("ix_hr_recruitment_pending", table_name="hr_recruitment")
-    else:
-        op.execute(sa.text("DROP INDEX IF EXISTS ix_hr_recruitment_pending"))
-
-    if dialect == "sqlite":
-        with op.batch_alter_table("hr_performance_reviews") as batch:
-            batch.drop_constraint("uq_hr_performance_once", type_="unique")
-            batch.drop_constraint("chk_performance_score", type_="check")
-            batch.drop_constraint("fk_hr_performance_reviews_org", type_="foreignkey")
-        with op.batch_alter_table("hr_employees") as batch:
-            # drop unique index (we used index for sqlite)
-            pass
-        op.drop_index("uq_hr_employees_org_name", table_name="hr_employees")
-        with op.batch_alter_table("hr_recruitment") as batch:
-            batch.drop_constraint("chk_hr_recruitment_status", type_="check")
-            batch.drop_constraint("uq_hr_recruitment_candidate", type_="unique")
-            batch.drop_constraint("fk_hr_recruitment_org", type_="foreignkey")
-        # (created_at) drop only if you truly need to revert the column
-        if _has_column(conn, "hr_employees", "created_at"):
-            with op.batch_alter_table("hr_employees") as batch:
-                batch.drop_column("created_at")
-    else:
-        op.drop_constraint("uq_hr_performance_once", "hr_performance_reviews", type_="unique")
-        op.drop_constraint("chk_performance_score", "hr_performance_reviews", type_="check")
-        op.drop_constraint("fk_hr_performance_reviews_org", "hr_performance_reviews", type_="foreignkey")
-
-        # hr_employees unique
-        if dialect == "postgresql":
-            op.drop_constraint("uq_hr_employees_org_name", "hr_employees", type_="unique")
-        else:
-            op.drop_constraint("uq_hr_employees_org_name", "hr_employees", type_="unique")
-
-        # optionally drop created_at
-        if _has_column(conn, "hr_employees", "created_at"):
-            op.drop_column("hr_employees", "created_at")
-
-        op.drop_constraint("chk_hr_recruitment_status", "hr_recruitment", type_="check")
-        op.drop_constraint("uq_hr_recruitment_candidate", "hr_recruitment", type_="unique")
-        op.drop_constraint("fk_hr_recruitment_org", "hr_recruitment", type_="foreignkey")
-        if dialect == "postgresql":
-            op.execute(sa.text("DROP POLICY IF EXISTS hr_performance_reviews_org_isolation ON hr_performance_reviews"))
-            op.execute(sa.text("DROP POLICY IF EXISTS hr_recruitment_org_isolation ON hr_recruitment"))
+    if _table_exists(insp, "hr_employees"):
+        op.execute("DROP INDEX IF EXISTS uq_hr_employees_org_name")
+        cols = _columns(insp, "hr_employees")
+        if "created_at" in cols:
+            if dialect == "sqlite":
+                with op.batch_alter_table("hr_employees") as batch:
+                    batch.drop_column("created_at")
+            else:
+                op.drop_column("hr_employees", "created_at")
