@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 # pick any unique id; keep it lowercase/hex-ish
 revision = "20251003_fix_kpi_sales_mv"
-down_revision = "5f6g7h8i9j0k"
+down_revision = "5f6g7h8i9j0k"   # ← the revision that created the KPI MV
 branch_labels = None
 depends_on = None
 
