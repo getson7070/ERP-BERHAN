@@ -1,7 +1,7 @@
 """Fix KPI sales MV to tolerate missing order_date (PG only; sqlite no-op)."""
 
 from alembic import op
-import sqlalchemy as sa  # (kept for consistency; not strictly required)
+import sqlalchemy as sa  # kept for consistency
 
 # --- Alembic identifiers ---
 revision = "20251003_fix_kpi_sales_mv"
