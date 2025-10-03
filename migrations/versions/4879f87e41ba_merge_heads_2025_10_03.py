@@ -1,28 +1,19 @@
-"""merge heads 2025-10-03
+# migrations/versions/4879f87e41ba_merge_heads_2025_10_03.py
+"""merge heads 2025-10-03"""
 
-Revision ID: 4879f87e41ba
-Revises: 20251003_fix_kpi_sales_mv, bba086713f12
-Create Date: 2025-10-03 11:32:04.587252
+revision = "4879f87e41ba"
+# IMPORTANT: only include *real* heads here — remove bba086713f12
+down_revision = (
+    "20250913_add_fk_indexes",
+    "20251003_fix_kpi_sales_mv",
+    "8d0e1f2g3h4i",
+    "i1j2k3l4m5n",
+)
+branch_labels = None
+depends_on = None
 
-"""
-from typing import Sequence, Union
-
-from alembic import op
-import sqlalchemy as sa
-
-
-# revision identifiers, used by Alembic.
-revision: str = '4879f87e41ba'
-down_revision: Union[str, Sequence[str], None] = ('20251003_fix_kpi_sales_mv', 'bba086713f12')
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
-
-
-def upgrade() -> None:
-    """Upgrade schema."""
+def upgrade():
     pass
 
-
-def downgrade() -> None:
-    """Downgrade schema."""
+def downgrade():
     pass
