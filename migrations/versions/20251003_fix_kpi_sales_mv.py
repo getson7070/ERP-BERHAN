@@ -1,10 +1,22 @@
+"""Fix KPI sales MV to tolerate missing order_date (PG only; sqlite no-op)."""
+
 from alembic import op
+import sqlalchemy as sa  # (kept for consistency; not strictly required)
+
+# --- Alembic identifiers ---
+revision = "20251003_fix_kpi_sales_mv"
+down_revision = "5f6g7h8i9j0k"  # the revision that originally created the KPI MV
+branch_labels = None
+depends_on = None
+# ---------------------------
 
 def upgrade():
     bind = op.get_bind()
     if bind.dialect.name == "sqlite":
+        # SQLite: skip MV work entirely
         return
 
+    # Postgres: check columns, drop MV if present, recreate with COALESCE
     op.execute(
         """
         DO $$
@@ -30,7 +42,6 @@ def upgrade():
             ) INTO has_created_at;
 
             IF has_order_date OR has_created_at THEN
-              -- ensure definition is rebuilt
               IF to_regclass('public.kpi_sales_monthly') IS NOT NULL THEN
                 EXECUTE 'DROP MATERIALIZED VIEW public.kpi_sales_monthly';
               END IF;
