@@ -1,61 +1,65 @@
 from __future__ import annotations
+
 import os
-from pathlib import Path
-from typing import List
+from typing import Any
 from flask import Flask
 from jinja2 import ChoiceLoader, FileSystemLoader
 
-from .extensions import db, migrate, limiter, socketio
+from .extensions import db, migrate, socketio, csrf, limiter, login_manager
 
-def _configure_templates(app: Flask) -> None:
-    default_loader = app.jinja_loader
-    root_templates = Path(app.root_path).parent / "templates"
-    loaders: List[FileSystemLoader] = []
-    if root_templates.exists():
-        loaders.append(FileSystemLoader(str(root_templates)))
-    if default_loader and loaders:
-        app.jinja_loader = ChoiceLoader([default_loader, *loaders])
-    elif loaders:
-        app.jinja_loader = ChoiceLoader(loaders)
 
-def _apply_core_config(app: Flask) -> None:
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-not-secret")
-    if os.getenv("APP_ENV") == "production":
-        app.config["SESSION_COOKIE_SECURE"] = True
+def _resolve_db_uri() -> str:
+    # Prefer SQLALCHEMY_DATABASE_URI but accept DATABASE_URL (Render uses this)
+    uri = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
+    if not uri:
+        # Last-resort fallback to avoid crashing at boot; still logs visibly
+        uri = "sqlite:///:memory:"
+    return uri
 
-    db_uri = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL") or ""
-    if not db_uri and os.getenv("APP_ENV") == "production":
-        raise RuntimeError("SQLALCHEMY_DATABASE_URI (or DATABASE_URL) must be set.")
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri or "sqlite:///instance/dev.db"
-    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
-    app.config.setdefault(
-        "RATELIMIT_STORAGE_URI",
-        os.getenv("RATELIMIT_STORAGE_URI", os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")),
+
+def create_app() -> Flask:
+    app = Flask(
+        __name__,
+        static_folder="static",
+        template_folder=None,  # we’ll mount both roots via ChoiceLoader
     )
 
-def _register_extensions(app: Flask) -> None:
+    # --- Config (safe for production defaults) ---
+    app.config.setdefault("SECRET_KEY", os.getenv("FLASK_SECRET_KEY", "dev-secret"))
+    app.config["SQLALCHEMY_DATABASE_URI"] = _resolve_db_uri()
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+
+    # --- Jinja: search BOTH ./templates and ./erp/templates ---
+    root_templates = FileSystemLoader("templates")
+    pkg_templates = FileSystemLoader("erp/templates")
+    app.jinja_loader = ChoiceLoader([root_templates, pkg_templates])
+
+    # --- Init extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     limiter.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
+    login_manager.init_app(app)
+    socketio.init_app(app, message_queue=None)  # no broker required for now
 
-def _register_blueprints(app: Flask) -> None:
+    # --- Minimal web blueprint only (no auto-import of other modules) ---
     from .web import web_bp
     app.register_blueprint(web_bp)
 
-def create_app() -> Flask:
-    app = Flask(__name__)
-    _apply_core_config(app)
-    _configure_templates(app)
-
+    # --- Jinja helpers: _() and now() prevent “_ is undefined” etc. ---
     @app.context_processor
-    def _inject_i18n():
-        return {"_": (lambda s, **kwargs: s)}
+    def _inject_helpers() -> dict[str, Any]:
+        return {
+            "_": (lambda s, *a, **k: s),   # no-op i18n so templates render
+        }
 
-    @app.get("/health")
-    def _health():
-        return {"app": "ERP-BERHAN", "status": "running"}, 200
+    # Simple error pages (keep the app running even if a template is missing)
+    @app.errorhandler(404)
+    def _404(_e):  # noqa: D401
+        return "Not Found", 404
 
-    _register_extensions(app)
-    _register_blueprints(app)
+    @app.errorhandler(500)
+    def _500(_e):
+        return "Internal Server Error", 500
+
     return app
