@@ -1,34 +1,63 @@
-"""add sku field to inventory_items
-
-Revision ID: c3d4e5f6g7h
-Revises: 7b8c9d0e1f2
-Create Date: 2025-01-01 00:00:00.000000
-"""
+"""add sku field to inventory_items (dialect-safe)"""
 
 from alembic import op
 import sqlalchemy as sa
 
-# revision identifiers, used by Alembic.
+# Alembic identifiers
 revision = "c3d4e5f6g7h"
 down_revision = "7b8c9d0e1f2"
 branch_labels = None
 depends_on = None
 
 
+def _has_table(insp, table_name: str, schema=None) -> bool:
+    try:
+        return insp.has_table(table_name, schema=schema)
+    except TypeError:
+        # Some dialects/versions don’t accept schema kwarg in has_table
+        return insp.has_table(table_name)
+
+
 def upgrade():
-    conn = op.get_bind()
-    cols = [
-        row[1] for row in conn.execute(sa.text('PRAGMA table_info("inventory_items")'))
-    ]
-    if "sku" not in cols:
-        op.add_column(
-            "inventory_items", sa.Column("sku", sa.String(length=64), nullable=False)
-        )
-        op.create_index(
-            "ix_inventory_items_sku", "inventory_items", ["sku"], unique=True
-        )
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+
+    table = "inventory_items"
+    schema = None  # rely on default search_path on Postgres; fine on SQLite
+
+    # If the table doesn't exist yet (e.g., on a partial install), just skip.
+    if not _has_table(insp, table, schema=schema):
+        return
+
+    existing_cols = {c["name"] for c in insp.get_columns(table, schema=schema)}
+    existing_indexes = {ix["name"] for ix in insp.get_indexes(table, schema=schema) or []}
+
+    # Add column if missing
+    if "sku" not in existing_cols:
+        with op.batch_alter_table(table, schema=schema) as batch:
+            batch.add_column(sa.Column("sku", sa.String(length=64), nullable=True))
+
+    # Create a non-unique index on sku if it's not already there
+    if "ix_inventory_items_sku" not in existing_indexes:
+        op.create_index("ix_inventory_items_sku", table, ["sku"], unique=False, schema=schema)
 
 
 def downgrade():
-    op.drop_index("ix_inventory_items_sku", table_name="inventory_items")
-    op.drop_column("inventory_items", "sku")
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+
+    table = "inventory_items"
+    schema = None
+
+    if not _has_table(insp, table, schema=schema):
+        return
+
+    existing_cols = {c["name"] for c in insp.get_columns(table, schema=schema)}
+    existing_indexes = {ix["name"] for ix in insp.get_indexes(table, schema=schema) or []}
+
+    if "ix_inventory_items_sku" in existing_indexes:
+        op.drop_index("ix_inventory_items_sku", table_name=table, schema=schema)
+
+    if "sku" in existing_cols:
+        with op.batch_alter_table(table, schema=schema) as batch:
+            batch.drop_column("sku")
