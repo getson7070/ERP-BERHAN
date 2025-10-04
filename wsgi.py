@@ -1,7 +1,3 @@
-# wsgi.py  (monkey-patch FIRST and only here)
-import eventlet
-eventlet.monkey_patch()
-
 from erp.app import create_app
 from erp.extensions import socketio
 
