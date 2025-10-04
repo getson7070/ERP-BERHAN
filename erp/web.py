@@ -9,19 +9,24 @@ ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
 
 @web_bp.route("/")
 def home():
-    # Prefer your real pages: root/templates/login.html or index.html
-    for candidate in ("login.html", "index.html"):
+    # Prefer your real pages present in the repo
+    for candidate in (
+        "auth/login.html",     # your real login
+        "choose_login.html",   # also present
+        "login.html",          # fallback
+        "index.html",          # if you later add a root index
+    ):
         try:
             return render_template(candidate)
         except Exception:
             continue
     current_app.logger.warning(
-        "No login.html or index.html found under either templates/ or erp/templates/. "
-        "Showing fallback message."
+        "No suitable entry template found under templates/ or erp/templates/. Showing fallback."
     )
     return (
         "<h2>ERP-BERHAN is running.</h2>"
-        "<p>Add <code>templates/login.html</code> or <code>templates/index.html</code> at repo root.</p>"
+        "<p>Add <code>templates/auth/login.html</code> or <code>templates/choose_login.html</code> "
+        "at repo root to render the UI here.</p>"
         "Health: <a href='/health'>/health</a>",
         200,
     )
@@ -29,32 +34,37 @@ def home():
 @web_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = request.form.get("username", "")
-        p = request.form.get("password", "")
-        if u == ADMIN_USER and p == ADMIN_PASS:
-            session["user"] = u
+        user = request.form.get("username", "")
+        pwd = request.form.get("password", "")
+        if user == ADMIN_USER and pwd == ADMIN_PASS:
+            session["user"] = user
             return redirect(url_for("web.dashboard"))
         flash("Invalid credentials", "error")
-    try:
-        return render_template("login.html")
-    except Exception:
-        return (
-            "<h3>Missing template: templates/login.html</h3>"
-            "<p>Create it at repo root under <code>templates/login.html</code>.</p>",
-            200,
-        )
-
-@web_bp.route("/dashboard")
-def dashboard():
-    if not session.get("user"):
-        return redirect(url_for("web.login"))
-    for candidate in ("dashboard.html", "index.html"):
+    # Prefer your real login template
+    for candidate in ("auth/login.html", "login.html", "choose_login.html"):
         try:
             return render_template(candidate)
         except Exception:
             continue
     return (
-        "<h3>Missing template: templates/dashboard.html</h3>"
-        "<p>Create it under <code>templates/dashboard.html</code>.</p>",
+        "<h3>Missing login templates.</h3>"
+        "<p>Create <code>templates/auth/login.html</code> or "
+        "<code>templates/login.html</code> at repo root.</p>",
+        200,
+    )
+
+@web_bp.route("/dashboard")
+def dashboard():
+    if not session.get("user"):
+        return redirect(url_for("web.login"))
+    for candidate in ("dashboard.html", "analytics/dashboard.html", "index.html"):
+        try:
+            return render_template(candidate)
+        except Exception:
+            continue
+    return (
+        "<h3>Missing dashboard template.</h3>"
+        "<p>Try <code>templates/analytics/dashboard.html</code> or "
+        "<code>templates/dashboard.html</code>.</p>",
         200,
     )
