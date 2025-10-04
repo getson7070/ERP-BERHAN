@@ -22,4 +22,6 @@ Flask-Security-Too==5.6.2
 
 redis==5.0.8
 sentry-sdk==2.14.0
-Flask-Cors==4.0.1
+Flask-Cors==4.0.0
+Flask-Caching==2.3.0
+prometheus-client==0.20.0
