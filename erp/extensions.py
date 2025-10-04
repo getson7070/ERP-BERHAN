@@ -7,5 +7,4 @@ from flask_limiter.util import get_remote_address
 socketio = SocketIO(cors_allowed_origins="*")
 db = SQLAlchemy()
 migrate = Migrate()
-# Default limits can be tuned later; key_func uses client IP
 limiter = Limiter(key_func=get_remote_address)
