@@ -1,70 +1,63 @@
-import os
-from flask import Blueprint, render_template, redirect, url_for, request, session, current_app, flash
-from jinja2 import TemplateNotFound, TemplateSyntaxError
+from __future__ import annotations
 
-try:
-    from erp.forms.auth import LoginForm as RealLoginForm
-    LoginForm = RealLoginForm
-except Exception:
-    try:
-        from flask_wtf import FlaskForm
-        from wtforms import StringField, PasswordField
-        from wtforms.validators import DataRequired
-        class LoginForm(FlaskForm):
-            class Meta: csrf = False
-            username = StringField("Username", validators=[DataRequired()])
-            password = PasswordField("Password", validators=[DataRequired()])
-    except Exception:
-        LoginForm = None
+import os
+from typing import Iterable
+
+from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
+from jinja2 import TemplateNotFound
+from wtforms import StringField, PasswordField, SubmitField
+from flask_wtf import FlaskForm
+from wtforms.validators import DataRequired, Email
 
 web_bp = Blueprint("web", __name__)
 
-ENTRY_TEMPLATE = (os.getenv("ENTRY_TEMPLATE") or "").strip()
-ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
+# Minimal WTForms login form so templates that call form.hidden_tag() / form.* render
+class LoginForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    password = PasswordField("Password", validators=[DataRequired()])
+    submit = SubmitField("Sign in")
 
-def _render_safe(name: str, **ctx):
+def _select_template(candidates: Iterable[str]) -> str | None:
+    """Return the first existing template from the list, searching both loaders."""
+    names = [n for n in candidates if n]
     try:
-        return render_template(name, **ctx)
-    except TemplateNotFound as e:
-        current_app.logger.error(f"[templates] not found: {e.name} (asked for {name})")
-    except TemplateSyntaxError as e:
-        current_app.logger.error(f"[templates] syntax error in {name}:{e.lineno} {e.message}")
-    except Exception as e:
-        current_app.logger.exception(f"[templates] unexpected for {name}: {e}")
-    return None
+        # select_template raises if none exist
+        t = current_app.jinja_env.select_template(names)
+        return t.name
+    except TemplateNotFound:
+        return None
+
+@web_bp.route("/health")
+def health():
+    return jsonify({"app": "ERP-BERHAN", "status": "running"})
 
 @web_bp.route("/")
 def root():
-    if ENTRY_TEMPLATE:
-        page = _render_safe(ENTRY_TEMPLATE, form=(LoginForm() if LoginForm else None))
-        if page: return page
-    return redirect(url_for("web.login"))
+    # Let ENTRY_TEMPLATE override, else choose a sensible default
+    entry = os.getenv("ENTRY_TEMPLATE")
+    chosen = _select_template([
+        entry,
+        "auth/login.html",
+        "choose_login.html",
+        "login.html",
+        "index.html",
+    ])
+    if not chosen:
+        return (
+            "ERP-BERHAN is running.<br><br>"
+            "Expected one of: templates/auth/login.html, templates/choose_login.html, "
+            "templates/login.html, templates/index.html.",
+            200,
+        )
+    return render_template(chosen, form=LoginForm())
 
-@web_bp.route("/login", methods=["GET", "POST"])
-def login():
-    form = LoginForm() if LoginForm else None
-    if request.method == "POST":
-        if request.form.get("username") == ADMIN_USER and request.form.get("password") == ADMIN_PASS:
-            session["user"] = ADMIN_USER
-            return redirect(url_for("web.dashboard"))
-        flash("Invalid credentials", "error")
-    for tpl in ("auth/login.html", "choose_login.html", "login.html", "index.html"):
-        page = _render_safe(tpl, form=form)
-        if page: return page
-    return (
-        "<h3>ERP-BERHAN is running.</h3>"
-        "Expected one of: <code>templates/auth/login.html</code>, "
-        "<code>templates/choose_login.html</code>, <code>templates/login.html</code>, "
-        "<code>templates/index.html</code>.<br/>"
-        'Health: <a href="/health">/health</a>', 200
-    )
-
-@web_bp.route("/dashboard")
-def dashboard():
-    if not session.get("user"):
-        return redirect(url_for("web.login"))
-    for tpl in ("dashboard.html", "analytics/dashboard.html", "index.html"):
-        page = _render_safe(tpl)
-        if page: return page
-    return "<h3>No dashboard template found.</h3>", 200
+@web_bp.route("/login")
+def login_page():
+    chosen = _select_template([
+        "auth/login.html",
+        "login.html",
+        "choose_login.html",
+    ])
+    if not chosen:
+        return redirect(url_for("web.root"))
+    return render_template(chosen, form=LoginForm())
