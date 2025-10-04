@@ -1,162 +1,88 @@
+# erp/app.py
+from __future__ import annotations
+
 import os
-import importlib
-import pkgutil
 from pathlib import Path
-from flask import Flask, jsonify, send_from_directory
+from typing import Iterable
+
+from flask import Flask
 from jinja2 import ChoiceLoader, FileSystemLoader
-from flask import Blueprint
 
-from .extensions import socketio, db, migrate, limiter
-from .config import Settings
-from .capabilities import choose_async_mode, maybe_init_sentry
-from .web import web_bp
-
-
-def _iter_blueprints(package_module):
-    prefix = package_module.__name__ + "."
-    for _, modname, _ in pkgutil.walk_packages(package_module.__path__, prefix):
-        try:
-            mod = importlib.import_module(modname)
-        except Exception as exc:
-            print(f"[blueprints] skip {modname}: {exc}")
-            continue
-        for obj in mod.__dict__.values():
-            if isinstance(obj, Blueprint):
-                yield obj, modname
+# Optional: if you have extensions, import them defensively
+try:
+    from .extensions import db, migrate, limiter, socketio  # type: ignore
+except Exception:  # keep startup resilient
+    db = migrate = limiter = socketio = None  # type: ignore
 
 
-def _register_all_blueprints(app: Flask):
-    seen = set()
-    for pkgname in ("erp.routes", "erp.blueprints", "plugins"):
-        try:
-            pkg = importlib.import_module(pkgname)
-        except ModuleNotFoundError:
-            continue
+def _configure_templates(app: Flask) -> None:
+    """
+    Make Jinja search both:
+      - <repo>/templates
+      - <repo>/erp/templates  (Flask's default for this package)
+    """
+    # existing loader (points at erp/templates by default)
+    default_loader = app.jinja_loader
+    # repo root is one level up from erp/ package
+    repo_root = Path(app.root_path).parent
+    root_templates = repo_root / "templates"
 
-        for bp, modname in _iter_blueprints(pkg):
-            name = bp.name
-            if name in seen or name in app.blueprints:
-                new_name = f"{name}__{modname.split('.')[-1]}"
-                try:
-                    bp.name = new_name
-                    print(f"[blueprints] renamed duplicate '{name}' -> '{new_name}' from {modname}")
-                except Exception as exc:
-                    print(f"[blueprints] could not rename '{name}' from {modname}: {exc}; skipping")
-                    continue
-            try:
-                app.register_blueprint(bp)
-                seen.add(bp.name)
-            except Exception as exc:
-                print(f"[blueprints] failed to register {bp.name} from {modname}: {exc}")
+    extra_loaders: list[FileSystemLoader] = []
+    if root_templates.exists():
+        extra_loaders.append(FileSystemLoader(str(root_templates)))
+
+    if default_loader and extra_loaders:
+        app.jinja_loader = ChoiceLoader([default_loader, *extra_loaders])
+    elif extra_loaders:
+        app.jinja_loader = ChoiceLoader(extra_loaders)
+
+
+def _register_extensions(app: Flask) -> None:
+    if db:
+        db.init_app(app)
+    if migrate and db:
+        migrate.init_app(app, db)
+    if limiter:
+        # Respect configured storage; default is memory:// (OK for now)
+        limiter.init_app(app)
+    if socketio:
+        # eventlet worker is used; no explicit async_mode needed
+        socketio.init_app(app, cors_allowed_origins="*")
+
+
+def _register_blueprints(app: Flask) -> None:
+    # Web/UI routes
+    from .web import web_bp  # local import keeps startup lean
+    app.register_blueprint(web_bp)
+
+    # If you want to auto-register optional blueprints later, do it here
+    # with try/except so missing models don’t crash startup.
 
 
 def create_app() -> Flask:
-    s = Settings()
-
-    pkg_root = Path(__file__).resolve().parent          # .../erp
-    repo_root = pkg_root.parent                         # repo root
-
     app = Flask(__name__)
-        @app.context_processor
-    def _inject_globals():
-        # Provide a no-op translation function if Flask-Babel isn't wired.
-        return {"_": (lambda s, **kwargs: s)}
-    app.config["JSON_SORT_KEYS"] = False
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me-now")
-    app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-    # ---- Jinja: assemble a resilient loader chain
-    root_templates = repo_root / "templates"
-    erp_templates = pkg_root / "templates"
-
-    chain = []
-    if root_templates.is_dir():
-        chain.append(FileSystemLoader(str(root_templates)))
-    if erp_templates.is_dir():
-        chain.append(FileSystemLoader(str(erp_templates)))
-    # Keep Flask's default loader (erp/templates relative to app.root_path)
-    if app.jinja_loader:
-        chain.append(app.jinja_loader)
-
-    if chain:
-        app.jinja_loader = ChoiceLoader(chain)
-
-    # Startup diagnostics: log whether the expected entry templates exist
-    for cand in ("auth/login.html", "choose_login.html", "login.html", "index.html"):
-        exists_root = (root_templates / cand).exists() if root_templates.is_dir() else False
-        exists_erp  = (erp_templates / cand).exists() if erp_templates.is_dir() else False
-        app.logger.warning(f"[templates] check {cand}: root={exists_root} erp={exists_erp}")
-
-    # ---- Static: root /static and optional /erp-static
-    root_static = repo_root / "static"
-    if root_static.is_dir():
-        app.static_folder = str(root_static)
-        app.static_url_path = "/static"
-    erp_static = pkg_root / "static"
-    if erp_static.is_dir():
-        @app.route("/erp-static/<path:filename>")
-        def _erp_static(filename):
-            return send_from_directory(str(erp_static), filename)
-
-    # ---- DB
-    if s.DATABASE_URL:
-        app.config["SQLALCHEMY_DATABASE_URI"] = s.DATABASE_URL
-        app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        db.init_app(app)
-        migrate.init_app(app, db)
-
-    # ---- Limiter (imported by auth routes)
-    limiter.init_app(app)
-
-    # ---- Observability
-    maybe_init_sentry(s)
-
-    # ---- Socket.IO
-    async_mode = choose_async_mode(s)
-    socketio.init_app(
-        app,
-        async_mode=async_mode,
-        cors_allowed_origins="*",
-        message_queue=s.SOCKETIO_MESSAGE_QUEUE or None,
+    # Core config
+    app.config.update(
+        SECRET_KEY=os.getenv("FLASK_SECRET_KEY", "dev-not-secret"),
+        SESSION_COOKIE_SECURE=True if os.getenv("APP_ENV") == "production" else False,
     )
-    try:
-        app.logger.info(f"Flask-SocketIO async_mode: {async_mode}")
-    except Exception:
-        pass
 
-    # ---- Probes
+    # Jinja: search both template roots
+    _configure_templates(app)
+
+    # Provide a no-op i18n function so {{ _('…') }} never crashes
+    @app.context_processor
+    def _inject_i18n():
+        return {"_": (lambda s, **_: s)}
+
+    # Health endpoint (kept here so app always has a live route)
     @app.get("/health")
-    def health():
-        return jsonify({"app": "ERP-BERHAN", "status": "running"})
+    def _health():
+        return {"app": "ERP-BERHAN", "status": "running"}, 200
 
-    @app.get("/ready")
-    def ready():
-        return jsonify({
-            "socketio": async_mode,
-            "db": bool(s.DATABASE_URL),
-            "observability": bool(s.SENTRY_DSN) and s.ENABLE_OBSERVABILITY,
-            "auto_migrate": bool(s.MIGRATE_ON_STARTUP),
-        })
-
-    # ---- Register blueprints (robust)
-    _register_all_blueprints(app)
-
-    # ---- Fallback UI (only used if app didn't supply /)
-    app.register_blueprint(web_bp)
-
-    # ---- Optional startup migrations
-    if s.MIGRATE_ON_STARTUP and s.DATABASE_URL:
-        _safe_upgrade_head(app)
+    # Extensions & blueprints
+    _register_extensions(app)
+    _register_blueprints(app)
 
     return app
-
-
-def _safe_upgrade_head(app: Flask):
-    try:
-        from alembic.config import Config as AlembicConfig
-        from alembic import command as alembic_command
-        cfg = AlembicConfig(os.getenv("ALEMBIC_INI", "alembic.ini"))
-        alembic_command.upgrade(cfg, "head")
-        app.logger.info("Startup migration: upgrade to head completed.")
-    except Exception as exc:
-        app.logger.warning(f"Startup migration skipped or failed: {exc}")
