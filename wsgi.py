@@ -1,4 +1,4 @@
-# wsgi.py — ensure eventlet patches happen before any other import
+# wsgi.py — patch BEFORE any other import
 import eventlet
 eventlet.monkey_patch()
 
