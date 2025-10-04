@@ -1,3 +1,7 @@
-# erp/routes/api.py  (imports only)
-from erp.observability import TOKEN_ERRORS, GRAPHQL_REJECTS
-from erp.extensions import limiter, csrf
+from flask import Blueprint, jsonify
+
+api_bp = Blueprint("api", __name__)
+
+@api_bp.get("/ping")
+def ping():
+    return jsonify({"pong": True})
