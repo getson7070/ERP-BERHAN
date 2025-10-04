@@ -9,10 +9,13 @@ from flask import Blueprint
 from .extensions import socketio, db, migrate, limiter
 from .config import Settings
 from .capabilities import choose_async_mode, maybe_init_sentry
-from .web import web_bp  # fallback UI routes
+from .web import web_bp
 
-def _blueprints_from(package_module):
-    for _, modname, _ in pkgutil.walk_packages(package_module.__path__, package_module.__name__ + "."):
+
+def _iter_blueprints(package_module):
+    """Yield (blueprint, module_name) from a package recursively, skipping bad imports."""
+    pkg_prefix = package_module.__name__ + "."
+    for _, modname, _ in pkgutil.walk_packages(package_module.__path__, pkg_prefix):
         try:
             mod = importlib.import_module(modname)
         except Exception as exc:
@@ -20,16 +23,36 @@ def _blueprints_from(package_module):
             continue
         for obj in mod.__dict__.values():
             if isinstance(obj, Blueprint):
-                yield obj
+                yield obj, modname
+
 
 def _register_all_blueprints(app: Flask):
+    """Register blueprints from known packages, resolving duplicate names automatically."""
     for pkgname in ("erp.routes", "erp.blueprints", "plugins"):
         try:
             pkg = importlib.import_module(pkgname)
         except ModuleNotFoundError:
             continue
-        for bp in _blueprints_from(pkg):
-            app.register_blueprint(bp)
+
+        for bp, modname in _iter_blueprints(pkg):
+            name = bp.name
+            # Resolve duplicate blueprint names by renaming with module suffix
+            if name in app.blueprints:
+                new_name = f"{name}__{modname.split('.')[-1]}"
+                try:
+                    # Flask's Blueprint.name is a plain attribute; safe to adjust before register
+                    bp.name = new_name
+                    print(f"[blueprints] renamed duplicate '{name}' -> '{new_name}' from {modname}")
+                except Exception as exc:
+                    print(f"[blueprints] could not rename '{name}' from {modname}: {exc}; skipping")
+                    continue
+
+            try:
+                app.register_blueprint(bp)
+            except Exception as exc:
+                print(f"[blueprints] failed to register {bp.name} from {modname}: {exc}")
+                continue
+
 
 def create_app() -> Flask:
     s = Settings()
@@ -71,7 +94,7 @@ def create_app() -> Flask:
         db.init_app(app)
         migrate.init_app(app, db)
 
-    # ---- Limiter (needed by erp.routes.auth)
+    # ---- Limiter (imported by erp.routes.auth)
     limiter.init_app(app)
 
     # ---- Observability
@@ -79,7 +102,12 @@ def create_app() -> Flask:
 
     # ---- Socket.IO
     async_mode = choose_async_mode(s)
-    socketio.init_app(app, async_mode=async_mode, cors_allowed_origins="*", message_queue=s.SOCKETIO_MESSAGE_QUEUE or None)
+    socketio.init_app(
+        app,
+        async_mode=async_mode,
+        cors_allowed_origins="*",
+        message_queue=s.SOCKETIO_MESSAGE_QUEUE or None,
+    )
     try:
         app.logger.info(f"Flask-SocketIO async_mode: {async_mode}")
     except Exception:
@@ -99,10 +127,10 @@ def create_app() -> Flask:
             "auto_migrate": bool(s.MIGRATE_ON_STARTUP),
         })
 
-    # ---- Register your blueprints
+    # ---- App blueprints (robust)
     _register_all_blueprints(app)
 
-    # ---- Fallback UI (only used if your own routes don’t provide /)
+    # ---- Fallback UI (only used if app didn't supply /)
     app.register_blueprint(web_bp)
 
     # ---- Optional startup migrations
@@ -110,6 +138,7 @@ def create_app() -> Flask:
         _safe_upgrade_head(app)
 
     return app
+
 
 def _safe_upgrade_head(app: Flask):
     try:
