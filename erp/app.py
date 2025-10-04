@@ -13,9 +13,8 @@ from .web import web_bp
 
 
 def _iter_blueprints(package_module):
-    """Yield (blueprint, module_name) from a package recursively, skipping bad imports."""
-    pkg_prefix = package_module.__name__ + "."
-    for _, modname, _ in pkgutil.walk_packages(package_module.__path__, pkg_prefix):
+    prefix = package_module.__name__ + "."
+    for _, modname, _ in pkgutil.walk_packages(package_module.__path__, prefix):
         try:
             mod = importlib.import_module(modname)
         except Exception as exc:
@@ -27,7 +26,7 @@ def _iter_blueprints(package_module):
 
 
 def _register_all_blueprints(app: Flask):
-    """Register blueprints from known packages, resolving duplicate names automatically."""
+    seen = set()
     for pkgname in ("erp.routes", "erp.blueprints", "plugins"):
         try:
             pkg = importlib.import_module(pkgname)
@@ -36,45 +35,53 @@ def _register_all_blueprints(app: Flask):
 
         for bp, modname in _iter_blueprints(pkg):
             name = bp.name
-            # Resolve duplicate blueprint names by renaming with module suffix
-            if name in app.blueprints:
+            if name in seen or name in app.blueprints:
                 new_name = f"{name}__{modname.split('.')[-1]}"
                 try:
-                    # Flask's Blueprint.name is a plain attribute; safe to adjust before register
                     bp.name = new_name
                     print(f"[blueprints] renamed duplicate '{name}' -> '{new_name}' from {modname}")
                 except Exception as exc:
                     print(f"[blueprints] could not rename '{name}' from {modname}: {exc}; skipping")
                     continue
-
             try:
                 app.register_blueprint(bp)
+                seen.add(bp.name)
             except Exception as exc:
                 print(f"[blueprints] failed to register {bp.name} from {modname}: {exc}")
-                continue
 
 
 def create_app() -> Flask:
     s = Settings()
 
-    pkg_root = Path(__file__).resolve().parent
-    repo_root = pkg_root.parent
+    pkg_root = Path(__file__).resolve().parent          # .../erp
+    repo_root = pkg_root.parent                         # repo root
 
     app = Flask(__name__)
     app.config["JSON_SORT_KEYS"] = False
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me-now")
     app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-    # ---- Jinja: root templates FIRST, then erp/templates
+    # ---- Jinja: assemble a resilient loader chain
     root_templates = repo_root / "templates"
     erp_templates = pkg_root / "templates"
-    loaders = []
+
+    chain = []
     if root_templates.is_dir():
-        loaders.append(FileSystemLoader(str(root_templates)))
+        chain.append(FileSystemLoader(str(root_templates)))
     if erp_templates.is_dir():
-        loaders.append(FileSystemLoader(str(erp_templates)))
-    if loaders:
-        app.jinja_loader = ChoiceLoader(loaders)
+        chain.append(FileSystemLoader(str(erp_templates)))
+    # Keep Flask's default loader (erp/templates relative to app.root_path)
+    if app.jinja_loader:
+        chain.append(app.jinja_loader)
+
+    if chain:
+        app.jinja_loader = ChoiceLoader(chain)
+
+    # Startup diagnostics: log whether the expected entry templates exist
+    for cand in ("auth/login.html", "choose_login.html", "login.html", "index.html"):
+        exists_root = (root_templates / cand).exists() if root_templates.is_dir() else False
+        exists_erp  = (erp_templates / cand).exists() if erp_templates.is_dir() else False
+        app.logger.warning(f"[templates] check {cand}: root={exists_root} erp={exists_erp}")
 
     # ---- Static: root /static and optional /erp-static
     root_static = repo_root / "static"
@@ -94,7 +101,7 @@ def create_app() -> Flask:
         db.init_app(app)
         migrate.init_app(app, db)
 
-    # ---- Limiter (imported by erp.routes.auth)
+    # ---- Limiter (imported by auth routes)
     limiter.init_app(app)
 
     # ---- Observability
@@ -127,7 +134,7 @@ def create_app() -> Flask:
             "auto_migrate": bool(s.MIGRATE_ON_STARTUP),
         })
 
-    # ---- App blueprints (robust)
+    # ---- Register blueprints (robust)
     _register_all_blueprints(app)
 
     # ---- Fallback UI (only used if app didn't supply /)
