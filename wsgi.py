@@ -1,11 +1,6 @@
-# wsgi.py — patch BEFORE any other import
+# wsgi.py — keep this file tiny and do monkey-patching FIRST
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch()  # must happen before importing anything else
 
-from erp.app import create_app
-from erp.extensions import socketio
-
+from erp.app import create_app  # noqa: E402 (import after patching is intentional)
 app = create_app()
-
-if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=8000)
