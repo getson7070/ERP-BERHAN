@@ -1,11 +1,11 @@
-"""add webauthn credentials table (idempotent / PG+SQLite safe)"""
+"""Add webauthn credentials table (idempotent / existence-aware)."""
 
 from alembic import op
 import sqlalchemy as sa
 
 # Alembic identifiers
-revision = "8d0e1f2g3h4i"          # <-- keep this exactly as in your repo
-down_revision = "7c9d0e1f2g3h"     # <-- matches your history
+revision = "8d0e1f2g3h4i"
+down_revision = "7c9d0e1f2g3h"
 branch_labels = None
 depends_on = None
 
@@ -13,63 +13,60 @@ depends_on = None
 def upgrade():
     bind = op.get_bind()
     insp = sa.inspect(bind)
-    dialect = bind.dialect.name
 
-    if dialect == "sqlite":
-        # SQLite: only create if missing
-        if not insp.has_table("webauthn_credentials"):
-            op.create_table(
-                "webauthn_credentials",
-                sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-                sa.Column("user_id", sa.Integer, nullable=False),
-                sa.Column("org_id", sa.Integer, nullable=False),
-                sa.Column("credential_id", sa.String(512), nullable=False, unique=True),
-                sa.Column("public_key", sa.LargeBinary, nullable=False),
-                sa.Column("sign_count", sa.Integer, nullable=False, server_default="0"),
-                sa.Column(
-                    "created_at",
-                    sa.DateTime(timezone=True),
-                    server_default=sa.text("CURRENT_TIMESTAMP"),
-                    nullable=False,
-                ),
-                # FKs are no-ops unless you’ve enabled PRAGMA foreign_keys
-            )
+    # Respect current schema (works for PG & SQLite)
+    schema = None
+    table_name = "webauthn_credentials"
+
+    # If the table already exists (e.g., created manually), skip creation
+    try:
+        exists = insp.has_table(table_name, schema=schema)
+    except TypeError:
+        # older SQLA signatures
+        exists = insp.has_table(table_name)
+
+    if exists:
         return
 
-    if dialect == "postgresql":
-        # Postgres: guard with to_regclass() and use proper types/defaults
-        op.execute(sa.text("""
-        DO $plpgsql$
-        BEGIN
-          IF to_regclass('webauthn_credentials') IS NULL THEN
-            CREATE TABLE webauthn_credentials (
-              id            SERIAL PRIMARY KEY,
-              user_id       INTEGER NOT NULL REFERENCES users(id),
-              org_id        INTEGER NOT NULL REFERENCES organizations(id),
-              credential_id VARCHAR(512) NOT NULL UNIQUE,
-              public_key    BYTEA NOT NULL,
-              sign_count    INTEGER NOT NULL DEFAULT 0,
-              created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-            );
-          ELSE
-            RAISE NOTICE $$webauthn_credentials already exists; skipping creation$$;
-          END IF;
-        END
-        $plpgsql$;
-        """))
-        return
+    op.create_table(
+        table_name,
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("org_id", sa.Integer(), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column("credential_id", sa.String(length=512), nullable=False),
+        sa.Column("public_key", sa.LargeBinary(), nullable=False),  # maps to BYTEA on PG
+        sa.Column("sign_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.UniqueConstraint("credential_id", name="uq_webauthn_credentials_credential_id"),
+        schema=schema,
+    )
+
+    # Helpful index for lookups
+    op.create_index("ix_webauthn_credentials_user_id", table_name, ["user_id"], unique=False, schema=schema)
+    op.create_index("ix_webauthn_credentials_org_id", table_name, ["org_id"], unique=False, schema=schema)
 
 
 def downgrade():
     bind = op.get_bind()
     insp = sa.inspect(bind)
-    dialect = bind.dialect.name
 
-    if dialect == "sqlite":
-        if insp.has_table("webauthn_credentials"):
-            op.drop_table("webauthn_credentials")
-        return
+    schema = None
+    table_name = "webauthn_credentials"
 
-    if dialect == "postgresql":
-        op.execute(sa.text("DROP TABLE IF EXISTS webauthn_credentials CASCADE"))
-        return
+    try:
+        exists = insp.has_table(table_name, schema=schema)
+    except TypeError:
+        exists = insp.has_table(table_name)
+
+    if exists:
+        # Drop indexes first (idempotent-ish: ignore if missing)
+        try:
+            op.drop_index("ix_webauthn_credentials_user_id", table_name=table_name, schema=schema)
+        except Exception:
+            pass
+        try:
+            op.drop_index("ix_webauthn_credentials_org_id", table_name=table_name, schema=schema)
+        except Exception:
+            pass
+
+        op.drop_table(table_name, schema=schema)
