@@ -57,6 +57,10 @@ def create_app() -> Flask:
     repo_root = pkg_root.parent                         # repo root
 
     app = Flask(__name__)
+        @app.context_processor
+    def _inject_globals():
+        # Provide a no-op translation function if Flask-Babel isn't wired.
+        return {"_": (lambda s, **kwargs: s)}
     app.config["JSON_SORT_KEYS"] = False
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me-now")
     app.config["TEMPLATES_AUTO_RELOAD"] = True
