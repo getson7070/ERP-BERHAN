@@ -1,11 +1,11 @@
 # wsgi.py
+import os
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch()  # must happen before anything else
 
-from erp.app import create_app  # noqa: E402
+from erp.app import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    from erp.extensions import socketio  # noqa: E402
-    socketio.run(app, host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "10000")))
