@@ -1,37 +1,71 @@
 import os
+import importlib
+import pkgutil
 from pathlib import Path
 from flask import Flask, jsonify, send_from_directory
 from jinja2 import ChoiceLoader, FileSystemLoader
-from .extensions import socketio, db, migrate
+from flask import Blueprint
+
+from .extensions import socketio, db, migrate, limiter
 from .config import Settings
 from .capabilities import choose_async_mode, maybe_init_sentry
-from .web import web_bp  # UI blueprint (routes for /, /login, /dashboard)
+from .web import web_bp  # fallback UI routes (/ and simple login/dashboard)
+
+
+def _blueprints_from(package_module):
+    """Yield Flask Blueprint instances from a package (recursive)."""
+    for _, modname, _ in pkgutil.walk_packages(
+        package_module.__path__, package_module.__name__ + "."
+    ):
+        try:
+            mod = importlib.import_module(modname)
+        except Exception as exc:
+            # Never block boot on a flaky module; log and continue
+            print(f"[blueprints] skip {modname}: {exc}")
+            continue
+        for obj in mod.__dict__.values():
+            if isinstance(obj, Blueprint):
+                yield obj
+
+
+def _register_all_blueprints(app: Flask):
+    """Auto-register blueprints from erp.routes, erp.blueprints, and plugins."""
+    for pkgname in ("erp.routes", "erp.blueprints", "plugins"):
+        try:
+            pkg = importlib.import_module(pkgname)
+        except ModuleNotFoundError:
+            continue
+        for bp in _blueprints_from(pkg):
+            # If a URL prefix was set in the bp, honor it; otherwise default mount
+            app.register_blueprint(bp)
+
 
 def create_app() -> Flask:
     s = Settings()
 
-    # Package and repo layout
+    # Repo layout
     pkg_root = Path(__file__).resolve().parent       # .../erp
     repo_root = pkg_root.parent                      # repo root
 
-    app = Flask(__name__)  # don't fix template_folder here; we will set loaders
+    app = Flask(__name__)
     app.config["JSON_SORT_KEYS"] = False
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me-now")
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
 
     # ---- Jinja template search order ----
-    # 1) <repo>/templates  (PRIMARY, as you requested)
+    # 1) <repo>/templates  (PRIMARY, per your directive)
     # 2) <repo>/erp/templates
     root_templates = repo_root / "templates"
     erp_templates = pkg_root / "templates"
     loaders = []
     if root_templates.is_dir():
         loaders.append(FileSystemLoader(str(root_templates)))
-    # include default loader if any (so Flask's package templates remain usable)
-    loaders.append(FileSystemLoader(str(erp_templates)))
-    app.jinja_loader = ChoiceLoader(loaders)
+    if erp_templates.is_dir():
+        loaders.append(FileSystemLoader(str(erp_templates)))
+    if loaders:
+        app.jinja_loader = ChoiceLoader(loaders)
 
     # ---- Static files ----
-    # primary static at <repo>/static, but also expose erp/static as /erp-static/...
     root_static = repo_root / "static"
     if root_static.is_dir():
         app.static_folder = str(root_static)
@@ -48,6 +82,9 @@ def create_app() -> Flask:
         app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         db.init_app(app)
         migrate.init_app(app, db)
+
+    # ---- Limiter (needed by erp.routes.auth) ----
+    limiter.init_app(app)
 
     # ---- Observability (optional) ----
     maybe_init_sentry(s)
@@ -79,7 +116,10 @@ def create_app() -> Flask:
             "auto_migrate": bool(s.MIGRATE_ON_STARTUP),
         })
 
-    # ---- UI routes ----
+    # ---- Register all your app blueprints ----
+    _register_all_blueprints(app)
+
+    # ---- Fallback UI (only used if your own routes don’t provide /) ----
     app.register_blueprint(web_bp)
 
     # ---- Optional startup migrations ----
