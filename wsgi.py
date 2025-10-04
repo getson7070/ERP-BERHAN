@@ -1,6 +1,5 @@
-# wsgi.py — keep this file tiny and do monkey-patching FIRST
 import eventlet
-eventlet.monkey_patch()  # must happen before importing anything else
+eventlet.monkey_patch()
 
-from erp.app import create_app  # noqa: E402 (import after patching is intentional)
+from erp.app import create_app  # noqa: E402
 app = create_app()
