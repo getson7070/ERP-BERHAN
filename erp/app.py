@@ -1,88 +1,61 @@
-# erp/app.py
 from __future__ import annotations
-
 import os
 from pathlib import Path
-from typing import Iterable
-
+from typing import List
 from flask import Flask
 from jinja2 import ChoiceLoader, FileSystemLoader
 
-# Optional: if you have extensions, import them defensively
-try:
-    from .extensions import db, migrate, limiter, socketio  # type: ignore
-except Exception:  # keep startup resilient
-    db = migrate = limiter = socketio = None  # type: ignore
-
+from .extensions import db, migrate, limiter, socketio
 
 def _configure_templates(app: Flask) -> None:
-    """
-    Make Jinja search both:
-      - <repo>/templates
-      - <repo>/erp/templates  (Flask's default for this package)
-    """
-    # existing loader (points at erp/templates by default)
     default_loader = app.jinja_loader
-    # repo root is one level up from erp/ package
-    repo_root = Path(app.root_path).parent
-    root_templates = repo_root / "templates"
-
-    extra_loaders: list[FileSystemLoader] = []
+    root_templates = Path(app.root_path).parent / "templates"
+    loaders: List[FileSystemLoader] = []
     if root_templates.exists():
-        extra_loaders.append(FileSystemLoader(str(root_templates)))
+        loaders.append(FileSystemLoader(str(root_templates)))
+    if default_loader and loaders:
+        app.jinja_loader = ChoiceLoader([default_loader, *loaders])
+    elif loaders:
+        app.jinja_loader = ChoiceLoader(loaders)
 
-    if default_loader and extra_loaders:
-        app.jinja_loader = ChoiceLoader([default_loader, *extra_loaders])
-    elif extra_loaders:
-        app.jinja_loader = ChoiceLoader(extra_loaders)
+def _apply_core_config(app: Flask) -> None:
+    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-not-secret")
+    if os.getenv("APP_ENV") == "production":
+        app.config["SESSION_COOKIE_SECURE"] = True
 
+    db_uri = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL") or ""
+    if not db_uri and os.getenv("APP_ENV") == "production":
+        raise RuntimeError("SQLALCHEMY_DATABASE_URI (or DATABASE_URL) must be set.")
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri or "sqlite:///instance/dev.db"
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    app.config.setdefault(
+        "RATELIMIT_STORAGE_URI",
+        os.getenv("RATELIMIT_STORAGE_URI", os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")),
+    )
 
 def _register_extensions(app: Flask) -> None:
-    if db:
-        db.init_app(app)
-    if migrate and db:
-        migrate.init_app(app, db)
-    if limiter:
-        # Respect configured storage; default is memory:// (OK for now)
-        limiter.init_app(app)
-    if socketio:
-        # eventlet worker is used; no explicit async_mode needed
-        socketio.init_app(app, cors_allowed_origins="*")
-
+    db.init_app(app)
+    migrate.init_app(app, db)
+    limiter.init_app(app)
+    socketio.init_app(app, cors_allowed_origins="*")
 
 def _register_blueprints(app: Flask) -> None:
-    # Web/UI routes
-    from .web import web_bp  # local import keeps startup lean
+    from .web import web_bp
     app.register_blueprint(web_bp)
-
-    # If you want to auto-register optional blueprints later, do it here
-    # with try/except so missing models don’t crash startup.
-
 
 def create_app() -> Flask:
     app = Flask(__name__)
-
-    # Core config
-    app.config.update(
-        SECRET_KEY=os.getenv("FLASK_SECRET_KEY", "dev-not-secret"),
-        SESSION_COOKIE_SECURE=True if os.getenv("APP_ENV") == "production" else False,
-    )
-
-    # Jinja: search both template roots
+    _apply_core_config(app)
     _configure_templates(app)
 
-    # Provide a no-op i18n function so {{ _('…') }} never crashes
     @app.context_processor
     def _inject_i18n():
-        return {"_": (lambda s, **_: s)}
+        return {"_": (lambda s, **kwargs: s)}
 
-    # Health endpoint (kept here so app always has a live route)
     @app.get("/health")
     def _health():
         return {"app": "ERP-BERHAN", "status": "running"}, 200
 
-    # Extensions & blueprints
     _register_extensions(app)
     _register_blueprints(app)
-
     return app
