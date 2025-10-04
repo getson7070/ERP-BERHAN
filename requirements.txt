@@ -40,7 +40,7 @@ Flask-WTF==1.2.1
 WTForms==3.1.2
 email_validator==2.2.0
 # Your blueprints import `flask_security` → install the maintained fork:
-Flask-Security-Too==5.4.4
+Flask-Security-Too==5.6.2
 
 redis==5.0.8
 sentry-sdk==2.14.0
