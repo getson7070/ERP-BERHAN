@@ -1,5 +1,8 @@
-# erp/extensions.py  (full replacement)
 from flask_socketio import SocketIO
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
-# Do not hardcode async_mode here; we set it during init to avoid bad env overrides.
+# Export always-present objects; we may initialize them conditionally in app.py
 socketio = SocketIO(cors_allowed_origins="*")
+db = SQLAlchemy()
+migrate = Migrate()
