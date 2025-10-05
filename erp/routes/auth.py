@@ -1,89 +1,85 @@
-# erp/routes/auth.py
 from __future__ import annotations
 
+from typing import Optional
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_user, logout_user, login_required
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, HiddenField
-from wtforms.validators import DataRequired, Email, Length, Optional
-from flask_login import login_user, logout_user, current_user
-from sqlalchemy import or_
-
+from wtforms.validators import DataRequired, Length, Optional as VOptional
 from ..extensions import db
 from ..models import User
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
-auth_bp = bp  # export alias
+try:
+    import pyotp  # optional
+except Exception:
+    pyotp = None
+
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 class LoginForm(FlaskForm):
-    role = HiddenField("role", validators=[DataRequired()])  # 'admin' | 'employee' | 'client'
-    username = StringField("Username or Email", validators=[DataRequired(), Length(min=2, max=120)])
+    username = StringField("Username or Email", validators=[DataRequired(), Length(min=2, max=128)])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=2, max=128)])
-    mac_address = StringField("MAC Address", validators=[Optional(), Length(min=12, max=32)])
-    otp = StringField("OTP", validators=[Optional(), Length(min=6, max=10)])
+    mac = StringField("MAC address", validators=[VOptional(), Length(min=2, max=64)])
+    otp = StringField("One-time password", validators=[VOptional(), Length(min=6, max=10)])
+    role = HiddenField("role")  # set by JS / query string
 
-def _find_user_by_login(login: str, role: str) -> User | None:
-    q = User.query.filter(User.role == role).filter(
-        or_(User.username == login, User.email == login)
-    )
-    return q.first()
-
-@bp.route("/login", methods=["GET", "POST"])
+@auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    # /auth/login?role=admin|employee|client (defaults to 'client')
-    role = (request.args.get("role") or request.form.get("role") or "client").strip().lower()
-    if role not in {"admin", "employee", "client"}:
-        role = "client"
+    form = LoginForm()
+    role = (request.args.get("role") or form.role.data or "client").strip().lower()
+    form.role.data = role
 
-    form = LoginForm(role=role)
+    if request.method == "GET":
+        return render_template("auth/login.html", form=form)
 
-    if form.validate_on_submit():
-        login_key = form.username.data.strip()
-        user = _find_user_by_login(login_key, role)
-        if not user or not user.is_active or not user.check_password(form.password.data):
-            flash("Invalid credentials.", "danger")
-            return render_template("auth/login.html", form=form, role=role), 401
+    if not form.validate_on_submit():
+        flash("Please complete the form.", "error")
+        return render_template("auth/login.html", form=form), 400
 
-        # Employee: require MAC match
-        if role == "employee":
-            mac = (form.mac_address.data or "").replace(":", "").replace("-", "").lower()
-            if not mac or not user.mac_address or mac != user.mac_address.lower():
-                flash("This device is not authorized (MAC mismatch).", "danger")
-                return render_template("auth/login.html", form=form, role=role), 403
+    ident = form.username.data.strip()
+    user: Optional[User] = None
+    if "@" in ident:
+        user = User.query.filter(db.func.lower(User.email) == ident.lower()).first()
+    if not user:
+        user = User.query.filter(db.func.lower(User.username) == ident.lower()).first()
 
-        # Admin: optional OTP
-        if role == "admin" and user.otp_secret:
-            # lazy import to keep deps optional if you don't set otp_secret
-            import pyotp
-            otp_ok = False
-            code = (form.otp.data or "").strip()
-            try:
-                otp_ok = pyotp.TOTP(user.otp_secret).verify(code)
-            except Exception:
-                otp_ok = False
-            if not otp_ok:
-                flash("Invalid OTP.", "danger")
-                return render_template("auth/login.html", form=form, role=role), 401
+    if not user or user.role != role or not user.is_active:
+        flash("Invalid credentials.", "error")
+        return render_template("auth/login.html", form=form), 401
 
-        login_user(user, remember=False)
-        flash("Logged in successfully.", "success")
+    if not user.check_password(form.password.data):
+        flash("Invalid credentials.", "error")
+        return render_template("auth/login.html", form=form), 401
 
-        # send users by role
-        dest = {
-            "admin": "admin.index",
-            "employee": "employee.index",
-            "client": "client.index",
-        }.get(role, "web.index")
+    if role == "employee":
+        expected = (user.mac_address or "").lower().strip()
+        provided = (form.mac.data or "").lower().strip()
+        if expected and provided != expected:
+            flash("This device is not authorized for the employee account.", "error")
+            return render_template("auth/login.html", form=form), 403
+
+    if role == "admin" and user.otp_secret and pyotp is not None:
+        if not form.otp.data:
+            flash("Enter the OTP code.", "error")
+            return render_template("auth/login.html", form=form), 400
+        totp = pyotp.TOTP(user.otp_secret)
+        if not totp.verify(form.otp.data, valid_window=1):
+            flash("Invalid OTP code.", "error")
+            return render_template("auth/login.html", form=form), 401
+
+    login_user(user)
+
+    # Try dashboard if it exists; otherwise back to chooser.
+    for endpoint in ("dashboard.index",):
         try:
-            return redirect(url_for(dest))
+            return redirect(url_for(endpoint))
         except Exception:
-            return redirect(url_for("web.index"))
+            pass
+    return redirect(url_for("web.choose_login"))
 
-    # GET or invalid POST
-    return render_template("auth/login.html", form=form, role=role)
-
-@bp.route("/logout", methods=["GET", "POST"])
+@auth_bp.route("/logout", methods=["POST", "GET"])
+@login_required
 def logout():
-    if current_user.is_authenticated:
-        logout_user()
-    flash("Logged out.", "info")
+    logout_user()
+    flash("Logged out.", "ok")
     return redirect(url_for("auth.login"))
