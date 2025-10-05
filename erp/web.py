@@ -1,33 +1,44 @@
-from flask import Blueprint, current_app, render_template, redirect, url_for, jsonify
-from jinja2 import TemplateNotFound
+# erp/web.py
+from __future__ import annotations
+
 import os
+from flask import Blueprint, jsonify, redirect, render_template, url_for
+from werkzeug.routing import BuildError
+from pathlib import Path
 
 web_bp = Blueprint("web", __name__)
 
-def _try_render(name: str):
-    try:
-        return render_template(name)
-    except TemplateNotFound:
-        current_app.logger.error(f"[templates] TemplateNotFound: missing '{name}'")
-    except Exception as e:
-        current_app.logger.error(f"[templates] Unexpected error rendering '{name}': {e}")
-    # Last-resort fallback that never requires a WTForm
-    return render_template("fallback.html")
-
-@web_bp.get("/")
+@web_bp.route("/")
 def index():
-    # If auth blueprint is present, use it; otherwise fall back to the safe page
-    if "auth.login" in current_app.view_functions:
+    # Try to go to login; if auth isn't registered yet, show fallback page
+    try:
         return redirect(url_for("auth.login"))
-    return redirect(url_for("web.login_page"))
+    except BuildError:
+        return redirect(url_for("web.choose_login"))
 
-@web_bp.get("/login")
-@web_bp.get("/auth/login")
-@web_bp.get("/choose_login")
-def login_page():
-    entry = os.environ.get("ENTRY_TEMPLATE", "").strip() or "fallback.html"
-    return _try_render(entry)
+@web_bp.route("/choose_login")
+def choose_login():
+    # Fallback helper page, shows up if auth blueprint isn't registered yet
+    candidates = [
+        "auth/login.html",
+        "choose_login.html",
+        "login.html",
+        "index.html",
+    ]
+    root = Path(web_bp.root_path).parent.parent / "templates"
+    existing = [t for t in candidates if (root / t).exists()]
+    if existing:
+        # prefer ENTRY_TEMPLATE if the file actually exists
+        entry = os.getenv("ENTRY_TEMPLATE")
+        if entry and (root / entry).exists():
+            return render_template(entry)
+        return render_template(existing[0])
 
-@web_bp.get("/health")
+    # Minimal text page if no template exists (matches the page you saw)
+    msg = "ERP-BERHAN is running.\nExpected one of: " + ", ".join(f"templates/{t}" for t in candidates)
+    msg += "\n\nHealth: /health"
+    return msg, 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+@web_bp.route("/health")
 def health():
     return jsonify({"status": "ok"})
