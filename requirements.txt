@@ -1,79 +1,40 @@
-Flask==3.0.3
-Flask-Login==0.6.3
-Flask-WTF==1.2.1
-Flask-SQLAlchemy==3.1.1
-Flask-Migrate==4.0.7
-Flask-Limiter==3.8.0
-Flask-Caching==2.3.0
-Flask-Cors==4.0.0
-SQLAlchemy==2.0.32
-psycopg2-binary==2.9.9
-gunicorn==22.0.0
-eventlet==0.36.1
-email_validator==2.2.0
-passlib==1.7.4
-pyotp==2.9.0            # only if you’ll use OTP
-# core
+# --- Runtime ---
 Flask==3.0.3
 Werkzeug==3.1.3
 Jinja2==3.1.6
 itsdangerous==2.2.0
 click==8.3.0
-typing_extensions==4.15.0
-setuptools==80.9.0
 
-# database & migrations
+# Database
 SQLAlchemy==2.0.32
-psycopg2-binary==2.9.9
 Flask-SQLAlchemy==3.1.1
+psycopg2-binary==2.9.9
 alembic==1.13.2
 Flask-Migrate==4.0.7
 
-# auth & forms
-Flask-WTF==1.2.1
-WTForms==3.1.2
-email_validator==2.2.0
+# Auth & forms
 Flask-Login==0.6.3
-passlib==1.7.4
-Flask-Security-Too==5.6.2
+Flask-WTF==1.2.1
+email_validator==2.2.0
+pyotp==2.9.0
 
-# rate limiting & caching
-limits==5.6.0
+# Rate limiting & cache & CORS
 Flask-Limiter==3.8.0
-redis==5.0.8
+limits==5.6.0
 Flask-Caching==2.3.0
-cachelib==0.9.0
-
-# sockets (if you use them)
-Flask-SocketIO==5.3.6
-python-socketio==5.11.3
-python-engineio==4.9.1
-eventlet==0.36.1
-
-# CORS
 Flask-Cors==4.0.0
 
-# gunicorn
-gunicorn==22.0.0
+# Sockets (optional; present in your logs)
+python-socketio==5.11.3
+python-engineio==4.9.1
+simple-websocket==1.1.0
 
-# misc / quality of life
-sentry-sdk==2.14.0
-prometheus-client==0.20.0
+# Server
+gunicorn==22.0.0
+eventlet==0.36.1
 greenlet==3.2.4
-markdown-it-py==4.0.0
-mdurl==0.1.2
-pygments==2.19.2
-bidict==0.23.1
-blinker==1.9.0
-packaging==25.0
-Deprecated==1.2.18
-dnspython==2.8.0
-urllib3==2.5.0
-certifi==2025.8.3
-importlib_resources==6.5.2
-Mako==1.3.10
-wsproto==1.2.0
-h11==0.16.0
-wrapt==1.17.3
-ordered-set==4.1.0
+
+# Misc
+redis==5.0.8
 rich==13.9.4
+prometheus-client==0.20.0
