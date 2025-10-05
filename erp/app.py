@@ -1,80 +1,58 @@
+# erp/app.py
 from __future__ import annotations
-from flask import Flask, jsonify
+
 import os
-import logging
-from pathlib import Path
+from flask import Flask, render_template, redirect, url_for, jsonify
+from flask_cors import CORS
 
-try:
-    import eventlet
-    eventlet.monkey_patch()
-except Exception:
-    pass
-
-
-from .extensions import db, migrate, cache, limiter, login_manager, cors
+from .extensions import db, migrate, cache, limiter, login_manager, mail, socketio
 from .models import User
+from .web import web_bp
+from .routes.auth import bp as auth_bp
 
-log = logging.getLogger(__name__)
-
-def _split_limits(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [p.strip() for p in value.split(";") if p.strip()]
 
 def create_app() -> Flask:
-    app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent.parent / "templates"))
+    app = Flask(__name__, instance_relative_config=True)
 
-    app.config.from_mapping(
-        SECRET_KEY=os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me"),
-        SQLALCHEMY_DATABASE_URI=os.getenv("SQLALCHEMY_DATABASE_URI") or
-                                 os.getenv("DATABASE_URL") or "sqlite:///erp.db",
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        CACHE_TYPE=os.getenv("CACHE_TYPE", "SimpleCache"),
-        CACHE_DEFAULT_TIMEOUT=int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300")),
-        RATELIMIT_STORAGE_URI=os.getenv("RATELIMIT_STORAGE_URI", os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")),
-        DEFAULT_RATE_LIMITS=os.getenv("DEFAULT_RATE_LIMITS", ""),
-        CORS_ORIGINS=os.getenv("CORS_ORIGINS", "*"),
-        APP_ENV=os.getenv("APP_ENV", "development"),
-    )
+    # ---- Config (env first, sensible fallbacks) ----
+    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///erp.db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["CORS_ORIGINS"] = os.getenv("CORS_ORIGINS", "*")
+    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")
+    app.config["CACHE_TYPE"] = os.getenv("CACHE_TYPE", "SimpleCache")
+    app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
+    # ---- Extensions ----
+    CORS(app, resources={r"/*": {"origins": app.config["CORS_ORIGINS"]}})
     db.init_app(app)
     migrate.init_app(app, db)
     cache.init_app(app)
-
-    limits = _split_limits(app.config.get("DEFAULT_RATE_LIMITS"))
-    try:
-        limiter.init_app(app, default_limits=limits, storage_uri=app.config["RATELIMIT_STORAGE_URI"])
-    except TypeError:
-        limiter.init_app(app, default_limits=limits)
-
-    login_manager.init_app(app)
+    limiter.init_app(app)
+    mail.init_app(app)
+    socketio.init_app(app, cors_allowed_origins=app.config["CORS_ORIGINS"])
     login_manager.login_view = "auth.login"
+    login_manager.init_app(app)
 
     @login_manager.user_loader
     def load_user(user_id: str):
+        # Flask-Login: return user or None
         try:
             return db.session.get(User, int(user_id))
         except Exception:
             return None
 
-    @login_manager.unauthorized_handler
-    def _unauth():
-        return jsonify({"error": "unauthorized"}), 401
+    # ---- Blueprints ----
+    app.register_blueprint(web_bp)     # “/”, /choose_login, /health
+    app.register_blueprint(auth_bp, url_prefix="/auth")
 
-    try:
-        cors.init_app(app, resources={r"/*": {"origins": app.config["CORS_ORIGINS"]}})
-    except Exception:
-        cors.init_app(app)
+    # ---- Safety fallback routes ----
+    @app.route("/index")
+    def index():
+        return redirect(url_for("web.choose_login"))
 
-    from .web import web_bp
-    from .routes.auth import auth_bp
-    app.register_blueprint(web_bp)
-    app.register_blueprint(auth_bp)
-
-    with app.app_context():
-        try:
-            db.create_all()
-        except Exception as e:
-            log.exception("DB init failed: %s", e)
+    @app.route("/health")
+    def health():
+        return jsonify({"status": "ok"})
 
     return app
