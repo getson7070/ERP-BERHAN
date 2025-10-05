@@ -4,7 +4,7 @@ from flask import Flask
 from .extensions import (
     db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
 )
-from .routes.web import web_bp
+from .web import web_bp
 from .routes.auth import auth_bp
 from .models import User
 
