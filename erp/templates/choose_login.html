@@ -1,18 +1,12 @@
-{% extends "base.html" %}
-{% block title %}Choose Login{% endblock %}
-{% block body %}
-  <h1>Choose Login</h1>
-  <form method="post">
-    {{ form.csrf_token }}
-    <div class="row">
-      <label for="login_type">Login Type</label>
-      {{ form.login_type(id="login_type") }}
-    </div>
-    <div class="row">
-      {{ form.submit() }}
-    </div>
-  </form>
-  <div class="links">
-    <a href="{{ url_for('auth.client_registration') }}">Register as Client</a>
-  </div>
-{% endblock %}
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>Choose Login</title></head>
+  <body>
+    <h1>Choose Login</h1>
+    <ul>
+      <li><a href="/auth/login?role=admin">Admin Login</a></li>
+      <li><a href="/auth/login?role=employee">Employee Login</a></li>
+      <li><a href="/auth/login?role=client">Client Login</a></li>
+    </ul>
+  </body>
+</html>
