@@ -1,28 +1,28 @@
-import os
+# erp/extensions.py
+from __future__ import annotations
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_socketio import SocketIO
-from flask_wtf.csrf import CSRFProtect
+from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 
+# Database + migrations
 db = SQLAlchemy()
 migrate = Migrate()
-socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
-csrf = CSRFProtect()
-login_manager = LoginManager()
 
-def _parse_default_limits():
-    # ENV can be like: "300 per minute; 30 per second"
-    val = os.environ.get("DEFAULT_RATE_LIMITS", "").strip()
-    if val:
-        return [part.strip() for part in val.split(";") if part.strip()]
-    # Safe fallback:
-    return ["300 per minute", "30 per second"]
+# Caching (configured in app via CACHE_TYPE / CACHE_DEFAULT_TIMEOUT)
+cache = Cache()
 
+# Rate limiter (storage & default limits configured in app)
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=_parse_default_limits(),
-    storage_uri=os.environ.get("FLASK_LIMITER_STORAGE_URI", os.environ.get("RATELIMIT_STORAGE_URI", "memory://")),
+    default_limits=[],           # we’ll set from env in create_app()
+    storage_uri=None,            # we’ll set from env in create_app()
 )
+
+# Login manager
+login_manager = LoginManager()
+login_manager.login_view = "auth.login"
+login_manager.session_protection = "strong"
