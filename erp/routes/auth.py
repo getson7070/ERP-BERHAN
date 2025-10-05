@@ -1,17 +1,15 @@
 # erp/routes/auth.py
 from __future__ import annotations
 
-from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session
-)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Length
 
-# Blueprint
 bp = Blueprint("auth", __name__, url_prefix="/auth")
-# Alias expected by app.py
+# Export alias so app.py can import `auth_bp` OR we can import `bp as auth_bp`.
 auth_bp = bp
+__all__ = ["bp", "auth_bp"]
 
 
 class LoginForm(FlaskForm):
@@ -26,22 +24,16 @@ def login():
         # TODO: replace with real authentication
         session["user"] = form.username.data
         flash("Logged in successfully.", "success")
-
-        # Safe "next" redirect (only same-site paths)
-        next_url = request.args.get("next") or request.form.get("next")
-        if next_url and next_url.startswith("/"):
-            return redirect(next_url)
-
-        # Prefer your web blueprint index; fall back to root
+        # if you later add a dashboard blueprint, this will work automatically
         try:
-            return redirect(url_for("web.index"))
+            return redirect(url_for("dashboard.index"))
         except Exception:
-            return redirect("/")
+            return redirect(url_for("web.index"))
     return render_template("auth/login.html", form=form)
 
 
 @bp.route("/logout", methods=["GET", "POST"])
 def logout():
-    session.clear()
+    session.pop("user", None)
     flash("Logged out.", "info")
     return redirect(url_for("auth.login"))
