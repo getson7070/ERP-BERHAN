@@ -1,58 +1,52 @@
 # erp/app.py
-from __future__ import annotations
-
 import os
-from flask import Flask, render_template, redirect, url_for, jsonify
-from flask_cors import CORS
-
-from .extensions import db, migrate, cache, limiter, login_manager, mail, socketio
+from flask import Flask
+from .extensions import (
+    db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
+)
+from .routes.web import web_bp
+from .routes.auth import auth_bp
 from .models import User
-from .web import web_bp
-from .routes.auth import bp as auth_bp
 
+def create_app(config_name=None):
+    app = Flask(__name__, instance_relative_config=True,
+                template_folder="templates", static_folder="static")
 
-def create_app() -> Flask:
-    app = Flask(__name__, instance_relative_config=True)
-
-    # ---- Config (env first, sensible fallbacks) ----
+    # --- Base config ---
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///erp.db")
+
+    db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("Set SQLALCHEMY_DATABASE_URI or DATABASE_URL")
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["CORS_ORIGINS"] = os.getenv("CORS_ORIGINS", "*")
-    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")
-    app.config["CACHE_TYPE"] = os.getenv("CACHE_TYPE", "SimpleCache")
-    app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # ---- Extensions ----
-    CORS(app, resources={r"/*": {"origins": app.config["CORS_ORIGINS"]}})
-    db.init_app(app)
-    migrate.init_app(app, db)
-    cache.init_app(app)
-    limiter.init_app(app)
-    mail.init_app(app)
-    socketio.init_app(app, cors_allowed_origins=app.config["CORS_ORIGINS"])
-    login_manager.login_view = "auth.login"
-    login_manager.init_app(app)
+    # Mail (optional; safe defaults)
+    app.config.setdefault("MAIL_SERVER", os.getenv("MAIL_SERVER", "localhost"))
+    app.config.setdefault("MAIL_PORT", int(os.getenv("MAIL_PORT", "25")))
+    app.config.setdefault("MAIL_USE_TLS", os.getenv("MAIL_USE_TLS", "false").lower() == "true")
+    app.config.setdefault("MAIL_USERNAME", os.getenv("MAIL_USERNAME"))
+    app.config.setdefault("MAIL_PASSWORD", os.getenv("MAIL_PASSWORD"))
+    app.config.setdefault("MAIL_DEFAULT_SENDER", os.getenv("MAIL_DEFAULT_SENDER"))
 
+    # Init all extensions (db/cache/mail/limiter/socketio/login)
+    init_extensions(app)
+
+    # Flask-Login user loader
     @login_manager.user_loader
     def load_user(user_id: str):
-        # Flask-Login: return user or None
         try:
             return db.session.get(User, int(user_id))
         except Exception:
             return None
 
-    # ---- Blueprints ----
-    app.register_blueprint(web_bp)     # “/”, /choose_login, /health
-    app.register_blueprint(auth_bp, url_prefix="/auth")
+    # Blueprints
+    app.register_blueprint(web_bp)
+    app.register_blueprint(auth_bp)
 
-    # ---- Safety fallback routes ----
-    @app.route("/index")
-    def index():
-        return redirect(url_for("web.choose_login"))
-
-    @app.route("/health")
+    # Health endpoint
+    @app.get("/health")
     def health():
-        return jsonify({"status": "ok"})
+        return {"status": "ok"}, 200
 
     return app
