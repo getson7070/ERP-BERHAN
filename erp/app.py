@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from flask import Flask, jsonify
 import os
 import logging
 from pathlib import Path
@@ -10,7 +10,7 @@ try:
 except Exception:
     pass
 
-from flask import Flask, jsonify
+
 from .extensions import db, migrate, cache, limiter, login_manager, cors
 from .models import User
 
