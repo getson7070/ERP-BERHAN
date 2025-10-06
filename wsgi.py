@@ -1,7 +1,7 @@
 # wsgi.py
 import os
 import eventlet
-eventlet.monkey_patch()  # must happen before importing app/extensions
+eventlet.monkey_patch()  # must happen before importing anything that uses sockets/threading
 
 from erp.app import create_app
 from erp.extensions import socketio
