@@ -1,9 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}Error 403{% endblock %}
-{% block content %}
-<div class="text-center py-5">
-  <h1 class="display-6">Error 403</h1>
-  <p class="lead">{{ message or 'Forbidden' }}</p>
-  <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">Go Home</a>
-</div>
-{% endblock %}
