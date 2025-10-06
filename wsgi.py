@@ -1,4 +1,3 @@
-# wsgi.py
 import eventlet
 eventlet.monkey_patch()  # must be first
 
