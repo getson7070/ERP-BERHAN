@@ -17,33 +17,33 @@ cache = Cache()
 mail = Mail()
 login_manager = LoginManager()
 
-# Create Limiter & SocketIO without app; finalize in init_extensions()
+# Create Limiter & SocketIO without app; configure in init_extensions()
 limiter = Limiter(key_func=get_remote_address)
 socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
 
 
-def _parse_default_limits(env_value: str) -> list[str]:
+def _limits_to_config_str(value: str | None) -> str:
     """
     Accept either:
       - "300 per minute; 30 per second"   (semicolon-separated string)
       - "['300 per minute', '30 per second']" (list-like string)
-    and return a clean list of strings.
+    Return a clean semicolon-separated string for app.config.
     """
-    if not env_value:
-        return ["300 per minute", "30 per second"]
+    if not value:
+        return "300 per minute; 30 per second"
 
-    env_value = env_value.strip()
-    # List-like? Safely parse.
-    if env_value.startswith("[") and env_value.endswith("]"):
+    s = value.strip()
+    if s.startswith("[") and s.endswith("]"):
         try:
-            parsed = ast.literal_eval(env_value)
-            return [str(s).strip() for s in parsed if str(s).strip()]
+            parsed = ast.literal_eval(s)
+            parts = [str(x).strip() for x in parsed if str(x).strip()]
+            return "; ".join(parts) if parts else "300 per minute; 30 per second"
         except Exception:
-            # Fallback to sane defaults if parsing fails
-            return ["300 per minute", "30 per second"]
+            return "300 per minute; 30 per second"
 
-    # Semicolon-separated
-    return [s.strip() for s in env_value.split(";") if s.strip()]
+    # Already a string form; normalize spaces around semicolons.
+    items = [x.strip() for x in s.split(";") if x.strip()]
+    return "; ".join(items) if items else "300 per minute; 30 per second"
 
 
 def init_extensions(app):
@@ -67,17 +67,20 @@ def init_extensions(app):
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
-    # --- Limiter ---
-    storage_uri = os.getenv("FLASK_LIMITER_STORAGE_URI") or os.getenv("RATELIMIT_STORAGE_URI", "memory://")
-    limits_env = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
-    default_limits = _parse_default_limits(limits_env)
-
-    # IMPORTANT: pass defaults directly here; don't put a list into app.config
-    limiter.init_app(
-        app,
-        storage_uri=storage_uri,
-        default_limits=default_limits,
+    # --- Limiter (configure via app.config for Flask-Limiter 3.8.x) ---
+    storage_uri = (
+        os.getenv("FLASK_LIMITER_STORAGE_URI")
+        or os.getenv("RATELIMIT_STORAGE_URI")
+        or "memory://"
     )
+    default_limits_env = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
+    default_limits_str = _limits_to_config_str(default_limits_env)
+
+    # IMPORTANT: put values in config; do NOT pass as kwargs to init_app
+    app.config["RATELIMIT_STORAGE_URI"] = storage_uri
+    app.config["RATELIMIT_DEFAULT"] = default_limits_str
+
+    limiter.init_app(app)
 
     # --- Socket.IO ---
     cors_origins = os.getenv("CORS_ORIGINS", "*")
