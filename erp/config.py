@@ -11,13 +11,10 @@ class Config:
     CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")
     CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # Limiter (string, not a "stringified list")
-    # Examples:
-    #   DEFAULT_RATE_LIMITS="300 per minute; 30 per second"
-    #   DEFAULT_RATE_LIMITS="1000/hour"
+    # Limiting — keep as a single string; example: "300 per minute; 30 per second"
     DEFAULT_RATE_LIMITS = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
 
-    # SocketIO / Redis (optional)
+    # Optional integrations
     REDIS_URL = os.getenv("REDIS_URL")
 
     # Mail (optional)
