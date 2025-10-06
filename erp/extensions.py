@@ -1,4 +1,7 @@
 # erp/extensions.py
+import eventlet
+eventlet.monkey_patch()
+
 import os
 from typing import List, Union
 
