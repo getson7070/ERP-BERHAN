@@ -1,26 +1,29 @@
+# erp/config.py
 import os
 
-def _env_bool(key: str, default: bool) -> bool:
-    val = os.getenv(key)
-    if val is None:
-        return default
-    return val.strip().lower() in ("1", "true", "yes", "on")
+class Config:
+    # Core
+    SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev")
+    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///dev.db")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-class Settings:
-    # Environment
-    FLASK_ENV = os.getenv("FLASK_ENV", "production")
-    DATABASE_URL = os.getenv("DATABASE_URL")
+    # Caching
+    CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # Progressive features (flip later without code changes)
-    ENABLE_SOCKETIO = _env_bool("ENABLE_SOCKETIO", True)
-    ENABLE_OBSERVABILITY = _env_bool("ENABLE_OBSERVABILITY", False)
-    ENABLE_CELERY = _env_bool("ENABLE_CELERY", False)  # placeholder for future
-    MIGRATE_ON_STARTUP = _env_bool("MIGRATE_ON_STARTUP", False)
+    # Limiter (string, not a "stringified list")
+    # Examples:
+    #   DEFAULT_RATE_LIMITS="300 per minute; 30 per second"
+    #   DEFAULT_RATE_LIMITS="1000/hour"
+    DEFAULT_RATE_LIMITS = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
 
-    # Realtime
-    SOCKETIO_ASYNC_MODE = os.getenv("SOCKETIO_ASYNC_MODE")  # eventlet|gevent|threading|None
-    SOCKETIO_MESSAGE_QUEUE = os.getenv("SOCKETIO_MESSAGE_QUEUE")  # e.g., redis://host:6379/0
+    # SocketIO / Redis (optional)
+    REDIS_URL = os.getenv("REDIS_URL")
 
-    # Observability
-    SENTRY_DSN = os.getenv("SENTRY_DSN")
-    SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.0"))
+    # Mail (optional)
+    MAIL_SERVER = os.getenv("MAIL_SERVER")
+    MAIL_PORT = int(os.getenv("MAIL_PORT", "587")) if os.getenv("MAIL_PORT") else None
+    MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+    MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER")
