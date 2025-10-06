@@ -1,8 +1,8 @@
-def init_extensions(app):
-    db.init_app(app)
-    migrate.init_app(app, db)
-    cache.init_app(app)
-    limiter.init_app(app)
-    login_manager.init_app(app)
-    mail.init_app(app)        # <— required
-    socketio.init_app(app, message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"))
+# erp/__init__.py
+# Keep this file tiny. Do NOT define init_extensions here.
+from .app import create_app
+
+# (Optional) re-export extensions if you want easy imports elsewhere
+from .extensions import db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions  # noqa: F401
+
+__all__ = ["create_app", "db", "migrate", "cache", "limiter", "login_manager", "mail", "socketio", "init_extensions"]
