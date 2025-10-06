@@ -1,6 +1,5 @@
-from __future__ import annotations
+# erp/app.py
 import os
-from pathlib import Path
 from flask import Flask
 from .extensions import (
     db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
@@ -9,23 +8,21 @@ from .web import web_bp
 from .routes.auth import auth_bp
 from .models import User
 
-def create_app(config_name: str | None = None):
-    here = Path(__file__).resolve().parent  # .../erp
-    app = Flask(
-        __name__,
-        instance_relative_config=True,
-        template_folder=str(here / "templates"),
-        static_folder=str(here / "static"),
-    )
+def create_app(config_name=None):
+    # Because this file lives in package "erp", these are relative to erp/
+    app = Flask(__name__, instance_relative_config=True,
+                template_folder="templates", static_folder="static")
 
+    # --- Base config ---
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev")
 
     db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
     if not db_url:
         raise RuntimeError("Set SQLALCHEMY_DATABASE_URI or DATABASE_URL")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-    app.config["SQLALCHEMY_TRACKMODIFICATIONS"] = False
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    # Mail (TLS with Gmail or your provider)
     app.config.setdefault("MAIL_SERVER", os.getenv("MAIL_SERVER", "localhost"))
     app.config.setdefault("MAIL_PORT", int(os.getenv("MAIL_PORT", "25")))
     app.config.setdefault("MAIL_USE_TLS", os.getenv("MAIL_USE_TLS", "false").lower() == "true")
@@ -34,8 +31,10 @@ def create_app(config_name: str | None = None):
     app.config.setdefault("MAIL_PASSWORD", os.getenv("MAIL_PASSWORD"))
     app.config.setdefault("MAIL_DEFAULT_SENDER", os.getenv("MAIL_DEFAULT_SENDER"))
 
+    # Initialize all extensions
     init_extensions(app)
 
+    # Flask-Login user loader
     @login_manager.user_loader
     def load_user(user_id: str):
         try:
@@ -43,9 +42,11 @@ def create_app(config_name: str | None = None):
         except Exception:
             return None
 
+    # Blueprints
     app.register_blueprint(web_bp)
     app.register_blueprint(auth_bp)
 
+    # Health endpoint (app-level; use url_for('health'))
     @app.get("/health")
     def health():
         return {"status": "ok"}, 200
