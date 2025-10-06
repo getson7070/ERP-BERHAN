@@ -38,3 +38,5 @@ greenlet==3.2.4
 redis==5.0.8
 rich==13.9.4
 prometheus-client==0.20.0
+Flask-Mail==0.9.1
+pyotp==2.9.0
