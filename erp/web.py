@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, current_app
+from flask import Blueprint, render_template, redirect, url_for
 import os
 
 web_bp = Blueprint("web", __name__)
@@ -9,11 +9,9 @@ def root():
 
 @web_bp.get("/choose_login")
 def login_page():
-    # Which template to show for the entry page
     entry = os.getenv("ENTRY_TEMPLATE", "choose_login.html")
     return render_template(entry)
 
-# Helpful aliases people/bookmarks may try
 @web_bp.get("/login")
 def login_alias():
     return redirect(url_for("auth.login"))
