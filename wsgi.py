@@ -1,6 +1,4 @@
 import os
-
-# IMPORTANT: eventlet must monkey_patch BEFORE importing anything else that uses stdlib sockets/locks.
 import eventlet
 eventlet.monkey_patch()
 
