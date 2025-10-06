@@ -1,20 +1,16 @@
-# erp/config.py
 import os
 
 class Config:
-    # Core
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev")
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///dev.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Caching
     CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")
     CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # Limiting — keep as a single string; example: "300 per minute; 30 per second"
+    # Keep as a single string; e.g. "300 per minute; 30 per second"
     DEFAULT_RATE_LIMITS = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
 
-    # Optional integrations
     REDIS_URL = os.getenv("REDIS_URL")
 
     # Mail (optional)
