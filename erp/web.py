@@ -1,23 +1,23 @@
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, current_app
+import os
 
 web_bp = Blueprint("web", __name__)
 
-# Existing routes...
-# @web_bp.get("/choose_login") ...
+@web_bp.get("/")
+def root():
+    return redirect(url_for("web.login_page"))
 
-# Legacy/aliases:
+@web_bp.get("/choose_login")
+def login_page():
+    # Which template to show for the entry page
+    entry = os.getenv("ENTRY_TEMPLATE", "choose_login.html")
+    return render_template(entry)
+
+# Helpful aliases people/bookmarks may try
 @web_bp.get("/login")
-def login_root_alias():
+def login_alias():
     return redirect(url_for("auth.login"))
 
 @web_bp.get("/employee_login")
 def employee_login_alias():
-    return redirect(url_for("auth.login", role="employee"))
-
-@web_bp.get("/admin_login")
-def admin_login_alias():
-    return redirect(url_for("auth.login", role="admin"))
-
-@web_bp.get("/company_login")
-def company_login_alias():
-    return redirect(url_for("auth.login", role="company"))
+    return redirect(url_for("auth.login"))
