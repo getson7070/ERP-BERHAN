@@ -1,19 +1,20 @@
 # erp/app.py
 import os
-from flask import Flask
-from .extensions import (
-    db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
-)
-from .web import web_bp
+from flask import Flask, redirect, url_for
+from .extensions import db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
 from .routes.auth import auth_bp
+from .web import web_bp
 from .models import User
 
 def create_app(config_name=None):
-    # Because this file lives in package "erp", these are relative to erp/
-    app = Flask(__name__, instance_relative_config=True,
-                template_folder="templates", static_folder="static")
+    app = Flask(
+        __name__,
+        instance_relative_config=True,
+        template_folder="templates",
+        static_folder="static",
+    )
 
-    # --- Base config ---
+    # Base config
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev")
 
     db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
@@ -22,7 +23,7 @@ def create_app(config_name=None):
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Mail (TLS with Gmail or your provider)
+    # Mail (Gmail/SMTP via env)
     app.config.setdefault("MAIL_SERVER", os.getenv("MAIL_SERVER", "localhost"))
     app.config.setdefault("MAIL_PORT", int(os.getenv("MAIL_PORT", "25")))
     app.config.setdefault("MAIL_USE_TLS", os.getenv("MAIL_USE_TLS", "false").lower() == "true")
@@ -31,10 +32,10 @@ def create_app(config_name=None):
     app.config.setdefault("MAIL_PASSWORD", os.getenv("MAIL_PASSWORD"))
     app.config.setdefault("MAIL_DEFAULT_SENDER", os.getenv("MAIL_DEFAULT_SENDER"))
 
-    # Initialize all extensions
+    # Init extensions
     init_extensions(app)
 
-    # Flask-Login user loader
+    # User loader
     @login_manager.user_loader
     def load_user(user_id: str):
         try:
@@ -44,9 +45,14 @@ def create_app(config_name=None):
 
     # Blueprints
     app.register_blueprint(web_bp)
-    app.register_blueprint(auth_bp)
+    app.register_blueprint(auth_bp, url_prefix="/auth")
 
-    # Health endpoint (app-level; use url_for('health'))
+    # Root redirect
+    @app.route("/")
+    def index():
+        return redirect(url_for("web.login_page"))
+
+    # Health
     @app.get("/health")
     def health():
         return {"status": "ok"}, 200
