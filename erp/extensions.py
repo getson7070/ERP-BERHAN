@@ -1,4 +1,3 @@
-# erp/extensions.py
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_caching import Cache
@@ -15,20 +14,19 @@ login_manager = LoginManager()
 mail = Mail()
 socketio = SocketIO(async_mode="eventlet")
 
-# IMPORTANT: export a module-level limiter so imports like "from erp.extensions import limiter" work
+# Export an instance named *limiter* so "from erp.extensions import limiter" works
 limiter = Limiter(key_func=get_remote_address)
 
 def _normalize_rate_limits(val):
     """
-    Accept list/tuple or string; also tolerates a *stringified list* like:
-      "['300 per minute', '30 per second']"
+    Accept list/tuple or string; tolerate a *stringified list* like
+    "['300 per minute', '30 per second']".
     Always return a semicolon-separated string for Flask-Limiter 3.x.
     """
     if not val:
         return ""
     if isinstance(val, (list, tuple)):
         return "; ".join(val)
-
     s = str(val).strip()
     if s.startswith("[") and s.endswith("]"):
         s = s[1:-1]
@@ -42,10 +40,7 @@ def init_extensions(app):
     cache.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-
-    # SocketIO (optional Redis message queue)
     socketio.init_app(app, message_queue=app.config.get("REDIS_URL"))
 
-    # Configure limiter defaults at init time
     limits_string = _normalize_rate_limits(app.config.get("DEFAULT_RATE_LIMITS"))
     limiter.init_app(app, default_limits=limits_string)
