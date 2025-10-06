@@ -1,9 +1,0 @@
-{% extends 'dashboard.html' %}
-{% block content %}
-<h2>Plugin Marketplace</h2>
-<ul class="list-group">
-{% for p in plugins %}
-<li class="list-group-item">{{ p['name'] }}</li>
-{% endfor %}
-</ul>
-{% endblock %}
