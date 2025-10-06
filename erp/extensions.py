@@ -3,7 +3,8 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
-from typing import List, Union
+import re
+from typing import List, Optional
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -14,101 +15,81 @@ from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# --- Core extension singletons (created once, bound to app in init_extensions) ---
+# Create extension instances (no app bound yet)
 db = SQLAlchemy()
 migrate = Migrate()
 cache = Cache()
 login_manager = LoginManager()
 mail = Mail()
-socketio = SocketIO(async_mode="eventlet")  # CORS configured in init_extensions()
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
+# Do NOT pass app here; we will call init_app later.
+limiter = Limiter(key_func=get_remote_address)
 
-
-# --- Rate limiting (Flask-Limiter 3.8 API) --------------------------------------
-def _parse_default_limits(env_val: str) -> List[str]:
+def _parse_default_limits(value: Optional[str]) -> List[str]:
     """
-    Accepts a semicolon/comma separated string like:
-      "300 per minute; 30 per second"
-    and returns:
-      ["300 per minute", "30 per second"]
-
-    Any blank chunks are ignored. If someone accidentally sets a bare number
-    like "3", it's ignored (as it cannot be parsed by 'limits').
+    Convert env string like '300 per minute; 30 per second'
+    into ['300 per minute', '30 per second'].
+    Ignores empty chunks and things that don't look like a rate (must contain 'per').
     """
-    if not env_val:
+    if not value:
         return []
-    # split on ; or ,
-    chunks = []
-    for part in env_val.replace(",", ";").split(";"):
-        s = part.strip()
-        # drop obviously bad values like plain digits without a unit
-        if not s or s.isdigit():
+    chunks = re.split(r"[;,]", value)
+    out: List[str] = []
+    for c in chunks:
+        s = c.strip()
+        if not s:
             continue
-        chunks.append(s)
-    return chunks
+        if "per" not in s:
+            # Avoid stray tokens like '3'
+            continue
+        out.append(s)
+    return out
 
-
-# Build limiter configuration from env *before* binding to the app
-_DEFAULT_LIMITS_STR = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
-_DEFAULT_LIMITS = _parse_default_limits(_DEFAULT_LIMITS_STR)
-
-_STORAGE_URI = (
-    os.getenv("FLASK_LIMITER_STORAGE_URI")
-    or os.getenv("RATELIMIT_STORAGE_URI")
-    or "memory://"
-)
-
-# Construct Limiter with defaults at creation time (required in v3.8)
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=_STORAGE_URI,
-    default_limits=_DEFAULT_LIMITS,  # list[str]
-)
-
-
-# --- Bind all extensions to the Flask app ---------------------------------------
 def init_extensions(app):
     """
-    Initialize and attach all extensions to the Flask app instance.
-    This function is called from create_app().
+    Bind all extensions to the Flask app. Safe for Flask-Limiter 3.x.
     """
-    # Reasonable Cache defaults if not provided by env
-    app.config.setdefault("CACHE_TYPE", os.getenv("CACHE_TYPE", "SimpleCache"))
-    app.config.setdefault(
-        "CACHE_DEFAULT_TIMEOUT",
-        int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300")),
+
+    # ---- Cache (use a real default, not setdefault(None))
+    app.config["CACHE_TYPE"] = os.getenv(
+        "CACHE_TYPE", app.config.get("CACHE_TYPE") or "SimpleCache"
+    )
+    app.config["CACHE_DEFAULT_TIMEOUT"] = int(
+        os.getenv("CACHE_DEFAULT_TIMEOUT", app.config.get("CACHE_DEFAULT_TIMEOUT") or 300)
     )
 
-    # LoginManager minimal setup
-    # If you have a specific endpoint, adjust (e.g., 'auth.login')
-    login_manager.login_view = "auth.login"
+    # ---- Rate limiting defaults via CONFIG (3.x way)
+    default_limits_list = _parse_default_limits(
+        os.getenv("DEFAULT_RATE_LIMITS") or app.config.get("DEFAULT_RATE_LIMITS")
+    )
+    if default_limits_list:
+        # Flask-Limiter reads this key in 3.x+
+        app.config["RATELIMIT_DEFAULT"] = default_limits_list
 
-    # Initialize each extension with the app
+    # Choose storage backend (memory:// is OK to start; for prod prefer Redis)
+    storage_uri = (
+        os.getenv("FLASK_LIMITER_STORAGE_URI")
+        or os.getenv("RATELIMIT_STORAGE_URI")
+        or app.config.get("FLASK_LIMITER_STORAGE_URI")
+        or app.config.get("RATELIMIT_STORAGE_URI")
+        or "memory://"
+    )
+
+    # ---- Init core extensions
+    cache.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
-    cache.init_app(app)
-    login_manager.init_app(app)
     mail.init_app(app)
+    login_manager.init_app(app)
 
-    # SocketIO CORS
-    origins_env = os.getenv("CORS_ORIGINS", "*").strip()
-    if origins_env == "*" or not origins_env:
-        allowed_origins: Union[str, List[str]] = "*"
-    else:
-        allowed_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
-    socketio.init_app(app, cors_allowed_origins=allowed_origins)
-
-    # Limiter: already constructed with defaults & storage_uri.
-    # For v3.8 do NOT pass default_limits= here; just bind to app.
+    # ---- Init limiter (NO default_limits kw here; NO limiter.default_limits(...) calls)
+    # We configure defaults via app.config['RATELIMIT_DEFAULT'] above.
+    limiter.storage_uri = storage_uri
     limiter.init_app(app)
 
-
-__all__ = [
-    "db",
-    "migrate",
-    "cache",
-    "limiter",
-    "login_manager",
-    "mail",
-    "socketio",
-    "init_extensions",
-]
+    # ---- SocketIO message queue (optional)
+    mq = os.getenv("REDIS_URL") or app.config.get("REDIS_URL")
+    if mq:
+        socketio.init_app(app, message_queue=mq, cors_allowed_origins=app.config.get("CORS_ORIGINS", "*"))
+    else:
+        socketio.init_app(app, cors_allowed_origins=app.config.get("CORS_ORIGINS", "*"))
