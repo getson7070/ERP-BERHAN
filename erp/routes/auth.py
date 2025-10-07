@@ -1,24 +1,18 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from __future__ import annotations
+from flask import Blueprint, render_template, request
 
-# name="auth" so endpoints look like "auth.login"
-auth_bp = Blueprint("auth", __name__)
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-
-@auth_bp.route("/auth/login", methods=["GET", "POST"])
+@auth_bp.route("/login")
 def login():
-    role = (request.args.get("role") or "client").lower()
-    if request.method == "POST":
-        # TODO: insert real authentication here
-        return redirect(url_for("index"))
+    role = request.args.get("role", "client")
+    # templates/auth/login.html should exist
     return render_template("auth/login.html", role=role)
 
-
-# Back-compat: keep the old direct role URLs working
-@auth_bp.route("/auth/employee_login", methods=["GET", "POST"])
+@auth_bp.route("/employee_login")
 def employee_login():
-    return login()
+    return render_template("auth/login.html", role="employee")
 
-
-@auth_bp.route("/auth/client_login", methods=["GET", "POST"])
+@auth_bp.route("/client_login")
 def client_login():
-    return login()
+    return render_template("auth/login.html", role="client")
