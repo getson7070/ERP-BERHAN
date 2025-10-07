@@ -1,12 +1,40 @@
-<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>Choose Login</title></head>
-  <body>
-    <h1>Choose Login</h1>
-    <ul>
-      <li><a href="/auth/login?role=admin">Admin Login</a></li>
-      <li><a href="/auth/login?role=employee">Employee Login</a></li>
-      <li><a href="/auth/login?role=client">Client Login</a></li>
-    </ul>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Choose Login · ERP{% endblock %}
+{% block content %}
+  <div class="row justify-content-center g-4">
+    <div class="col-12 text-center mb-4">
+      <h1 class="display-6">Choose your portal</h1>
+      <p class="text-muted mb-0">Sign in as an administrator, employee, or client.</p>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card card-soft">
+        <div class="card-body">
+          <h5 class="card-title">Admin</h5>
+          <p class="card-text text-muted">Manage users, settings, and reports.</p>
+          <a class="btn btn-primary w-100" href="{{ url_for('auth.login', role='admin') }}">Admin login</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card card-soft">
+        <div class="card-body">
+          <h5 class="card-title">Employee</h5>
+          <p class="card-text text-muted">Access daily operations and tasks.</p>
+          <a class="btn btn-primary w-100" href="{{ url_for('auth.login', role='employee') }}">Employee login</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card card-soft">
+        <div class="card-body">
+          <h5 class="card-title">Client</h5>
+          <p class="card-text text-muted">View invoices, orders, and status.</p>
+          <a class="btn btn-primary w-100" href="{{ url_for('auth.login', role='client') }}">Client login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
