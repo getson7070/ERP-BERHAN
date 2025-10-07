@@ -1,98 +1,87 @@
-import os
-from flask import Flask, redirect, url_for, render_template
+from __future__ import annotations
 
-# all extensions are created in extensions.py
+import os
+import re
+from flask import Flask, render_template
+from flask_cors import CORS
+
 from .extensions import (
     db, migrate, cache, limiter, login_manager, mail, socketio, init_extensions
 )
+from .routes.auth import auth_bp
+from .routes.web import web_bp
 
 
-def _make_app_config() -> dict:
-    """
-    Build a minimal config from environment with safe defaults.
-    Flask-Limiter 3.x reads defaults from RATELIMIT_* keys.
-    """
-    cfg = {}
+def _parse_limits(value):
+    """Accepts list/tuple or a semicolon/comma-delimited string."""
+    if not value:
+        return None
+    if isinstance(value, (list, tuple)):
+        return [str(x).strip() for x in value if str(x).strip()]
+    # "300 per minute;30 per second" or "300 per minute, 30 per second"
+    items = [i.strip() for i in re.split(r"[;,]+", str(value)) if i.strip()]
+    return items or None
 
-    # DB config (Render sets DATABASE_URL; Flask prefers SQLALCHEMY_DATABASE_URI)
-    db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
-    if db_url:
-        cfg["SQLALCHEMY_DATABASE_URI"] = db_url
 
-    # Caching
-    cfg["CACHE_TYPE"] = os.getenv("CACHE_TYPE", "SimpleCache")
-    if os.getenv("CACHE_DEFAULT_TIMEOUT"):
-        cfg["CACHE_DEFAULT_TIMEOUT"] = int(os.getenv("CACHE_DEFAULT_TIMEOUT"))
+def _make_config() -> dict:
+    """Build app config from env with safe defaults."""
+    cfg = {
+        "SECRET_KEY": os.environ.get("FLASK_SECRET_KEY", "dev-not-secret"),
+        "SQLALCHEMY_DATABASE_URI": os.environ.get("SQLALCHEMY_DATABASE_URI"),
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
 
-    # Flask secret
-    if os.getenv("FLASK_SECRET_KEY"):
-        cfg["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
+        # Caching
+        "CACHE_TYPE": os.environ.get("CACHE_TYPE", "SimpleCache"),
+        "CACHE_DEFAULT_TIMEOUT": int(os.environ.get("CACHE_DEFAULT_TIMEOUT", "300")),
 
-    # --- Flask-Limiter 3.8+ ---
-    # Storage backend
-    storage_uri = (
-        os.getenv("FLASK_LIMITER_STORAGE_URI")
-        or os.getenv("RATELIMIT_STORAGE_URI")
-        or "memory://"
-    )
-    cfg["RATELIMIT_STORAGE_URI"] = storage_uri
+        # CORS
+        "CORS_ORIGINS": os.environ.get("CORS_ORIGINS", "*"),
 
-    # Default limits: must be a single string like "300 per minute; 30 per second"
-    limits_str = (
-        os.getenv("DEFAULT_RATE_LIMITS")
-        or os.getenv("RATELIMIT_DEFAULT")
-        or os.getenv("RATELIMIT_DEFAULTS")
-        or "300 per minute; 30 per second"
-    )
-    # normalize a few common mistakes
-    limits_str = limits_str.strip().strip("[]").replace(",", ";")
-    cfg["RATELIMIT_DEFAULT"] = limits_str
+        # Rate limiting
+        "RATELIMIT_STORAGE_URI": os.environ.get("RATELIMIT_STORAGE_URI", os.environ.get("FLASK_LIMITER_STORAGE_URI", "memory://")),
+        # Choose one of these envs (both supported):
+        # DEFAULT_RATE_LIMITS="300 per minute;30 per second"
+        # or RATELIMIT_DEFAULT with same format
+        "RATELIMIT_DEFAULT": _parse_limits(
+            os.environ.get("DEFAULT_RATE_LIMITS") or os.environ.get("RATELIMIT_DEFAULT")
+        ),
 
-    # CORS (optional)
-    if os.getenv("CORS_ORIGINS"):
-        cfg["CORS_ORIGINS"] = os.getenv("CORS_ORIGINS")
-
-    # entry template (only used by the fallback index below)
-    cfg["ENTRY_TEMPLATE"] = os.getenv("ENTRY_TEMPLATE", "choose_login.html")
-
+        # Templates
+        "ENTRY_TEMPLATE": os.environ.get("ENTRY_TEMPLATE", "choose_login.html"),
+    }
+    # Keep MAIL_* passthroughs
+    for k in ("MAIL_SERVER", "MAIL_PORT", "MAIL_USERNAME", "MAIL_PASSWORD",
+              "MAIL_USE_TLS", "MAIL_USE_SSL", "MAIL_DEFAULT_SENDER"):
+        if os.environ.get(k) is not None:
+            cfg[k] = os.environ.get(k)
     return cfg
 
 
 def create_app() -> Flask:
-    base_dir = os.path.dirname(__file__)
-    app = Flask(
-        __name__,
-        template_folder=os.path.join(base_dir, "templates"),
-        static_folder=os.path.join(base_dir, "static"),
-    )
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+    app.config.from_mapping(_make_config())
 
-    # Load config, then init extensions
-    app.config.update(_make_app_config())
+    # CORS
+    CORS(app, resources={r"/*": {"origins": app.config.get("CORS_ORIGINS", "*")}})
+
+    # Bind extensions (db, cache, mail, login_manager, limiter, socketio)
     init_extensions(app)
 
-    # ----- Blueprints -----
-    # Auth blueprint (we provide a compatible auth.py below exporting auth_bp)
-    from .routes.auth import auth_bp
+    # Blueprints
     app.register_blueprint(auth_bp)
+    app.register_blueprint(web_bp)
 
-    # Web/UI blueprint is optional; if present register it, otherwise we fallback
-    try:
-        from .routes.web import web_bp  # must define Blueprint("web", __name__)
-        app.register_blueprint(web_bp)
-    except Exception:
-        # No web blueprint? It's fine; we'll provide fallback routes below.
-        pass
-
-    # ----- Fallback routes if web blueprint is missing -----
-    @app.get("/")
+    # Routes
+    @app.route("/", strict_slashes=False)
     def index():
-        # Prefer existing web.login_page if present (keeps old URLs working)
-        if "web.login_page" in app.view_functions:
-            return redirect(url_for("web.login_page"))
-        # Otherwise render the configured entry template directly
+        # Simple landing to the chooser or whatever ENTRY_TEMPLATE is
         return render_template(app.config.get("ENTRY_TEMPLATE", "choose_login.html"))
 
-    @app.get("/health")
+    @app.route("/choose_login", strict_slashes=False)
+    def choose_login():
+        return render_template("choose_login.html")
+
+    @app.route("/health", strict_slashes=False)
     def health():
         return "ok"
 
