@@ -3,6 +3,11 @@ import os
 from flask import Flask, render_template
 from .extensions import init_extensions
 from flask_cors import CORS
+from flask import Flask, render_template
+from .extensions import init_extensions  # <-- only this from extensions
+from .routes.auth import auth_bp
+from .routes.api import api_bp
+from .routes.main import bp as main_bp  # your "public" blueprint
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
