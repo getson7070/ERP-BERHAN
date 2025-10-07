@@ -1,50 +1,49 @@
 # erp/app.py
 import os
 from flask import Flask, render_template
-from .extensions import init_extensions
 from flask_cors import CORS
-from flask import Flask, render_template
-from .extensions import init_extensions  # <-- only this from extensions
+
+# only pull in the initializer to avoid circular imports
+from .extensions import init_extensions
+
+# blueprints (adjust these imports if a file/blueprint is missing)
 from .routes.auth import auth_bp
 from .routes.api import api_bp
-from .routes.main import bp as main_bp  # your "public" blueprint
+from .routes.main import bp as main_bp  # public/site pages
 
-def create_app():
-    app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    # --- Core config ---
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
+def create_app() -> Flask:
+    app = Flask(__name__, instance_relative_config=False)
 
-    # CORS for local frontend or anything else:
-    CORS(app, resources={r"*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
+    # Minimal safe defaults; your Render env vars can override these
+    app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "dev"))
+    app.config.setdefault("ENTRY_TEMPLATE", os.getenv("ENTRY_TEMPLATE", "choose_login.html"))
+    # Example limiter defaults if you don’t set them via env:
+    app.config.setdefault("RATELIMIT_DEFAULT", os.getenv("DEFAULT_RATE_LIMITS", "300 per minute;30 per second"))
 
-    # --- Extensions ---
+    # CORS
+    CORS(app, supports_credentials=True)
+
+    # init db, login_manager, cache, mail, socketio, limiter, etc.
     init_extensions(app)
 
-    # --- Blueprints ---
-    # Auth routes
-    from .routes.auth import auth_bp
+    # register blueprints
+    app.register_blueprint(main_bp)                 # e.g. “/” routes
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(api_bp,  url_prefix="/api")
 
-    # Main/web routes (your file is routes/main.py and exposes bp)
-    try:
-        from .routes.main import bp as web_bp
-        app.register_blueprint(web_bp)
-    except Exception as e:
-        app.logger.warning("Main routes not registered: %s", e)
-
-    # --- Home ---
-    @app.route("/", methods=["GET"])
+    # simple index → choose login
+    @app.route("/")
     def index():
-        # point to a presentable entry page (see template below)
-        return render_template("choose_login.html")
+        return render_template(app.config.get("ENTRY_TEMPLATE", "choose_login.html"))
 
-    # Simple health endpoint for Render
-    @app.route("/health")
+    # health (plain text) + no rate limit
+    @app.get("/health")
     def health():
         return "ok", 200
+
+    # Exempt health from rate limit without importing limiter at module top
+    from .extensions import limiter
+    limiter.exempt(health)
 
     return app
