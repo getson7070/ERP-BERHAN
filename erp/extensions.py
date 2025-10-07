@@ -1,5 +1,5 @@
 # erp/extensions.py
-import ast
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_caching import Cache
@@ -16,60 +16,68 @@ login_manager = LoginManager()
 mail = Mail()
 socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
 
-# Create Limiter without app; config will be picked up in init_app
+# Do NOT pass default_limits= into init_app on Limiter 3.x
 limiter = Limiter(key_func=get_remote_address)
 
 
-def _normalize_rate_limits(value: str | None) -> str | None:
-    if not value:
-        return None
-    v = value.strip()
-    if v.startswith("[") and v.endswith("]"):
-        try:
-            parsed = ast.literal_eval(v)
-            if isinstance(parsed, (list, tuple)):
-                cleaned = [str(x).strip() for x in parsed if x]
-                return ";".join(cleaned)
-        except Exception:
-            pass
-    parts = [p.strip() for p in v.split(";") if p.strip()]
-    return ";".join(parts) if parts else None
+def _coalesce_database_uri(app) -> None:
+    """Derive SQLALCHEMY_DATABASE_URI from env if not set, and normalize scheme."""
+    uri = (
+        app.config.get("SQLALCHEMY_DATABASE_URI")
+        or os.getenv("SQLALCHEMY_DATABASE_URI")
+        or os.getenv("DATABASE_URL")
+    )
+    if uri and uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+    if uri:
+        app.config["SQLALCHEMY_DATABASE_URI"] = uri
+    else:
+        # Fallback keeps the app from crashing at boot (ephemeral!)
+        # Prefer setting a real DB URI via env on Render.
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 
 
 def init_extensions(app):
+    # --- Database ---
+    _coalesce_database_uri(app)
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
     db.init_app(app)
     migrate.init_app(app, db)
+
+    # --- Cache ---
+    app.config.setdefault("CACHE_TYPE", "SimpleCache")
     cache.init_app(app)
 
+    # --- Mail ---
+    # (honors standard Flask-Mail envs like MAIL_SERVER, MAIL_PORT, etc.)
+    mail.init_app(app)
+
+    # --- Login ---
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
-    try:
-        from .models import User  # type: ignore
-    except Exception:
-        User = None
-
     @login_manager.user_loader
-    def load_user(user_id: str):
-        if not User:
-            return None
+    def load_user(user_id):
+        # Avoid hard dependency if models aren't ready yet.
         try:
-            return db.session.get(User, int(user_id))
+            from .models import User  # type: ignore
+            return User.query.get(int(user_id))
         except Exception:
-            return None
+            return None  # at least the loader exists → prevents "Missing user_loader" crash
 
-    mail.init_app(app)
-    socketio.init_app(app)
-
-    rl = (
-        _normalize_rate_limits(app.config.get("DEFAULT_RATE_LIMITS"))
-        or _normalize_rate_limits(app.config.get("RATELIMIT_DEFAULT"))
+    # --- Rate Limiter (Flask-Limiter 3.x) ---
+    # Configure via app.config **before** init_app
+    # Use semicolon-separated string, NOT a Python list.
+    app.config.setdefault(
+        "RATELIMIT_DEFAULT",
+        os.getenv("DEFAULT_RATE_LIMITS", "300 per minute;30 per second"),
     )
-    if rl:
-        app.config["RATELIMIT_DEFAULT"] = rl
-
-    storage_uri = app.config.get("RATELIMIT_STORAGE_URI") or app.config.get("FLASK_LIMITER_STORAGE_URI")
-    if storage_uri:
-        app.config["RATELIMIT_STORAGE_URI"] = storage_uri
-
+    # Storage backend (prefer Redis if you have it)
+    app.config.setdefault(
+        "RATELIMIT_STORAGE_URI",
+        os.getenv("RATELIMIT_STORAGE_URI", os.getenv("REDIS_URL", "memory://")),
+    )
     limiter.init_app(app)
+
+    # --- Socket.IO ---
+    socketio.init_app(app, message_queue=os.getenv("REDIS_URL"), cors_allowed_origins="*")
