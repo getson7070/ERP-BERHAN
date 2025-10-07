@@ -1,10 +1,16 @@
-# wsgi.py
+# gunicorn.conf.py
+
+# Monkey-patch as early as possible (gunicorn loads this file before workers)
 import eventlet
-eventlet.monkey_patch()  # must be FIRST when using eventlet workers
+eventlet.monkey_patch()
 
-from erp.app import create_app
-app = create_app()
+bind = "0.0.0.0:10000"
+workers = 1
+worker_class = "eventlet"
+timeout = 120
+loglevel = "info"
 
-if __name__ == "__main__":
-    # Local dev only; Render uses gunicorn
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
+def pre_fork(server, worker):
+    # Safety net: ensure patching even if something imported too early
+    import eventlet
+    eventlet.monkey_patch()
