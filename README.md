@@ -24,6 +24,9 @@ ARIA landmarks and `aria-current` hints target WCAG 2.1 AA compliance across tem
 Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/BERHAN_SOP_PACK.md).
 A high-level mapping of ERP features to corporate policy pillars is documented in [docs/CORPORATE_POLICY_ALIGNMENT.md](docs/CORPORATE_POLICY_ALIGNMENT.md).
 
+The post-audit modernization program, including security, performance, UI/UX, and data reliability upgrades, is summarized in
+[docs/system_upgrade_plan.md](docs/system_upgrade_plan.md).
+
 Structured JSON logs capture correlation IDs without blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.

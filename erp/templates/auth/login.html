@@ -1,40 +1,60 @@
 {% extends "base.html" %}
 
+{% block title %}Sign in — {{ (role or 'user')|capitalize }}{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:420px;margin:4rem auto;">
-  <h1 style="margin-bottom:1rem;">Sign in — {{ (role or 'user')|capitalize }}</h1>
-
-  {# Flash messages, if any #}
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul class="flashes" style="padding-left:1rem;">
-        {% for category, message in messages %}
-          <li class="flash {{ category }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
-
-  <form method="post" autocomplete="off" style="display:grid;gap:.75rem;">
-    {# CSRF (requires app.config['SECRET_KEY'] + CSRFProtect in app factory) #}
+  <header class="page-header">
+    <h1 class="page-title">Sign in</h1>
+    <p class="page-subtitle">Access the {{ (role or 'user')|replace('_', ' ') }} workspace securely.</p>
+  </header>
+  <form method="post" class="form-grid">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="role" value="{{ role }}">
 
-    <label for="email">Email</label>
-    <input id="email" name="email" type="email" required placeholder="you@example.com">
+    <div class="form-field">
+      {{ form.email.label(class_="form-label") }}
+      {{ form.email(
+        class_="form-input",
+        autocomplete="username email",
+        placeholder="you@example.com",
+        aria_invalid="true" if form.email.errors else "false",
+        aria_describedby=form.email.id ~ '-errors' if form.email.errors else None,
+      ) }}
+      {% if form.email.errors %}
+        <ul class="form-errors" id="{{ form.email.id }}-errors">
+          {% for error in form.email.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
 
-    <label for="password">Password</label>
-    <input id="password" name="password" type="password" required placeholder="••••••••">
+    <div class="form-field">
+      {{ form.password.label(class_="form-label") }}
+      {{ form.password(
+        class_="form-input",
+        autocomplete="current-password",
+        placeholder="••••••••",
+        aria_invalid="true" if form.password.errors else "false",
+        aria_describedby=form.password.id ~ '-errors' if form.password.errors else None,
+      ) }}
+      {% if form.password.errors %}
+        <ul class="form-errors" id="{{ form.password.id }}-errors">
+          {% for error in form.password.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
 
-    <label style="display:flex;align-items:center;gap:.5rem;">
-      <input type="checkbox" name="remember"> Remember me
-    </label>
+    <div class="form-checkbox">
+      {{ form.remember(class_="form-checkbox__input") }}
+      <label class="form-checkbox__label" for="{{ form.remember.id }}">Stay signed in on this device</label>
+    </div>
 
-    <button type="submit">Sign in</button>
+    <button type="submit" class="btn btn--primary btn--full">Sign in</button>
   </form>
-
-  <p style="margin-top:1rem;">
-    <a href="{{ url_for('main.choose_login') }}">Choose another role</a>
-  </p>
-</div>
+  <div class="links links--center">
+    <a class="link-muted" href="{{ url_for('main.choose_login') }}">Choose another role</a>
+  </div>
 {% endblock %}
