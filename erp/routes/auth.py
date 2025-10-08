@@ -3,35 +3,32 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required
 from werkzeug.security import check_password_hash
 
-from erp.extensions import db  # <-- absolute import; fixes 'erp.routes.extensions' error
+from erp.extensions import db  # absolute import (fixes earlier 'erp.routes.extensions' error)
 
-auth_bp = Blueprint("auth", __name__, template_folder="../../templates")
-
+auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.get("/login")
 def login():
     role = request.args.get("role", "employee")
-    # Render form; the form posts back to /auth/login (below)
-    return render_template("login.html", role=role)
-
+    return render_template("auth/login.html", role=role)
 
 @auth_bp.post("/login")
-def do_login():
+def login_post():
     role = request.form.get("role", "employee")
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
 
-    # Lazy import to avoid circulars if models import blueprints
+    # Lazy import avoids circular imports
     try:
         from erp.models import User  # type: ignore
     except Exception:
         flash("User model not available; contact admin.", "error")
-        return render_template("login.html", role=role), 500
+        return render_template("auth/login.html", role=role), 500
 
     user = db.session.execute(db.select(User).filter(User.email == email)).scalar_one_or_none()
     if not user:
         flash("Invalid credentials.", "error")
-        return render_template("login.html", role=role), 401
+        return render_template("auth/login.html", role=role), 401
 
     try:
         valid = (
@@ -43,13 +40,11 @@ def do_login():
 
     if not valid:
         flash("Invalid credentials.", "error")
-        return render_template("login.html", role=role), 401
+        return render_template("auth/login.html", role=role), 401
 
     login_user(user)
     flash("Welcome back!", "success")
-    # Redirect per-role if you have dashboards, else home.
     return redirect(url_for("main.choose_login"))
-
 
 @auth_bp.post("/logout")
 @login_required
