@@ -1,12 +1,12 @@
-import os
+# wsgi.py
+# Important: eventlet must be monkey-patched BEFORE importing anything that might use stdlib concurrency.
 import eventlet
-eventlet.monkey_patch()  # must be before any other imports when using eventlet
+eventlet.monkey_patch()
 
 from erp.app import create_app
-from erp.extensions import socketio  # initialized in init_extensions
 
 app = create_app()
 
-# Optional: run directly (dev). On Render, gunicorn runs this file.
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+    # For local dev only; Render uses gunicorn
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
