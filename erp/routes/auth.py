@@ -1,7 +1,7 @@
 # erp/routes/auth.py
 from flask import Blueprint, request, render_template, redirect, url_for, flash
 from flask_login import login_user, logout_user, current_user
-from .extensions import db
+from ..extensions import db, login_manager
 from .models import User
 
 auth_bp = Blueprint("auth", __name__)
