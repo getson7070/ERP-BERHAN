@@ -1,6 +1,3 @@
-# migrations/env.py
-from __future__ import annotations
-
 import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
@@ -10,49 +7,37 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-def _coerce_db_url(url: str | None) -> str | None:
-    if not url:
-        return None
-    if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
-    scheme = url.split("://", 1)[0]
-    if scheme == "postgresql" and "+psycopg2" not in scheme:
-        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    if "sslmode=" not in url:
-        url += ("&" if "?" in url else "?") + "sslmode=require"
-    return url
+# Import your app/db to expose metadata
+from erp.app import create_app
+from erp.extensions import db
 
-db_url = (
-    os.getenv("SQLALCHEMY_DATABASE_URI")
-    or os.getenv("DATABASE_URL")
-)
+app = create_app()
+target_metadata = db.metadata
 
-db_url = _coerce_db_url(db_url)
-if not db_url:
-    raise RuntimeError("No database URL provided. Set SQLALCHEMY_DATABASE_URI or DATABASE_URL.")
-
-config.set_main_option("sqlalchemy.url", db_url)
-
-target_metadata = None  # import your models' metadata if using autogenerate
+def _db_url():
+    url = os.getenv("DATABASE_URL")
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url or config.get_main_option("sqlalchemy.url")
 
 def run_migrations_offline():
     context.configure(
-        url=db_url,
+        url=_db_url(),
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online():
+    ini_section = config.get_section(config.config_ini_section)
+    ini_section["sqlalchemy.url"] = _db_url()
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+        ini_section, prefix="sqlalchemy.", poolclass=pool.NullPool
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
         with context.begin_transaction():
             context.run_migrations()
 
