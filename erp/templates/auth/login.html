@@ -1,47 +1,40 @@
 {% extends "base.html" %}
-{% block title %}{{ (role or 'User')|title }} Login{% endblock %}
 
 {% block content %}
-<div style="max-width:520px;margin:24px auto;padding:28px;border:1px solid #243244;border-radius:16px;background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu">
-  <h1 style="margin:0 0 6px;font-size:26px">{{ (role or 'User')|title }} Login</h1>
-  <p style="margin:0 0 12px;color:#94a3b8">Enter your credentials</p>
+<div class="container" style="max-width:420px;margin:4rem auto;">
+  <h1 style="margin-bottom:1rem;">Sign in — {{ (role or 'user')|capitalize }}</h1>
 
-  {% with flashes = get_flashed_messages() %}
-    {% if flashes %}
-      <div style="margin:12px 0;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid #243244;color:#67e8f9">{{ flashes[0] }}</div>
+  {# Flash messages, if any #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes" style="padding-left:1rem;">
+        {% for category, message in messages %}
+          <li class="flash {{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
     {% endif %}
   {% endwith %}
-  {% if message %}
-    <div style="margin:12px 0;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid #243244;color:#67e8f9">{{ message }}</div>
-  {% endif %}
 
-  <form method="post" action="/auth/login" novalidate>
-    <!-- No csrf_token() so GET never crashes without SECRET_KEY.
-         When you set SECRET_KEY in prod, you can re-enable CSRF:
-         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> -->
-    <input type="hidden" name="role" value="{{ (role or 'user')|lower }}">
+  <form method="post" autocomplete="off" style="display:grid;gap:.75rem;">
+    {# CSRF (requires app.config['SECRET_KEY'] + CSRFProtect in app factory) #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="role" value="{{ role }}">
 
-    <label for="email" style="display:block;margin:10px 0 6px;color:#cbd5e1">Email</label>
-    <input id="email" type="email" name="email" placeholder="you@example.com"
-           autocomplete="username" autocapitalize="none" spellcheck="false" required
-           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid #243244;background:#0b1220;color:#e5e7eb" />
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required placeholder="you@example.com">
 
-    <label for="password" style="display:block;margin:10px 0 6px;color:#cbd5e1">Password</label>
-    <input id="password" type="password" name="password" placeholder="••••••••"
-           autocomplete="current-password" required
-           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid #243244;background:#0b1220;color:#e5e7eb" />
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required placeholder="••••••••">
 
-    <button type="submit"
-            style="margin-top:16px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid #243244;background:#0b1220;color:#e5e7eb;cursor:pointer">
-      Sign in
-    </button>
-    <div style="margin-top:12px;font-size:12px;color:#94a3b8">
-      You are signing in as <strong>{{ (role or 'user')|lower }}</strong>.
-    </div>
+    <label style="display:flex;align-items:center;gap:.5rem;">
+      <input type="checkbox" name="remember"> Remember me
+    </label>
+
+    <button type="submit">Sign in</button>
   </form>
 
-  <div style="margin-top:14px">
-    <a href="{{ url_for('main.choose_login') }}" style="font-size:12px;color:#94a3b8;text-decoration:none">← Back to role selection</a>
-  </div>
+  <p style="margin-top:1rem;">
+    <a href="{{ url_for('main.choose_login') }}">Choose another role</a>
+  </p>
 </div>
 {% endblock %}
