@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{{ role|title }} Login</title>
     <style>
-      :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#94a3b8; }
-      *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#0b1020,#0f172a);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;color:var(--text)}
+      :root { --bg:#0f172a; --card:#0b1020; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8; --accent:#67e8f9; }
+      *{box-sizing:border-box}
+      body{margin:0;background:linear-gradient(180deg,#0b1020,#0f172a);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;color:var(--text)}
       .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
-      .card{width:100%;max-width:520px;background:linear-gradient(180deg,#0b1020,#0f172a);border:1px solid #1f2937;border-radius:20px;box-shadow:0 10px 50px rgba(0,0,0,.4);padding:28px}
+      .card{width:100%;max-width:520px;background:linear-gradient(180deg,var(--card),#0f172a);border:1px solid var(--border);border-radius:20px;box-shadow:0 10px 50px rgba(0,0,0,.4);padding:28px}
       h1{margin:0 0 6px;font-size:26px}
       p{margin:0 0 22px;color:var(--muted)}
       label{display:block;margin:10px 0 6px;color:#cbd5e1}
       input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #243244;background:#0b1220;color:#e5e7eb}
+      input:focus{outline:none;border-color:#334155;box-shadow:0 0 0 2px rgba(51,65,85,.35)}
       button{margin-top:16px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid #243244;background:#0b1220;color:#e5e7eb;cursor:pointer}
       button:hover{border-color:#334155;transform:translateY(-1px)}
-      .hint{margin-top:12px;font-size:12px;color:#94a3b8}
-      .msg{margin-top:12px;color:#67e8f9}
+      .hint{margin-top:12px;font-size:12px;color:var(--muted)}
+      .msg{margin-top:12px;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid #243244;color:var(--accent)}
+      .back{display:inline-block;margin-top:14px;font-size:12px;color:var(--muted);text-decoration:none}
+      .back:hover{color:#cbd5e1}
     </style>
   </head>
   <body>
@@ -25,19 +29,42 @@
         <h1>{{ role|title }} Login</h1>
         <p>Enter your credentials</p>
 
+        {% with flashes = get_flashed_messages() %}
+          {% if flashes %}
+            <div class="msg">{{ flashes[0] }}</div>
+          {% endif %}
+        {% endwith %}
         {% if message %}
-        <div class="msg">{{ message }}</div>
+          <div class="msg">{{ message }}</div>
         {% endif %}
 
-        <form method="post" action="/auth/login">
-          <input type="hidden" name="role" value="{{ role }}" />
+        <form method="post" action="{{ url_for('auth.login_post') }}" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="role" value="{{ role|lower }}">
+          
           <label for="email">Email</label>
-          <input id="email" type="email" name="email" required />
+          <input id="email"
+                 type="email"
+                 name="email"
+                 placeholder="you@example.com"
+                 autocomplete="username"
+                 autocapitalize="none"
+                 spellcheck="false"
+                 required />
+
           <label for="password">Password</label>
-          <input id="password" type="password" name="password" required />
+          <input id="password"
+                 type="password"
+                 name="password"
+                 placeholder="••••••••"
+                 autocomplete="current-password"
+                 required />
+
           <button type="submit">Sign in</button>
-          <div class="hint">You are signing in as <strong>{{ role }}</strong>.</div>
+          <div class="hint">You are signing in as <strong>{{ role|lower }}</strong>.</div>
         </form>
+
+        <a class="back" href="{{ url_for('main.choose_login') }}">← Back to role selection</a>
       </div>
     </div>
   </body>
