@@ -16,8 +16,8 @@
   {% endif %}
 
   <form method="post" action="/auth/login" novalidate>
-    <!-- IMPORTANT: No csrf_token() here, so GET never crashes without a SECRET_KEY.
-         If you enable CSRF later, add:
+    <!-- No csrf_token() so GET never crashes without SECRET_KEY.
+         When you set SECRET_KEY in prod, you can re-enable CSRF:
          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> -->
     <input type="hidden" name="role" value="{{ (role or 'user')|lower }}">
 
