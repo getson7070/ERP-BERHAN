@@ -106,3 +106,6 @@ generated/
 *.csv
 *.xlsx
 !docs/access_recert_sample.csv
+
+# UI preview build artifacts
+ui-preview/node_modules/
