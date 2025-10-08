@@ -1,29 +1,30 @@
-# -*- coding: utf-8 -*-
-"""
-Main (public) routes.
-
-This module only defines lightweight routes and exports `bp` so that
-`erp.app:create_app()` (and Alembic's env.py which imports create_app)
-can import it without side effects.
-"""
-from flask import Blueprint, render_template, url_for
+from flask import Blueprint, redirect, url_for, render_template, current_app
 
 bp = Blueprint("main", __name__)
 
 @bp.get("/")
 def index():
-    # Keep a super-simple landing so it never 404s even if templates aren't ready.
-    choose_url = url_for("main.choose_login")
-    return f"<h1>ERP Backend</h1><p><a href='{choose_url}'>Choose role to log in</a></p>"
+    # Always show the nice chooser UI
+    return redirect(url_for("main.choose_login"), code=302)
 
 @bp.get("/choose-login")
 def choose_login():
-    # Renders the role picker (template already in your project).
-    # The template can loop over these if it wants.
-    roles = ("admin", "employee", "client")
-    return render_template("choose-login.html", roles=roles)
+    # Render the template; if it’s missing, serve a tiny fallback so you never 500
+    try:
+        return render_template("choose-login.html")
+    except Exception:
+        current_app.logger.exception("choose-login.html missing; serving inline fallback.")
+        return """
+<!doctype html><title>Choose Login</title>
+<h1>Choose Login</h1>
+<p>Pick the portal you want to access.</p>
+<p>
+  <a href="/auth/login?role=admin">Admin</a> |
+  <a href="/auth/login?role=employee">Employee</a> |
+  <a href="/auth/login?role=client">Client</a>
+</p>
+""", 200
 
 @bp.get("/healthz")
 def healthz():
-    # Useful for uptime checks
     return {"status": "ok"}, 200
