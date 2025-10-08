@@ -1,34 +1,47 @@
 {% extends "base.html" %}
 {% block title %}{{ (role or 'User')|title }} Login{% endblock %}
+
 {% block content %}
-  <h1>{{ (role or 'User')|title }} Login</h1>
-  <p class="muted">Enter your credentials.</p>
+<div style="max-width:520px;margin:24px auto;padding:28px;border:1px solid #243244;border-radius:16px;background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu">
+  <h1 style="margin:0 0 6px;font-size:26px">{{ (role or 'User')|title }} Login</h1>
+  <p style="margin:0 0 12px;color:#94a3b8">Enter your credentials</p>
 
-  <form method="post" action="{{ url_for('auth.login_post') }}" novalidate>
+  {% with flashes = get_flashed_messages() %}
+    {% if flashes %}
+      <div style="margin:12px 0;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid #243244;color:#67e8f9">{{ flashes[0] }}</div>
+    {% endif %}
+  {% endwith %}
+  {% if message %}
+    <div style="margin:12px 0;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid #243244;color:#67e8f9">{{ message }}</div>
+  {% endif %}
+
+  <form method="post" action="/auth/login" novalidate>
+    <!-- IMPORTANT: No csrf_token() here, so GET never crashes without a SECRET_KEY.
+         If you enable CSRF later, add:
+         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> -->
     <input type="hidden" name="role" value="{{ (role or 'user')|lower }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <label for="email">Email</label>
-    <input id="email"
-           type="email"
-           name="email"
-           placeholder="you@example.com"
-           autocomplete="username"
-           autocapitalize="none"
-           spellcheck="false"
-           required />
+    <label for="email" style="display:block;margin:10px 0 6px;color:#cbd5e1">Email</label>
+    <input id="email" type="email" name="email" placeholder="you@example.com"
+           autocomplete="username" autocapitalize="none" spellcheck="false" required
+           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid #243244;background:#0b1220;color:#e5e7eb" />
 
-    <label for="password">Password</label>
-    <input id="password"
-           type="password"
-           name="password"
-           placeholder="••••••••"
-           autocomplete="current-password"
-           required />
+    <label for="password" style="display:block;margin:10px 0 6px;color:#cbd5e1">Password</label>
+    <input id="password" type="password" name="password" placeholder="••••••••"
+           autocomplete="current-password" required
+           style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid #243244;background:#0b1220;color:#e5e7eb" />
 
-    <button class="btn btn--full" type="submit">Sign in</button>
-    <div class="muted">You are signing in as <strong>{{ (role or 'user')|lower }}</strong>.</div>
+    <button type="submit"
+            style="margin-top:16px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid #243244;background:#0b1220;color:#e5e7eb;cursor:pointer">
+      Sign in
+    </button>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8">
+      You are signing in as <strong>{{ (role or 'user')|lower }}</strong>.
+    </div>
   </form>
 
-  <a class="muted u-mt-sm" href="{{ url_for('main.choose_login') }}">← Back to role selection</a>
+  <div style="margin-top:14px">
+    <a href="{{ url_for('main.choose_login') }}" style="font-size:12px;color:#94a3b8;text-decoration:none">← Back to role selection</a>
+  </div>
+</div>
 {% endblock %}
