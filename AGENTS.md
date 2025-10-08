@@ -29,7 +29,8 @@ Idempotency & replayability: idempotency keys; bounded retries; DLQ + safe repla
 
 Repeatable delivery: PR merges; CI gates must pass; signed artifacts; documented runbooks.
 
-Observability: metrics, tracing, dashboards/status page; SLOs with alerts.
+O
+bservability: metrics, tracing, dashboards/status page; SLOs with alerts.
 
 3) Architecture & Flow (high level)
 
@@ -59,6 +60,7 @@ notifications_agentSend role-aware notificationsCelery/Webhooks{org_id,type,payl
 analytics_refresh_agentIncremental MV refresh/exportsCron{org_id} → {freshness}DB, OLAP export–DataDev/Stg/Prod
 
 Allowed tools are explicit. Agents may call only what the catalog lists; any expansion requires PR review.
+
 
 5) Permissions & Secrets (least privilege)
 
@@ -266,6 +268,8 @@ Rollback steps per workflow.
 
 Incident severity matrix, escalation contacts, communications template.
 
+
+
 12) Delivery & Change Control
 
 PR merges and direct pushes to main when explictly requested; branch protection requires all checks + code review.
@@ -328,7 +332,8 @@ Blueprints/Templates: docs/blueprints.md, docs/templates.md
 
 DR & Retention: docs/dr_plan.md, docs/data_retention.md
 
-CI pipeline: .github/workflows/ci.yml (ruff, mypy, pytest+cov, Bandit, pip-audit, gitleaks, Trivy, kube-linters, ZAP, Pa11y)
+CI pipeline: .github/workflows/ci.yml (ruff, mypy, pytest+cov, Bandit, pip-audit, gitleaks, Trivy, kube-linters, ZA
+P, Pa11y)
 
 Status page: see readme link
 
