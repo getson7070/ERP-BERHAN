@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Employee Login{% endblock %}
-{% block body %}
+{% block content %}
   <h1>Employee Login</h1>
   <form method="post">
     {{ form.csrf_token }}
@@ -17,7 +17,7 @@
       {{ form.totp(maxlength="6") }}
     </div>
     <div class="row">
-      {{ form.submit() }}
+      {{ form.submit(class_="btn btn--full") }}
     </div>
   </form>
   <div class="links"><a href="{{ url_for('auth.choose_login') }}">Back</a></div>

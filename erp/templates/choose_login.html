@@ -3,7 +3,7 @@
 {% block content %}
   <h1>Choose Login</h1>
   <p class="muted">Pick the portal you want to access.</p>
-  <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:18px">
+  <div class="button-grid u-mt-md">
     <a class="btn" href="{{ url_for('auth.login', role='admin') }}">Admin</a>
     <a class="btn" href="{{ url_for('auth.login', role='employee') }}">Employee</a>
     <a class="btn" href="{{ url_for('auth.login', role='client') }}">Client</a>

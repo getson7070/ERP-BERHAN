@@ -36,6 +36,15 @@ and the `scripts/index_audit.py` report provide disaster recovery coverage and
 highlight queries that require indexes.
 Database maintenance practices, including RPO/RTO targets and indexing benchmarks, are documented in `DATABASE.md`.
 
+## UI Regression & Accessibility Coverage
+
+- Headless Playwright smoke tests live in `ui-preview/tests/smoke.spec.ts`, exercising auth selection,
+  role-specific dashboards, and primary navigation flows as part of the UI preview pipeline.【F:ui-preview/tests/smoke.spec.ts†L1-L78】
+- Selenium-based smoke coverage in `tests/selenium/test_homepage.py` protects the production login
+  experience when browsers are not provisioned for Playwright, ensuring parity across CI environments.【F:tests/selenium/test_homepage.py†L1-L60】
+- Accessibility checks run through `scripts/run_pa11y.sh`, which drives Pa11y against critical routes
+  and enforces WCAG 2.1 AA thresholds in continuous integration.【F:scripts/run_pa11y.sh†L1-L52】
+
 ## Release & SLOs
 
 Service level objectives target p95 latency and error rates within documented budgets. Releases follow a weekly PATCH, monthly MINOR, and quarterly MAJOR cadence gated on green CI and canary health.
@@ -45,7 +54,7 @@ Service level objectives target p95 latency and error rates within documented bu
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.lock
-cp .env.example .env  # update FLASK_SECRET_KEY, JWT_SECRETS, DATABASE_URL
+cp .env.example .env  # update FLASK_SECRET_KEY, WTF_CSRF_SECRET_KEY, JWT_SECRETS, DATABASE_URL
 docker compose up -d db redis
 scripts/run_migrations.sh && python init_db.py
 flask run &
@@ -64,6 +73,7 @@ For a walkthrough with sample data see [docs/guided_setup.md](docs/guided_setup.
 ## Local tooling
 
 Copy `.env.example` to `.env` and adjust values for your environment. The `.env` file is ignored by git and should never be committed.
+Run `scripts/generate_secret_keys.py --bytes 48` to emit strong `FLASK_SECRET_KEY`, `WTF_CSRF_SECRET_KEY`, and `SECURITY_PASSWORD_SALT` pairs for local development or secret stores.
 
 Run `scripts/install_tools.sh` to provision auxiliary security and accessibility
 utilities (gitleaks, Trivy, kube-linter, kube-score, Pa11y, OWASP ZAP baseline,
@@ -150,6 +160,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 - Runtime env (from Secrets Manager):
   - `APP_ENV` = `production`
   - `FLASK_SECRET_KEY`
+  - `WTF_CSRF_SECRET_KEY`
   - `JWT_SECRET`
   - `DATABASE_URL` (e.g. `postgresql://user:pass@rds-endpoint:5432/db?sslmode=require` or `sqlite:////tmp/erp.db`)
   - `REDIS_URL`
@@ -165,7 +176,7 @@ See [docs/guided_setup.md](docs/guided_setup.md) for a walkthrough with sample d
 **Notes:**
   - `DATABASE_URL` must be set; the application will not start without it. Do not use `localhost` in `DATABASE_URL`.
 - Set `REDIS_URL=redis://…` (ElastiCache + VPC connector) and avoid `USE_FAKE_REDIS` in production.
-- Store secrets such as `FLASK_SECRET_KEY`, `JWT_SECRET`, and database credentials in AWS Secrets Manager and expose them via `AWS_SECRETS_PREFIX`.
+- Store secrets such as `FLASK_SECRET_KEY`, `WTF_CSRF_SECRET_KEY`, `JWT_SECRET`, and database credentials in AWS Secrets Manager and expose them via `AWS_SECRETS_PREFIX`.
 - Push the latest `main` branch to GitHub before deploying.
 
 ## Tech Stack
@@ -243,6 +254,7 @@ A quick start guide for new users lives in [docs/onboarding_tour.md](docs/onboar
 The application pulls configuration from environment variables. Key settings include:
 
 - `FLASK_SECRET_KEY` – secret key for session and CSRF protection.
+- `WTF_CSRF_SECRET_KEY` – optional dedicated signing key for Flask-WTF; defaults to `FLASK_SECRET_KEY` when unset.
 - `DATABASE_URL` – PostgreSQL connection string used by SQLAlchemy (append `?sslmode=require`).
 - `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_POOL_TIMEOUT` – connection pool tuning
   knobs for high‑load deployments.

@@ -30,9 +30,11 @@ This guide bootstraps a secure ERP-BERHAN environment that mirrors production co
 3. **Copy the environment template and generate secrets**
    ```bash
    cp .env.example .env
-   python -c "import secrets; print(secrets.token_urlsafe(32))"  # FLASK_SECRET_KEY & SECURITY_PASSWORD_SALT
+   python scripts/generate_secret_keys.py --bytes 48
    python -c "import secrets; print(secrets.token_urlsafe(48))"  # JWT_SECRET
    ```
+   The helper script prints `FLASK_SECRET_KEY`, `WTF_CSRF_SECRET_KEY`, and `SECURITY_PASSWORD_SALT` in `KEY=value` format—append
+   each line to `.env` or export them with your preferred shell tooling.
 4. **Start PostgreSQL + Redis**
    ```bash
    docker compose up -d db redis
@@ -91,10 +93,13 @@ The following commands assume PowerShell 7+, but they also work in Windows Power
 4. **Generate secrets and copy the template**
    ```powershell
    Copy-Item .env.example .env -Force
+   python .\scripts\generate_secret_keys.py --bytes 48
    $Env:FLASK_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(32))"
+   $Env:WTF_CSRF_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(32))"
    $Env:SECURITY_PASSWORD_SALT = python -c "import secrets; print(secrets.token_urlsafe(32))"
    $Env:JWT_SECRET = python -c "import secrets; print(secrets.token_urlsafe(48))"
    [System.Environment]::SetEnvironmentVariable("FLASK_SECRET_KEY", $Env:FLASK_SECRET_KEY)
+   [System.Environment]::SetEnvironmentVariable("WTF_CSRF_SECRET_KEY", $Env:WTF_CSRF_SECRET_KEY)
    [System.Environment]::SetEnvironmentVariable("SECURITY_PASSWORD_SALT", $Env:SECURITY_PASSWORD_SALT)
    [System.Environment]::SetEnvironmentVariable("JWT_SECRET", $Env:JWT_SECRET)
    ```
@@ -137,7 +142,7 @@ The following commands assume PowerShell 7+, but they also work in Windows Power
 - **`winget` not recognised** – Install the Microsoft Store *App Installer*, or download Python directly as shown above.
 - **`alembic upgrade head` fails with `Connection refused`** – Ensure PostgreSQL is running (e.g., `docker compose up -d db`) or export `DATABASE_URL`/`ALEMBIC_DATABASE_URL` to a reachable instance and rerun the migration command.
 - **`psycopg2.OperationalError: connection refused`** – Start PostgreSQL or point `DATABASE_URL` to SQLite; Alembic now reads these overrides automatically.
-- **`FLASK_SECRET_KEY/SECRET_KEY not set`** – Populate `FLASK_SECRET_KEY`, `SECURITY_PASSWORD_SALT`, and `JWT_SECRET` in your environment or `.env` before launching Flask.
+- **`FLASK_SECRET_KEY/SECRET_KEY not set`** – Populate `FLASK_SECRET_KEY`, `WTF_CSRF_SECRET_KEY`, `SECURITY_PASSWORD_SALT`, and `JWT_SECRET` in your environment or `.env` before launching Flask.
 - **Dependency install tries to compile native extensions** – Confirm you are using the provided lockfile (`pip install -r requirements.lock`) under Python 3.11 with the launcher. Using `requirements.txt` on Python 3.13 will force source builds.
 - **`fatal: destination path 'ERP-BERHAN' already exists`** – Remove the existing directory (`Remove-Item .\ERP-BERHAN -Recurse -Force`) or pull the latest changes inside it.
 

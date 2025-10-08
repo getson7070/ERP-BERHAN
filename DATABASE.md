@@ -11,6 +11,14 @@ This document records database maintenance practices.
 - **Recovery Time Objective (RTO):** ≤60 minutes
 - Monthly restore drills via `scripts/dr_drill.sh` verify these objectives.
 
+## Backups
+- `scripts/pg_backup.sh` now writes custom-format dumps, SHA-256 manifests, and
+  JSONL telemetry (`backup-report.jsonl`) so operators can attest to checksum
+  integrity over time.【F:scripts/pg_backup.sh†L1-L62】
+- When `pg_restore` is available, the script emits a manifest listing and schema
+  reconstruction dry-run to catch corruption early without touching production
+  data.【F:scripts/pg_backup.sh†L20-L42】
+
 ## Normalization & Query Performance
 - Adhere to third normal form (3NF) for transactional tables.
 - Monitor query plans with `EXPLAIN ANALYZE` and review slow query logs.

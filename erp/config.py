@@ -2,6 +2,7 @@ import os
 
 class Config:
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev")
+    WTF_CSRF_SECRET_KEY = os.getenv("WTF_CSRF_SECRET_KEY", SECRET_KEY)
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///dev.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

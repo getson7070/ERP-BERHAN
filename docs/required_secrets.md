@@ -5,6 +5,7 @@ The application retrieves all sensitive configuration exclusively from AWS Secre
 | Secret | Purpose |
 | --- | --- |
 | `FLASK_SECRET_KEY` | Session and CSRF signing key |
+| `WTF_CSRF_SECRET_KEY` | Dedicated Flask-WTF CSRF signing key (falls back to `FLASK_SECRET_KEY` if unset) |
 | `JWT_SECRETS` / `JWT_SECRET_ID` | Map of versioned JWT signing secrets with active key id |
 | `DATABASE_URL` | PostgreSQL connection string (use `?sslmode=require`; application fails to start if unset) |
 | `REDIS_URL` | Redis/ElastiCache connection string |

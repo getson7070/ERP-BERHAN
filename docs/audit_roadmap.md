@@ -23,3 +23,7 @@ This roadmap breaks the September 2025 audit findings into actionable phases. Ea
 - Schedule dependency checks and accessibility audits to run weekly, surfacing results to the team.
 
 Progress against this roadmap should be reviewed in the monthly Quality Management Review (QMR) and updated as milestones are completed.
+
+## Alignment with 2026 Upgrade Plan
+- Use the **2026 System Update & Upgrade Plan** to sequence roadmap items into quarter-by-quarter deliverables, ensuring UI/UX modernization, security hardening, and database resilience actions are tracked with owners and success metrics.【F:docs/system_upgrade_plan_2026.md†L1-L55】
+- Capture deviations or accelerated milestones during QMR sessions so the roadmap, upgrade plan, and audit artifacts remain synchronized for the next assessment cycle.【F:docs/system_upgrade_plan_2026.md†L57-L74】

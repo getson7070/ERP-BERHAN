@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Client Registration{% endblock %}
-{% block body %}
+{% block content %}
   <h1>Client Registration</h1>
   <form method="post">
     {{ form.csrf_token }}
@@ -12,7 +12,7 @@
     <div class="row"><label>City</label>{{ form.city() }}</div>
     <div class="row"><label>Email</label>{{ form.email() }}</div>
     <div class="row"><label>Password</label>{{ form.password(type="password") }}</div>
-    <div class="row">{{ form.submit() }}</div>
+    <div class="row">{{ form.submit(class_="btn btn--full") }}</div>
   </form>
   <div class="links"><a href="{{ url_for('auth.choose_login') }}">Back to login</a></div>
 {% endblock %}

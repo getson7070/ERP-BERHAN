@@ -48,7 +48,12 @@ def _apply_default_config(app):
     app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
 
     # CSRF + Secret
-    app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "dev-secret-change-me"))
+    secret_fallback = os.getenv("SECRET_KEY", "dev-secret-change-me")
+    app.config.setdefault("SECRET_KEY", secret_fallback)
+    app.config.setdefault(
+        "WTF_CSRF_SECRET_KEY",
+        os.getenv("WTF_CSRF_SECRET_KEY", app.config["SECRET_KEY"] or secret_fallback),
+    )
 
     # SocketIO message queue (optional: Redis)
     mq = os.getenv("SOCKETIO_MESSAGE_QUEUE")
