@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Recruitment{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Recruitment</h1>
+    <p class="page-subtitle">Manage candidate applications.</p>
+  </header>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Position</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for candidate in candidates %}
+      <tr>
+        <td>{{ candidate.id }}</td>
+        <td>{{ candidate.name }}</td>
+        <td>{{ candidate.position }}</td>
+        <td>{{ candidate.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
