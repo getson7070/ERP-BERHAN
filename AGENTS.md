@@ -274,6 +274,7 @@ Incident severity matrix, escalation contacts, communications template.
 
 PR merges and direct pushes to main when explictly requested; branch protection requires all checks + code review.
 
+Development exception: For the active development period, the Codex automation account may bypass branch protections, status checks, and code review requirements for direct pushes, merges, and rebases. This allowance applies only to the temporary development window and must be removed once the ERP-BERHAN system is production-ready.
 Signed commits/images; release notes per change; version prompts/templates alongside code.
 
 Safer Git flow
