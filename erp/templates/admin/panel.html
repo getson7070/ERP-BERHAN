@@ -1,0 +1,12 @@
+{% raw %}
+{% extends 'base.html' %}
+{% block title %}Admin Panel{% endblock %}
+{% block header %}Admin Panel{% endblock %}
+{% block content %}
+<section class="grid md:grid-cols-3 gap-4">
+  <a href="/admin/workflows" class="rounded bg-white p-4 shadow-sm hover:shadow">Workflows</a>
+  <a href="/report_builder" class="rounded bg-white p-4 shadow-sm hover:shadow">Reports</a>
+  <a href="/plugins" class="rounded bg-white p-4 shadow-sm hover:shadow">Plugins</a>
+</section>
+{% endblock %}
+{% endraw %}
