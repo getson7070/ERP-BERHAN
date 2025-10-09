@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}HR - Employees{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Employee Directory</h1>
+    <p class="page-subtitle">Manage your workforce</p>
+  </header>
+  <div class="links links--right">
+    <a href="{{ url_for('hr.add_employee') }}" class="btn btn--primary">Add Employee</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr><th>ID</th><th>Name</th></tr>
+    </thead>
+    <tbody>
+      {% for emp in employees %}
+      <tr><td>{{ emp.id }}</td><td>{{ emp.name }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
