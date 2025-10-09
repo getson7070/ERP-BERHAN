@@ -47,7 +47,12 @@
       {% endif %}
     </div>
 
-    <div class="form-checkbox">
+    
+            <div class="form-field">
+            <label for="token" class="form-label">Authentication code</label>
+            <input type="text" id="token" name="token" class="form-input" autocomplete="one-time-code" placeholder="123456" />
+        </div>
+<div class="form-checkbox">
       {{ form.remember(class_="form-checkbox__input") }}
       <label class="form-checkbox__label" for="{{ form.remember.id }}">Stay signed in on this device</label>
     </div>
