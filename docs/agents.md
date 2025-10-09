@@ -18,9 +18,11 @@ Automated agents are non‑human services that run predefined tasks (dependency 
 - **Attribution:** configure the environment variables `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and `GIT_COMMITTER_EMAIL` to reflect the automation account (e.g., `Codex Bot <codex-bot@example.com>`).
 - **Conventional commits:** automated commits must follow the Conventional Commits style (e.g., `ci: update dependencies`, `docs: regenerate API spec`).
 - **Direct pushes:** the `main` branch permits direct pushes from trusted automation accounts when pre‑configured quality gates (tests, linters, coverage checks) succeed. Workflows should fail and halt pushes if any gate fails.
-- **Evidence:** include links to relevant CI job logs or report artifacts in commit messages or PR descriptions when applicable to aid auditing.
+- **Evidence:** include links
+- Provide relevant CI job logs or commit messages when direct pushes, merges, or
+ 
 
-## Branch Protection & Quality Gates
+- **Development exception:** For the active development period, the Codex automation account may bypass branch protections, status checks, and code review requirements for direct pushes, merges, and rebases. This allowance applies only to the temporary development window and must be removed once the ERP-BERHAN system is production-ready.
 
 - Maintain branch protection rules requiring status checks (unit tests, linting, security scans) to pass before commits are accepted from automation. Exempt only the trusted automation account if necessary.
 - Use CODEOWNERS or reviewers to periodically audit automation activity to ensure compliance with repository standards.
