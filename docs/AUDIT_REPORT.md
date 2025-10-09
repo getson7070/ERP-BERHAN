@@ -1,0 +1,591 @@
+# ERP-BERHAN Deploy Audit — 2025-10-09T16:13:54.357941Z
+
+## Summary
+
+- Build succeeds; **pre-deploy fails** during `alembic upgrade heads` because Alembic imports your Flask app, which imports the routes package, which imports `api.py` and executes `@limiter.limit(...)` *before* the limiter is initialized.
+
+## Primary Root Causes
+
+- **migrations/env.py** — Alembic env.py imports create_app(), which imports routes and evaluates decorators at import-time.  
+  **Fix:** Stop importing app. Use extensions.db.metadata as target_metadata and read DATABASE_URL directly.
+- **erp/__init__.py + erp/app.py** — Two app factories exist (erp.__init__.create_app and erp.app.create_app). This creates drift and circular import risks.  
+  **Fix:** Pick a single factory (prefer erp.__init__.create_app). Make erp/app.py a thin shim or remove it.
+- **erp/extensions.py** — Limiter is set to None at module import. Route decorators using @limiter.limit() will crash before init_extensions runs.  
+  **Fix:** Instantiate Limiter at module scope and bind later via limiter.init_app(app).
+- **erp/extensions.py** — Uses LIMITER_STORAGE_URI env var, while app.py used RATELIMIT_STORAGE_URI. Inconsistent configuration keys.  
+  **Fix:** Standardize on RATELIMIT_STORAGE_URI everywhere (or document both).
+- **erp/routes/__init__.py** — Top-level imports of submodules cause api.py to evaluate during package import, triggering limiter decorators early.  
+  **Fix:** Keep __init__.py empty (or just __all__ dict) and import blueprints explicitly in the app factory.
+- **erp/routes/api.py** — OK to import limiter from extensions, but only if limiter is a real object at import time.  
+  **Fix:** Make limiter a real Limiter instance at module import (handled in extensions fix).
+- **erp/__init__.py** — Default SECRET_KEY placeholder present. Safe for dev, but must be overridden in Render.  
+  **Fix:** Confirm SECRET_KEY is set as env var in Render.
+
+## Fixed Files Provided
+
+The following drop-in replacements are included in the patch zip:
+- `migrations/env.py`  (sha256: `30c2774e5a35`)
+- `erp/routes/__init__.py`  (sha256: `f5404950562f`)
+- `erp/extensions.py`  (sha256: `908a61072257`)
+- `erp/app.py`  (sha256: `324401a70222`)
+
+## Next Steps
+
+1) Apply these four files to your repo.
+2) Ensure Render env vars include `DATABASE_URL` and optionally `RATELIMIT_STORAGE_URI`.
+3) Re-deploy. Pre-deploy should pass.
+
+
+---
+
+### File Tree (top levels)
+
+```
+.coveragerc
+.env.example
+.flake8
+.gitattributes
+.github/
+  .github/workflows/
+    .github/workflows/audit-chain.yml
+    .github/workflows/browser-tests.yml
+    .github/workflows/ci.yml
+    .github/workflows/codeowners.yml
+    .github/workflows/codeql.yml
+    .github/workflows/codex-automerge.yml
+    .github/workflows/deploy.yml
+    .github/workflows/generator-generic-ossf-slsa3-publish.yml
+    .github/workflows/perf.yml
+    .github/workflows/sbom.yml
+    .github/workflows/selenium.yml
+    .github/workflows/soak.yml
+    .github/workflows/supply-chain-attestation.yml
+    .github/workflows/ui-preview.yml
+    .github/workflows/ui-tests.yml
+    .github/workflows/verify-commits.yml
+    .github/workflows/verify-signature.yml
+    .github/workflows/verify-signed.yml
+    .github/workflows/visual.yml
+.gitignore
+.gitleaks.toml
+.pre-commit-config.yaml
+.python-version
+.yamllint
+AGENTS.md
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+DATABASE.md
+README.md
+RELEASE.md
+SECURITY.md
+alembic.ini
+analytics/
+  analytics/__init__.py
+  analytics/ml/
+    analytics/ml/__init__.py
+apprunner.yaml
+backup.py
+bot/
+  bot/__init__.py
+  bot/handlers.py
+codeowners
+cosign.pub
+db.py
+deploy/
+  deploy/init-app-user.sh
+  deploy/k8s/
+    deploy/k8s/alerts.yaml
+    deploy/k8s/backup-cronjob.yaml
+    deploy/k8s/bluegreen.yaml
+    deploy/k8s/deployment.yaml
+    deploy/k8s/hpa.yaml
+    deploy/k8s/ingress.yaml
+    deploy/k8s/networkpolicy.yaml
+    deploy/k8s/pdb.yaml
+    deploy/k8s/pgbouncer-pdb.yaml
+    deploy/k8s/pgbouncer.yaml
+    deploy/k8s/prometheus.yaml
+    deploy/k8s/readme.md
+    deploy/k8s/restore-cronjob.yaml
+    deploy/k8s/service.yaml
+  deploy/seccomp.json
+docker-compose.prod.yml
+docker-compose.yml
+dockerfile
+dockerrun.aws.json
+docs/
+  docs/BERHAN_SOP_PACK.md
+  docs/COMPLIANCE.md
+  docs/CORPORATE_POLICY_ALIGNMENT.md
+  docs/DATA_HANDLING_PROCEDURES.md
+  docs/DPIA_TEMPLATE.md
+  docs/DSAR_RUNBOOK.md
+  docs/IDENTITY_GUIDE.md
+  docs/OPENAPI.yaml
+  docs/POSTMORTEM_TEMPLATE.md
+  docs/PRIVACY_PROGRAM.md
+  docs/SRE_RUNBOOK.md
+  docs/SUPPORT.md
+  docs/UX_GUIDELINES.md
+  docs/VERSIONING.md
+  docs/access_recert_sample.csv
+  docs/access_recerts.md
+  docs/accessibility_audit_log.md
+  docs/adr/
+    docs/adr/0001-security-workflows.md
+  docs/agents.md
+  docs/alembic_online_migrations.md
+  docs/analytics.md
+  docs/audit_2025_comprehensive.md
+  docs/audit_2025_followup.md
+  docs/audit_2025_q4.md
+  docs/audit_roadmap.md
+  docs/audit_summary.md
+  docs/automation_analytics.md
+  docs/blueprints.md
+  docs/browser_accessibility_review.md
+  docs/browser_matrix.md
+  docs/cache_invalidation.md
+  docs/capabilities_matrix.md
+  docs/chaos_testing.md
+  docs/configuration.md
+  docs/control_matrix.md
+  docs/data_quality.md
+  docs/data_retention.md
+  docs/db_maintenance.md
+  docs/deployment/
+    docs/deployment/failover.md
+    docs/deployment/upgrade_rollback.md
+  docs/deployment.md
+  docs/design_system.md
+  docs/domains/
+    docs/domains/readme.md
+  docs/dr_plan.md
+  docs/epics_overview.md
+  docs/guided_setup.md
+  docs/i18n.md
+  docs/idempotency_dlq.md
+  docs/in_app_help.md
+  docs/incident_response/
+    docs/incident_response/README.md
+    docs/incident_response/comms_templates.md
+    docs/incident_response/roles.md
+    docs/incident_response/severity_levels.md
+    docs/incident_response/triage_tree.md
+  docs/integrations.md
+  docs/local_dev_quickstart.md
+  docs/migration_guide.md
+  docs/observability.md
+  docs/onboarding_checklist.md
+  docs/onboarding_tour.md
+  docs/online_migrations.md
+  docs/performance.md
+  docs/postgres_troubleshooting.md
+  docs/required_secrets.md
+  docs/roadmap.md
+  docs/rollback.md
+  docs/security/
+    docs/security/asvs_traceability.md
+    docs/security/compliance.md
+    docs/security/content_security_policy.md
+    docs/security/encryption.md
+    docs/security/gpg_setup.md
+    docs/security/rls_policies.sql
+    docs/security/secret_rotation.md
+    docs/security/supply_chain.md
+    docs/security/system_security_updates.md
+    docs/security/testing.md
+  docs/status.md
+  docs/style_guide.md
+  docs/system_upgrade_plan_2026.md
+  docs/templates.md
+  docs/traceability.md
+  docs/training_tutorials.md
+  docs/ux/
+    docs/ux/snapshots/
+erp/
+  erp/__init__.py
+  erp/analytics/
+    erp/analytics/__init__.py
+  erp/api/
+    erp/api/__init__.py
+    erp/api/integrations.py
+    erp/api/webhook.py
+  erp/app.py
+  erp/audit.py
+  erp/blueprints/
+    erp/blueprints/__init__.py
+    erp/blueprints/compliance/
+    erp/blueprints/integration/
+    erp/blueprints/inventory/
+    erp/blueprints/recall/
+  erp/bots/
+    erp/bots/slack_bot.py
+  erp/cache.py
+  erp/capabilities.py
+  erp/celery_app.py
+  erp/celery_ext.py
+  erp/compliance/
+    erp/compliance/__init__.py
+    erp/compliance/privacy.py
+  erp/config.py
+  erp/connectors/
+    erp/connectors/__init__.py
+    erp/connectors/accounting.py
+    erp/connectors/ecommerce.py
+  erp/constants.py
+  erp/data_quality.py
+  erp/data_retention.py
+  erp/db.py
+  erp/domains/
+    erp/domains/healthcare.py
+    erp/domains/retail.py
+  erp/extensions.py
+  erp/favicon.ico
+  erp/integrations/
+    erp/integrations/__init__.py
+    erp/integrations/accounting.py
+    erp/integrations/powerbi.py
+  erp/inventory/
+    erp/inventory/__init__.py
+  erp/models.py
+  erp/observability.py
+  erp/plugins/
+    erp/plugins/__init__.py
+    erp/plugins/registry.py
+  erp/routes/
+    erp/routes/__init__.py
+    erp/routes/admin.py
+    erp/routes/analytics.py
+    erp/routes/api.py
+    erp/routes/auth.py
+    erp/routes/crm.py
+    erp/routes/dashboard_customize.py
+    erp/routes/feedback.py
+    erp/routes/finance.py
+    erp/routes/health.py
+    erp/routes/help.py
+    erp/routes/hr.py
+    erp/routes/hr_workflows.py
+    erp/routes/inventory.py
+    erp/routes/kanban.py
+    erp/routes/main.py
+    erp/routes/manufacturing.py
+    erp/routes/orders.py
+    erp/routes/plugins.py
+    erp/routes/privacy.py
+    erp/routes/procurement.py
+    erp/routes/projects.py
+    erp/routes/receive_inventory.py
+    erp/routes/report_builder.py
+    erp/routes/tenders.py
+    erp/routes/webhooks.py
+  erp/secrets.py
+  erp/security.py
+  erp/security_shim.py
+  erp/sql_compat.py
+  erp/static/
+    erp/static/css/
+    erp/static/favicon.ico
+    erp/static/icons/
+    erp/static/js/
+    erp/static/manifest.json
+    erp/static/vendor/
+  erp/storage.py
+  erp/templates/
+    erp/templates/add_tender.html
+    erp/templates/admin/
+    erp/templates/audit/
+    erp/templates/auth/
+    erp/templates/base.html
+    erp/templates/choose_login.html
+    erp/templates/client_login.html
+    erp/templates/client_registration.html
+    erp/templates/crm/
+    erp/templates/customize_dashboard.html
+    erp/templates/dashboard.html
+    erp/templates/employee_login.html
+    erp/templates/errors/
+    erp/templates/fallback.html
+    erp/templates/feedback.html
+    erp/templates/finance/
+    erp/templates/help.html
+    erp/templates/home.html
+    erp/templates/hr/
+    erp/templates/inventory/
+    erp/templates/kanban_board.html
+    erp/templates/maintenance/
+    erp/templates/manufacturing/
+    erp/templates/marketing/
+    erp/templates/orders/
+    erp/templates/orders.html
+    erp/templates/orders_list.html
+    erp/templates/plugins/
+    erp/templates/privacy.html
+    erp/templates/procurement/
+    erp/templates/profile/
+    erp/templates/projects/
+    erp/templates/put_order.html
+    erp/templates/receive_inventory.html
+    erp/templates/report_builder.html
+    erp/templates/reports/
+    erp/templates/tenders_list.html
+    erp/templates/tenders_report.html
+    erp/templates/user_management/
+  erp/tenant.py
+  erp/translations/
+    erp/translations/am/
+  erp/utils/
+    erp/utils/jwt_helpers.py
+  erp/utils.py
+  erp/web.py
+  erp/workflow.py
+eslint.config.js
+generate_hash.py
+gunicorn.conf.py
+init_db.py
+license
+logs/
+  logs/restore_drill.log
+migrations/
+  migrations/env.py
+  migrations/readme
+  migrations/script.py.mako
+  migrations/versions/
+    migrations/versions/.gitkeep
+    migrations/versions/000c349c7249_create_hr_base_tables.py
+    migrations/versions/1a2b3c4d5e6f_add_user_security_fields.py
+    migrations/versions/20241007_0001_create_users.py
+    migrations/versions/20250830_fix_rls_policies.py
+    migrations/versions/20250913_add_fk_indexes.py
+    migrations/versions/20251003_fix_kpi_sales_mv.py
+    migrations/versions/2b3c4d5e6f7a_add_tender_workflow.py
+    migrations/versions/3d4e5f6g7h8i_add_tender_award_fields.py
+    migrations/versions/4879f87e41ba_merge_heads_2025_10_03.py
+    migrations/versions/4e5f6g7h8i9j_add_rbac_and_org_id.py
+    migrations/versions/5f6g7h8i9j0k_create_kpi_sales_view.py
+    migrations/versions/6a7b8c9d0e1f_add_audit_logs_and_rls.py
+    migrations/versions/7b8c9d0e1f2_add_audit_hash_chain.py
+    migrations/versions/7c9d0e1f2g3h_add_core_module_tables.py
+    migrations/versions/8d0e1f2g3h4i_add_webauthn_credentials.py
+    migrations/versions/8d9e0f1a2b3c_add_finance_inventory_workflows.py
+    migrations/versions/9e0f1a2b3c4d_add_data_lineage_table.py
+    migrations/versions/a0e29d7d0f58_merge_migration_heads.py
+    migrations/versions/a1b2c3d4e5b_add_lot_serial_tables.py
+    migrations/versions/a1b2c3d4e5f7_add_user_dashboards_table.py
+    migrations/versions/b1c2d3e4f5g6_add_retention_columns.py
+    migrations/versions/b2c3d4e5f6g_add_retention_tags.py
+    migrations/versions/c3d4e5f6g7h_add_sku_to_inventory_items.py
+    migrations/versions/cf161230ed7f_merge_heads_final.py
+    migrations/versions/d1b125e62d70_merge_heads.py
+    migrations/versions/d4e5f6g7h8i_fix_rls_policy.py
+    migrations/versions/e6f7g8h9i0a_add_compliance_tables.py
+    migrations/versions/e75b638f0ca3_merge_heads.py
+    migrations/versions/f0e1d2c3b4a5_add_status_org_id_indexes.py
+    migrations/versions/g1h2i3j4k5l_add_hr_workflow_tables.py
+    migrations/versions/h9i0j1k2l3m_tighten_hr_schema.py
+    migrations/versions/i1j2k3l4m5n_add_privacy_impact_assessments.py
+mypy.ini
+plugins/
+  plugins/__init__.py
+  plugins/chatbot_plugin.py
+  plugins/forecast_plugin.py
+  plugins/quickbooks_plugin.py
+  plugins/rpa_plugin.py
+  plugins/sample_plugin.py
+  plugins/telegram_bot.py
+pyproject.toml
+pytest.ini
+requirements-dev.txt
+requirements.lock
+requirements.txt
+runtime.txt
+scripts/
+  scripts/__init__.py
+  scripts/access_recert_export.py
+  scripts/benchmark.py
+  scripts/chaos_worker.sh
+  scripts/check_audit_chain.py
+  scripts/check_blueprints.py
+  scripts/check_indexes.py
+  scripts/data/
+    scripts/data/asvs_requirements.json
+  scripts/dr_drill.py
+  scripts/dr_drill.sh
+  scripts/fineto_mapping.json
+  scripts/generate_secret_keys.py
+  scripts/import_fineto.py
+  scripts/index_audit.py
+  scripts/install_tools.sh
+  scripts/k6_rate_limit.js
+  scripts/load_test.sh
+  scripts/locustfile.py
+  scripts/migration_smoke.py
+  scripts/monitor_queue.py
+  scripts/olap_export.py
+  scripts/pg_backup.sh
+  scripts/restore_latest_backup.sh
+  scripts/rotate_jwt_secret.py
+  scripts/rotate_secrets.py
+  scripts/run_migrations.sh
+  scripts/run_mutmut.sh
+  scripts/run_pa11y.sh
+  scripts/security_scan.sh
+  scripts/seed_data.py
+  scripts/setup_postgres.sh
+  scripts/soak_test.sh
+  scripts/update_status.py
+  scripts/validate_csp.py
+  scripts/verify_asvs.py
+sdk/
+  sdk/__init__.py
+  sdk/client.py
+secrets.allowlist
+templates/
+  templates/fallback.html
+tests/
+  tests/__init__.py
+  tests/analytics/
+    tests/analytics/test_materialized_view.py
+    tests/analytics/test_vitals_schema.py
+  tests/chaos/
+    tests/chaos/__init__.py
+    tests/chaos/test_redis_saturation.py
+    tests/chaos/test_worker_kill.py
+  tests/conftest.py
+  tests/perf/
+    tests/perf/test_n_plus_one.py
+    tests/perf/test_slow_query.py
+  tests/playwright_utils.py
+  tests/plugins/
+    tests/plugins/test_loader.py
+  tests/routes/
+    tests/routes/test_healthz.py
+    tests/routes/test_privacy.py
+  tests/security/
+    tests/security/test_csp_nonces.py
+    tests/security/test_rls_smoke.py
+  tests/selenium/
+    tests/selenium/test_homepage.py
+  tests/snapshots/
+    tests/snapshots/graphql_complexity_error.json
+    tests/snapshots/graphql_depth_error.json
+  tests/socketio/
+    tests/socketio/test_handshake.py
+  tests/test_access_recert.py
+  tests/test_analytics.py
+  tests/test_api.py
+  tests/test_audit_chain.py
+  tests/test_audit_log.py
+  tests/test_auth_queries.py
+  tests/test_backup.py
+  tests/test_blueprint_registration.py
+  tests/test_bot_import.py
+  tests/test_cache.py
+  tests/test_cache_metrics.py
+  tests/test_celery_workflows.py
+  tests/test_compliance.py
+  tests/test_core_modules.py
+  tests/test_correlation_id.py
+  tests/test_crm_export.py
+  tests/test_data_quality.py
+  tests/test_db_dialect.py
+  tests/test_db_integration.py
+  tests/test_feedback.py
+  tests/test_foreign_keys.py
+  tests/test_global_search.py
+  tests/test_health_rls_rate_limit.py
+  tests/test_healthz.py
+  tests/test_help_page.py
+  tests/test_hr_routes.py
+  tests/test_hr_workflows.py
+  tests/test_i18n.py
+  tests/test_idempotency_and_dlq.py
+  tests/test_init_db.py
+  tests/test_init_db_sqlalchemy.py
+  tests/test_integrations.py
+  tests/test_integrations_api.py
+  tests/test_inventory.py
+  tests/test_inventory_export.py
+  tests/test_jwt_rotation.py
+  tests/test_localization.py
+  tests/test_lockout.py
+  tests/test_metrics_auth.py
+  tests/test_mfa_enforcement.py
+  tests/test_modules_smoke.py
+  tests/test_mv_staleness.py
+  tests/test_oauth.py
+  tests/test_offline_page.py
+  tests/test_olap_export.py
+  tests/test_ops.py
+  tests/test_orders_db_agnostic.py
+  tests/test_orders_export.py
+  tests/test_pa11y.py
+  tests/test_plugin_loader.py
+  tests/test_pwa.py
+  tests/test_query_efficiency.py
+  tests/test_queue_metrics.py
+  tests/test_rate_limiting.py
+  tests/test_raw_sql_cross_tenant.py
+  tests/test_rbac_hierarchy.py
+  tests/test_redis_failfast.py
+  tests/test_report_builder.py
+  tests/test_report_export.py
+  tests/test_reporting_tasks.py
+  tests/test_retention.py
+  tests/test_rls.py
+  tests/test_rls_access.py
+  tests/test_rotate_jwt_script.py
+  tests/test_rotate_jwt_secret_script.py
+  tests/test_service_worker_offline.py
+  tests/test_sql_parameterization.py
+  tests/test_status_page.py
+  tests/test_storage.py
+  tests/test_sw_token_sanitization.py
+  tests/test_telegram_optional.py
+  tests/test_telegram_plugin.py
+  tests/test_template_accessibility.py
+  tests/test_tender_status.py
+  tests/test_tender_workflow.py
+  tests/test_tenders_export.py
+  tests/test_traceability.py
+  tests/test_update_status.py
+  tests/test_update_status_script.py
+  tests/test_waf.py
+  tests/test_webhook_signature.py
+  tests/test_workflow_gate.py
+  tests/ui/
+    tests/ui/test_barcode_scan.py
+    tests/ui/test_dashboard_customization.py
+    tests/ui/test_inline_inventory_edit.py
+    tests/ui/test_kanban.py
+    tests/ui/test_qr_scan.py
+  tests/visual/
+    tests/visual/blank.png
+    tests/visual/dark_mode.png
+    tests/visual/inventory.png
+    tests/visual/test_dark_mode_toggle.py
+    tests/visual/test_inventory_page.py
+    tests/visual/test_layout.py
+    tests/visual/test_style_tokens.py
+translations/
+  translations/am/
+    translations/am/lc_messages/
+  translations/messages.pot
+ui-preview/
+  ui-preview/.env.example
+  ui-preview/README.md
+  ui-preview/index.html
+  ui-preview/netlify.toml
+  ui-preview/package.json
+  ui-preview/playwright.config.ts
+  ui-preview/src/
+    ui-preview/src/App.tsx
+    ui-preview/src/lib/
+    ui-preview/src/main.tsx
+  ui-preview/tests/
+    ui-preview/tests/smoke.spec.ts
+  ui-preview/tsconfig.json
+  ui-preview/vite.config.ts
+wsgi.py
+```
