@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Performance Reviews{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Performance Reviews</h1>
+    <p class="page-subtitle">Track employee performance reviews.</p>
+  </header>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Review ID</th>
+        <th>Employee</th>
+        <th>Reviewer</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for review in reviews %}
+      <tr>
+        <td>{{ review.id }}</td>
+        <td>{{ review.employee }}</td>
+        <td>{{ review.reviewer }}</td>
+        <td>{{ review.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
