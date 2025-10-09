@@ -1,16 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Verify MFA{% endblock %}
 {% block content %}
-  <h1>Verify MFA</h1>
-  <form method="post">
+  <header class="page-header">
+    <h1 class="page-title">Verify multifactor code</h1>
+    <p class="page-subtitle">Enter the code from your authenticator to continue.</p>
+  </header>
+  <form method="post" class="form-grid">
     {{ form.csrf_token }}
-    <div class="row">
-      <label>MFA Code</label>
-      {{ form.totp(maxlength="6") }}
+    <div class="form-field">
+      {{ form.totp.label(class_="form-label") }}
+      {% set totp_help_id = form.totp.id ~ '-help' %}
+      {% set totp_error_id = form.totp.id ~ '-errors' %}
+      {{ form.totp(
+        class_="form-input",
+        maxlength="6",
+        inputmode="numeric",
+        autocomplete="one-time-code",
+        placeholder="123456",
+        aria_invalid="true" if form.totp.errors else "false",
+        aria_describedby=totp_help_id ~ (" " ~ totp_error_id if form.totp.errors else ""),
+      ) }}
+      <p class="form-help" id="{{ totp_help_id }}">Codes refresh every 30 seconds.</p>
+      {% if form.totp.errors %}
+        <ul class="form-errors" id="{{ totp_error_id }}">
+          {% for error in form.totp.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
     </div>
-    <div class="row">
-      {{ form.submit(class_="btn btn--full") }}
+    <div>
+      {{ form.submit(class_="btn btn--primary btn--full") }}
     </div>
   </form>
-  <div class="links"><a href="{{ url_for('auth.choose_login') }}">Cancel</a></div>
+  <div class="links links--center">
+    <a class="link-muted" href="{{ url_for('auth.choose_login') }}">Cancel</a>
+  </div>
 {% endblock %}
