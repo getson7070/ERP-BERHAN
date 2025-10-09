@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Add Customer{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Add Customer</h1>
+    <p class="page-subtitle">Create a new customer record.</p>
+  </header>
+  <form method="post" class="form-grid">
+    {{ form.csrf_token }}
+    {% for field in form %}
+      <div class="form-field">
+        {{ field.label(class_="form-label") }}
+        {{ field(class_="form-input") }}
+        {% if field.errors %}
+          <ul class="form-errors">
+            {% for error in field.errors %}
+              <li class="form-error">{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn--primary">Submit</button>
+  </form>
+{% endblock %}
