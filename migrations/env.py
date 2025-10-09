@@ -1,11 +1,10 @@
-# migrations/env.py
 from __future__ import annotations
 from logging.config import fileConfig
 import os
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Use metadata without importing the Flask app or routes
+# Import ONLY metadata, not the Flask app/routes
 from erp.extensions import db
 
 config = context.config
