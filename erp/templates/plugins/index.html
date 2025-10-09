@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Plugins{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Installed Plugins</h1>
+    <p class="page-subtitle">Extensions currently available in your system.</p>
+  </header>
+  <ul class="list">
+    {% for plugin in plugins %}
+    <li class="list-item">{{ plugin.name }}</li>
+    {% else %}
+    <li>No plugins installed.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

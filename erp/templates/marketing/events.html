@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Marketing Events</h1>
+  <!-- Event planning form -->
+  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="title">Event Title</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="title" name="title" type="text" placeholder="Workshop, Exhibition, etc." required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="event_type">Event Type</label>
+        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="event_type" name="event_type">
+          <option value="workshop">Workshop</option>
+          <option value="exhibition">Exhibition</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="start_date">Start Date</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="start_date" name="start_date" type="date" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="end_date">End Date</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="end_date" name="end_date" type="date" required>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="description">Description</label>
+        <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="description" name="description" rows="3" placeholder="Provide details about the event" required></textarea>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Create Event
+      </button>
+    </div>
+  </form>
+  <!-- Planned and executed events table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">End</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {% for event in events %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-6 py-4 whitespace-nowrap">{{ event.title }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ event.event_type }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ event.start_date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ event.end_date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            {% if event.status == 'planned' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Planned</span>
+            {% elif event.status == 'executed' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Executed</span>
+            {% else %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-800">Unknown</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap" colspan="5">No events found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

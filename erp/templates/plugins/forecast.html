@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Forecast{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Forecast</h1>
+    <p class="page-subtitle">Statistical forecast and projections.</p>
+  </header>
+  <div class="card">
+    <p>The forecasted value is <strong>{{ forecast }}</strong>.</p>
+  </div>
+{% endblock %}

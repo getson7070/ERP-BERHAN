@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Kanban Board{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Kanban Board</h1>
+    <p class="page-subtitle">Track tasks across stages.</p>
+  </header>
+  <div class="kanban-board" style="display:flex; gap:1rem;">
+    {% for column, items in tasks.items() %}
+    <div class="kanban-column" style="flex:1;">
+      <h2 class="kanban-title">{{ column.replace('_',' ').title() }}</h2>
+      <ul class="kanban-list">
+        {% for item in items %}
+        <li class="kanban-item">{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+{% endblock %}

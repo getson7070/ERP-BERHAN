@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Reports & Analytics</h1>
+  <!-- Summary cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Sales Overview</h2>
+      <p class="text-3xl font-bold">{{ sales_total }}</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Total sales this period</p>
+    </div>
+    <div class="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Inventory Value</h2>
+      <p class="text-3xl font-bold">{{ inventory_value }}</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Current stock worth</p>
+    </div>
+    <div class="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
+      <h2 class="text-lg font-semibold mb-2">Employees</h2>
+      <p class="text-3xl font-bold">{{ employee_count }}</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Active staff members</p>
+    </div>
+  </div>
+  <!-- Charts and analytics area -->
+  <div class="bg-white dark:bg-gray-900 shadow rounded-lg p-4">
+    <h2 class="text-lg font-semibold mb-4">Performance Chart</h2>
+    <!-- Placeholder for chart; integrate with chart library if available -->
+    <div class="h-64 flex items-center justify-center text-gray-400 dark:text-gray-600">
+      <p>Chart will be displayed here</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

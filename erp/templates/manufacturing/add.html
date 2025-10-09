@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Add Job{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Add Manufacturing Job</h1>
+    <p class="page-subtitle">Enter job details.</p>
+  </header>
+  <form method="post" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+    <div class="form-field">
+      <label for="name" class="form-label">Job Name</label>
+      <input type="text" name="name" id="name" class="form-input" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Submit</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Sales Promotion Log</h1>
+  <!-- Daily log submission form -->
+  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="date">Date</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="date" name="date" type="date" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="visited_by">Visited By</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="visited_by" name="visited_by" type="text" placeholder="Sales rep/engineer" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="facility">Facility Name</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="facility" name="facility" type="text" placeholder="Facility name" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="facility_type">Facility Type</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="facility_type" name="facility_type" type="text" placeholder="Hospital, Clinic, Lab, etc." required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="product">Product of Interest</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="product" name="product" type="text" placeholder="Product name" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="contact_person">Contact Person</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="contact_person" name="contact_person" type="text" placeholder="Contact person" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="contact_number">Contact Number</label>
+        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="contact_number" name="contact_number" type="tel" placeholder="Phone number" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="status">Status</label>
+        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" id="status" name="status">
+          <option value="new">New</option>
+          <option value="follow_up">Follow Up</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Submit Log
+      </button>
+    </div>
+  </form>
+  <!-- Existing logs table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Visited By</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Facility</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Product</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {% for log in logs %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-6 py-4 whitespace-nowrap">{{ log.date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ log.visited_by }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ log.facility }} ({{ log.facility_type }})</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ log.product }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ log.contact_person }} / {{ log.contact_number }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            {% if log.status == 'new' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">New</span>
+            {% elif log.status == 'follow_up' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Follow Up</span>
+            {% else %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Closed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap" colspan="6">No logs found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

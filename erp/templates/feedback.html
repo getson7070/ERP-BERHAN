@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Feedback{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Send Feedback</h1>
+    <p class="page-subtitle">We value your feedback. Let us know what you think.</p>
+  </header>
+  <form id="feedbackForm" method="post" class="form-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+    <div class="form-field">
+      <label for="message" class="form-label">Message</label>
+      <textarea name="message" id="message" class="form-input" rows="5" required></textarea>
+    </div>
+    <button type="submit" class="btn btn--primary">Submit Feedback</button>
+  </form>
+{% endblock %}

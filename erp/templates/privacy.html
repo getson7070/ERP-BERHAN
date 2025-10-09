@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Privacy Program{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Privacy &amp; Compliance</h1>
+    <p class="page-subtitle">Overview of your organization's privacy program.</p>
+  </header>
+  <h2>Configuration</h2>
+  <table class="table">
+    <tbody>
+      <tr><th>Officer Email</th><td>{{ privacy_config.officer_email }}</td></tr>
+      <tr><th>GDPR Erasure Window (days)</th><td>{{ privacy_config.gdpr_erasure_days }}</td></tr>
+      <tr><th>GDPR Export Window (days)</th><td>{{ privacy_config.gdpr_export_days }}</td></tr>
+      <tr><th>CCPA Response Window (days)</th><td>{{ privacy_config.ccpa_window_days }}</td></tr>
+      <tr><th>Data Residency</th><td>{{ privacy_config.data_residency }}</td></tr>
+      <tr><th>Policy Version</th><td>{{ privacy_config.policy_version }}</td></tr>
+    </tbody>
+  </table>
+  <h2>Program Snapshot</h2>
+  <pre>{{ snapshot | tojson(indent=2) }}</pre>
+{% endblock %}

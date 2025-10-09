@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Inventory Out</h1>
+  <!-- Form to record inventory outflow -->
+  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="item">Item</label>
+        <select id="item" name="item" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+          {% for item in items %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+          {% endfor %}
+          <option value="other">Other (Special Order)</option>
+        </select>
+      </div>
+      <div id="other_item_name_wrapper" class="hidden">
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="other_item_name">Other Item Name</label>
+        <input id="other_item_name" name="other_item_name" type="text" placeholder="Specify item" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="quantity">Quantity Out</label>
+        <input id="quantity" name="quantity" type="number" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="reason">Reason</label>
+        <select id="reason" name="reason" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+          <option value="sale">Sale</option>
+          <option value="sample">Sample</option>
+          <option value="donation">Donation</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt-4">
+      <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="2" placeholder="Additional notes" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Record Outflow
+      </button>
+    </div>
+  </form>
+  <!-- Inventory out records table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quantity</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reason</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Notes</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {% for out in outflows %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-6 py-4 whitespace-nowrap">{{ out.date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ out.item_name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ out.quantity }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ out.reason }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ out.notes }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap" colspan="5">No outflow records found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Script to toggle the other item input when 'other' is selected -->
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const itemSelect = document.getElementById('item');
+  const otherWrapper = document.getElementById('other_item_name_wrapper');
+  itemSelect.addEventListener('change', function() {
+    if (this.value === 'other') {
+      otherWrapper.classList.remove('hidden');
+    } else {
+      otherWrapper.classList.add('hidden');
+    }
+  });
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Finance - Transactions{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Transactions</h1>
+    <p class="page-subtitle">Review and manage financial transactions.</p>
+  </header>
+  <div class="links links--right">
+    <a href="{{ url_for('finance.add_transaction') }}" class="btn btn--primary">Add Transaction</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr><th>ID</th><th>Amount</th><th>Description</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for txn in transactions %}
+      <tr><td>{{ txn.id }}</td><td>{{ txn.amount }}</td><td>{{ txn.description }}</td><td>{{ txn.status }}</td></tr>
+      {% else %}
+      <tr><td colspan="4">No transactions found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

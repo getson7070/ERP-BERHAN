@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Tenders{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Tenders</h1>
+    <p class="page-subtitle">List of all tenders.</p>
+  </header>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Type</th><th>Description</th><th>Due Date</th><th>State</th><th>Result</th><th>Awarded To</th><th>Award Date</th><th>User</th><th>Institution</th><th>Envelope</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tenders %}
+      <tr>
+        <td>{{ t.id }}</td><td>{{ t.type_name }}</td><td>{{ t.description }}</td><td>{{ t.due_date }}</td><td>{{ t.workflow_state }}</td><td>{{ t.result or '' }}</td><td>{{ t.awarded_to or '' }}</td><td>{{ t.award_date or '' }}</td><td>{{ t.username }}</td><td>{{ t.institution }}</td><td>{{ t.envelope_type }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="11">No tenders found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="pagination">
+    {% if prev_offset is not none %}
+      <a href="{{ url_for('tenders.tenders_list', offset=prev_offset, limit=limit, sort=sort, dir=direction) }}" class="btn btn--secondary">Previous</a>
+    {% endif %}
+    {% if next_offset is not none %}
+      <a href="{{ url_for('tenders.tenders_list', offset=next_offset, limit=limit, sort=sort, dir=direction) }}" class="btn btn--secondary">Next</a>
+    {% endif %}
+  </div>
+{% endblock %}

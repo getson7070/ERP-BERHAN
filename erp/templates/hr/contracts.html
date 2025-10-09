@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Employee Contracts</h1>
+  <!-- Contract management form -->
+  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="employee">Employee</label>
+        <select id="employee" name="employee" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+          {% for emp in employees %}
+          <option value="{{ emp.id }}">{{ emp.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="start_date">Start Date</label>
+        <input id="start_date" name="start_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="end_date">End Date</label>
+        <input id="end_date" name="end_date" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="position">Position</label>
+        <input id="position" name="position" type="text" placeholder="Role / Job title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="terms">Contract Terms</label>
+        <textarea id="terms" name="terms" rows="3" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" placeholder="Brief description of contract terms" required></textarea>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Save Contract
+      </button>
+    </div>
+  </form>
+  <!-- Contracts list -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Employee</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">End Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Position</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {% for contract in contracts %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-6 py-4 whitespace-nowrap">{{ contract.employee_name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ contract.start_date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ contract.end_date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ contract.position }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap" colspan="4">No contracts found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">Orders</h1>
+  <!-- Order request form -->
+  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="customer">Customer / Requester</label>
+        <select id="customer" name="customer" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+          {% for cust in customers %}
+          <option value="{{ cust.id }}">{{ cust.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="item">Item</label>
+        <select id="item" name="item" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+          {% for item in items %}
+          <option value="{{ item.id }}">{{ item.name }}</option>
+          {% endfor %}
+          <option value="other">Other (Special Order)</option>
+        </select>
+      </div>
+      <div id="other_item_wrapper" class="hidden">
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="other_item_name">Other Item Name</label>
+        <input id="other_item_name" name="other_item_name" type="text" placeholder="Specify custom item" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="quantity">Quantity</label>
+        <input id="quantity" name="quantity" type="number" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
+      </div>
+      <div>
+        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="notes">Notes</label>
+        <input id="notes" name="notes" type="text" placeholder="Any special requirements" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button class="bg-green-600 hover:bg-green-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Submit Order
+      </button>
+    </div>
+  </form>
+  <!-- Orders list -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead class="bg-gray-50 dark:bg-gray-800">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Customer</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quantity</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        {% for order in orders %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+          <td class="px-6 py-4 whitespace-nowrap">{{ order.date }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ order.customer_name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ order.item_name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ order.quantity }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            {% if order.status == 'pending' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+            {% elif order.status == 'approved' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Approved</span>
+            {% elif order.status == 'processed' %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Processed</span>
+            {% else %}
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap" colspan="5">No orders found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const itemSelect = document.getElementById('item');
+  const otherWrapper = document.getElementById('other_item_wrapper');
+  itemSelect.addEventListener('change', function() {
+    if (this.value === 'other') {
+      otherWrapper.classList.remove('hidden');
+    } else {
+      otherWrapper.classList.add('hidden');
+    }
+  });
+});
+</script>
+{% endblock %}
+{% endblock %}
