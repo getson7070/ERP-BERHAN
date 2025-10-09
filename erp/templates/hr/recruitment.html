@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Recruitment Tracker{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Recruitment pipeline</h1>
+    <p class="page-subtitle">Capture candidate submissions and track hiring momentum across open roles.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="candidate_name">Candidate</label>
+      <input id="candidate_name" name="candidate_name" class="form-input" placeholder="Candidate name" required>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="position">Position</label>
+      <input id="position" name="position" class="form-input" placeholder="Role applied for" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Log application</button>
+  </form>
+  <section class="table-section" aria-label="Recent applications">
+    <h2 class="section-title">Recent applications</h2>
+    {% if records %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Candidate</th>
+              <th scope="col">Position</th>
+              <th scope="col">Applied on</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in records %}
+              <tr>
+                <td data-title="Candidate">{{ record.candidate_name }}</td>
+                <td data-title="Position">{{ record.position }}</td>
+                <td data-title="Applied on">{{ record.applied_on.strftime('%Y-%m-%d') if record.applied_on else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">No applications captured yet. Log incoming candidates to establish the recruitment pipeline.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-section { margin-top: var(--space-xl); display: grid; gap: var(--space-md); }
+    .section-title { font-size: 1.05rem; font-weight: 600; }
+    .table-responsive { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

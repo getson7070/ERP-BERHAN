@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}HR Directory{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Employees</h1>
+    <p class="page-subtitle">Track employee records, performance, and availability across the organization.</p>
+    <div class="button-grid">
+      <a class="btn btn--secondary" href="{{ url_for('hr.add_employee') }}">Add employee</a>
+      <a class="btn btn--ghost" href="{{ url_for('hr_workflows.performance') }}">Performance reviews</a>
+      <a class="btn btn--ghost" href="{{ url_for('hr_workflows.recruitment') }}">Recruitment</a>
+    </div>
+  </header>
+  {% if employees %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for employee in employees %}
+            <tr>
+              <td data-title="ID">{{ employee.id }}</td>
+              <td data-title="Name">{{ employee.name }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No employees have been added yet. Use the add employee action to seed the directory.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-responsive { margin-top: var(--space-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { margin-top: var(--space-lg); padding: var(--space-lg); border-radius: var(--radius-md); background: var(--layer-subtle); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

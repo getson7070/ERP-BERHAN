@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Add Customer{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Add customer</h1>
+    <p class="page-subtitle">Record a new client or prospect so sales, marketing, and service teams share a single source of truth.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="name">Organization name</label>
+      <input id="name" name="name" class="form-input" placeholder="Company or facility name" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Save customer</button>
+  </form>
+  <div class="links links--center" role="navigation" aria-label="Customer actions">
+    <a class="link-muted" href="{{ url_for('crm.index') }}">Back to directory</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Kanban Board{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Kanban board</h1>
+    <p class="page-subtitle">Visualize tasks across stages to coordinate delivery.</p>
+  </header>
+  <section class="kanban" aria-label="Task lanes">
+    {% for lane, cards in tasks.items() %}
+      <article class="kanban__lane">
+        <h2 class="kanban__title">{{ lane.replace('_', ' ')|title }}</h2>
+        {% if cards %}
+          <ul class="kanban__cards">
+            {% for card in cards %}
+              <li class="kanban__card">{{ card }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="kanban__empty">No tasks in this stage.</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .kanban { display: grid; gap: var(--space-lg); margin-top: var(--space-xl); }
+    @media (min-width: 960px) { .kanban { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .kanban__lane { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); display: grid; gap: var(--space-md); }
+    .kanban__title { font-size: 1.1rem; font-weight: 600; }
+    .kanban__cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-sm); }
+    .kanban__card { background: var(--surface-card); border-radius: var(--radius-md); padding: var(--space-md); box-shadow: var(--shadow-xs); }
+    .kanban__empty { color: var(--text-muted); }
+  </style>
+{% endblock %}

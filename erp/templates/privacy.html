@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Privacy Program{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Privacy program</h1>
+    <p class="page-subtitle">Monitor compliance commitments, review schedules, and program ownership.</p>
+  </header>
+  <section class="privacy-grid">
+    <article class="privacy-card">
+      <h2 class="privacy-card__title">Framework readiness</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Framework</th>
+            <th scope="col">Status</th>
+            <th scope="col">Next target</th>
+            <th scope="col">Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for framework in snapshot.frameworks %}
+            <tr>
+              <td data-title="Framework">{{ framework.name }}</td>
+              <td data-title="Status">{{ framework.state }}</td>
+              <td data-title="Next target">{{ framework.target }}</td>
+              <td data-title="Owner">{{ framework.owner }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+    <article class="privacy-card">
+      <h2 class="privacy-card__title">Assessment summary</h2>
+      <dl class="privacy-metrics">
+        <div><dt>Total assessments</dt><dd>{{ snapshot.assessments.total }}</dd></div>
+        <div><dt>High-risk open</dt><dd>{{ snapshot.assessments.high_risk_open }}</dd></div>
+        <div><dt>Open DSRs</dt><dd>{{ snapshot.assessments.dsr_open }}</dd></div>
+        <div><dt>Warning window</dt><dd>{{ snapshot.review_warning_days }} days</dd></div>
+      </dl>
+      {% if snapshot.assessments.upcoming %}
+        <h3 class="privacy-card__subtitle">Upcoming reviews</h3>
+        <ul class="privacy-list">
+          {% for review in snapshot.assessments.upcoming %}
+            <li>
+              <strong>{{ review.feature_name }}</strong>
+              <span>due {{ review.due_date.strftime('%Y-%m-%d') }} ({{ review.days_remaining }} days)</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No reviews fall within the {{ snapshot.review_warning_days }}-day warning window.</p>
+      {% endif %}
+    </article>
+    <article class="privacy-card">
+      <h2 class="privacy-card__title">Key policies</h2>
+      <ul class="privacy-list">
+        {% for policy in snapshot.policies %}
+          <li>
+            <strong><a href="{{ policy.href }}" target="_blank" rel="noopener">{{ policy.title }}</a></strong>
+            <span>{{ policy.description }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </article>
+    <article class="privacy-card">
+      <h2 class="privacy-card__title">Program configuration</h2>
+      {% set config = privacy_config if privacy_config is mapping else privacy_config %}
+      <dl class="privacy-metrics">
+        <div><dt>Privacy officer</dt><dd>{{ config.get('officer_email') or 'Not configured' }}</dd></div>
+        <div><dt>GDPR export SLA</dt><dd>{{ config.get('gdpr_export_days') or '—' }} days</dd></div>
+        <div><dt>GDPR erasure SLA</dt><dd>{{ config.get('gdpr_erasure_days') or '—' }} days</dd></div>
+        <div><dt>CCPA response SLA</dt><dd>{{ config.get('ccpa_window_days') or '—' }} days</dd></div>
+        <div><dt>Data residency</dt><dd>{{ config.get('data_residency') or 'Not configured' }}</dd></div>
+        <div><dt>Policy version</dt><dd>{{ config.get('policy_version') or 'n/a' }}</dd></div>
+      </dl>
+    </article>
+    <article class="privacy-card">
+      <h2 class="privacy-card__title">Trust services criteria</h2>
+      <ul class="privacy-tag-list">
+        {% for criterion in snapshot.trust_service_criteria %}
+          <li>{{ criterion|title }}</li>
+        {% endfor %}
+      </ul>
+      <p class="privacy-footnote">Align each release with the appropriate trust criteria to maintain SOC 2 readiness.</p>
+    </article>
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .privacy-grid { display: grid; gap: var(--space-xl); margin-top: var(--space-xl); }
+    @media (min-width: 960px) { .privacy-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); } }
+    .privacy-card { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); display: grid; gap: var(--space-md); box-shadow: var(--shadow-xs); }
+    .privacy-card__title { font-size: 1.1rem; font-weight: 600; }
+    .privacy-card__subtitle { font-size: 1rem; font-weight: 600; margin-top: var(--space-sm); }
+    .privacy-metrics { display: grid; gap: var(--space-sm); margin: 0; }
+    .privacy-metrics div { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.95rem; }
+    .privacy-metrics dt { font-weight: 600; }
+    .privacy-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-sm); font-size: 0.95rem; }
+    .privacy-list li { display: grid; gap: var(--space-2xs); }
+    .privacy-list a { color: inherit; text-decoration: underline; }
+    .privacy-tag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+    .privacy-tag-list li { padding: var(--space-2xs) var(--space-sm); border-radius: 999px; background: var(--layer-muted); font-size: 0.9rem; text-transform: capitalize; }
+    .privacy-footnote { font-size: 0.9rem; color: var(--text-muted); }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .table th, .table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border-subtle); text-align: left; }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { color: var(--text-muted); }
+  </style>
+{% endblock %}

@@ -24,6 +24,9 @@ ARIA landmarks and `aria-current` hints target WCAG 2.1 AA compliance across tem
 Policies and procedures follow the BERHAN Pharma SOP and corporate policy (see docs/BERHAN_SOP_PACK.md).
 A high-level mapping of ERP features to corporate policy pillars is documented in [docs/CORPORATE_POLICY_ALIGNMENT.md](docs/CORPORATE_POLICY_ALIGNMENT.md).
 
+The post-audit modernization program, including security, performance, UI/UX, and data reliability upgrades, is summarized in
+[docs/system_upgrade_plan.md](docs/system_upgrade_plan.md).
+
 Structured JSON logs capture correlation IDs without blocking database writes.
 
 Third-party scripts are served from CDNs with Subresource Integrity (SRI) hashes and can be mirrored locally for offline deployments.
@@ -537,3 +540,11 @@ The September 2025 audit scored the project **8.3/10** overall and surfaced seve
 
 - All commits must be GPG-signed.
 - Pull requests require approval from owners listed in `codeowners`.
+
+> **Note on pushes from this sandbox**
+>
+> The isolated training environment used for this session has no network
+> connectivity or GitHub remotes configured. To publish the prepared commits to
+> `github.com/getson7070/ERP-BERHAN`, follow the steps in
+> [`docs/push_restrictions.md`](docs/push_restrictions.md) from a machine with
+> internet access and the appropriate credentials.

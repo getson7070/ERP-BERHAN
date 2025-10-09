@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Help Center{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Help center</h1>
+    <p class="page-subtitle">Find answers and contact details for urgent support.</p>
+  </header>
+  <section class="help-grid" aria-label="Help topics">
+    <article class="help-card">
+      <h2 class="help-card__title">Getting started</h2>
+      <p>Review the onboarding guide covering authentication, navigation, and feature access.</p>
+      <a class="btn btn--ghost" href="{{ url_for('main.dashboard') }}">Go to dashboard</a>
+    </article>
+    <article class="help-card">
+      <h2 class="help-card__title">Support contacts</h2>
+      <ul>
+        <li><strong>IT Service Desk:</strong> +251 11 000 0000</li>
+        <li><strong>Email:</strong> <a href="mailto:support@berhanpharma.com">support@berhanpharma.com</a></li>
+        <li><strong>Hours:</strong> Monday–Friday, 8:00–18:00 EAT</li>
+      </ul>
+    </article>
+    <article class="help-card">
+      <h2 class="help-card__title">Report an issue</h2>
+      <p>Log incidents or enhancement requests through the feedback form so teams can triage quickly.</p>
+      <a class="btn btn--ghost" href="{{ url_for('feedback.form') }}">Open feedback form</a>
+    </article>
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .help-grid { display: grid; gap: var(--space-lg); margin-top: var(--space-xl); }
+    @media (min-width: 960px) { .help-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .help-card { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); display: grid; gap: var(--space-md); box-shadow: var(--shadow-xs); }
+    .help-card__title { font-size: 1.1rem; font-weight: 600; }
+    .help-card ul { margin: 0; padding-left: 1.25rem; display: grid; gap: var(--space-xs); }
+  </style>
+{% endblock %}

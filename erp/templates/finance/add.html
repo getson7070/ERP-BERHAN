@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Record Finance Transaction{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Record transaction</h1>
+    <p class="page-subtitle">Log a finance entry so approvals and reconciliations stay current.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="amount">Amount</label>
+      <input id="amount" name="amount" class="form-input" type="number" step="0.01" min="0" required>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="description">Description</label>
+      <textarea id="description" name="description" rows="3" class="form-input" placeholder="Payment description" required></textarea>
+    </div>
+    <button type="submit" class="btn btn--primary">Save transaction</button>
+  </form>
+  <div class="links links--center" role="navigation" aria-label="Finance actions">
+    <a class="link-muted" href="{{ url_for('finance.index') }}">Back to ledger</a>
+  </div>
+{% endblock %}

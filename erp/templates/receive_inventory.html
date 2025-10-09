@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Receive Inventory{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Receive inventory</h1>
+    <p class="page-subtitle">Validate barcodes or QR codes before stock is booked into inventory.</p>
+  </header>
+  <section class="scanner" aria-label="Inventory verification">
+    <form class="form-grid" data-scan-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-field">
+        <label class="form-label" for="barcode">Barcode</label>
+        <input id="barcode" name="barcode" class="form-input" placeholder="Scan or enter barcode">
+      </div>
+      <button type="submit" class="btn btn--primary">Verify barcode</button>
+      <p class="form-help">Valid barcodes immediately confirm eligibility for receipt.</p>
+    </form>
+    <form class="form-grid" data-qr-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-field">
+        <label class="form-label" for="qr_data">QR Code</label>
+        <input id="qr_data" name="qr_data" class="form-input" placeholder="Scan or enter QR data">
+      </div>
+      <button type="submit" class="btn btn--secondary">Verify QR code</button>
+      <p class="form-help">Use for two-dimensional codes provided by suppliers.</p>
+    </form>
+    <div class="scan-status" role="status" aria-live="polite" data-status>Awaiting scan…</div>
+  </section>
+  <noscript>
+    <p class="noscript-banner" role="alert">Enable JavaScript to validate barcodes and QR codes automatically.</p>
+  </noscript>
+  <script>
+    (function () {
+      const csrf = '{{ csrf_token }}';
+      const status = document.querySelector('[data-status]');
+      const updateStatus = (message, variant) => {
+        if (!status) return;
+        status.textContent = message;
+        status.dataset.variant = variant || 'neutral';
+      };
+      const submitHandler = (endpoint, field) => (event) => {
+        event.preventDefault();
+        const value = field.value.trim();
+        if (!value) {
+          updateStatus('Enter a code before verifying.', 'warning');
+          field.focus();
+          return;
+        }
+        updateStatus('Verifying…', 'pending');
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+          body: JSON.stringify({ [field.name]: value })
+        })
+          .then((response) => {
+            if (!response.ok) throw new Error('Verification failed');
+            return response.json();
+          })
+          .then((data) => {
+            if (data.valid) {
+              updateStatus('Code validated successfully. You can proceed with receiving.', 'success');
+            } else {
+              updateStatus('Code not recognized. Check with procurement before booking stock.', 'error');
+            }
+          })
+          .catch(() => updateStatus('Could not verify code. Try again or contact support.', 'error'));
+      };
+      const barcodeForm = document.querySelector('[data-scan-form]');
+      const barcodeField = document.querySelector('#barcode');
+      if (barcodeForm && barcodeField) {
+        barcodeForm.addEventListener('submit', submitHandler('{{ url_for('receive_inventory.verify_barcode') }}', barcodeField));
+      }
+      const qrForm = document.querySelector('[data-qr-form]');
+      const qrField = document.querySelector('#qr_data');
+      if (qrForm && qrField) {
+        qrForm.addEventListener('submit', submitHandler('{{ url_for('receive_inventory.verify_qr') }}', qrField));
+      }
+    })();
+  </script>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .scanner { display: grid; gap: var(--space-xl); margin-top: var(--space-lg); }
+    .form-help { font-size: 0.9rem; color: var(--text-muted); }
+    .scan-status { padding: var(--space-md); border-radius: var(--radius-md); background: var(--layer-subtle); }
+    .scan-status[data-variant="success"] { background: var(--accent-success-soft); color: var(--accent-success-strong); }
+    .scan-status[data-variant="error"] { background: var(--accent-danger-soft); color: var(--accent-danger-strong); }
+    .scan-status[data-variant="warning"] { background: var(--accent-warning-soft); color: var(--accent-warning-strong); }
+    .scan-status[data-variant="pending"] { background: var(--layer-muted); color: var(--text-primary); }
+    .noscript-banner { margin-top: var(--space-lg); padding: var(--space-md); border-radius: var(--radius-md); background: var(--accent-warning-soft); color: var(--accent-warning-strong); }
+  </style>
+{% endblock %}

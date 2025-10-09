@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Installed Plugins{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Installed plugins</h1>
+    <p class="page-subtitle">Discover integrations currently loaded into the ERP instance.</p>
+    <div class="links links--center">
+      <a class="link-muted" href="{{ url_for('plugins.marketplace') }}">Browse marketplace</a>
+    </div>
+  </header>
+  {% if plugins %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Module path</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plugin in plugins %}
+            <tr>
+              <td data-title="Name">{{ plugin.name }}</td>
+              <td data-title="Module path"><code>{{ plugin.module }}</code></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No plugins detected. Deploy plugins to extend ERP functionality.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-responsive { margin-top: var(--space-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    code { font-family: var(--font-monospace); background: var(--layer-muted); padding: 0 var(--space-2xs); border-radius: var(--radius-sm); }
+    .empty-state { margin-top: var(--space-lg); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

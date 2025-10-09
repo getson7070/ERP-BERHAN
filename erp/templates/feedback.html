@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Send Feedback{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Share feedback</h1>
+    <p class="page-subtitle">Let us know what works well and what should improve.</p>
+  </header>
+  <form class="form-grid" data-feedback-form>
+    <div class="form-field">
+      <label class="form-label" for="topic">Topic</label>
+      <select id="topic" name="topic" class="form-input">
+        <option value="general">General</option>
+        <option value="bug">Bug report</option>
+        <option value="idea">Feature idea</option>
+        <option value="praise">Appreciation</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="message">Feedback</label>
+      <textarea id="message" name="message" class="form-input" rows="5" required placeholder="Share your thoughts"></textarea>
+    </div>
+    <button type="submit" class="btn btn--primary">Send feedback</button>
+    <p class="form-help">Feedback is logged for the audit trail; avoid sharing secrets.</p>
+  </form>
+  <div class="feedback-status" role="status" aria-live="polite" data-status>Awaiting submission.</div>
+  <script>
+    (function () {
+      const form = document.querySelector('[data-feedback-form]');
+      const status = document.querySelector('[data-status]');
+      const update = (message, tone) => {
+        if (!status) return;
+        status.textContent = message;
+        status.dataset.tone = tone || 'info';
+      };
+      if (!form) return;
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const data = {
+          topic: form.topic.value,
+          message: form.message.value.trim(),
+        };
+        if (!data.message) {
+          update('Please include feedback before submitting.', 'warning');
+          form.message.focus();
+          return;
+        }
+        update('Sending feedback…', 'pending');
+        fetch('{{ url_for('feedback.submit') }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        })
+          .then((response) => {
+            if (!response.ok) throw new Error('submit failed');
+            update('Thank you! Your feedback was received.', 'success');
+            form.reset();
+          })
+          .catch(() => update('Unable to submit feedback at the moment.', 'error'));
+      });
+    })();
+  </script>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .feedback-status { margin-top: var(--space-lg); padding: var(--space-md); border-radius: var(--radius-md); background: var(--layer-subtle); }
+    .feedback-status[data-tone="success"] { background: var(--accent-success-soft); color: var(--accent-success-strong); }
+    .feedback-status[data-tone="error"] { background: var(--accent-danger-soft); color: var(--accent-danger-strong); }
+    .feedback-status[data-tone="warning"] { background: var(--accent-warning-soft); color: var(--accent-warning-strong); }
+    .feedback-status[data-tone="pending"] { background: var(--layer-muted); color: var(--text-primary); }
+  </style>
+{% endblock %}
