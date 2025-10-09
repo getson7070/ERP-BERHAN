@@ -1,37 +1,20 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from .extensions import login_manager
-import os
+from .extensions import init_extensions, register_safety_login_loader, register_common_blueprints
 
-db = SQLAlchemy()
+def create_app() -> Flask:
+    app = Flask(__name__, template_folder="../templates", static_folder="../static")
 
-def create_app():
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+    # Minimal, environment-driven config. SECRET_KEY must be set in env on Render.
+    # Database & other configs are pulled by each extension from env where relevant.
+    app.config.setdefault("SECRET_KEY", "CHANGE_ME_IN_PROD")
 
-    # ---- Core config (adapt to your env) ----
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-prod")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Initialize all extensions (db, migrate, login, limiter, cache, mail, socketio, cors, etc.)
+    init_extensions(app)
 
-    # ---- Init extensions ----
-    db.init_app(app)
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"  # route endpoint name
+    # Ensure Flask-Login never crashes anonymous pages even if models aren’t imported yet
+    register_safety_login_loader()
 
-    # ---- Models must be imported after db init ----
-    from .models.user import User  # noqa: F401
-
-    # ---- Blueprints / routes ----
-    from .routes.main import bp as main_bp
-    app.register_blueprint(main_bp)
-
-    from .routes.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix="/auth")
-
-    with app.app_context():
-        # If you are on Postgres via Alembic, you can remove this create_all line.
-        # It's harmless if tables already exist.
-        db.create_all()
+    # Register only the blueprints that must be usable before auth exists
+    register_common_blueprints(app)
 
     return app
