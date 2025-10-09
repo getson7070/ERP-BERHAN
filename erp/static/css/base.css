@@ -274,6 +274,18 @@ html[data-contrast="high"] .noscript-banner {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.toolbar-note {
+  flex-basis: 100%;
+  order: 2;
+  margin: var(--space-2xs) 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  min-width: 0;
+  text-align: left;
 }
 
 .app-main {

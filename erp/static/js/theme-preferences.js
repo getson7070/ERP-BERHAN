@@ -5,6 +5,10 @@
   const dynamicThemeMeta = document.querySelector('meta[data-dynamic-theme]');
   const themeStatus = document.querySelector('[data-theme-status]');
   const contrastStatus = document.querySelector('[data-contrast-status]');
+  const contrastForcedNote = document.querySelector('[data-contrast-forced-note]');
+  const contrastDescribedBy = contrastToggle
+    ? contrastToggle.getAttribute('aria-describedby') || ''
+    : '';
   const STORAGE_KEYS = {
     theme: 'erp-ui-theme',
     contrast: 'erp-ui-contrast'
@@ -56,6 +60,29 @@
     dynamicThemeMeta.setAttribute('content', theme === 'dark' ? '#0b1120' : '#f4f7fb');
   };
 
+  const updateForcedNote = (visible) => {
+    if (contrastForcedNote) {
+      contrastForcedNote.hidden = !visible;
+    }
+    if (!contrastToggle) {
+      return;
+    }
+    if (visible) {
+      const ids = [contrastDescribedBy, contrastForcedNote ? contrastForcedNote.id : null]
+        .filter(Boolean)
+        .join(' ');
+      if (ids) {
+        contrastToggle.setAttribute('aria-describedby', ids);
+      }
+      return;
+    }
+    if (contrastDescribedBy) {
+      contrastToggle.setAttribute('aria-describedby', contrastDescribedBy);
+    } else {
+      contrastToggle.removeAttribute('aria-describedby');
+    }
+  };
+
   function updateThemeToggle(theme) {
     if (!themeToggle) return;
     const isDark = theme === 'dark';
@@ -65,6 +92,7 @@
     themeToggle.setAttribute('aria-pressed', String(isDark));
     if (label) {
       themeToggle.setAttribute('aria-label', label);
+      themeToggle.setAttribute('title', label);
     }
     if (text) {
       const textNode = themeToggle.querySelector('.toolbar-btn__text');
@@ -77,15 +105,35 @@
     }
   }
 
-  function updateContrastToggle(mode) {
+  function updateContrastToggle(mode, options = {}) {
     if (!contrastToggle) return;
     const isHigh = mode === 'high';
-    const label = isHigh ? contrastToggle.dataset.onLabel : contrastToggle.dataset.offLabel;
-    const text = isHigh ? contrastToggle.dataset.onText : contrastToggle.dataset.offText;
-    const status = isHigh ? contrastToggle.dataset.onStatus : contrastToggle.dataset.offStatus;
+    const forced = Boolean(options.forced);
+    const label = forced
+      ? contrastToggle.dataset.forcedLabel
+        || contrastToggle.dataset.onLabel
+        || contrastToggle.dataset.offLabel
+      : isHigh
+      ? contrastToggle.dataset.onLabel
+      : contrastToggle.dataset.offLabel;
+    const text = forced
+      ? contrastToggle.dataset.forcedText
+        || contrastToggle.dataset.onText
+        || contrastToggle.dataset.offText
+      : isHigh
+      ? contrastToggle.dataset.onText
+      : contrastToggle.dataset.offText;
+    const status = forced
+      ? contrastToggle.dataset.forcedStatus
+        || contrastToggle.dataset.onStatus
+        || contrastToggle.dataset.offStatus
+      : isHigh
+      ? contrastToggle.dataset.onStatus
+      : contrastToggle.dataset.offStatus;
     contrastToggle.setAttribute('aria-pressed', String(isHigh));
     if (label) {
       contrastToggle.setAttribute('aria-label', label);
+      contrastToggle.setAttribute('title', label);
     }
     if (text) {
       const textNode = contrastToggle.querySelector('.toolbar-btn__text');
@@ -95,6 +143,11 @@
     }
     if (status && contrastStatus) {
       contrastStatus.textContent = status;
+    }
+    if (forced) {
+      contrastToggle.dataset.state = 'forced';
+    } else {
+      contrastToggle.dataset.state = isHigh ? 'on' : 'off';
     }
   }
 
@@ -109,10 +162,12 @@
   }
 
   function applyContrast(mode, persist = false) {
-    if (forcedColors && forcedColors.matches) {
+    const forcedActive = Boolean(forcedColors && forcedColors.matches);
+    updateForcedNote(forcedActive);
+    if (forcedActive) {
       root.setAttribute('data-contrast', 'high');
       setToggleDisabled(contrastToggle, true);
-      updateContrastToggle('high');
+      updateContrastToggle('high', { forced: true });
       return;
     }
     const normalized = mode === 'high' ? 'high' : 'normal';

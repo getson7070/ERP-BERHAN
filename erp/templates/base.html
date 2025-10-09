@@ -81,6 +81,7 @@
           data-light-text="Light mode"
           data-light-status="Light theme enabled"
           aria-pressed="false"
+          aria-label="Switch to dark mode"
           aria-describedby="theme-preference-status"
         >
           <span class="toolbar-btn__icon" aria-hidden="true"></span>
@@ -103,7 +104,11 @@
           data-off-label="Enable high contrast"
           data-off-text="High contrast"
           data-off-status="Standard contrast mode enabled"
+          data-forced-label="High contrast managed by your system settings"
+          data-forced-text="High contrast (system)"
+          data-forced-status="High contrast is enforced by your system preferences"
           aria-pressed="false"
+          aria-label="Enable high contrast"
           aria-describedby="contrast-preference-status"
         >
           <span class="toolbar-btn__icon toolbar-btn__icon--contrast" aria-hidden="true"></span>
@@ -116,6 +121,14 @@
             role="status"
           >Standard contrast mode enabled</span>
         </button>
+        <p
+          class="toolbar-note"
+          id="contrast-forced-note"
+          data-contrast-forced-note
+          hidden
+        >
+          High contrast is currently controlled by your operating system preferences.
+        </p>
       </div>
     </div>
   </header>
