@@ -91,4 +91,20 @@ To streamline code updates from our AI-based automated agent (Codex), the reposi
 - **No secrets in code**: The agent must never output or commit secrets; credentials are injected via environment variables at runtime, and secrets are removed from logs.
 
 This section documents the additional security considerations required to allo
+
+### Sandbox Limitations & Safe Publishing Steps
+
+When using the Codex automation via the ChatGPT environment, note that these sessions run inside a network‑sandboxed environment. They do not have direct access to the internet or Git remotes, so the agent cannot push or merge commits on its own. Instead, Codex will produce patch files or repository updates for maintainers to review.
+
+To safely publish changes proposed by Codex:
+
+1. **Download the patch or file bundle** from the session and apply it to a local clone of the repository. Verify that the changes match the intended updates.
+2. **Run tests and scanners locally** (unit tests, linting, security scans) to ensure the changes do not introduce regressions or vulnerabilities.
+3. **Commit the changes using your credentials** or the dedicated `codex‑bot` machine account. Ensure the commit is signed and follows Conventional Commits.
+4. **Open a pull request** if branch protections require it, or push directly to `main` only if the automation exemption is still in effect.
+5. **Rotate any temporary tokens** used for publishing and verify that no secrets were embedded in the patches or commit history.
+
+By following these steps, maintainers can translate Codex’s suggestions into actual repository updates while respecting security policies and branch protections.
+
+
 - **Development exception**: For the active development period, the Codex automation account may bypass branch protections, status checks, and code review requirements for direct pushes, merges, and rebases. This allowance applies only to the temporary development window and must be removed once the ERP-BERHAN system is production-ready.
