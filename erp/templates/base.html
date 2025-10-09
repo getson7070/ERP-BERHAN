@@ -1,71 +1,61 @@
-{% raw %}
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>{% block title %}ERP-BERHAN{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline'; img-src 'self' data: https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'">
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900">
-  <a href="#content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-amber-200 px-3 py-1 rounded">Skip to content</a>
-
-  <header class="bg-white shadow-sm sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl bg-emerald-500"></div>
-        <span class="font-semibold">BERHAN ERP</span>
-      </div>
-
-      <nav class="flex items-center gap-4 text-sm" aria-label="Primary">
-        {% set ACL = acl or {} %}
-        {% set is_admin = (current_user.is_authenticated and (getattr(current_user,'is_admin', False) or ('admin' in (getattr(current_user,'roles',[]) or [])))) %}
-
-        {% macro nav_item(label, path, show=True) -%}
-          {% if show %}<a href="{{ path }}" class="hover:underline">{{ label }}</a>{% endif %}
-        {%- endmacro %}
-
-        {{ nav_item('Home', '/', True) }}
-        {{ nav_item('Tenders', '/tenders', ACL.get('tenders') or is_admin) }}
-        {{ nav_item('Orders', '/orders', ACL.get('orders') or is_admin) }}
-        {{ nav_item('Inventory', '/inventory', ACL.get('inventory') or is_admin) }}
-        {{ nav_item('Marketing', '/marketing', ACL.get('marketing') or is_admin) }}
-        {{ nav_item('HR', '/hr', ACL.get('hr') or is_admin) }}
-        {{ nav_item('Maintenance', '/maintenance', ACL.get('maintenance') or is_admin) }}
-        {{ nav_item('My profile', '/profile', current_user.is_authenticated) }}
-        {{ nav_item('Admin Panel', '/admin', ACL.get('admin') or is_admin) }}
-        {{ nav_item('Help', '/help', True) }}
-      </nav>
+<header class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl bg-emerald-500"></div>
+      <span class="font-semibold">BERHAN ERP</span>
     </div>
-  </header>
+    <nav class="flex items-center gap-4 text-sm" aria-label="Primary">
+      {% set ACL = acl or {} %}
+      {% set is_admin = (current_user.is_authenticated and (getattr(current_user,'is_admin', False) or ('admin' in (getattr(current_user,'roles',[]) or [])))) %}
+      {% macro nav_item(label, path, show=True) -%}
+        {% if show %}<a href="{{ path }}" class="hover:underline">{{ label }}</a>{% endif %}
+      {%- endmacro %}
+      {{ nav_item('Home', '/', True) }}
+      {{ nav_item('Tenders', '/tenders', ACL.get('tenders') or is_admin) }}
+      {{ nav_item('Orders', '/orders', ACL.get('orders') or is_admin) }}
+      {{ nav_item('Inventory', '/inventory', ACL.get('inventory') or is_admin) }}
+      {{ nav_item('Marketing', '/crm', ACL.get('marketing') or is_admin) }}
+      {{ nav_item('HR', '/hr', ACL.get('hr') or is_admin) }}
+      {{ nav_item('Maintenance', '/kanban', ACL.get('maintenance') or is_admin) }}
+      {{ nav_item('My profile', '/auth/login', not current_user.is_authenticated) }}
+      {{ nav_item('Admin Panel', '/admin', ACL.get('admin') or is_admin) }}
+      {{ nav_item('Help', '/help', True) }}
+    </nav>
+  </div>
+</header>
 
-  <main id="content" class="max-w-7xl mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-4">{% block header %}{% endblock %}</h1>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="space-y-2 mb-4" role="status" aria-live="polite">
-          {% for cat, msg in messages %}
-            <div class="px-3 py-2 rounded text-sm {{ 'bg-emerald-100 text-emerald-900' if cat=='success' else 'bg-red-100 text-red-900' }}">{{ msg }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="border-t bg-white mt-8">
-    <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-600 flex items-center justify-between">
-      <span>© {{ (now() if now else "") or "" }} BERHAN PHARMA PLC</span>
-      <div class="flex gap-4">
-        <a href="/privacy" class="hover:underline">Privacy</a>
-        <a href="/help" class="hover:underline">Help</a>
-        <a href="/feedback" class="hover:underline">Feedback</a>
+<main class="max-w-7xl mx-auto px-4 py-6">
+  <h1 class="text-2xl font-bold mb-4">{% block header %}{% endblock %}</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="space-y-2 mb-4" role="status" aria-live="polite">
+        {% for cat, msg in messages %}
+          <div class="px-3 py-2 rounded text-sm {{ 'bg-emerald-100 text-emerald-900' if cat=='success' else 'bg-red-100 text-red-900' }}">{{ msg }}</div>
+        {% endfor %}
       </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="border-t bg-white mt-8">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-600 flex items-center justify-between">
+    <span>© BERHAN PHARMA PLC</span>
+    <div class="flex gap-4">
+      <a href="/privacy" class="hover:underline">Privacy</a>
+      <a href="/help" class="hover:underline">Help</a>
+      <a href="/feedback" class="hover:underline">Feedback</a>
     </div>
-  </footer>
+  </div>
+</footer>
 </body>
 </html>
-{% endraw %}
