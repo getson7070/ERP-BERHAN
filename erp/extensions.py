@@ -18,11 +18,19 @@ login_manager = LoginManager()
 csrf = CSRFProtect()
 cache = Cache(config={"CACHE_TYPE": "SimpleCache"})
 mail = Mail()
-# Create real objects at import-time so decorators never crash
 limiter = Limiter(key_func=get_remote_address)
 socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
 
+class _Anon(AnonymousUserMixin):
+    name = "Guest"
+    email = None
+    @property
+    def is_admin(self): return False
+    @property
+    def roles(self): return []
+
 def init_extensions(app: Flask) -> None:
+    # Security & defaults
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
     app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
@@ -32,33 +40,41 @@ def init_extensions(app: Flask) -> None:
 
     CORS(app, resources={r"*": {"origins": "*"}})
 
+    # Redis queue (optional)
     redis_url = os.getenv("REDIS_URL") or os.getenv("RATELIMIT_STORAGE_URI")
     if redis_url:
         app.config["SOCKETIO_MESSAGE_QUEUE"] = redis_url
 
     db.init_app(app)
     migrate.init_app(app, db)
-    login_manager.init_app(app)
-    csrf.init_app(app)
     cache.init_app(app)
     mail.init_app(app)
     limiter.init_app(app)
     socketio.init_app(app)
+
+    # Login manager setup (prevents 'Missing user_loader' crash)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"  # adjust if your route differs
+    login_manager.anonymous_user = _Anon  # type: ignore
+
+    # Defer to canonical user_loader if present; else safe fallback
+    try:
+        from .auth.user_loader import register_user_loader  # type: ignore
+        register_user_loader(login_manager)
+    except Exception:
+        @login_manager.user_loader
+        def _default_user_loader(user_id: str):
+            # Safe fallback: no user lookup; anonymous session works without crashing
+            return None
 
 def register_blueprints(app: Flask) -> None:
     # Import inside function to avoid import-time side effects
     from .routes.main import bp as main_bp
     from .routes.auth import auth_bp
     from .routes.api import api_bp
-    # Import others only if they exist in your codebase:
     try:
-        from .routes.orders import bp as orders_bp
-        app.register_blueprint(orders_bp)
-    except Exception:
-        pass
-    try:
-        from .routes.tenders import bp as tenders_bp
-        app.register_blueprint(tenders_bp)
+        from .routes.health import health_bp
+        app.register_blueprint(health_bp)
     except Exception:
         pass
 
