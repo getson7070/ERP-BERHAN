@@ -1,12 +1,8 @@
-# wsgi.py
-# Important: eventlet must be monkey-patched BEFORE importing anything that might use stdlib concurrency.
+# >>> MUST be first line when using eventlet workers <<<
 import eventlet
 eventlet.monkey_patch()
 
-from erp.app import create_app
+from erp import create_app
 
+# Gunicorn will import "wsgi:app"
 app = create_app()
-
-if __name__ == "__main__":
-    # For local dev only; Render uses gunicorn
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
