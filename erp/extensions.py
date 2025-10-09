@@ -1,12 +1,8 @@
+# erp/extensions.py
 """
-Centralized extension instances and safe init sequence.
-
-Why this matters:
-- Flask-Login injects `current_user` via a context processor on every render.
-  If no loader is registered at request time, it raises and 500s.
-- We register a no-op `user_loader` early so anonymous pages (e.g., /choose_login)
-  never crash, even before the real User model is imported/migrated.
-- Later, your real `@login_manager.user_loader` can override this stub.
+Centralize extension instances and app wiring.
+- Provides a safety Flask-Login loader so public pages never 500.
+- Registers all UI blueprints (fixes /auth/login 404).
 """
 
 from __future__ import annotations
@@ -15,64 +11,74 @@ from typing import Optional, Callable
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, AnonymousUserMixin
 from flask_migrate import Migrate
+from flask_login import LoginManager, AnonymousUserMixin
+from flask_wtf.csrf import CSRFProtect
+from flask_cors import CORS
+from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_caching import Cache
 from flask_mail import Mail
-from flask_cors import CORS
 from flask_socketio import SocketIO
 
-# ---- Instances (no app bound yet) ----
+# ----- Extension instances -----
 db = SQLAlchemy(session_options={"autoflush": False})
 migrate = Migrate()
 login_manager = LoginManager()
-cache = Cache()
-mail = Mail()
+csrf = CSRFProtect()
 cors = CORS()
-socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")  # Render eventlet workers
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+mail = Mail()
+cache = Cache(config={"CACHE_TYPE": "SimpleCache"})  # swap to Redis in prod
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")  # tighten in prod
 
-# internal flag to avoid double-binding the safety loader
+# Limiter (use Redis in prod)
+def _limiter_factory(app: Flask):
+    storage_uri = os.getenv("LIMITER_STORAGE_URI")  # e.g. redis://:pass@host:port/0
+    if storage_uri:
+        return Limiter(key_func=get_remote_address, storage_uri=storage_uri)
+    # in-memory warning is acceptable for dev
+    return Limiter(key_func=get_remote_address)
+
+limiter: Optional[Limiter] = None
+
 __safety_loader_bound = False
 
+
 def init_extensions(app: Flask) -> None:
-    # Database URL: e.g., postgres on Render; fall back to local sqlite if unset
-    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.getenv("DATABASE_URL", "sqlite:///app.db"))
+    global limiter
+
+    # Database URI from env (Render Postgres)
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.getenv("DATABASE_URL", "sqlite:///local.db"))
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
 
-    # Cache (simple backend by default; swap to Redis when you scale multiple instances)
-    app.config.setdefault("CACHE_TYPE", os.getenv("CACHE_TYPE", "SimpleCache"))
-    app.config.setdefault("CACHE_DEFAULT_TIMEOUT", int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300")))
+    # Mail (optional)
+    app.config.setdefault("MAIL_DEFAULT_SENDER", os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com"))
 
-    # Mail (kept inert unless configured)
-    app.config.setdefault("MAIL_SERVER", os.getenv("MAIL_SERVER", "localhost"))
-    app.config.setdefault("MAIL_PORT", int(os.getenv("MAIL_PORT", "25")))
-    app.config.setdefault("MAIL_USE_TLS", os.getenv("MAIL_USE_TLS", "0") == "1")
-    app.config.setdefault("MAIL_USERNAME", os.getenv("MAIL_USERNAME"))
-    app.config.setdefault("MAIL_PASSWORD", os.getenv("MAIL_PASSWORD"))
-    app.config.setdefault("MAIL_DEFAULT_SENDER", os.getenv("MAIL_DEFAULT_SENDER"))
-
-    # Rate limiting
-    app.config.setdefault("RATELIMIT_ENABLED", os.getenv("RATELIMIT_ENABLED", "1") == "1")
-
-    # Init in dependency-safe order
     db.init_app(app)
     migrate.init_app(app, db)
+
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+
+    csrf.init_app(app)
+    cors.init_app(app, resources={r"/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
+
     cache.init_app(app)
     mail.init_app(app)
-    cors.init_app(app)
+
+    limiter = _limiter_factory(app)
     limiter.init_app(app)
-    login_manager.init_app(app)
+
     socketio.init_app(app)
 
-    # Keep login view optional (don’t break anonymous pages)
-    login_manager.login_view = os.getenv("LOGIN_VIEW", "auth.login")
-
-    # Anonymous user class (optional, but explicit is nice)
     class _Anon(AnonymousUserMixin):
-        role = "anonymous"
+        @property
+        def is_admin(self): return False
+        @property
+        def roles(self): return []
+        name = "Guest"
+        email = None
+
     login_manager.anonymous_user = _Anon
 
 
@@ -80,7 +86,7 @@ def register_safety_login_loader() -> None:
     """
     Register a no-op user_loader so templates can always access `current_user`
     without Flask-Login raising "Missing user_loader or request_loader".
-    Your real loader can later re-register and override this safely.
+    Your real loader (once your User model is ready) can override this safely.
     """
     global __safety_loader_bound
     if __safety_loader_bound:
@@ -88,13 +94,67 @@ def register_safety_login_loader() -> None:
 
     @login_manager.user_loader
     def _safe_loader(_user_id: str):
-        # Return None → current_user becomes Anonymous; no exception is raised.
-        return None
+        return None  # Anonymous
 
     __safety_loader_bound = True
 
 
 def register_common_blueprints(app: Flask) -> None:
-    # Only import here to avoid circulars during init
+    """
+    Register all UI/API blueprints that exist in erp/routes/.
+    This fixes 404s like /auth/login and ensures the nav works.
+    """
+    # Import locally to avoid circular imports
     from .routes.main import bp as main_bp
+    from .routes.auth import auth_bp
+    from .routes.orders import bp as orders_bp
+    from .routes.tenders import bp as tenders_bp
+    from .routes.inventory import bp as inventory_bp
+    from .routes.receive_inventory import bp as receive_inventory_bp
+    from .routes.procurement import bp as procurement_bp
+    from .routes.finance import bp as finance_bp
+    from .routes.hr import bp as hr_bp
+    from .routes.hr_workflows import hr_workflows_bp
+    from .routes.projects import bp as projects_bp
+    from .routes.manufacturing import bp as manufacturing_bp
+    from .routes.plugins import bp as plugins_bp
+    from .routes.crm import bp as crm_bp
+    from .routes.report_builder import reports_bp
+    from .routes.dashboard_customize import bp as dashboard_customize_bp
+    from .routes.kanban import bp as kanban_bp
+    from .routes.admin import bp as admin_bp
+    from .routes.help import bp as help_bp
+    from .routes.privacy import bp as privacy_bp
+    from .routes.feedback import bp as feedback_bp
+    from .routes.api import api_bp
+    from .routes.webhooks import bp as webhooks_bp
+
+    # Public first, then the rest
     app.register_blueprint(main_bp)
+    app.register_blueprint(help_bp)
+    app.register_blueprint(privacy_bp)
+
+    # Auth
+    app.register_blueprint(auth_bp)
+
+    # Core modules
+    app.register_blueprint(orders_bp)
+    app.register_blueprint(tenders_bp)
+    app.register_blueprint(inventory_bp)
+    app.register_blueprint(receive_inventory_bp)
+    app.register_blueprint(procurement_bp)
+    app.register_blueprint(finance_bp)
+    app.register_blueprint(hr_bp)
+    app.register_blueprint(hr_workflows_bp)
+    app.register_blueprint(projects_bp)
+    app.register_blueprint(manufacturing_bp)
+    app.register_blueprint(plugins_bp)
+    app.register_blueprint(crm_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(dashboard_customize_bp)
+    app.register_blueprint(kanban_bp)
+    app.register_blueprint(admin_bp)
+
+    # API/Webhooks last
+    app.register_blueprint(api_bp)
+    app.register_blueprint(webhooks_bp)
