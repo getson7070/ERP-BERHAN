@@ -1,0 +1,40 @@
+{% raw %}
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block header %}Home{% endblock %}
+{% block content %}
+{% set ACL = acl or {} %}
+{% set is_admin = (current_user.is_authenticated and (getattr(current_user,'is_admin', False) or ('admin' in (getattr(current_user,'roles',[]) or [])))) %}
+
+<section class="grid md:grid-cols-3 gap-4" aria-label="Main Modules">
+  {% macro card(label, desc, path, show) -%}
+    {% if show %}
+    <a href="{{ path }}" class="rounded bg-white p-4 border hover:shadow focus:outline-none focus:ring-2 focus:ring-emerald-500" aria-label="Open {{ label }}">
+      <div class="text-lg font-semibold">{{ label }}</div>
+      <p class="text-sm text-gray-600 mt-1">{{ desc }}</p>
+    </a>
+    {% endif %}
+  {%- endmacro %}
+
+  {{ card('Tenders', 'Register, track, and report tenders.', '/tenders', ACL.get('tenders') or is_admin) }}
+  {{ card('Orders', 'Submit, review, and escalate orders.', '/orders', ACL.get('orders') or is_admin) }}
+  {{ card('Inventory', 'Stock levels and receipts.', '/inventory', ACL.get('inventory') or is_admin) }}
+  {{ card('Marketing', 'Campaigns, leads, and analytics.', '/marketing', ACL.get('marketing') or is_admin) }}
+  {{ card('HR', 'Onboarding, performance, recruitment.', '/hr', ACL.get('hr') or is_admin) }}
+  {{ card('Maintenance', 'Work orders and preventive plans.', '/maintenance', ACL.get('maintenance') or is_admin) }}
+  {{ card('My Profile', 'Personal info and preferences.', '/profile', current_user.is_authenticated) }}
+  {{ card('Admin Panel', 'Workflows and governance.', '/admin', ACL.get('admin') or is_admin) }}
+</section>
+
+<section class="mt-6 grid md:grid-cols-3 gap-4" aria-label="At a glance">
+  {% for kpi in (kpis or []) %}
+  <div class="rounded bg-white p-4 shadow-sm">
+    <div class="text-sm text-gray-500">{{ kpi.label }}</div>
+    <div class="text-2xl font-semibold">{{ kpi.value }}</div>
+  </div>
+  {% else %}
+  <div class="md:col-span-3 p-4 text-center text-gray-500 bg-white rounded border">Welcome! Select a module to begin.</div>
+  {% endfor %}
+</section>
+{% endblock %}
+{% endraw %}
