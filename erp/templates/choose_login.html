@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Choose Login{% endblock %}
 {% block content %}
-  <h1>Choose Login</h1>
-  <p class="muted">Pick the portal you want to access.</p>
-  <div class="button-grid u-mt-md">
-    <a class="btn" href="{{ url_for('auth.login', role='admin') }}">Admin</a>
-    <a class="btn" href="{{ url_for('auth.login', role='employee') }}">Employee</a>
-    <a class="btn" href="{{ url_for('auth.login', role='client') }}">Client</a>
-  </div>
+  <header class="page-header">
+    <h1 class="page-title">Choose your workspace</h1>
+    <p class="page-subtitle">Pick the portal that matches your role.</p>
+  </header>
+  <nav class="button-grid" aria-label="Select a role to sign in">
+    <a class="btn btn--surface" href="{{ url_for('auth.login', role='admin') }}">Admin</a>
+    <a class="btn btn--surface" href="{{ url_for('auth.login', role='employee') }}">Employee</a>
+    <a class="btn btn--surface" href="{{ url_for('auth.login', role='client') }}">Client</a>
+  </nav>
 {% endblock %}
