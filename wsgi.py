@@ -1,6 +1,5 @@
-# wsgi.py
 import eventlet
-eventlet.monkey_patch()  # must be first
+eventlet.monkey_patch()
 
-from erp import create_app
+from erp import create_app  # canonical factory
 app = create_app()

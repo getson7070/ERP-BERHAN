@@ -1,6 +1,8 @@
-import os
-bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
-worker_class = "eventlet"   # matches SocketIO async_mode
-workers = 1                 # scale via instances, not threads
+workers = 1
+worker_class = "eventlet"
+threads = 1
+preload_app = False
+bind = "0.0.0.0:10000"
 timeout = 120
-graceful_timeout = 30
+graceful_timeout = 120
+loglevel = "info"
