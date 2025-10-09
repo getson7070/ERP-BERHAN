@@ -42,7 +42,14 @@ def login_post():
         flash("Invalid credentials.", "error")
         return render_template("auth/login.html", role=role), 401
 
-    login_user(user)
+    
+        # Check MFA token if enabled
+    if getattr(user, "mfa_enabled", False):
+        token = request.form.get("token", "").replace(" ", "")
+        if not token or not user.verify_mfa(token):
+            flash("Invalid authentication token.", "error")
+            return render_template("auth/login.html", role=role), 401
+login_user(user)
     flash("Welcome back!", "success")
     return redirect(url_for("main.choose_login"))
 
