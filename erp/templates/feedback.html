@@ -6,6 +6,7 @@
     <p class="page-subtitle">Let us know what works well and what should improve.</p>
   </header>
   <form class="form-grid" data-feedback-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-field">
       <label class="form-label" for="topic">Topic</label>
       <select id="topic" name="topic" class="form-input">
@@ -26,6 +27,7 @@
   <script>
     (function () {
       const form = document.querySelector('[data-feedback-form]');
+      const csrf = '{{ csrf_token }}';
       const status = document.querySelector('[data-status]');
       const update = (message, tone) => {
         if (!status) return;
@@ -49,6 +51,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrf,
           },
           body: JSON.stringify(data),
         })
