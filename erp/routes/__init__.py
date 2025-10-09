@@ -1,3 +1,2 @@
-# erp/routes/__init__.py
-# Keep empty to avoid importing submodules at package import time.
+# Keep empty to avoid import-time side effects (no submodule imports here)
 __all__ = []
