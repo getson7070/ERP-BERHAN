@@ -1,0 +1,27 @@
+{% raw %}
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+{% block header %}My Profile{% endblock %}
+{% block content %}
+<div class="grid md:grid-cols-2 gap-6">
+  <section class="rounded bg-white p-4 border" aria-label="Identity">
+    <h2 class="font-medium mb-2">Identity</h2>
+    <dl class="text-sm grid grid-cols-3 gap-2">
+      <dt class="text-gray-600">Name</dt><dd class="col-span-2">{{ current_user.name if current_user.is_authenticated else '-' }}</dd>
+      <dt class="text-gray-600">Email</dt><dd class="col-span-2">{{ current_user.email if current_user.is_authenticated else '-' }}</dd>
+      <dt class="text-gray-600">Roles</dt><dd class="col-span-2">{{ (current_user.roles|join(', ')) if (current_user.is_authenticated and current_user.roles) else '-' }}</dd>
+    </dl>
+  </section>
+  <section class="rounded bg-white p-4 border" aria-label="Preferences">
+    <h2 class="font-medium mb-2">Preferences</h2>
+    <form method="post" action="/profile/preferences" class="space-y-3">
+      <div class="flex items-center gap-2">
+        <input id="dark" name="dark" type="checkbox" class="rounded" />
+        <label for="dark" class="text-sm">Dark Mode</label>
+      </div>
+      <button class="px-3 py-2 rounded bg-emerald-600 text-white">Save</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+{% endraw %}
