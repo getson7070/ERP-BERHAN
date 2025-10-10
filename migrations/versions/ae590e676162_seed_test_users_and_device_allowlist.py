@@ -1,7 +1,7 @@
 """seed test users and device allowlist
 
 Revision ID: ae590e676162
-Revises:
+Revises: cf161230ed7f
 Create Date: 2025-10-10 10:32:00.000000
 """
 from __future__ import annotations
