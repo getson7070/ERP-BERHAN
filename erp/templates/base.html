@@ -6,11 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>{% block title %}Berhan ERP{% endblock %}</title>
     <link rel="stylesheet" href="{{ brand_css }}">
+    <!-- Use the logo as favicon too (stops /favicon.ico 404s) -->
+    <link rel="icon" href="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
   </head>
   <body>
     <header class="site-header">
       <a class="brand" href="{{ url_for('main.choose_login') }}">
-        <img src="{{ url_for('static', filename='pictures/berhan-pharma-logo.jpg') }}" alt="Berhan Pharma" class="brand-logo">
+        <img
+          id="brandLogo"
+          src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}"
+          alt="Berhan Pharma"
+          class="brand-logo">
         <span class="brand-name">Berhan Pharma ERP</span>
       </a>
       <nav class="site-nav">
@@ -26,7 +32,27 @@
     </main>
 
     <footer class="site-footer">
-      <small>&copy; {{  now().year if false else "" }} Berhan Pharma</small>
+      <small>&copy; Berhan Pharma</small>
     </footer>
+
+    <!-- Gentle runtime fallback: if the new path ever 404s, try the old common names -->
+    <script>
+      (function () {
+        const img = document.getElementById('brandLogo');
+        if (!img) return;
+        let tried = 0;
+        const fallbacks = [
+          "{{ url_for('static', filename='pictures/berhan-pharma-logo.jpg') }}",
+          "{{ url_for('static', filename='Pictures/BERHAN%20PHARMA%20LOGO.jpg') }}"
+        ];
+        img.addEventListener('error', function onErr() {
+          if (tried < fallbacks.length) {
+            img.src = fallbacks[tried++];
+          } else {
+            img.removeEventListener('error', onErr);
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
