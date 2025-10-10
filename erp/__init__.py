@@ -3,107 +3,70 @@ from __future__ import annotations
 
 import os
 from flask import Flask, render_template
+from flask_cors import CORS
 from .extensions import (
     db,
     migrate,
-    csrf,
     login_manager,
-    limiter,
     cache,
     mail,
+    limiter,
     socketio,
-    cors,
 )
+# IMPORTANT: this repo has security_shim, not security.device
+from .security_shim import read_device_id, compute_activation_for_device  # noqa: F401
+
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    # ------------------------------
-    # Core config
-    # ------------------------------
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me")
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        os.getenv("SQLALCHEMY_DATABASE_URI")
-        or os.getenv("DATABASE_URL")
-        or "sqlite:///app.db"
-    )
+    # --- Config (Render env already provides these) ---
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "dev-secret")
+    app.config["WTF_CSRF_SECRET_KEY"] = os.environ.get("WTF_CSRF_SECRET_KEY", "dev-csrf")
+    app.config["CACHE_TYPE"] = os.environ.get("CACHE_TYPE", "SimpleCache")
+    app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.environ.get("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # Mail
-    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
-    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
-    app.config["MAIL_USE_SSL"] = os.getenv("MAIL_USE_SSL", "false").lower() == "true"
-    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
-    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
+    cors_origins = os.environ.get("CORS_ORIGINS", "*")
+    CORS(app, resources={r"/*": {"origins": cors_origins}})
 
-    # CORS
-    origins = os.getenv("CORS_ORIGINS")
-    if origins:
-        cors.init_app(app, resources={r"/*": {"origins": [o.strip() for o in origins.split(",")]}})
-    else:
-        cors.init_app(app)
-
-    # Cache
-    app.config["CACHE_TYPE"] = os.getenv("CACHE_TYPE", "SimpleCache")
-    app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
-
-    # ------------------------------
-    # Flask-Limiter v3.x configuration
-    # Configure via app.config, then call limiter.init_app(app)
-    # ------------------------------
-    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("FLASK_LIMITER_STORAGE_URI") or os.getenv("RATELIMIT_STORAGE_URI") or "memory://"
-    # Optional: default rate limits (semicolon or comma separated)
-    default_limits = os.getenv("DEFAULT_RATE_LIMITS")
-    if default_limits:
-        # Flask-Limiter v3 accepts a string or list; keep the string.
-        app.config["RATELIMIT_DEFAULT"] = default_limits
-
-    # ------------------------------
-    # Init extensions
-    # ------------------------------
+    # --- Init extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
-    csrf.init_app(app)
     cache.init_app(app)
     mail.init_app(app)
-    socketio.init_app(app, async_mode="eventlet")
-    limiter.init_app(app)  # <-- no storage_uri kwarg here
 
-    # ------------------------------
-    # Flask-Login
-    # ------------------------------
+    # Limiter 3.x: no storage_uri kw here; honor DEFAULT_RATE_LIMITS env
+    default_limits = [x.strip() for x in os.environ.get("DEFAULT_RATE_LIMITS", "").split(";") if x.strip()]
+    limiter.init_app(app, default_limits=default_limits or None)
+
+    # Socket.IO (eventlet workers on Render)
+    socketio.init_app(app, cors_allowed_origins=cors_origins)
+
+    # --- Login manager user_loader ---
     from .models import User  # local import to avoid circulars
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        try:
-            return User.query.get(int(user_id))
-        except Exception:
-            return None
+        return User.query.get(int(user_id))
 
-    # ------------------------------
-    # Blueprints
-    # ------------------------------
+    login_manager.login_view = "auth.login"
+
+    # --- Blueprints ---
     from .routes.main import main_bp
     from .routes.auth import bp as auth_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
 
-    # ------------------------------
-    # Error pages
-    # ------------------------------
-    @app.errorhandler(500)
-    def server_error(_e):
-        return render_template("errors/500.html"), 500
-
+    # --- Error handlers (keep them template-safe even if login context exists) ---
     @app.errorhandler(404)
-    def not_found(_e):
+    def not_found(_):
         return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(_):
+        return render_template("errors/500.html"), 500
 
     return app
