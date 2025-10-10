@@ -41,3 +41,4 @@ rich==13.9.4
 prometheus-client==0.20.0
 Flask-Mail==0.9.1
 PyJWT==2.10.1
+cryptography==43.0.1
