@@ -2,39 +2,31 @@
 from __future__ import annotations
 
 import os
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
+from sqlalchemy.engine import Engine
 from alembic import context
 
-# Alembic Config object
+# ---------------------------------------------------------
+# We do NOT import your Flask app or routes here.
+# We keep migrations independent of app imports.
+# ---------------------------------------------------------
+
 config = context.config
 
-# Interpret the config file for Python logging.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
-# --- Database URL: prefer SQLALCHEMY_DATABASE_URI, fall back to DATABASE_URL
+# Build the DB URL from env. Prefer SQLALCHEMY_DATABASE_URI, else DATABASE_URL
 db_url = (
-    os.getenv("SQLALCHEMY_DATABASE_URI")
-    or os.getenv("DATABASE_URL")
+    os.environ.get("SQLALCHEMY_DATABASE_URI")
+    or os.environ.get("DATABASE_URL")
 )
 if not db_url:
-    raise RuntimeError(
-        "No database URL provided. Set SQLALCHEMY_DATABASE_URI or DATABASE_URL."
-    )
+    raise RuntimeError("No database URL provided. Set SQLALCHEMY_DATABASE_URI or DATABASE_URL.")
+
+# Inject URL into Alembic config (so script location etc. still works)
 config.set_main_option("sqlalchemy.url", db_url)
 
-# --- Target metadata
-# Try to import metadata with minimal side-effects. If import fails or pulls in app code,
-# we fall back to None (no autogenerate).
+# If you ever need model metadata for autogenerate, import and set it here.
+# For now, set to None (we're using explicit SQL in versions).
 target_metadata = None
-try:
-    # If you have a models module that defines `db` or `Base`, you can use it here:
-    # from erp.extensions import db
-    # target_metadata = db.metadata
-    pass
-except Exception:
-    target_metadata = None
 
 
 def run_migrations_offline() -> None:
@@ -47,7 +39,6 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
-        include_schemas=True,
     )
 
     with context.begin_transaction():
@@ -55,11 +46,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
+    """Run migrations in 'online' mode'."""
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
-        poolclass=pool.NullPool,  # safe for one-off CLI runs
+        poolclass=pool.NullPool,
+        url=db_url,
     )
 
     with connectable.connect() as connection:
@@ -68,7 +60,6 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
-            include_schemas=True,
         )
 
         with context.begin_transaction():
