@@ -19,10 +19,7 @@ depends_on = None
 
 
 def _ensure_column(table: str, col: str, ddl_to_add: str) -> None:
-    """Create a column if it doesn't exist.
-
-    ddl_to_add must be the TYPE + constraints, e.g. "BOOLEAN NOT NULL DEFAULT TRUE".
-    """
+    """Create a column if it doesn't exist (Postgres)."""
     op.execute(
         f"""
         DO $$
@@ -43,26 +40,16 @@ def _ensure_column(table: str, col: str, ddl_to_add: str) -> None:
 def _ensure_default_and_not_null(
     table: str, col: str, default_sql: str, fill_value_sql: str
 ) -> None:
-    """
-    Ensure a column has a DEFAULT and is NOT NULL.
-
-    default_sql:   e.g. "FALSE" or "0" or "'client'"
-    fill_value_sql same literal to fill existing NULLs.
-    """
-    # Set DEFAULT (if column exists)
+    """Ensure a column has DEFAULT + NOT NULL and fix existing NULLs."""
     op.execute(f"ALTER TABLE {table} ALTER COLUMN {col} SET DEFAULT {default_sql};")
-    # Normalize existing NULLs
     op.execute(f"UPDATE {table} SET {col} = {fill_value_sql} WHERE {col} IS NULL;")
-    # Enforce NOT NULL
     op.execute(f"ALTER TABLE {table} ALTER COLUMN {col} SET NOT NULL;")
 
 
 def upgrade() -> None:
     conn = op.get_bind()
 
-    # ----------------------------------------------------------------------
-    # Ensure required columns/tables exist and have safe defaults
-    # ----------------------------------------------------------------------
+    # --- Users columns (idempotent hardening) --------------------------------
     _ensure_column("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE")
     _ensure_column("users", "role", "VARCHAR(50) NOT NULL DEFAULT 'client'")
     _ensure_column("users", "user_type", "VARCHAR(50) NOT NULL DEFAULT 'client'")
@@ -70,7 +57,6 @@ def upgrade() -> None:
     _ensure_column("users", "failed_login_attempts", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column("users", "is_locked", "BOOLEAN NOT NULL DEFAULT FALSE")
 
-    # If columns already existed but without DEFAULT/NOT NULL, fix that now.
     _ensure_default_and_not_null("users", "is_active", "TRUE", "TRUE")
     _ensure_default_and_not_null("users", "role", "'client'", "'client'")
     _ensure_default_and_not_null("users", "user_type", "'client'", "'client'")
@@ -78,27 +64,63 @@ def upgrade() -> None:
     _ensure_default_and_not_null("users", "failed_login_attempts", "0", "0")
     _ensure_default_and_not_null("users", "is_locked", "FALSE", "FALSE")
 
-    # device_authorizations (per-user allowlist)
+    # --- Device allowlist table (idempotent create / normalize) --------------
+    # Use IF NOT EXISTS to avoid DuplicateTable, and then ensure constraints exist.
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS device_authorizations (
             id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL,
             device_id VARCHAR(128) NOT NULL,
             allowed BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            UNIQUE (user_id, device_id)
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         """
     )
+    # Make sure device_id is VARCHAR(128) even if an older table was created differently.
+    op.execute("ALTER TABLE device_authorizations ALTER COLUMN device_id TYPE VARCHAR(128);")
 
-    # ----------------------------------------------------------------------
-    # Seed test users with explicit values for NOT NULL columns
-    # ----------------------------------------------------------------------
+    # Unique constraint on (user_id, device_id)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                  FROM pg_constraint
+                 WHERE conname = 'uq_device_authorizations_user_device'
+            ) THEN
+                ALTER TABLE device_authorizations
+                ADD CONSTRAINT uq_device_authorizations_user_device
+                UNIQUE (user_id, device_id);
+            END IF;
+        END$$;
+        """
+    )
+
+    # Foreign key to users(id)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                  FROM pg_constraint
+                 WHERE conname = 'fk_device_authorizations_user'
+            ) THEN
+                ALTER TABLE device_authorizations
+                ADD CONSTRAINT fk_device_authorizations_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+            END IF;
+        END$$;
+        """
+    )
+
+    # --- Seed users -----------------------------------------------------------
     users = [
-        ("client@local",    "client",   "client",   "client123",   False, 0, False),
-        ("admin@local",     "admin",    "admin",    "admin123",    False, 0, False),
-        ("employee1@local", "employee", "employee", "employee123", False, 0, False),
+        ("client@local",    "client",   "client",   "client123",    False, 0, False),
+        ("admin@local",     "admin",    "admin",    "admin123",     False, 0, False),
+        ("employee1@local", "employee", "employee", "employee123",  False, 0, False),
     ]
 
     upsert_user_sql = text(
@@ -140,9 +162,7 @@ def upgrade() -> None:
         )
         email_to_id[email] = res.scalar()
 
-    # ----------------------------------------------------------------------
-    # Seed device allowlist
-    # ----------------------------------------------------------------------
+    # --- Seed device allowlist ------------------------------------------------
     win_pc = "FEDC930F-8533-44C7-8A27-4753FE57DAB8"  # Windows PC
     android_serial = "53995/04QU01214"               # Android tablet serial
 
@@ -163,15 +183,15 @@ def upgrade() -> None:
     employee_id = email_to_id.get("employee1@local")
     if employee_id:
         conn.execute(upsert_device_sql, {"user_id": employee_id, "device_id": win_pc})
-        # (Leave Android admin-only.)
+        # Android is admin-only; skip for employee.
 
-    # Client login is public (no device row needed).
+    # Client login is public; no device row needed.
 
 
 def downgrade() -> None:
     conn = op.get_bind()
 
-    # Remove seeded devices
+    # Remove seeded device rows (safe even if not present)
     conn.execute(
         text(
             """
@@ -184,7 +204,7 @@ def downgrade() -> None:
         )
     )
 
-    # Remove seeded users (only test accounts)
+    # Remove seeded users (only the test accounts)
     conn.execute(
         text(
             """
@@ -194,4 +214,4 @@ def downgrade() -> None:
         )
     )
 
-    # Keep structure changes to avoid breaking real data.
+    # Keep structural changes to avoid data loss in production.
