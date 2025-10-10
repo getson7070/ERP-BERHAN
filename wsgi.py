@@ -1,8 +1,9 @@
-import eventlet
-eventlet.monkey_patch()
+# wsgi.py
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except Exception:
+    pass
 
 from erp import create_app
 app = create_app()
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
