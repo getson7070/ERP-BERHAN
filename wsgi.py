@@ -1,11 +1,9 @@
-*** a/wsgi.py
---- b/wsgi.py
-@@
--# entrypoint for gunicorn
--from erp.app import app
-+# IMPORTANT: Patch before importing anything that uses sockets/threads
-+import eventlet
-+eventlet.monkey_patch()
-+
-+# entrypoint for gunicorn
-+from erp.app import app
+# wsgi.py
+import eventlet
+eventlet.monkey_patch()
+
+from erp import create_app
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
