@@ -1,5 +1,6 @@
 # erp/__init__.py
 from __future__ import annotations
+
 import os
 from flask import Flask, render_template
 from .extensions import (
@@ -17,10 +18,15 @@ from .extensions import (
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    # ---- Core config ----
+    # ------------------------------
+    # Core config
+    # ------------------------------
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "change-me")
+
     app.config["SQLALCHEMY_DATABASE_URI"] = (
-        os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL") or "sqlite:///app.db"
+        os.getenv("SQLALCHEMY_DATABASE_URI")
+        or os.getenv("DATABASE_URL")
+        or "sqlite:///app.db"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -44,20 +50,32 @@ def create_app() -> Flask:
     app.config["CACHE_TYPE"] = os.getenv("CACHE_TYPE", "SimpleCache")
     app.config["CACHE_DEFAULT_TIMEOUT"] = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
 
-    # Limiter
-    limiter_storage = os.getenv("FLASK_LIMITER_STORAGE_URI", "memory://")
-    limiter.init_app(app, storage_uri=limiter_storage)
+    # ------------------------------
+    # Flask-Limiter v3.x configuration
+    # Configure via app.config, then call limiter.init_app(app)
+    # ------------------------------
+    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("FLASK_LIMITER_STORAGE_URI") or os.getenv("RATELIMIT_STORAGE_URI") or "memory://"
+    # Optional: default rate limits (semicolon or comma separated)
+    default_limits = os.getenv("DEFAULT_RATE_LIMITS")
+    if default_limits:
+        # Flask-Limiter v3 accepts a string or list; keep the string.
+        app.config["RATELIMIT_DEFAULT"] = default_limits
 
-    # ---- Init extensions ----
+    # ------------------------------
+    # Init extensions
+    # ------------------------------
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
     cache.init_app(app)
     mail.init_app(app)
     socketio.init_app(app, async_mode="eventlet")
+    limiter.init_app(app)  # <-- no storage_uri kwarg here
 
-    # ---- Flask-Login ----
-    from .models import User  # local import to avoid circular
+    # ------------------------------
+    # Flask-Login
+    # ------------------------------
+    from .models import User  # local import to avoid circulars
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
@@ -68,14 +86,18 @@ def create_app() -> Flask:
         except Exception:
             return None
 
-    # ---- Blueprints ----
+    # ------------------------------
+    # Blueprints
+    # ------------------------------
     from .routes.main import main_bp
     from .routes.auth import bp as auth_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
 
-    # ---- Error pages ----
+    # ------------------------------
+    # Error pages
+    # ------------------------------
     @app.errorhandler(500)
     def server_error(_e):
         return render_template("errors/500.html"), 500
