@@ -1,71 +1,49 @@
-# migrations/env.py
 from __future__ import annotations
 from logging.config import fileConfig
 import os
-
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Use your Flask app's metadata
-from erp.app import create_app
+# Import ONLY metadata, not the Flask app/routes
 from erp.extensions import db
 
 config = context.config
 
-# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Build app to access models/metadata
-app = create_app()
 target_metadata = db.metadata
 
-# Prefer env DATABASE_URL; fall back to SQLALCHEMY_DATABASE_URI
-db_url = (
-    os.getenv("DATABASE_URL")
-    or os.getenv("SQLALCHEMY_DATABASE_URI")
-    or app.config.get("SQLALCHEMY_DATABASE_URI")
-)
+def get_url():
+    return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 
 def run_migrations_offline():
-    url = db_url
-    if not url:
-        raise SystemExit("DATABASE_URL/SQLALCHEMY_DATABASE_URI not set for offline migrations.")
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
         compare_type=True,
     )
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online():
-    if not db_url:
-        raise SystemExit("DATABASE_URL/SQLALCHEMY_DATABASE_URI not set for online migrations.")
-
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = db_url
-
+    configuration = config.get_section(config.config_ini_section) or {}
+    configuration["sqlalchemy.url"] = get_url()
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        future=True,
     )
-
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
         )
-
         with context.begin_transaction():
             context.run_migrations()
-
 
 if context.is_offline_mode():
     run_migrations_offline()

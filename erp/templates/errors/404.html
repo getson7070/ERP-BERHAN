@@ -1,16 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Page not found{% endblock %}
-{% block card_class %} card--wide card--center{% endblock %}
+{% block title %}Access denied · BERHAN ERP{% endblock %}
 {% block content %}
-  <section class="empty-state" aria-labelledby="error-404-title">
-    <div class="empty-state__icon" aria-hidden="true">404</div>
-    <h1 class="empty-state__headline" id="error-404-title">We couldn’t find that page</h1>
-    <p class="empty-state__body">
-      The resource you’re trying to reach may have moved, been removed, or the URL might be incorrect.
-    </p>
-    <div class="empty-state__actions">
-      <a class="btn btn--primary" href="{{ url_for('main.choose_login') }}">Go to workspace chooser</a>
-      <a class="btn btn--surface" href="{{ url_for('main.healthz') }}">View system health</a>
-    </div>
-  </section>
+<div class="max-w-lg mx-auto text-center bg-white rounded-2xl border shadow-soft p-8">
+  <h1 class="text-2xl font-semibold text-brand mb-2">403 — Access denied</h1>
+  <p class="text-gray-600">You’re not allowed to access this area.</p>
+</div>
 {% endblock %}
