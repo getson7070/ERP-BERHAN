@@ -1,28 +1,25 @@
 # erp/routes/main.py
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for
 
-main = Blueprint("main", __name__)
+bp = Blueprint("main", __name__)
 
-@main.route("/")
+@bp.route("/")
 def index():
+    # Only "client" login is public; show the chooser page with guarded tiles.
     return render_template("choose_login.html")
 
-@main.route("/choose_login")
+@bp.route("/choose_login")
 def choose_login():
     return render_template("choose_login.html")
 
-@main.route("/help")
+@bp.route("/help")
 def help_page():
-    return render_template("info/help.html")
+    return render_template("static_pages/help.html")
 
-@main.route("/privacy")
+@bp.route("/privacy")
 def privacy_page():
-    return render_template("info/privacy.html")
+    return render_template("static_pages/privacy.html")
 
-@main.route("/feedback")
+@bp.route("/feedback")
 def feedback_page():
-    return render_template("info/feedback.html")
-
-@main.route("/health")
-def health():
-    return {"status": "ok"}, 200
+    return render_template("static_pages/feedback.html")
