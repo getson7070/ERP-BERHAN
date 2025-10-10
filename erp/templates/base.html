@@ -1,61 +1,77 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>{% block title %}ERP-BERHAN{% endblock %}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BERHAN ERP{% endblock %}</title>
+
+  <!-- Tailwind CDN + brand config -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#237B4D',     /* Berhan green */
+            brandDark: '#1A5C3A',
+            brandLight: '#E6F3EC'
+          },
+          boxShadow: {
+            soft: '0 8px 24px rgba(0,0,0,0.06)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="icon" href="{{ url_for('static', filename='img/berhan_logo.jpg') }}">
+  {% block head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900">
-<header class="bg-white shadow-sm">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-xl bg-emerald-500"></div>
-      <span class="font-semibold">BERHAN ERP</span>
-    </div>
-    <nav class="flex items-center gap-4 text-sm" aria-label="Primary">
-      {% set ACL = acl or {} %}
-      {% set is_admin = (current_user.is_authenticated and (getattr(current_user,'is_admin', False) or ('admin' in (getattr(current_user,'roles',[]) or [])))) %}
-      {% macro nav_item(label, path, show=True) -%}
-        {% if show %}<a href="{{ path }}" class="hover:underline">{{ label }}</a>{% endif %}
-      {%- endmacro %}
-      {{ nav_item('Home', '/', True) }}
-      {{ nav_item('Tenders', '/tenders', ACL.get('tenders') or is_admin) }}
-      {{ nav_item('Orders', '/orders', ACL.get('orders') or is_admin) }}
-      {{ nav_item('Inventory', '/inventory', ACL.get('inventory') or is_admin) }}
-      {{ nav_item('Marketing', '/crm', ACL.get('marketing') or is_admin) }}
-      {{ nav_item('HR', '/hr', ACL.get('hr') or is_admin) }}
-      {{ nav_item('Maintenance', '/kanban', ACL.get('maintenance') or is_admin) }}
-      {{ nav_item('My profile', '/auth/login', not current_user.is_authenticated) }}
-      {{ nav_item('Admin Panel', '/admin', ACL.get('admin') or is_admin) }}
-      {{ nav_item('Help', '/help', True) }}
-    </nav>
-  </div>
-</header>
+<body class="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
 
-<main class="max-w-7xl mx-auto px-4 py-6">
-  <h1 class="text-2xl font-bold mb-4">{% block header %}{% endblock %}</h1>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="space-y-2 mb-4" role="status" aria-live="polite">
-        {% for cat, msg in messages %}
-          <div class="px-3 py-2 rounded text-sm {{ 'bg-emerald-100 text-emerald-900' if cat=='success' else 'bg-red-100 text-red-900' }}">{{ msg }}</div>
-        {% endfor %}
+  <!-- Header -->
+  <header class="bg-brand text-white">
+    <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-4">
+      <a href="{{ url_for('main.index') }}" class="flex items-center gap-3">
+        <img class="h-9 w-auto rounded" src="{{ url_for('static', filename='img/berhan_logo.jpg') }}" alt="Berhan Pharma logo">
+        <span class="text-lg font-semibold tracking-tight">BERHAN ERP</span>
+      </a>
+
+      <nav class="ml-auto flex items-center gap-6 text-sm">
+        <a class="hover:underline" href="{{ url_for('main.index') }}">Home</a>
+
+        {% if current_user.is_authenticated %}
+          <a class="hover:underline" href="{{ url_for('auth.login', role=current_user.role) }}">My profile</a>
+          <a class="hover:underline opacity-70 pointer-events-none" href="#">Logout</a>
+          <!-- Replace the above href with your real logout route if present -->
+        {% else %}
+          <a class="hover:underline" href="{{ url_for('main.choose_login') }}">Login</a>
+        {% endif %}
+
+        <a class="hover:underline" href="{{ url_for('main.help_page') }}">Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1">
+    <div class="mx-auto max-w-7xl px-4 py-8">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t bg-brandLight">
+    <div class="mx-auto max-w-7xl px-4 py-6 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-700">
+      <p>© BERHAN PHARMA PLC</p>
+      <div class="flex gap-4">
+        <a class="hover:underline" href="{{ url_for('main.privacy_page') }}">Privacy</a>
+        <a class="hover:underline" href="{{ url_for('main.help_page') }}">Help</a>
+        <a class="hover:underline" href="{{ url_for('main.feedback_page') }}">Feedback</a>
       </div>
-    {% endif %}
-  {% endwith %}
-  {% block content %}{% endblock %}
-</main>
-
-<footer class="border-t bg-white mt-8">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-600 flex items-center justify-between">
-    <span>© BERHAN PHARMA PLC</span>
-    <div class="flex gap-4">
-      <a href="/privacy" class="hover:underline">Privacy</a>
-      <a href="/help" class="hover:underline">Help</a>
-      <a href="/feedback" class="hover:underline">Feedback</a>
     </div>
-  </div>
-</footer>
+  </footer>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>
