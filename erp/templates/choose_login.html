@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Choose Login · Berhan ERP{% endblock %}
 {% block content %}
-<section class="card">
-  <h1 class="mb">Sign in</h1>
-  <div class="login-grid">
-    <a class="login-tile" href="{{ url_for('auth.login', role='client') }}">
-      <h2>Client</h2><p>Access client portal</p>
-    </a>
-    <div class="login-tile disabled" title="Restricted: ask admin for access">
-      <h2>Employee</h2><p>Internal users only</p>
-    </div>
-    <div class="login-tile disabled" title="Restricted: ask admin for access">
-      <h2>Admin</h2><p>Internal users only</p>
-    </div>
+<section class="login-grid">
+  <!-- Client is public -->
+  <a class="login-tile" href="{{ url_for('auth.login', role='client') }}">
+    <h3>Client Portal</h3>
+    <p>Order status, invoices, and more.</p>
+  </a>
+
+  <!-- Guarded tiles (disabled for anonymous users per your requirement) -->
+  <div class="login-tile disabled" aria-disabled="true" title="Staff-only">
+    <h3>Employee Login</h3>
+    <p>Restricted</p>
   </div>
-  <p class="muted">Only <strong>Client</strong> login is publicly accessible.</p>
+  <div class="login-tile disabled" aria-disabled="true" title="Admin-only">
+    <h3>Admin Login</h3>
+    <p>Restricted</p>
+  </div>
 </section>
 {% endblock %}
