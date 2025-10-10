@@ -1,121 +1,163 @@
 """seed test users and device allowlist
 
 Revision ID: ae590e676162
-Revises: cf161230ed7f   # <- keep as your current head
-Create Date: 2025-10-10
+Revises: cf161230ed7f
+Create Date: 2025-10-10 10:25:00
 """
+from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import text
+from sqlalchemy.sql import text
 
+# -----------------------------------------------------------------------------
+# Alembic identifiers
+# -----------------------------------------------------------------------------
 revision = "ae590e676162"
 down_revision = "cf161230ed7f"
 branch_labels = None
 depends_on = None
 
-TEST_DEVICE = "FEDC930F-8533-44C7-8A27-4753FE57DAB8"
+# -----------------------------------------------------------------------------
+# --- schema knobs ---
+#
+# If your "users" table uses different column names,
+# adjust these names to match your schema.
+# -----------------------------------------------------------------------------
+USERS_TABLE = "users"
+USER_EMAIL_COL = "email"
+USER_ROLE_COL = "role"
+USER_PWHASH_COL = "password_hash"
+USER_ISACTIVE_COL = "is_active"
 
-# Werkzeug-compatible password hashes
-HASH_CLIENT   = "pbkdf2:sha256:260000$1715242873b8c9d7adb7957596dd42f2$235387770d194bfc97cc67bbe2e5eb428e5d27bbe2b126cfaeb2aa72475fe89b"   # client123
-HASH_ADMIN    = "pbkdf2:sha256:260000$e354db7490032ee3169fe8b6f582f638$f90b68317c206a14735960b59ff4e9c3cf9d28f82df12f61f9f9ce72cf331a3b"   # admin123
-HASH_EMPLOYEE = "pbkdf2:sha256:260000$7a1672e2f443088bcfd0e814ea068583$03b63084592392cdfd5b6de62c2a02b08a66482ccf6a0f27a1c17e4c1a1c6b9a"   # employee123
+DEV_AUTH_TABLE = "device_authorizations"
+DEV_DEVICE_COL = "device_id"
+DEV_USERID_COL = "user_id"
+DEV_ROLE_COL = "role"
+DEV_ALLOWED_COL = "allowed"
 
-def _ensure_device_table():
-    bind = op.get_bind()
-    insp = sa.inspect(bind)
-    if "device_authorizations" in insp.get_table_names():
-        return
-    op.create_table(
-        "device_authorizations",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("device_id", sa.String(length=64), nullable=False, index=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("allowed", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.text("now()")),
-        sa.UniqueConstraint("device_id", "user_id", name="uq_device_user"),
+# Test users (email, role, plain_password)
+TEST_USERS = [
+    ("client@local", "client", "client123"),
+    ("employee1@local", "employee", "employee123"),
+    ("admin@local", "admin", "admin123"),
+]
+
+# Devices to allow for 'admin' (enables all tiles in your gating logic)
+ADMIN_DEVICES = [
+    "FEDC930F-8533-44C7-8A27-4753FE57DAB8",  # your Windows PC
+    "53995/04QU01214",                       # your Xiaomi tablet (serial)
+]
+
+
+def _hash_password(plain: str) -> str:
+    """
+    Generate a PBKDF2-SHA256 hash using Werkzeug (present in your requirements).
+    We do it inside the migration so secrets are never stored in plain text.
+    """
+    try:
+        from werkzeug.security import generate_password_hash
+
+        return generate_password_hash(plain)  # defaults PBKDF2:sha256
+    except Exception:
+        # Fallback to a deterministic (but still salted) hash if Werkzeug isn't importable
+        # (shouldn't happen on Render given your requirements).
+        import hashlib, os, base64
+
+        salt = base64.b64encode(os.urandom(16)).decode("utf-8")
+        return f"sha256${salt}${hashlib.sha256((salt + plain).encode()).hexdigest()}"
+
+
+def upgrade() -> None:
+    conn = op.get_bind()
+
+    # -------------------------------------------------------------------------
+    # 1) Seed / upsert users
+    # -------------------------------------------------------------------------
+    upsert_user_sql = text(
+        f"""
+        INSERT INTO {USERS_TABLE} ({USER_EMAIL_COL}, {USER_ROLE_COL}, {USER_PWHASH_COL}, {USER_ISACTIVE_COL})
+        VALUES (:email, :role, :pwhash, TRUE)
+        ON CONFLICT ({USER_EMAIL_COL})
+        DO UPDATE SET
+            {USER_ROLE_COL} = EXCLUDED.{USER_ROLE_COL},
+            {USER_PWHASH_COL} = EXCLUDED.{USER_PWHASH_COL},
+            {USER_ISACTIVE_COL} = TRUE
+        """
     )
 
-def _col_exists(table_cols, name):
-    return any(c["name"] == name for c in table_cols)
+    for email, role, plain_pwd in TEST_USERS:
+        conn.execute(
+            upsert_user_sql,
+            {"email": email.lower(), "role": role, "pwhash": _hash_password(plain_pwd)},
+        )
 
-def upgrade():
-    bind = op.get_bind()
-    _ensure_device_table()
-
-    # Discover user table shape
-    insp = sa.inspect(bind)
-    user_cols = insp.get_columns("users")
-    has_email = _col_exists(user_cols, "email")
-    has_username = _col_exists(user_cols, "username")
-    has_role = _col_exists(user_cols, "role")
-    has_is_active = _col_exists(user_cols, "is_active")
-    has_password_hash = _col_exists(user_cols, "password_hash")
-
-    if not has_password_hash:
-        # Try common alternative name
-        has_password = _col_exists(user_cols, "password")
-        pw_field = "password" if has_password else "password_hash"
-    else:
-        pw_field = "password_hash"
-
-    # Build rows matching your request (username must be exactly as asked)
-    rows = [
-        dict(username="client",    email="client@seed.local",    role="client",    pwh=HASH_CLIENT),
-        dict(username="admin",     email="admin@seed.local",     role="admin",     pwh=HASH_ADMIN),
-        dict(username="employee1", email="employee1@seed.local", role="employee",  pwh=HASH_EMPLOYEE),
-    ]
-
-    for r in rows:
-        # Decide identifier: prefer username if column exists; else use email
-        ident_field = "username" if has_username else ("email" if has_email else None)
-        if ident_field is None:
-            raise RuntimeError("users table has neither 'username' nor 'email'")
-
-        ident_value = r[ident_field]
-
-        # Prepare insert/update column list safely
-        cols = []
-        vals = {}
-        if has_username:   cols.append("username");   vals["username"] = r["username"]
-        if has_email:      cols.append("email");      vals["email"]    = r["email"]
-        if has_role:       cols.append("role");       vals["role"]     = r["role"]
-        if has_is_active:  cols.append("is_active");  vals["is_active"]= True
-        cols.append(pw_field);                        vals[pw_field]   = r["pwh"]
-
-        # Build INSERT ... ON CONFLICT by whichever identifier we have
-        insert_cols = ", ".join(cols + ["created_at"])
-        insert_vals = ", ".join([f":{c}" for c in cols] + ["now()"])
-        set_clause = ", ".join([f"{c}=EXCLUDED.{c}" for c in cols])
-
-        sql = f"""
-        INSERT INTO users ({insert_cols})
-        VALUES ({insert_vals})
-        ON CONFLICT ({ident_field}) DO UPDATE
-        SET {set_clause}
+    # -------------------------------------------------------------------------
+    # 2) Global device allowlist (role='admin' means show all tiles on device)
+    #    We store as a "global" device rule by keeping user_id NULL.
+    #    If your table has a UNIQUE constraint on (device_id, role) or
+    #    (device_id, user_id, role), the ON CONFLICT below will keep this idempotent.
+    # -------------------------------------------------------------------------
+    # Figure out which unique constraint exists; we try the common (device_id, role).
+    # If your table is different, adjust ON CONFLICT accordingly.
+    allow_sql = text(
+        f"""
+        INSERT INTO {DEV_AUTH_TABLE} ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL}, {DEV_ALLOWED_COL})
+        VALUES (:device, NULL, 'admin', TRUE)
+        ON CONFLICT ({DEV_DEVICE_COL}, {DEV_ROLE_COL})
+        DO UPDATE SET {DEV_ALLOWED_COL} = TRUE
         """
-        bind.execute(text(sql), vals)
+    )
 
-    # Fetch ids
-    id_rows = bind.execute(text("""
-        SELECT id, COALESCE(username, email) AS ident
-        FROM users
-        WHERE (username IN ('client','admin','employee1')
-               OR email IN ('client@seed.local','admin@seed.local','employee1@seed.local'))
-    """)).mappings().all()
+    for device in ADMIN_DEVICES:
+        conn.execute(allow_sql, {"device": device})
 
-    # Upsert device allow rules
-    for rec in id_rows:
-        bind.execute(text("""
-            INSERT INTO device_authorizations (device_id, user_id, allowed, created_at)
-            VALUES (:device_id, :user_id, true, now())
-            ON CONFLICT ON CONSTRAINT uq_device_user DO UPDATE
-            SET allowed = true
-        """), dict(device_id=TEST_DEVICE, user_id=rec["id"]))
+    # -------------------------------------------------------------------------
+    # 3) (Optional) also map each device to the concrete admin user,
+    #    in case your app checks per-user device rows first.
+    # -------------------------------------------------------------------------
+    admin_id = conn.execute(
+        text(
+            f"SELECT id FROM {USERS_TABLE} WHERE {USER_EMAIL_COL} = :email LIMIT 1"
+        ),
+        {"email": "admin@local"},
+    ).scalar()
 
-def downgrade():
-    # Keep users; dropping allow-list table only if it exists
-    bind = op.get_bind()
-    insp = sa.inspect(bind)
-    if "device_authorizations" in insp.get_table_names():
-        op.drop_table("device_authorizations")
+    if admin_id is not None:
+        allow_per_user_sql = text(
+            f"""
+            INSERT INTO {DEV_AUTH_TABLE} ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL}, {DEV_ALLOWED_COL})
+            VALUES (:device, :uid, 'admin', TRUE)
+            ON CONFLICT ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL})
+            DO UPDATE SET {DEV_ALLOWED_COL} = TRUE
+            """
+        )
+        for device in ADMIN_DEVICES:
+            conn.execute(allow_per_user_sql, {"device": device, "uid": admin_id})
+
+
+def downgrade() -> None:
+    conn = op.get_bind()
+
+    # Remove device allowlist rows we added
+    conn.execute(
+        text(
+            f"""
+            DELETE FROM {DEV_AUTH_TABLE}
+            WHERE {DEV_DEVICE_COL} = ANY(:devices)
+              AND ({DEV_ROLE_COL} = 'admin')
+            """
+        ),
+        {"devices": ADMIN_DEVICES},
+    )
+
+    # Remove the test users (in case you want to roll back cleanly)
+    conn.execute(
+        text(
+            f"""
+            DELETE FROM {USERS_TABLE}
+            WHERE {USER_EMAIL_COL} = ANY(:emails)
+            """
+        ),
+        {"emails": [u[0] for u in TEST_USERS]},
+    )
