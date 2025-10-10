@@ -1,11 +1,13 @@
 # erp/routes/auth.py
 from flask import Blueprint, request, render_template, redirect, url_for, flash
 from flask_login import login_user
-from ..models import User, DeviceAuthorization, Role
+from ..models import User, DeviceAuthorization
 from ..extensions import db
-from erp.security.device import read_device_id  # <--- from package
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+def get_device_id_from_request():
+    return request.args.get("device") or request.headers.get("X-Device-Id")
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -15,14 +17,14 @@ def login():
 
     email = (request.form.get("email") or "").strip().lower()
     password = request.form.get("password") or ""
-    device_id = read_device_id(request)
+    device_id = get_device_id_from_request()
 
     user = User.query.filter_by(email=email, role=role, is_active=True).first()
     if not user or not user.check_password(password):
         flash("Invalid credentials", "error")
         return render_template("auth/login.html", role=role), 401
 
-    if role in ("employee", "admin") and device_id:
+    if device_id and role in ("employee", "admin"):
         allowed = DeviceAuthorization.query.filter_by(
             user_id=user.id, device_id=device_id, allowed=True
         ).first()
