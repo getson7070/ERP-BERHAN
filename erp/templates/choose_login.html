@@ -1,32 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Choose Login · BERHAN ERP{% endblock %}
+{% block title %}Choose Login · Berhan ERP{% endblock %}
 
 {% block content %}
-<section class="text-center mb-8">
-  <h1 class="text-2xl font-semibold text-brand">Choose your workspace</h1>
-  <p class="text-gray-600">Pick the portal that matches your role.</p>
+<section class="card">
+  <h1 class="h">Choose login</h1>
+  <p class="muted">Select which portal to access.</p>
+
+  <div class="grid">
+    <!-- Client: always public -->
+    <a class="btn primary" href="{{ url_for('auth.login', role='client') }}">Client Login</a>
+
+    <!-- Employee: only when authenticated (guarded in route) -->
+    {% if show_employee %}
+      <a class="btn" href="{{ url_for('auth.login', role='employee') }}">Employee Login</a>
+    {% else %}
+      <button class="btn disabled" title="Restricted">Employee Login</button>
+    {% endif %}
+
+    <!-- Admin: only when authenticated (guarded in route) -->
+    {% if show_admin %}
+      <a class="btn" href="{{ url_for('auth.login', role='admin') }}">Admin Login</a>
+    {% else %}
+      <button class="btn disabled" title="Restricted">Admin Login</button>
+    {% endif %}
+  </div>
 </section>
-
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto">
-  <!-- Client (public) -->
-  <a href="{{ url_for('auth.login', role='client') }}"
-     class="rounded-2xl border bg-white p-6 shadow-soft hover:shadow-md transition">
-    <h3 class="text-brand font-semibold text-lg mb-1">Client</h3>
-    <p class="text-sm text-gray-600">Place and track orders, view invoices.</p>
-  </a>
-
-  {% if current_user.is_authenticated and current_user.role in ['admin','employee'] %}
-    <a href="{{ url_for('auth.login', role='employee') }}"
-       class="rounded-2xl border bg-white p-6 shadow-soft">
-      <h3 class="text-brand font-semibold text-lg mb-1">Employee</h3>
-      <p class="text-sm text-gray-600">Internal portal.</p>
-    </a>
-
-    <a href="{{ url_for('auth.login', role='admin') }}"
-       class="rounded-2xl border bg-white p-6 shadow-soft">
-      <h3 class="text-brand font-semibold text-lg mb-1">Admin</h3>
-      <p class="text-sm text-gray-600">Administration console.</p>
-    </a>
-  {% endif %}
-</div>
 {% endblock %}
