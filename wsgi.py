@@ -1,11 +1,14 @@
-# wsgi.py
+import os
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch()  # must be first if you're using Socket.IO with eventlet
 
 from erp import create_app
+
 app = create_app()
 
 if __name__ == "__main__":
-    # For local debugging only
-    from erp.extensions import socketio
-    socketio.run(app, host="0.0.0.0", port=5000)
+    # Never hardcode port on Render; use $PORT
+    port = int(os.environ.get("PORT", 8000))
+    # Use a simple dev server only when running locally
+    from werkzeug.serving import run_simple
+    run_simple("0.0.0.0", port, app, use_reloader=False)
