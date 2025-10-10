@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Manufacturing Jobs{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Manufacturing queue</h1>
+    <p class="page-subtitle">View work orders currently scheduled across production lines.</p>
+    <div class="button-grid">
+      <a class="btn btn--secondary" href="{{ url_for('manufacturing.add_job') }}">Add job</a>
+    </div>
+  </header>
+  {% if jobs %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Job</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+            <tr>
+              <td data-title="ID">{{ job.id }}</td>
+              <td data-title="Job">{{ job.name }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No manufacturing jobs queued.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-responsive { margin-top: var(--space-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { margin-top: var(--space-lg); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

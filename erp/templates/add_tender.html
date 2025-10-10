@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Register Tender{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Register a new tender</h1>
+    <p class="page-subtitle">Capture key tender details so the lifecycle remains auditable from registration to award.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="form-field">
+      {{ form.tender_type_id.label(class_="form-label") }}
+      {{ form.tender_type_id(class_="form-input", aria_describedby="tender-type-help") }}
+      <p class="form-help" id="tender-type-help">Select the tender channel (paper, EGP, or online) that best matches the opportunity.</p>
+      {% if form.tender_type_id.errors %}
+        <ul class="form-errors" id="{{ form.tender_type_id.id }}-errors">
+          {% for error in form.tender_type_id.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.description.label(class_="form-label") }}
+      {{ form.description(class_="form-input", placeholder="Equipment supply for Addis clinic") }}
+      {% if form.description.errors %}
+        <ul class="form-errors" id="{{ form.description.id }}-errors">
+          {% for error in form.description.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.due_date.label(class_="form-label") }}
+      {{ form.due_date(class_="form-input", type="date") }}
+      {% if form.due_date.errors %}
+        <ul class="form-errors" id="{{ form.due_date.id }}-errors">
+          {% for error in form.due_date.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.institution.label(class_="form-label") }}
+      {{ form.institution(class_="form-input", placeholder="Institution or client name") }}
+    </div>
+    <div class="form-field">
+      {{ form.envelope_type.label(class_="form-label") }}
+      {{ form.envelope_type(class_="form-input", data-controller="envelope") }}
+      {% if form.envelope_type.errors %}
+        <ul class="form-errors" id="{{ form.envelope_type.id }}-errors">
+          {% for error in form.envelope_type.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <fieldset class="form-grid" data-envelope-target="one" hidden>
+      <legend class="section-title">One-envelope credentials</legend>
+      <div class="form-field">
+        {{ form.private_key.label(class_="form-label") }}
+        {{ form.private_key(class_="form-input", placeholder="Key or reference number") }}
+      </div>
+    </fieldset>
+    <fieldset class="form-grid" data-envelope-target="two" hidden>
+      <legend class="section-title">Two-envelope credentials</legend>
+      <div class="form-field">
+        {{ form.tech_key.label(class_="form-label") }}
+        {{ form.tech_key(class_="form-input", placeholder="Technical envelope key") }}
+      </div>
+      <div class="form-field">
+        {{ form.fin_key.label(class_="form-label") }}
+        {{ form.fin_key(class_="form-input", placeholder="Financial envelope key") }}
+      </div>
+    </fieldset>
+    <button type="submit" class="btn btn--primary">Save tender</button>
+  </form>
+  <section class="info-panel" aria-label="Tender workflow guidance">
+    <h2 class="section-title">Workflow guidance</h2>
+    <p>The tender lifecycle automatically starts in the <strong>Advert registered</strong> state. Advance the workflow from the tender list as milestones are reached so stakeholders receive timely notifications.</p>
+  </section>
+  <script>
+    (function () {
+      const controller = document.querySelector('[data-controller="envelope"]');
+      if (!controller) return;
+      const one = document.querySelector('[data-envelope-target="one"]');
+      const two = document.querySelector('[data-envelope-target="two"]');
+      const toggle = () => {
+        const value = controller.value.toLowerCase();
+        if (one) one.hidden = value !== 'one envelope';
+        if (two) two.hidden = value !== 'two envelope';
+      };
+      controller.addEventListener('change', toggle);
+      toggle();
+    })();
+  </script>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .info-panel {
+      margin-top: var(--space-lg);
+      padding: var(--space-lg);
+      border-radius: var(--radius-md);
+      background: var(--layer-subtle);
+      color: var(--text-primary);
+    }
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: var(--space-sm);
+    }
+    .form-help {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+  </style>
+{% endblock %}

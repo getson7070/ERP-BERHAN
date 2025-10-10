@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Report Builder{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Report builder</h1>
+    <p class="page-subtitle">Assemble analytics by selecting domains, fields, and filters.</p>
+  </header>
+  <section class="report-builder" aria-label="Build report">
+    <form class="form-grid" data-report-form>
+      <div class="form-field">
+        <label class="form-label" for="dataset">Dataset</label>
+        <select id="dataset" name="dataset" class="form-input">
+          <option value="orders">Orders</option>
+          <option value="inventory">Inventory</option>
+          <option value="tenders">Tenders</option>
+          <option value="finance">Finance</option>
+          <option value="hr">HR</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="fields">Fields</label>
+        <select id="fields" name="fields" class="form-input" multiple size="5">
+          <option value="id">ID</option>
+          <option value="name">Name</option>
+          <option value="status">Status</option>
+          <option value="owner">Owner</option>
+          <option value="created_at">Created at</option>
+          <option value="updated_at">Updated at</option>
+        </select>
+        <p class="form-help">Hold Ctrl (Windows) or Cmd (macOS) to select multiple fields.</p>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="filters">Filters (JSON)</label>
+        <textarea id="filters" name="filters" class="form-input" rows="4" placeholder='{"status": "approved"}'></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="visualization">Visualization</label>
+        <select id="visualization" name="visualization" class="form-input">
+          <option value="table">Table</option>
+          <option value="bar">Bar chart</option>
+          <option value="line">Line chart</option>
+          <option value="pie">Pie chart</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn--primary">Save configuration</button>
+    </form>
+    <aside class="report-builder__preview" aria-live="polite" data-status>
+      Select fields and filters, then save to generate a configuration stub.
+    </aside>
+  </section>
+  <script>
+    (function () {
+      const form = document.querySelector('[data-report-form]');
+      const status = document.querySelector('[data-status]');
+      const updateStatus = (message, tone) => {
+        if (!status) return;
+        status.textContent = message;
+        status.dataset.tone = tone || 'info';
+      };
+      if (!form) return;
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const selectedFields = Array.from(form.fields.selectedOptions || []).map((opt) => opt.value);
+        let parsedFilters = {};
+        if (form.filters.value.trim()) {
+          try {
+            parsedFilters = JSON.parse(form.filters.value);
+          } catch (error) {
+            updateStatus('Filters must be valid JSON.', 'error');
+            form.filters.focus();
+            return;
+          }
+        }
+        const payload = {
+          dataset: form.dataset.value,
+          fields: selectedFields,
+          filters: parsedFilters,
+          visualization: form.visualization.value,
+        };
+        updateStatus('Saving configuration…', 'pending');
+        fetch('{{ url_for('reports.builder') }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+          .then((response) => {
+            if (!response.ok) throw new Error('save failed');
+            return response.json();
+          })
+          .then((data) => {
+            updateStatus(data.message || 'Report configuration saved.', 'success');
+          })
+          .catch(() => updateStatus('Unable to save configuration right now.', 'error'));
+      });
+    })();
+  </script>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .report-builder { display: grid; gap: var(--space-xl); margin-top: var(--space-xl); }
+    @media (min-width: 960px) { .report-builder { grid-template-columns: 2fr 1fr; align-items: start; } }
+    .report-builder__preview { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); box-shadow: var(--shadow-xs); font-size: 0.95rem; color: var(--text-muted); }
+    .report-builder__preview[data-tone="success"] { background: var(--accent-success-soft); color: var(--accent-success-strong); }
+    .report-builder__preview[data-tone="error"] { background: var(--accent-danger-soft); color: var(--accent-danger-strong); }
+    .report-builder__preview[data-tone="pending"] { background: var(--layer-muted); color: var(--text-primary); }
+  </style>
+{% endblock %}

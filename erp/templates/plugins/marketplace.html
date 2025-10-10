@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Plugin Marketplace{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Plugin marketplace</h1>
+    <p class="page-subtitle">Review available extensions before enabling them in production.</p>
+    <div class="links links--center">
+      <a class="link-muted" href="{{ url_for('plugins.index') }}">Back to installed plugins</a>
+    </div>
+  </header>
+  {% if plugins %}
+    <ul class="marketplace-list">
+      {% for plugin in plugins %}
+        <li class="marketplace-item">
+          <h2 class="marketplace-item__title">{{ plugin.rsplit('.', 1)[-1] }}</h2>
+          <p class="marketplace-item__subtitle"><code>{{ plugin }}</code></p>
+          <p class="marketplace-item__meta">Validate the plugin's permissions before enabling it for your organization.</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">Marketplace metadata unavailable. Verify plugin packages are deployed.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .marketplace-list { list-style: none; margin: var(--space-xl) 0 0; padding: 0; display: grid; gap: var(--space-lg); }
+    .marketplace-item { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); box-shadow: var(--shadow-xs); }
+    .marketplace-item__title { font-size: 1.1rem; font-weight: 600; margin-bottom: var(--space-xs); }
+    .marketplace-item__subtitle { margin: 0 0 var(--space-sm); color: var(--text-muted); }
+    .marketplace-item__meta { margin: 0; font-size: 0.95rem; color: var(--text-muted); }
+    code { font-family: var(--font-monospace); background: var(--layer-muted); padding: 0 var(--space-2xs); border-radius: var(--radius-sm); }
+    .empty-state { margin-top: var(--space-xl); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

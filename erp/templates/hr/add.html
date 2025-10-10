@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Add Employee{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Add employee</h1>
+    <p class="page-subtitle">Create a new employee record to enable access provisioning and HR workflows.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="name">Full name</label>
+      <input id="name" name="name" class="form-input" placeholder="First and last name" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Save employee</button>
+  </form>
+  <div class="links links--center" role="navigation" aria-label="HR navigation">
+    <a class="link-muted" href="{{ url_for('hr.index') }}">Back to employees</a>
+  </div>
+{% endblock %}

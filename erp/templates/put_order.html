@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Submit Order{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Submit an order</h1>
+    <p class="page-subtitle">Capture order requests from sales reps or clients. Special requests can be entered via the "Other" option.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="form-field">
+      {{ form.item_id.label(class_="form-label") }}
+      {{ form.item_id(class_="form-input") }}
+      {% if form.item_id.errors %}
+        <ul class="form-errors" id="{{ form.item_id.id }}-errors">
+          {% for error in form.item_id.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.quantity.label(class_="form-label") }}
+      {{ form.quantity(class_="form-input", min="1") }}
+      {% if form.quantity.errors %}
+        <ul class="form-errors" id="{{ form.quantity.id }}-errors">
+          {% for error in form.quantity.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.customer.label(class_="form-label") }}
+      {{ form.customer(class_="form-input", placeholder="Customer or facility name") }}
+      {% if form.customer.errors %}
+        <ul class="form-errors" id="{{ form.customer.id }}-errors">
+          {% for error in form.customer.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <label class="form-checkbox">
+      {{ form.vat_exempt(class_="form-checkbox__input") }}
+      <span class="form-checkbox__label">VAT exempt</span>
+    </label>
+    <button type="submit" class="btn btn--primary">Submit order</button>
+  </form>
+  <div class="links links--center" role="navigation" aria-label="Order links">
+    <a class="link-muted" href="{{ url_for('orders.orders') }}">Back to orders overview</a>
+  </div>
+{% endblock %}

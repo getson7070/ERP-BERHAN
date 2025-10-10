@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Projects Portfolio{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Projects</h1>
+    <p class="page-subtitle">Monitor active initiatives, implementation owners, and delivery progress.</p>
+    <div class="button-grid">
+      <a class="btn btn--secondary" href="{{ url_for('projects.add_project') }}">Add project</a>
+    </div>
+  </header>
+  {% if projects %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Project</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for project in projects %}
+            <tr>
+              <td data-title="ID">{{ project.id }}</td>
+              <td data-title="Project">{{ project.name }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No projects have been added yet.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-responsive { margin-top: var(--space-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { margin-top: var(--space-lg); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

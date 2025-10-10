@@ -1,18 +1,148 @@
 {% extends "base.html" %}
 {% block title %}Client Registration{% endblock %}
 {% block content %}
-  <h1>Client Registration</h1>
-  <form method="post">
+  <header class="page-header">
+    <h1 class="page-title">Register your organization</h1>
+    <p class="page-subtitle">Provide accurate details to access client procurement tools.</p>
+  </header>
+  <form method="post" class="form-grid">
     {{ form.csrf_token }}
-    <div class="row"><label>TIN</label>{{ form.tin() }}</div>
-    <div class="row"><label>Institution Name</label>{{ form.institution_name() }}</div>
-    <div class="row"><label>Address</label>{{ form.address() }}</div>
-    <div class="row"><label>Phone</label>{{ form.phone() }}</div>
-    <div class="row"><label>Region</label>{{ form.region() }}</div>
-    <div class="row"><label>City</label>{{ form.city() }}</div>
-    <div class="row"><label>Email</label>{{ form.email() }}</div>
-    <div class="row"><label>Password</label>{{ form.password(type="password") }}</div>
-    <div class="row">{{ form.submit(class_="btn btn--full") }}</div>
+    <div class="form-field">
+      {{ form.tin.label(class_="form-label") }}
+      {{ form.tin(
+        class_="form-input",
+        autocomplete="off",
+        placeholder="1234567890",
+        aria_invalid="true" if form.tin.errors else "false",
+        aria_describedby=form.tin.id ~ '-errors' if form.tin.errors else None,
+      ) }}
+      {% if form.tin.errors %}
+        <ul class="form-errors" id="{{ form.tin.id }}-errors">
+          {% for error in form.tin.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.institution_name.label(class_="form-label") }}
+      {{ form.institution_name(
+        class_="form-input",
+        placeholder="Institution name",
+        aria_invalid="true" if form.institution_name.errors else "false",
+        aria_describedby=form.institution_name.id ~ '-errors' if form.institution_name.errors else None,
+      ) }}
+      {% if form.institution_name.errors %}
+        <ul class="form-errors" id="{{ form.institution_name.id }}-errors">
+          {% for error in form.institution_name.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.address.label(class_="form-label") }}
+      {{ form.address(
+        class_="form-input",
+        placeholder="Street, suite",
+        aria_invalid="true" if form.address.errors else "false",
+        aria_describedby=form.address.id ~ '-errors' if form.address.errors else None,
+      ) }}
+      {% if form.address.errors %}
+        <ul class="form-errors" id="{{ form.address.id }}-errors">
+          {% for error in form.address.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.phone.label(class_="form-label") }}
+      {{ form.phone(
+        class_="form-input",
+        autocomplete="tel",
+        placeholder="+251-000-0000",
+        aria_invalid="true" if form.phone.errors else "false",
+        aria_describedby=form.phone.id ~ '-errors' if form.phone.errors else None,
+      ) }}
+      {% if form.phone.errors %}
+        <ul class="form-errors" id="{{ form.phone.id }}-errors">
+          {% for error in form.phone.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.region.label(class_="form-label") }}
+      {{ form.region(
+        class_="form-input",
+        aria_invalid="true" if form.region.errors else "false",
+        aria_describedby=form.region.id ~ '-errors' if form.region.errors else None,
+      ) }}
+      {% if form.region.errors %}
+        <ul class="form-errors" id="{{ form.region.id }}-errors">
+          {% for error in form.region.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.city.label(class_="form-label") }}
+      {{ form.city(
+        class_="form-input",
+        aria_invalid="true" if form.city.errors else "false",
+        aria_describedby=form.city.id ~ '-errors' if form.city.errors else None,
+      ) }}
+      {% if form.city.errors %}
+        <ul class="form-errors" id="{{ form.city.id }}-errors">
+          {% for error in form.city.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.email.label(class_="form-label") }}
+      {{ form.email(
+        class_="form-input",
+        autocomplete="email",
+        placeholder="contact@example.com",
+        aria_invalid="true" if form.email.errors else "false",
+        aria_describedby=form.email.id ~ '-errors' if form.email.errors else None,
+      ) }}
+      {% if form.email.errors %}
+        <ul class="form-errors" id="{{ form.email.id }}-errors">
+          {% for error in form.email.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div class="form-field">
+      {{ form.password.label(class_="form-label") }}
+      {{ form.password(
+        class_="form-input",
+        type="password",
+        autocomplete="new-password",
+        placeholder="Create a strong password",
+        aria_invalid="true" if form.password.errors else "false",
+        aria_describedby=form.password.id ~ '-errors' if form.password.errors else None,
+      ) }}
+      {% if form.password.errors %}
+        <ul class="form-errors" id="{{ form.password.id }}-errors">
+          {% for error in form.password.errors %}
+            <li class="form-error">{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    <div>
+      {{ form.submit(class_="btn btn--primary btn--full") }}
+    </div>
   </form>
-  <div class="links"><a href="{{ url_for('auth.choose_login') }}">Back to login</a></div>
+  <div class="links links--center">
+    <a class="link-muted" href="{{ url_for('auth.choose_login') }}">Back to login</a>
+  </div>
 {% endblock %}

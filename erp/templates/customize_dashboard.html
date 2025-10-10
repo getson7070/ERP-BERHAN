@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Customize Dashboard{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Customize dashboard</h1>
+    <p class="page-subtitle">Arrange dashboard widgets to surface the metrics you rely on most.</p>
+  </header>
+  <section class="customizer" aria-label="Dashboard layout editor">
+    <div class="customizer__editor">
+      <label class="form-label" for="layout">Layout (JSON)</label>
+      <textarea id="layout" class="form-input" rows="10" spellcheck="false">{{ layout }}</textarea>
+      <div class="button-grid">
+        <button type="button" class="btn btn--primary" data-save>Save layout</button>
+        <button type="button" class="btn btn--ghost" data-reset>Reset to default</button>
+      </div>
+    </div>
+    <aside class="customizer__help">
+      <h2 class="section-title">Tips</h2>
+      <ul>
+        <li>Provide an array of widget objects containing <code>id</code>, <code>title</code>, and <code>size</code>.</li>
+        <li>Use sizes <code>small</code>, <code>medium</code>, or <code>large</code> to control layout density.</li>
+        <li>Invalid JSON will be rejected to protect the dashboard experience.</li>
+      </ul>
+      <div class="customizer__status" data-status role="status" aria-live="polite">No changes saved yet.</div>
+    </aside>
+  </section>
+  <script>
+    (function () {
+      const textarea = document.querySelector('#layout');
+      const saveButton = document.querySelector('[data-save]');
+      const resetButton = document.querySelector('[data-reset]');
+      const status = document.querySelector('[data-status]');
+      const updateStatus = (message, tone) => {
+        if (!status) return;
+        status.textContent = message;
+        status.dataset.tone = tone || 'info';
+      };
+      if (saveButton && textarea) {
+        saveButton.addEventListener('click', () => {
+          let parsed;
+          try {
+            parsed = JSON.parse(textarea.value || '{}');
+          } catch (error) {
+            updateStatus('Layout is not valid JSON. Fix and try again.', 'error');
+            return;
+          }
+          fetch('{{ url_for('dashboard_custom.customize') }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ layout: JSON.stringify(parsed) })
+          })
+            .then((response) => {
+              if (!response.ok) throw new Error('Save failed');
+              return response.json();
+            })
+            .then(() => updateStatus('Layout saved successfully.', 'success'))
+            .catch(() => updateStatus('Unable to save layout right now.', 'error'));
+        });
+      }
+      if (resetButton && textarea) {
+        resetButton.addEventListener('click', () => {
+          textarea.value = '{"widgets": []}';
+          updateStatus('Layout reset to default. Save to confirm the change.', 'warning');
+        });
+      }
+    })();
+  </script>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .customizer { display: grid; gap: var(--space-xl); margin-top: var(--space-lg); }
+    @media (min-width: 960px) { .customizer { grid-template-columns: 2fr 1fr; align-items: start; } }
+    .customizer__help { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); display: grid; gap: var(--space-md); }
+    .section-title { font-size: 1.05rem; font-weight: 600; }
+    .customizer__help ul { margin: 0; padding-left: 1.25rem; display: grid; gap: var(--space-sm); }
+    .customizer__status { padding: var(--space-md); border-radius: var(--radius-md); background: var(--layer-muted); }
+    .customizer__status[data-tone="success"] { background: var(--accent-success-soft); color: var(--accent-success-strong); }
+    .customizer__status[data-tone="error"] { background: var(--accent-danger-soft); color: var(--accent-danger-strong); }
+    .customizer__status[data-tone="warning"] { background: var(--accent-warning-soft); color: var(--accent-warning-strong); }
+    .customizer__status[data-tone="info"] { color: var(--text-muted); }
+    code { font-family: var(--font-monospace); background: var(--layer-muted); padding: 0 var(--space-2xs); border-radius: var(--radius-sm); }
+  </style>
+{% endblock %}

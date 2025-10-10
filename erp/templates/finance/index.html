@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Finance Ledger{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Finance transactions</h1>
+    <p class="page-subtitle">Review cash movements and approvals across all finance operations.</p>
+    <div class="button-grid">
+      <a class="btn btn--secondary" href="{{ url_for('finance.add_transaction') }}">Record transaction</a>
+    </div>
+  </header>
+  {% if transactions %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Description</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for txn in transactions %}
+            <tr>
+              <td data-title="ID">{{ txn.id }}</td>
+              <td data-title="Amount">{{ txn.amount }}</td>
+              <td data-title="Description">{{ txn.description }}</td>
+              <td data-title="Status">
+                <span class="status-chip {{ 'status-chip--success' if txn.status == 'approved' else 'status-chip--pending' }}">{{ txn.status|capitalize }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No transactions recorded yet.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-responsive { margin-top: var(--space-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .status-chip { display: inline-flex; align-items: center; padding: 0 var(--space-sm); border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+    .status-chip--success { background: var(--accent-success-soft); color: var(--accent-success-strong); }
+    .status-chip--pending { background: var(--layer-subtle); color: var(--text-muted); }
+    .empty-state { margin-top: var(--space-lg); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

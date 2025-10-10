@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Performance Reviews{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Performance reviews</h1>
+    <p class="page-subtitle">Log review outcomes and monitor score trends to support coaching conversations.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="employee_name">Employee name</label>
+      <input id="employee_name" name="employee_name" class="form-input" placeholder="Employee" required>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="score">Score (0-100)</label>
+      <input id="score" name="score" class="form-input" type="number" min="0" max="100" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Record review</button>
+  </form>
+  <section class="table-section" aria-label="Recent reviews">
+    <h2 class="section-title">Recent reviews</h2>
+    {% if reviews %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Employee</th>
+              <th scope="col">Score</th>
+              <th scope="col">Review date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for review in reviews %}
+              <tr>
+                <td data-title="Employee">{{ review.employee_name }}</td>
+                <td data-title="Score">{{ review.score }}</td>
+                <td data-title="Review date">{{ review.review_date.strftime('%Y-%m-%d') if review.review_date else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">No reviews logged yet. Capture your first review to establish a baseline.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-section { margin-top: var(--space-xl); display: grid; gap: var(--space-md); }
+    .section-title { font-size: 1.05rem; font-weight: 600; }
+    .table-responsive { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

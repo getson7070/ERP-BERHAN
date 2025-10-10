@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Tender Report{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Tender report</h1>
+    <p class="page-subtitle">Comprehensive snapshot of tender performance across all channels.</p>
+  </header>
+  {% set counts = namespace(data={}) %}
+  {% for state in states %}
+    {% set counts.data = counts.data | combine({state: 0}) %}
+  {% endfor %}
+  {% for tender in tenders %}
+    {% set current = tender.workflow_state %}
+    {% set counts.data = counts.data | combine({current: counts.data.get(current, 0) + 1}) %}
+  {% endfor %}
+  <section class="report-summary">
+    <h2 class="section-title">Workflow distribution</h2>
+    <ul class="summary-list">
+      {% for state, total in counts.data.items() %}
+        <li><span class="summary-label">{{ state.replace('_', ' ')|title }}</span><span class="summary-value">{{ total }}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% if tenders %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Type</th>
+            <th scope="col">Description</th>
+            <th scope="col">Due date</th>
+            <th scope="col">State</th>
+            <th scope="col">Result</th>
+            <th scope="col">Awarded to</th>
+            <th scope="col">Award date</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Institution</th>
+            <th scope="col">Envelope</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tender in tenders %}
+            <tr>
+              <td data-title="ID">{{ tender.id }}</td>
+              <td data-title="Type">{{ tender.type_name }}</td>
+              <td data-title="Description">{{ tender.description }}</td>
+              <td data-title="Due date">{{ tender.due_date }}</td>
+              <td data-title="State">{{ tender.workflow_state.replace('_', ' ')|title }}</td>
+              <td data-title="Result">{{ tender.result or '—' }}</td>
+              <td data-title="Awarded to">{{ tender.awarded_to or '—' }}</td>
+              <td data-title="Award date">{{ tender.award_date or '—' }}</td>
+              <td data-title="Owner">{{ tender.username }}</td>
+              <td data-title="Institution">{{ tender.institution }}</td>
+              <td data-title="Envelope">{{ tender.envelope_type }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty-state">No tenders available for reporting.</p>
+  {% endif %}
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .report-summary { margin-top: var(--space-xl); }
+    .section-title { font-size: 1.05rem; font-weight: 600; margin-bottom: var(--space-md); }
+    .summary-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-sm); }
+    .summary-list li { display: flex; justify-content: space-between; align-items: center; background: var(--layer-subtle); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); }
+    .summary-label { font-weight: 600; }
+    .summary-value { font-size: 1.05rem; }
+    .table-responsive { margin-top: var(--space-xl); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: var(--space-md); border-bottom: 1px solid var(--border-subtle); text-align: left; }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .empty-state { margin-top: var(--space-xl); padding: var(--space-lg); background: var(--layer-subtle); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+  </style>
+{% endblock %}

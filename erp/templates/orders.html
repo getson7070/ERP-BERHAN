@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Orders Overview{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Orders overview</h1>
+    <p class="page-subtitle">Track incoming requests and approvals across the order lifecycle.</p>
+    <div class="button-grid">
+      <a class="btn btn--secondary" href="{{ url_for('orders.put_order') }}">Submit new order</a>
+      <a class="btn btn--ghost" href="{{ url_for('orders.orders_list') }}">Detailed list</a>
+      <a class="btn btn--ghost" href="{{ url_for('orders.export_orders_csv') }}">Export CSV</a>
+      <a class="btn btn--ghost" href="{{ url_for('orders.export_orders_xlsx') }}">Export XLSX</a>
+    </div>
+  </header>
+  <section class="cards" aria-label="Order status columns">
+    <article class="card-panel">
+      <h2 class="card-panel__title">Pending</h2>
+      {% if pending_orders %}
+        <ul class="card-list">
+          {% for order in pending_orders %}
+            <li class="card-list__item">
+              <h3 class="card-list__title">Order #{{ order.id }}</h3>
+              <dl class="card-list__meta">
+                <div><dt>Item</dt><dd>{{ order.item_id }}</dd></div>
+                <div><dt>Quantity</dt><dd>{{ order.quantity }}</dd></div>
+                <div><dt>Customer</dt><dd>{{ order.customer }}</dd></div>
+              </dl>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No pending orders.</p>
+      {% endif %}
+    </article>
+    <article class="card-panel">
+      <h2 class="card-panel__title">Approved</h2>
+      {% if approved_orders %}
+        <ul class="card-list">
+          {% for order in approved_orders %}
+            <li class="card-list__item">
+              <h3 class="card-list__title">Order #{{ order.id }}</h3>
+              <dl class="card-list__meta">
+                <div><dt>Item</dt><dd>{{ order.item_id }}</dd></div>
+                <div><dt>Quantity</dt><dd>{{ order.quantity }}</dd></div>
+                <div><dt>Customer</dt><dd>{{ order.customer }}</dd></div>
+              </dl>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No approved orders.</p>
+      {% endif %}
+    </article>
+    <article class="card-panel">
+      <h2 class="card-panel__title">Rejected</h2>
+      {% if rejected_orders %}
+        <ul class="card-list">
+          {% for order in rejected_orders %}
+            <li class="card-list__item">
+              <h3 class="card-list__title">Order #{{ order.id }}</h3>
+              <dl class="card-list__meta">
+                <div><dt>Item</dt><dd>{{ order.item_id }}</dd></div>
+                <div><dt>Quantity</dt><dd>{{ order.quantity }}</dd></div>
+                <div><dt>Customer</dt><dd>{{ order.customer }}</dd></div>
+              </dl>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">No rejected orders.</p>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .cards { display: grid; gap: var(--space-lg); margin-top: var(--space-xl); }
+    @media (min-width: 768px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .card-panel { background: var(--layer-subtle); border-radius: var(--radius-lg); padding: var(--space-lg); display: grid; gap: var(--space-md); }
+    .card-panel__title { font-size: 1.1rem; font-weight: 600; }
+    .card-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-md); }
+    .card-list__item { background: var(--surface-card); border-radius: var(--radius-md); padding: var(--space-md); box-shadow: var(--shadow-xs); }
+    .card-list__title { margin: 0 0 var(--space-sm); font-size: 1rem; }
+    .card-list__meta { display: grid; gap: var(--space-xs); font-size: 0.95rem; color: var(--text-muted); }
+    .card-list__meta dt { font-weight: 600; color: var(--text-primary); }
+    .empty-state { color: var(--text-muted); }
+  </style>
+{% endblock %}

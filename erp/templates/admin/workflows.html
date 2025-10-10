@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Workflow Automation{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Workflow automation</h1>
+    <p class="page-subtitle">Document the approval steps each module must follow before changes go live.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="module">Module</label>
+      <input id="module" name="module" class="form-input" placeholder="e.g. tenders" required>
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="steps">Workflow steps</label>
+      <textarea id="steps" name="steps" rows="3" class="form-input" placeholder="List the sequential approvals" required></textarea>
+    </div>
+    <label class="form-checkbox">
+      <input type="checkbox" name="enabled" class="form-checkbox__input">
+      <span class="form-checkbox__label">Workflow is active</span>
+    </label>
+    <button type="submit" class="btn btn--primary">Add workflow</button>
+  </form>
+  <section aria-label="Configured workflows" class="table-section">
+    <h2 class="section-title">Configured workflows</h2>
+    {% if workflows %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Module</th>
+              <th scope="col">Steps</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for wf in workflows %}
+              <tr>
+                <td data-title="Module">{{ wf.module }}</td>
+                <td data-title="Steps">{{ wf.steps }}</td>
+                <td data-title="Status">
+                  {% if wf.enabled %}
+                    <span class="status-chip status-chip--success">Enabled</span>
+                  {% else %}
+                    <span class="status-chip status-chip--muted">Disabled</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">No workflows have been configured yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .table-section {
+      margin-top: var(--space-xl);
+      display: grid;
+      gap: var(--space-md);
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .table-responsive {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .table th,
+    .table td {
+      padding: var(--space-md);
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2xs);
+      padding: 0 var(--space-sm);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-chip--success {
+      background: var(--accent-success-soft);
+      color: var(--accent-success-strong);
+    }
+    .status-chip--muted {
+      background: var(--layer-subtle);
+      color: var(--text-muted);
+    }
+    .empty-state {
+      padding: var(--space-lg);
+      background: var(--layer-subtle);
+      border-radius: var(--radius-md);
+      text-align: center;
+      color: var(--text-muted);
+    }
+  </style>
+{% endblock %}

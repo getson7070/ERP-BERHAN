@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Add Supplier{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <h1 class="page-title">Add supplier</h1>
+    <p class="page-subtitle">Register a supplier so purchase requests can be sourced compliantly.</p>
+  </header>
+  <form method="post" class="form-grid" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-field">
+      <label class="form-label" for="name">Supplier name</label>
+      <input id="name" name="name" class="form-input" placeholder="Company name" required>
+    </div>
+    <button type="submit" class="btn btn--primary">Save supplier</button>
+  </form>
+  <div class="links links--center" role="navigation" aria-label="Procurement navigation">
+    <a class="link-muted" href="{{ url_for('procurement.index') }}">Back to suppliers</a>
+  </div>
+{% endblock %}
