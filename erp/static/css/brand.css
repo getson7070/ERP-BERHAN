@@ -1,11 +1,36 @@
-.brand-logo{height:36px;width:auto;border-radius:6px;object-fit:contain}
-.site-header{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid #eee}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-.brand-name{font-weight:700}
-.site-nav a{margin-right:12px}
-.container{max-width:960px;margin:20px auto;padding:0 16px}
-.login-choices{list-style:none;padding:0;display:flex;gap:12px}
-.btn{padding:8px 14px;border:1px solid #ccc;border-radius:8px;text-decoration:none}
-.btn.disabled{pointer-events:none;opacity:.5}
-.muted{opacity:.7}
-.error{color:#b00020}
+/* erp/static/css/brand.css */
+:root{
+  --brand: #0b5aa7;   /* deep pharma blue */
+  --brand-2: #0ea5a5; /* teal accent */
+  --ink: #0f172a;     /* slate-900 */
+  --muted: #6b7280;   /* gray-500 */
+  --bg: #f7fafc;      /* light */
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --radius: 16px;
+  --shadow: 0 6px 20px rgba(0,0,0,.06);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+
+.site-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.brand-logo{height:36px;width:auto;border-radius:8px}
+.brand-name{font-weight:700;letter-spacing:.2px}
+.top-nav a{margin-left:16px;text-decoration:none;color:var(--brand)}
+.top-nav a:hover{text-decoration:underline}
+
+.page{max-width:960px;margin:32px auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+.mb{margin-bottom:12px}
+.muted{color:var(--muted)}
+
+.login-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.login-tile{display:block;padding:18px;border:1px solid var(--border);border-radius:14px;background:#fff;text-decoration:none;color:var(--ink);transition:transform .06s ease, box-shadow .06s ease}
+.login-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.login-tile.disabled{opacity:.55;pointer-events:none}
+.btn{display:inline-block;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none}
+.btn:hover{filter:brightness(.96)}
+
+.site-footer{padding:24px;text-align:center;color:var(--muted)}
