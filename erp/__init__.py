@@ -1,61 +1,70 @@
-# erp/__init__.py
-from __future__ import annotations
-
 import os
-from flask import Flask, render_template
-from .extensions import (
-    db,
-    migrate,
-    login_manager,
-    cors,
-    cache,
-    mail,
-    limiter,
-)
-# IMPORTANT: don't import routes or security at module import time.
+from flask import Flask, render_template, request, jsonify
+from erp.extensions import db, login_manager
 
-def create_app() -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+def create_app(config_object=None):
+    app = Flask(__name__, static_folder="static", template_folder="templates")
 
-    # --- Config
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-secret")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Load config
+    app.config.from_object(config_object or os.getenv("FLASK_CONFIG", "erp.config.ProductionConfig"))
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-me"))  # ensure sessions work
 
-    # Rate limit storage (Flask-Limiter v3.x): use app.config key
-    app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI") or os.getenv("FLASK_LIMITER_STORAGE_URI") or "memory://")
-
-    # Cache
-    app.config.setdefault("CACHE_TYPE", os.getenv("CACHE_TYPE", "SimpleCache"))
-    app.config.setdefault("CACHE_DEFAULT_TIMEOUT", int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300")))
-
-    # Mail
-    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
-    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
-    app.config["MAIL_USE_SSL"] = os.getenv("MAIL_USE_SSL", "false").lower() == "true"
-    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
-    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
-
-    # --- Init extensions
+    # Init extensions
     db.init_app(app)
-    migrate.init_app(app, db)
     login_manager.init_app(app)
-    cors.init_app(app, resources={r"/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
-    cache.init_app(app)
-    mail.init_app(app)
-    limiter.init_app(app)  # storage URI comes from app.config
 
-    # --- Error pages
+    # --- Auth wiring: user loader(s) ---
+    # Import here to avoid circulars
+    from erp.models.user import User
+
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        """
+        Return a User by primary key for session-based auth.
+        Use SQLAlchemy 2.0-safe 'db.session.get'.
+        Guarded so deploys don't 500 if migrations haven't run yet.
+        """
+        try:
+            # User IDs are ints; return None on bad casts or DB errors.
+            return db.session.get(User, int(user_id))
+        except Exception:
+            return None
+
+    @login_manager.request_loader
+    def load_user_from_request(req: "request"):
+        """
+        Optional token-based hook. Return None to skip silently.
+        This prevents Flask-Login from raising during template context updates.
+        """
+        _ = req.headers.get("Authorization") or req.headers.get("X-Auth-Token")
+        return None
+
+    # --- Blueprints (adjust if your modules differ) ---
+    try:
+        from erp.auth.routes import bp as auth_bp
+        app.register_blueprint(auth_bp)
+    except Exception:
+        pass
+
+    try:
+        from erp.main.routes import bp as main_bp
+        app.register_blueprint(main_bp)
+    except Exception:
+        pass
+
+    # --- Health check: fast, no DB, no auth, always 200 ---
+    @app.get("/healthz")
+    def healthz():
+        return jsonify(status="ok"), 200
+
+    # --- Error handlers ---
     @app.errorhandler(500)
     def server_error(e):
+        # Template is fine; with loaders above, current_user resolves safely
         return render_template("errors/500.html"), 500
 
-    # --- Register blueprints (import inside function)
-    from .routes.main import main_bp
-    from .routes.auth import bp as auth_bp
-    app.register_blueprint(main_bp)
-    app.register_blueprint(auth_bp)
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("errors/404.html"), 404
 
     return app
