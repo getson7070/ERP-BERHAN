@@ -1,25 +1,27 @@
-from __future__ import annotations
-import os
+# erp/__init__.py
 from flask import Flask
-from .extensions import init_extensions, register_blueprints
+from .extensions import csrf
+from .routes.main import main_bp
+from .routes.auth import auth_bp
 
-def create_app() -> Flask:
-    app = Flask(
-        __name__,
-        template_folder=os.getenv("TEMPLATE_FOLDER", "templates"),
-        static_folder=os.getenv("STATIC_FOLDER", "static"),
-    )
+def create_app():
+    app = Flask(__name__, static_folder="static", template_folder="templates")
 
-    # Map DATABASE_URL -> SQLALCHEMY_DATABASE_URI
-    db_url = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
-    if not db_url:
-        raise RuntimeError("DATABASE_URL or SQLALCHEMY_DATABASE_URI must be set in the environment.")
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    # --- Minimal required config (keep your existing SECRET_KEY etc.) ---
+    # Make sure SECRET_KEY is set via env in production
+    app.config.setdefault("SECRET_KEY", "change-me-in-prod")
 
-    app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "CHANGE_ME_IN_PROD"))
+    # --- CSRF: enable + inject helper for Jinja ---
+    csrf.init_app(app)
 
-    init_extensions(app)
-    register_blueprints(app)
+    @app.context_processor
+    def inject_csrf():
+        # allows {{ csrf_token() }} in templates
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
+
+    # --- Blueprints ---
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+
     return app
