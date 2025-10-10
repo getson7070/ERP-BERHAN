@@ -1,8 +1,8 @@
 # wsgi.py
-# Ensure eventlet monkey-patch happens BEFORE any other imports (incl. Flask/Werkzeug).
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch()  # MUST be first import
 
-from erp import create_app  # after patch
+from erp import create_app
 
+# Gunicorn entrypoint
 app = create_app()
