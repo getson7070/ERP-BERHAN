@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "20251010_mfa_fields"
-down_revision = "PUT_YOUR_REAL_HEAD_HERE"  # <-- REPLACE THIS with `alembic heads` result
+down_revision = "cf161230ed7f"  # <-- REPLACE THIS with `alembic heads` result
 branch_labels = None
 depends_on = None
 
