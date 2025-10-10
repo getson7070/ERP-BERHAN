@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Login · Berhan ERP{% endblock %}
 {% block content %}
-<h2>Login — {{ role|capitalize }}</h2>
-<form method="post" class="form">
+<h1 class="page-title">{{ role|capitalize }} Login</h1>
+<form method="post" action="/api/login">
+  <!-- CSRF token only needed if you post to a Flask form endpoint protected by CSRF.
+       If you add a Flask view to receive this POST, include: -->
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label>Email<br><input type="email" name="email" required></label><br>
-  <label>Password<br><input type="password" name="password" required></label><br>
+  <label>Email <input type="email" name="email" required></label>
+  <label>Password <input type="password" name="password" required></label>
   <button type="submit">Sign in</button>
 </form>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
 {% endblock %}
