@@ -1,6 +1,12 @@
 # erp/models.py
 from datetime import datetime
 from flask_login import UserMixin
+import secrets
+try:
+    import pyotp
+except ImportError:
+    pyotp = None
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from .extensions import db
 
@@ -13,6 +19,9 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, index=True)  # "admin" | "employee" | "client"
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+        mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    mfa_secret = db.Column(db.String(32), nullable=True)
+
 
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
@@ -22,6 +31,22 @@ class User(db.Model, UserMixin):
 
     def get_id(self):
         return str(self.id)
+
+    def enable_mfa(self) -> None:
+        """Enable multi-factor authentication for this user."""
+        self.mfa_enabled = True
+        # Generate a random 32-character secret for TOTP
+        self.mfa_secret = secrets.token_hex(16)
+
+    def verify_mfa(self, token: str) -> bool:
+        """Verify a provided MFA token using TOTP. Returns False if MFA is disabled."""
+        if not self.mfa_enabled or not self.mfa_secret:
+            return False
+        if pyotp:
+            totp = pyotp.TOTP(self.mfa_secret)
+            return bool(totp.verify(token))
+        # Fallback: cannot verify without pyotp installed
+        return False
 
     def __repr__(self) -> str:
         return f"<User {self.email} ({self.role})>"

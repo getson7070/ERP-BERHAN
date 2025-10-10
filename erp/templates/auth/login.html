@@ -13,6 +13,15 @@
     <label class="block text-sm font-medium text-gray-700">Email</label>
     <input name="email" type="email" required class="mt-1 w-full rounded-lg border px-3 py-2" placeholder="you@example.com">
 
+    
+            <div class="form-field">
+            <label for="token" class="form-label">Authentication code</label>
+            <input type="text" id="token" name="token" class="form-input" autocomplete="one-time-code" placeholder="123456" />
+        </div>
+<div class="form-checkbox">
+      {{ form.remember(class_="form-checkbox__input") }}
+      <label class="form-checkbox__label" for="{{ form.remember.id }}">Stay signed in on this device</label>
+    </div>
     <label class="block text-sm font-medium text-gray-700 mt-4">Password</label>
     <input name="password" type="password" required class="mt-1 w-full rounded-lg border px-3 py-2" placeholder="••••••••">
 
