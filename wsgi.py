@@ -10,4 +10,3 @@ app = create_app()
 @app.route("/health")
 def health():
     return "ok"
-
