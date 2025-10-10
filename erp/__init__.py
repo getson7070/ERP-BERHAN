@@ -1,29 +1,42 @@
-# erp/__init__.py  (within create_app)
+# erp/__init__.py
+from __future__ import annotations
 
-from flask import request
-from sqlalchemy import text
-from .extensions import db
-from .security.device import read_device_id, compute_activation_for_device
+import os
+from datetime import datetime
+from typing import Dict
 
-def create_app(config_object=None):
-    app = Flask(__name__)
-    # ... your existing init (config, db.init_app, login_manager, blueprints, etc.)
+from flask import Flask, render_template, request
+from .security import read_device_id, compute_activation_for_device
 
-    @app.context_processor
-    def inject_login_activation():
-        """Exposes `login_activation` and `current_device_id` to all templates."""
-        device_id = read_device_id(request)
-        # Use a real DB connection bound to SQLAlchemy (no session state changes)
-        bind = db.engine.connect()
-        try:
-            activation = compute_activation_for_device(bind, device_id)
-        finally:
-            bind.close()
+# Import shared extensions (instances only; no heavy app logic here)
+# Your erp/extensions.py must define these objects.
+from .extensions import (
+    db,
+    migrate,
+    csrf,
+    login_manager,
+    limiter,
+    cache,
+    mail,
+    socketio,
+)
+try:
+    # CORS is optional; only init if present to avoid ImportError mismatches.
+    from .extensions import cors  # type: ignore
+except Exception:  # pragma: no cover
+    cors = None  # type: ignore
 
-        # You can also drop a cookie if you want to persist the device id later.
-        return {
-            "login_activation": activation,       # dict: {'client': True, 'employee': False, 'admin': False}
-            "current_device_id": device_id or "", # for debugging / help page
-        }
 
-    return app
+def create_app() -> Flask:
+    """Application factory used by wsgi and tests."""
+    app = Flask(__name__, instance_relative_config=False)
+
+    # ---- Base configuration (Render env already provides these) ----
+    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["WTF_CSRF_TIME_LIMIT"] = None
+
+    # ---- Init extensions ----
+    db.init_app(app)
+    migrate.
