@@ -1,11 +1,5 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_wtf import CSRFProtect
-from flask_migrate import Migrate
-from flask_cors import CORS
+# erp/extensions.py
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-db = SQLAlchemy()
-login_manager = LoginManager()
-csrf = CSRFProtect()
-migrate = Migrate()
-cors = CORS()
+limiter = Limiter(get_remote_address, storage_uri="memory://")  # swap to redis:// in prod
