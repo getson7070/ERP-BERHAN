@@ -1,163 +1,131 @@
 """seed test users and device allowlist
 
 Revision ID: ae590e676162
-Revises: cf161230ed7f
-Create Date: 2025-10-10 10:25:00
+Revises: 
+Create Date: 2025-10-10 10:32:00.000000
+
 """
 from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import text
+from werkzeug.security import generate_password_hash
 
-# -----------------------------------------------------------------------------
-# Alembic identifiers
-# -----------------------------------------------------------------------------
+# revision identifiers, used by Alembic.
 revision = "ae590e676162"
-down_revision = "cf161230ed7f"
+down_revision = None
 branch_labels = None
 depends_on = None
-
-# -----------------------------------------------------------------------------
-# --- schema knobs ---
-#
-# If your "users" table uses different column names,
-# adjust these names to match your schema.
-# -----------------------------------------------------------------------------
-USERS_TABLE = "users"
-USER_EMAIL_COL = "email"
-USER_ROLE_COL = "role"
-USER_PWHASH_COL = "password_hash"
-USER_ISACTIVE_COL = "is_active"
-
-DEV_AUTH_TABLE = "device_authorizations"
-DEV_DEVICE_COL = "device_id"
-DEV_USERID_COL = "user_id"
-DEV_ROLE_COL = "role"
-DEV_ALLOWED_COL = "allowed"
-
-# Test users (email, role, plain_password)
-TEST_USERS = [
-    ("client@local", "client", "client123"),
-    ("employee1@local", "employee", "employee123"),
-    ("admin@local", "admin", "admin123"),
-]
-
-# Devices to allow for 'admin' (enables all tiles in your gating logic)
-ADMIN_DEVICES = [
-    "FEDC930F-8533-44C7-8A27-4753FE57DAB8",  # your Windows PC
-    "53995/04QU01214",                       # your Xiaomi tablet (serial)
-]
-
-
-def _hash_password(plain: str) -> str:
-    """
-    Generate a PBKDF2-SHA256 hash using Werkzeug (present in your requirements).
-    We do it inside the migration so secrets are never stored in plain text.
-    """
-    try:
-        from werkzeug.security import generate_password_hash
-
-        return generate_password_hash(plain)  # defaults PBKDF2:sha256
-    except Exception:
-        # Fallback to a deterministic (but still salted) hash if Werkzeug isn't importable
-        # (shouldn't happen on Render given your requirements).
-        import hashlib, os, base64
-
-        salt = base64.b64encode(os.urandom(16)).decode("utf-8")
-        return f"sha256${salt}${hashlib.sha256((salt + plain).encode()).hexdigest()}"
 
 
 def upgrade() -> None:
     conn = op.get_bind()
 
-    # -------------------------------------------------------------------------
-    # 1) Seed / upsert users
-    # -------------------------------------------------------------------------
-    upsert_user_sql = text(
-        f"""
-        INSERT INTO {USERS_TABLE} ({USER_EMAIL_COL}, {USER_ROLE_COL}, {USER_PWHASH_COL}, {USER_ISACTIVE_COL})
+    # ---- Ensure users table has the columns we rely on ----------------------
+    # Add is_active and role if they don't exist (PostgreSQL)
+    op.execute("""
+        ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+    """)
+    op.execute("""
+        ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'client';
+    """)
+
+    # ---- Ensure device_authorizations table exists --------------------------
+    # This table is (user_id, device_id) unique; allowed toggles access.
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS device_authorizations (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            device_id VARCHAR(128) NOT NULL,
+            allowed BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (user_id, device_id)
+        );
+    """)
+
+    # ---- Seed users (UPSERT on email) --------------------------------------
+    # Note: we seed with emails like client@local; if your login field accepts plain
+    # "client" you can type that and we can normalize in the app to append @local.
+    users = [
+        ("client@local",   "client",   "client123"),
+        ("admin@local",    "admin",    "admin123"),
+        ("employee1@local","employee", "employee123"),
+    ]
+
+    upsert_user_sql = text("""
+        INSERT INTO users (email, role, password_hash, is_active)
         VALUES (:email, :role, :pwhash, TRUE)
-        ON CONFLICT ({USER_EMAIL_COL})
-        DO UPDATE SET
-            {USER_ROLE_COL} = EXCLUDED.{USER_ROLE_COL},
-            {USER_PWHASH_COL} = EXCLUDED.{USER_PWHASH_COL},
-            {USER_ISACTIVE_COL} = TRUE
-        """
-    )
+        ON CONFLICT (email) DO UPDATE SET
+            role = EXCLUDED.role,
+            password_hash = EXCLUDED.password_hash,
+            is_active = TRUE
+        RETURNING id;
+    """)
 
-    for email, role, plain_pwd in TEST_USERS:
-        conn.execute(
-            upsert_user_sql,
-            {"email": email.lower(), "role": role, "pwhash": _hash_password(plain_pwd)},
-        )
+    email_to_id = {}
+    for email, role, plain in users:
+        pwhash = generate_password_hash(plain)
+        res = conn.execute(upsert_user_sql, {"email": email, "role": role, "pwhash": pwhash})
+        user_id = res.scalar()
+        email_to_id[email] = user_id
 
-    # -------------------------------------------------------------------------
-    # 2) Global device allowlist (role='admin' means show all tiles on device)
-    #    We store as a "global" device rule by keeping user_id NULL.
-    #    If your table has a UNIQUE constraint on (device_id, role) or
-    #    (device_id, user_id, role), the ON CONFLICT below will keep this idempotent.
-    # -------------------------------------------------------------------------
-    # Figure out which unique constraint exists; we try the common (device_id, role).
-    # If your table is different, adjust ON CONFLICT accordingly.
-    allow_sql = text(
-        f"""
-        INSERT INTO {DEV_AUTH_TABLE} ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL}, {DEV_ALLOWED_COL})
-        VALUES (:device, NULL, 'admin', TRUE)
-        ON CONFLICT ({DEV_DEVICE_COL}, {DEV_ROLE_COL})
-        DO UPDATE SET {DEV_ALLOWED_COL} = TRUE
-        """
-    )
+    # ---- Seed device allowlist ---------------------------------------------
+    # Windows PC Device ID provided earlier:
+    win_pc = "FEDC930F-8533-44C7-8A27-4753FE57DAB8"
+    # Android tablet serial (you asked to allow for admin):
+    android_serial = "53995/04QU01214"
 
-    for device in ADMIN_DEVICES:
-        conn.execute(allow_sql, {"device": device})
+    # Helper UPSERT for device_authorizations
+    upsert_device_sql = text("""
+        INSERT INTO device_authorizations (user_id, device_id, allowed)
+        VALUES (:user_id, :device_id, TRUE)
+        ON CONFLICT (user_id, device_id) DO UPDATE SET
+            allowed = EXCLUDED.allowed;
+    """)
 
-    # -------------------------------------------------------------------------
-    # 3) (Optional) also map each device to the concrete admin user,
-    #    in case your app checks per-user device rows first.
-    # -------------------------------------------------------------------------
-    admin_id = conn.execute(
-        text(
-            f"SELECT id FROM {USERS_TABLE} WHERE {USER_EMAIL_COL} = :email LIMIT 1"
-        ),
-        {"email": "admin@local"},
-    ).scalar()
+    # Policy you requested:
+    # - If device is allowed for admin -> all three roles activate on UI.
+    # - If device is allowed only for employee -> client + employee activate.
+    # - If device is not in allowlist -> only client activates (public).
+    #
+    # We encode that by marking both devices for the admin user.
+    admin_id = email_to_id.get("admin@local")
+    if admin_id:
+        conn.execute(upsert_device_sql, {"user_id": admin_id, "device_id": win_pc})
+        conn.execute(upsert_device_sql, {"user_id": admin_id, "device_id": android_serial})
 
-    if admin_id is not None:
-        allow_per_user_sql = text(
-            f"""
-            INSERT INTO {DEV_AUTH_TABLE} ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL}, {DEV_ALLOWED_COL})
-            VALUES (:device, :uid, 'admin', TRUE)
-            ON CONFLICT ({DEV_DEVICE_COL}, {DEV_USERID_COL}, {DEV_ROLE_COL})
-            DO UPDATE SET {DEV_ALLOWED_COL} = TRUE
-            """
-        )
-        for device in ADMIN_DEVICES:
-            conn.execute(allow_per_user_sql, {"device": device, "uid": admin_id})
+    # Optionally allow the Windows PC for the employee too, if you want:
+    employee_id = email_to_id.get("employee1@local")
+    if employee_id:
+        conn.execute(upsert_device_sql, {"user_id": employee_id, "device_id": win_pc})
+
+    # And the client is public, so device list isn’t required for client.
+    # (No row needed for client; your view logic should show client tile always.)
 
 
 def downgrade() -> None:
     conn = op.get_bind()
 
-    # Remove device allowlist rows we added
-    conn.execute(
-        text(
-            f"""
-            DELETE FROM {DEV_AUTH_TABLE}
-            WHERE {DEV_DEVICE_COL} = ANY(:devices)
-              AND ({DEV_ROLE_COL} = 'admin')
-            """
-        ),
-        {"devices": ADMIN_DEVICES},
-    )
+    # Remove seeded device rows
+    conn.execute(text("""
+        DELETE FROM device_authorizations
+        WHERE device_id IN (
+            'FEDC930F-8533-44C7-8A27-4753FE57DAB8',
+            '53995/04QU01214'
+        );
+    """))
 
-    # Remove the test users (in case you want to roll back cleanly)
-    conn.execute(
-        text(
-            f"""
-            DELETE FROM {USERS_TABLE}
-            WHERE {USER_EMAIL_COL} = ANY(:emails)
-            """
-        ),
-        {"emails": [u[0] for u in TEST_USERS]},
-    )
+    # Remove seeded users (safe if you’re only using these for testing)
+    conn.execute(text("""
+        DELETE FROM users
+        WHERE email IN ('client@local','admin@local','employee1@local');
+    """))
+
+    # We don't drop columns or tables here to avoid breaking real data.
+    # If you must revert structure too, you could:
+    # op.execute("ALTER TABLE users DROP COLUMN IF EXISTS is_active;")
+    # op.execute("ALTER TABLE users DROP COLUMN IF EXISTS role;")
+    # op.execute("DROP TABLE IF EXISTS device_authorizations;")
