@@ -1,41 +1,53 @@
 # erp/routes/main.py
-
-from __future__ import annotations
-
-from flask import (
-    Blueprint,
-    render_template,
-    make_response,
-    request,
-    redirect,
-    url_for,
-    flash,
-)
-from werkzeug.exceptions import BadRequest
-
-# our device helpers
-from erp.security.device import read_device_id
+from flask import Blueprint, render_template, request
+from erp.security.device import read_device_id  # <-- from package, not from a shadowing file
+from erp.models import User, DeviceAuthorization, Role
 
 main_bp = Blueprint("main", __name__)
 
 @main_bp.route("/")
 def index():
-    """
-    Landing page -> choose_login with optional device cookie set.
-    """
-    resp = make_response(render_template("choose_login.html"))
-    _maybe_set_device_cookie(resp)
-    return resp
+    return render_template("choose_login.html")
 
 @main_bp.route("/choose_login")
 def choose_login():
-    """
-    Shows the three tiles. Activation is computed in the app context_processor.
-    Here we just set the cookie if we received a device id for the first time.
-    """
-    resp = make_response(render_template("choose_login.html"))
-    _maybe_set_device_cookie(resp)
-    return resp
+    device_id = read_device_id(request)
+    client_on = True
+    employee_on = False
+    admin_on = False
+
+    if device_id:
+        # If ANY admin has this device, enable admin + employee.
+        admin_allowed = (
+            User.query
+            .filter_by(role=Role.ADMIN, is_active=True)
+            .join(DeviceAuthorization, User.id == DeviceAuthorization.user_id)
+            .filter(DeviceAuthorization.device_id == device_id, DeviceAuthorization.allowed.is_(True))
+            .first()
+            is not None
+        )
+        employee_allowed = (
+            User.query
+            .filter_by(role=Role.EMPLOYEE, is_active=True)
+            .join(DeviceAuthorization, User.id == DeviceAuthorization.user_id)
+            .filter(DeviceAuthorization.device_id == device_id, DeviceAuthorization.allowed.is_(True))
+            .first()
+            is not None
+        )
+
+        if admin_allowed:
+            admin_on = True
+            employee_on = True
+        elif employee_allowed:
+            employee_on = True
+
+    return render_template(
+        "choose_login.html",
+        client_on=client_on,
+        employee_on=employee_on,
+        admin_on=admin_on,
+        device_id=device_id,
+    )
 
 @main_bp.route("/help")
 def help_page():
@@ -45,44 +57,10 @@ def help_page():
 def privacy_page():
     return render_template("privacy.html")
 
-@main_bp.route("/feedback", methods=["GET", "POST"])
+@main_bp.route("/feedback")
 def feedback_page():
-    """
-    Simple feedback endpoint.
-    - GET renders the form
-    - POST accepts a 'message' field and shows a thank-you (no email required)
-    """
-    if request.method == "POST":
-        msg = (request.form.get("message") or "").strip()
-        if not msg:
-            raise BadRequest("Message is required.")
-        # TODO: store msg (db, email, log). For now we just flash it.
-        flash("Thanks for your feedback!", "success")
-        return redirect(url_for("main.feedback_page"))
     return render_template("feedback.html")
 
 @main_bp.route("/health")
 def health():
     return ("OK", 200)
-
-# -----------------------
-# helpers
-# -----------------------
-
-def _maybe_set_device_cookie(resp):
-    """
-    Persist device id if provided via:
-      - 'X-Device-ID' header, or
-      - ?device= query param
-    We set a cookie named 'device' for 180 days.
-    """
-    did = read_device_id(request)
-    if did and not request.cookies.get("device"):
-        resp.set_cookie(
-            "device",
-            did,
-            max_age=60 * 60 * 24 * 180,  # 180 days
-            secure=True,
-            httponly=False,  # readable by JS if you ever need it in SPA
-            samesite="Lax",
-        )
