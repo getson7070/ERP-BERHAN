@@ -1,20 +1,15 @@
-<!-- erp/templates/base.html -->
+{% set brand_logo = url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') %}
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{% block title %}Berhan ERP{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
+  <meta charset="utf-8">
+  <title>BERHAN ERP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="{{ url_for('static', filename='css/brand.css') }}" rel="stylesheet">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="{{ url_for('main.choose_login') }}">
-      <img class="brand-logo" alt="Berhan Pharma"
-           src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
-      <span class="brand-name">Berhan ERP</span>
-    </a>
+    <img src="{{ brand_logo }}" alt="Berhan Pharma Logo" class="brand-logo" />
     <nav class="top-nav">
       <a href="{{ url_for('main.help_page') }}">Help</a>
       <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
@@ -22,12 +17,12 @@
     </nav>
   </header>
 
-  <main class="page">
+  <main class="page-wrap">
     {% block content %}{% endblock %}
   </main>
 
   <footer class="site-footer">
-    <small>&copy; 2025 Berhan Pharma</small>
+    <small>&copy; {{ 2025 }} Berhan Pharma</small>
   </footer>
 </body>
 </html>
