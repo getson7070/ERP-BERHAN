@@ -13,7 +13,7 @@ html,body{margin:0;padding:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto
 
 .site-header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
 .brand{display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--text)}
-.brand-logo{height:36px;width:auto;border-radius:6px}
+.brand-logo{height:36px;width:auto;border-radius:6px;object-fit:contain}
 .site-nav a{margin-left:14px;color:var(--muted);text-decoration:none}
 .site-nav a:hover{color:var(--brand-1)}
 
