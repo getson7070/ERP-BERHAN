@@ -1,25 +1,34 @@
 # erp/routes/main.py
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, redirect, url_for, render_template, jsonify
+from flask_login import current_user
 
 main_bp = Blueprint("main", __name__)
 
-@main_bp.get("/")
+@main_bp.route("/")
 def index():
     return redirect(url_for("main.choose_login"))
 
-@main_bp.get("/choose_login")
+@main_bp.route("/choose_login")
 def choose_login():
-    return render_template("choose_login.html")
+    show_admin = current_user.is_authenticated and getattr(current_user, "role", None) in {"admin", "superadmin"}
+    show_employee = current_user.is_authenticated and getattr(current_user, "role", None) in {"employee", "admin", "superadmin"}
+    # Client is always public
+    return render_template("choose_login.html", show_admin=show_admin, show_employee=show_employee)
 
-# ---- Utility content pages to avoid 404s ----
-@main_bp.get("/help")
+# ---- Static info pages (avoid 404) ----
+@main_bp.route("/help")
 def help_page():
-    return render_template("misc/help.html")
+    return render_template("info/help.html")
 
-@main_bp.get("/privacy")
+@main_bp.route("/privacy")
 def privacy_page():
-    return render_template("misc/privacy.html")
+    return render_template("info/privacy.html")
 
-@main_bp.get("/feedback")
+@main_bp.route("/feedback", methods=["GET"])
 def feedback_page():
-    return render_template("misc/feedback.html")
+    return render_template("info/feedback.html")
+
+# ---- Health check (200 OK) ----
+@main_bp.route("/health")
+def health():
+    return jsonify(status="ok"), 200
