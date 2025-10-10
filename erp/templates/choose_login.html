@@ -4,12 +4,9 @@
 <section class="card">
   <h1 class="mb">Sign in</h1>
   <div class="login-grid">
-    <!-- Client login is public -->
     <a class="login-tile" href="{{ url_for('auth.login', role='client') }}">
       <h2>Client</h2><p>Access client portal</p>
     </a>
-
-    <!-- Guarded role links: show but disabled -->
     <div class="login-tile disabled" title="Restricted: ask admin for access">
       <h2>Employee</h2><p>Internal users only</p>
     </div>
