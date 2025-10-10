@@ -3,18 +3,15 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import CSRFProtect
 from flask_login import LoginManager
+from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_socketio import SocketIO
 
 db = SQLAlchemy()
 migrate = Migrate()
 csrf = CSRFProtect()
 login_manager = LoginManager()
-login_manager.login_view = "auth.login"  # adjust if different
-
-@login_manager.user_loader
-def load_user(user_id):
-    """Return user or None; prevents Flask-Login from crashing templates when unauthenticated."""
-    try:
-        from erp.models import User  # avoid circular import on module import
-        return User.query.get(int(user_id))
-    except Exception:
-        return None
+cache = Cache(config={"CACHE_TYPE": "SimpleCache"})
+limiter = Limiter(key_func=get_remote_address, default_limits=["200 per hour"])
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins="*")
