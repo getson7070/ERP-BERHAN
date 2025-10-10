@@ -1,14 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Choose Login · Berhan ERP{% endblock %}
 {% block content %}
-<h1>Choose Login</h1>
-<ul class="login-choices">
-  <li><a class="btn" href="{{ url_for('auth.login', role='client') }}">Client Login</a></li>
-  <li class="muted" title="Staff login requires invitation">
-    <a class="btn disabled" tabindex="-1" aria-disabled="true">Employee Login</a>
-  </li>
-  <li class="muted" title="Admin login requires invitation">
-    <a class="btn disabled" tabindex="-1" aria-disabled="true">Admin Login</a>
-  </li>
-</ul>
+<section class="card">
+  <h1 class="mb">Sign in</h1>
+  <div class="login-grid">
+    <!-- Client login is public -->
+    <a class="login-tile" href="{{ url_for('auth.login', role='client') }}">
+      <h2>Client</h2><p>Access client portal</p>
+    </a>
+
+    <!-- Guarded role links: show but disabled -->
+    <div class="login-tile disabled" title="Restricted: ask admin for access">
+      <h2>Employee</h2><p>Internal users only</p>
+    </div>
+    <div class="login-tile disabled" title="Restricted: ask admin for access">
+      <h2>Admin</h2><p>Internal users only</p>
+    </div>
+  </div>
+  <p class="muted">Only <strong>Client</strong> login is publicly accessible.</p>
+</section>
 {% endblock %}
