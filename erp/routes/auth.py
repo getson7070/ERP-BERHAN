@@ -1,11 +1,18 @@
-from flask import Blueprint, render_template, request
+# erp/routes/auth.py
+from flask import Blueprint, render_template, request, abort
 
-auth_bp = Blueprint("auth", __name__)
+bp = Blueprint("auth", __name__)
 
-@auth_bp.route("/login", methods=["GET", "POST"])
+@bp.route("/login", methods=["GET"])
 def login():
-    role = request.args.get("role", "client")
-    if request.method == "GET":
-        return render_template("auth/login.html", role=role)
-    # TODO: add your real auth here
-    return render_template("auth/login.html", role=role, error="Not implemented yet")
+    # role is a query param (?role=client|employee|admin)
+    role = request.args.get("role", "client").lower()
+    if role not in {"client", "employee", "admin"}:
+        abort(404)
+
+    # guard: only client is public; other roles return 404 from public page
+    if role != "client":
+        # later you can replace this with `@login_required` or SSO checks
+        abort(404)
+
+    return render_template("auth/login.html", role=role)
