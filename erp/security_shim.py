@@ -1,25 +1,9 @@
 # erp/security_shim.py
-from __future__ import annotations
+# Minimal no-op shims so imports never break during Alembic runs.
 
-class RoleMixin:
-    """Minimal stand-in for flask_security RoleMixin."""
-    @property
-    def rolename(self):
-        return getattr(self, "name", None)
+def read_device_id(request=None) -> str | None:
+    return None
 
-class UserMixin:
-    """Minimal stand-in for flask_security UserMixin."""
-    @property
-    def is_active(self) -> bool:   # for parity with many auth libs
-        return True
-
-    @property
-    def is_authenticated(self) -> bool:
-        return True
-
-    def has_role(self, name: str) -> bool:
-        roles = getattr(self, "roles", []) or []
-        for r in roles:
-            if getattr(r, "name", None) == name:
-                return True
-        return False
+def compute_activation_for_device(device_id: str | None):
+    # return a structure compatible with your templates, keep everything enabled by default
+    return {"show_client": True, "show_employee": True, "show_admin": True}
