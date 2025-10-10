@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Feedback · Berhan ERP{% endblock %}
+{% block content %}
+<section class="card">
+  <h1 class="h">Feedback</h1>
+  <p class="muted">Tell us what to improve.</p>
+  <form method="post" action="#">
+    <label>Your feedback</label>
+    <textarea rows="5" placeholder="Write your thoughts…"></textarea>
+    <button class="btn" type="submit" disabled title="Wire-only">Submit</button>
+  </form>
+</section>
+{% endblock %}
