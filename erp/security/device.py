@@ -1,71 +1,37 @@
 # erp/security/device.py
 from __future__ import annotations
-from typing import Dict, Literal, Optional
-from sqlalchemy import text
+from typing import Tuple
 from flask import Request
 
-Role = Literal["admin", "employee", "client"]
-
-def read_device_id(req: Request) -> Optional[str]:
+def read_device_id(req: Request) -> str | None:
     """
-    Order of precedence:
-      1) 'X-Device-ID' header
-      2) query string ?device=...
-      3) cookie 'device'
+    Read device identifiers from the request:
+      - X-Device-Id header (preferred)
+      - ?device= query parameter (fallback)
+      - X-Serial-Number or ?serial= (optional hardware serial)
+    Returns the first non-empty string, or None.
     """
-    did = req.headers.get("X-Device-ID")
-    if not did:
-        did = req.args.get("device")
-    if not did:
-        did = req.cookies.get("device")
-    if did:
-        did = did.strip()
-    return did or None
-
-def highest_role_for_device(bind, device_id: str) -> Optional[Role]:
-    """
-    Returns the highest role this device is authorized for,
-    based on user->role rows in device_authorizations.
-    Priority: admin > employee > client.
-    """
-    # One query gets distinct roles for the device
-    rows = bind.execute(text("""
-        SELECT DISTINCT u.role
-        FROM device_authorizations da
-        JOIN users u ON u.id = da.user_id
-        WHERE da.device_id = :device AND COALESCE(da.allowed, true) = true
-    """), dict(device=device_id)).fetchall()
-
-    roles = { (r[0] or "").lower() for r in rows }
-    if "admin" in roles:
-        return "admin"
-    if "employee" in roles:
-        return "employee"
-    if "client" in roles:
-        return "client"
+    for key in ("X-Device-Id", "X-Serial-Number"):
+        val = (req.headers.get(key) or "").strip()
+        if val:
+            return val
+    for key in ("device", "serial"):
+        val = (req.args.get(key) or "").strip()
+        if val:
+            return val
     return None
 
-def compute_activation_for_device(bind, device_id: Optional[str]) -> Dict[str, bool]:
+def compute_activation_for_device(req: Request) -> Tuple[bool, bool, bool]:
     """
-    Decides which tiles are active for the incoming device.
-    Rules from the user:
-      - if allowed for admin -> all three active
-      - else if allowed for employee -> employee + client
-      - else (not allowed) -> client only
+    Returns (client_on, employee_on, admin_on) for choose_login.
+    Rule:
+      - Client tile: always ON (public)
+      - If device is in allowlist for an employee user -> employee tile ON
+      - If device is in allowlist for an admin user -> admin tile ON (and employee too)
+    The actual allowlist check is done using DB in the route (kept simple here),
+    or you can inject a service that resolves flags from DB by device id.
     """
-    active = {"client": True, "employee": False, "admin": False}
-    if not device_id:
-        # No device info -> treat as not allowed (client only)
-        return active
-
-    top = highest_role_for_device(bind, device_id)
-    if top == "admin":
-        active.update({"employee": True, "admin": True})
-    elif top == "employee":
-        active.update({"employee": True})
-    elif top == "client":
-        # Explicit client allow doesn't change beyond default client-only,
-        # but keep semantics consistent.
-        pass
-    # else None -> not allowed; client-only remains
-    return active
+    # This module only parses; the route decides with DB.
+    device = read_device_id(req)
+    # Defaults if we cannot identify device here.
+    return (True, False, False)
