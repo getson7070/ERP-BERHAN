@@ -1,28 +1,52 @@
-"""add mfa fields and lockout hygiene"""
+"""Add MFA fields safely (idempotent)"""
+
 from alembic import op
 import sqlalchemy as sa
 
-revision = "20251010_mfa"
-down_revision = None  # set to your latest if you have chain
+# NOTE: keep your real revision IDs here
+revision = "20251010_mfa_fields"
+down_revision = "<PUT_YOUR_PREVIOUS_REVISION_ID_HERE>"
 branch_labels = None
 depends_on = None
 
+def _has_column(bind, table, column):
+    insp = sa.inspect(bind)
+    return any(col["name"] == column for col in insp.get_columns(table))
+
 def upgrade():
-    op.add_column("users", sa.Column("mfa_enabled", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("users", sa.Column("mfa_secret", sa.String(length=64), nullable=True))
-    op.add_column("users", sa.Column("mfa_recovery", sa.Text(), nullable=True))
-    op.add_column("users", sa.Column("failed_logins", sa.Integer(), nullable=False, server_default="0"))
-    op.add_column("users", sa.Column("last_failed_at", sa.DateTime(), nullable=True))
-    op.add_column("users", sa.Column("locked_until", sa.DateTime(), nullable=True))
-    op.create_index("ix_users_created_at", "users", ["created_at"])
-    op.create_index("ix_users_role_active", "users", ["role", "is_active"])
+    bind = op.get_bind()
+    dialect = bind.dialect.name.lower()
+
+    if dialect == "postgresql":
+        # Use IF NOT EXISTS so re-running is safe
+        op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret VARCHAR(64)")
+        op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE")
+        # Optional comment
+        op.execute("COMMENT ON COLUMN users.mfa_secret IS 'TOTP seed'")
+        # Remove default to keep model defaults in code authoritative
+        op.execute("ALTER TABLE users ALTER COLUMN mfa_enabled DROP DEFAULT")
+    else:
+        # Generic fallback for sqlite/mysql/etc.
+        if not _has_column(bind, "users", "mfa_secret"):
+            op.add_column("users", sa.Column("mfa_secret", sa.String(length=64), nullable=True))
+        if not _has_column(bind, "users", "mfa_enabled"):
+            op.add_column(
+                "users",
+                sa.Column("mfa_enabled", sa.Boolean(), nullable=False, server_default=sa.false()),
+            )
+            # backfill + drop default
+            op.execute("UPDATE users SET mfa_enabled = 0 WHERE mfa_enabled IS NULL")
+            op.alter_column("users", "mfa_enabled", server_default=None)
 
 def downgrade():
-    op.drop_index("ix_users_role_active", table_name="users")
-    op.drop_index("ix_users_created_at", table_name="users")
-    op.drop_column("users", "locked_until")
-    op.drop_column("users", "last_failed_at")
-    op.drop_column("users", "failed_logins")
-    op.drop_column("users", "mfa_recovery")
-    op.drop_column("users", "mfa_secret")
-    op.drop_column("users", "mfa_enabled")
+    bind = op.get_bind()
+    dialect = bind.dialect.name.lower()
+
+    if dialect == "postgresql":
+        op.execute("ALTER TABLE users DROP COLUMN IF EXISTS mfa_enabled")
+        op.execute("ALTER TABLE users DROP COLUMN IF EXISTS mfa_secret")
+    else:
+        if _has_column(bind, "users", "mfa_enabled"):
+            op.drop_column("users", "mfa_enabled")
+        if _has_column(bind, "users", "mfa_secret"):
+            op.drop_column("users", "mfa_secret")
