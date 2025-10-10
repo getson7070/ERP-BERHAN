@@ -1,20 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Choose Login{% endblock %}
+{% block title %}Choose Login · Berhan ERP{% endblock %}
 {% block content %}
-<section class="card-grid">
-  <a class="card" href="{{ url_for('auth.login', role='client') }}">
-    <h3>Client Login</h3>
-    <p>For customers & partners.</p>
-  </a>
-
-  <!-- Guarded roles: shown disabled -->
-  <div class="card card--disabled" aria-disabled="true" title="Disabled for now">
-    <h3>Employee Login</h3>
-    <p>Disabled</p>
-  </div>
-  <div class="card card--disabled" aria-disabled="true" title="Disabled for now">
-    <h3>Admin Login</h3>
-    <p>Disabled</p>
-  </div>
-</section>
+<h1>Choose Login</h1>
+<ul class="login-choices">
+  <li><a class="btn" href="{{ url_for('auth.login', role='client') }}">Client Login</a></li>
+  <li class="muted" title="Staff login requires invitation">
+    <a class="btn disabled" tabindex="-1" aria-disabled="true">Employee Login</a>
+  </li>
+  <li class="muted" title="Admin login requires invitation">
+    <a class="btn disabled" tabindex="-1" aria-disabled="true">Admin Login</a>
+  </li>
+</ul>
 {% endblock %}
