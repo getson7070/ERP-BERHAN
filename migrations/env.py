@@ -1,55 +1,56 @@
 # migrations/env.py
+from __future__ import annotations
 
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+from alembic import context
 
-# --- Load Alembic config and logging ------------------------------
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
 config = context.config
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# --- Resolve database URL from environment ------------------------
-db_url = (
+# ----------------------------------------------------------------------
+# Load Flask app and metadata safely (Flask-SQLAlchemy -> db.metadata)
+# ----------------------------------------------------------------------
+# Prefer SQLALCHEMY_DATABASE_URI; fall back to DATABASE_URL
+database_url = (
     os.getenv("SQLALCHEMY_DATABASE_URI")
     or os.getenv("DATABASE_URL")
 )
-if not db_url:
+
+if not database_url:
     raise RuntimeError(
         "No database URL provided. Set SQLALCHEMY_DATABASE_URI or DATABASE_URL."
     )
 
-# Alembic expects a URL in the config
-config.set_main_option("sqlalchemy.url", db_url)
+# Make sure Alembic knows the URL
+config.set_main_option("sqlalchemy.url", database_url)
 
-# --- Pull model metadata for autogenerate -------------------------
-# We try Flask-SQLAlchemy first (db.metadata). If that import path
-# differs in your project, adjust the import below.
+# Import the Flask app factory and db lazily
 try:
-    # Your app package
-    from erp.extensions import db  # Flask-SQLAlchemy instance
-    target_metadata = db.metadata
-except Exception:
-    # Fallback: if you use plain SQLAlchemy Base
-    try:
-        from erp.models import Base  # type: ignore
-        target_metadata = Base.metadata
-    except Exception as e:
-        raise RuntimeError(
-            "Alembic could not import your metadata. "
-            "Make sure erp.extensions.db or erp.models.Base is importable."
-        ) from e
+    from erp import create_app  # type: ignore
+    from erp.extensions import db  # type: ignore
+except Exception as exc:
+    raise RuntimeError(
+        f"Alembic could not import your app or db: {exc}"
+    )
 
-# --- Optional tweaks ----------------------------------------------
-# e.g. render_as_batch for SQLite; not needed for Postgres on Render.
-# def run_migrations_in_context():
-#     pass
+# Create the app and push an app context so db.metadata is available
+app = create_app()
+app.app_context().push()
 
-# --- Offline mode -------------------------------------------------
+target_metadata = db.metadata
+
+
 def run_migrations_offline() -> None:
-    """Run migrations without a live DB connection (emit SQL)."""
+    """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -57,15 +58,14 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        compare_server_default=True,
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
-# --- Online mode --------------------------------------------------
+
 def run_migrations_online() -> None:
-    """Run migrations with a live DB connection."""
+    """Run migrations in 'online' mode."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -78,13 +78,12 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
         )
 
         with context.begin_transaction():
             context.run_migrations()
 
-# --- Entrypoint ---------------------------------------------------
+
 if context.is_offline_mode():
     run_migrations_offline()
 else:
