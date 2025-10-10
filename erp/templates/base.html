@@ -11,12 +11,11 @@
 <body>
   <header class="site-header">
     <a class="brand" href="{{ url_for('main.choose_login') }}">
-      <img class="brand-logo" alt="Berhan Pharma" 
+      <img class="brand-logo" alt="Berhan Pharma"
            src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
       <span class="brand-name">Berhan ERP</span>
     </a>
     <nav class="top-nav">
-      <!-- IMPORTANT: blueprint-qualified endpoints -->
       <a href="{{ url_for('main.help_page') }}">Help</a>
       <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
       <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
@@ -28,7 +27,7 @@
   </main>
 
   <footer class="site-footer">
-    <small>&copy; {{ 2025 }} Berhan Pharma</small>
+    <small>&copy; 2025 Berhan Pharma</small>
   </footer>
 </body>
 </html>
