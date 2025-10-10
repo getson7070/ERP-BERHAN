@@ -1,28 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Choose Login · Berhan ERP{% endblock %}
-
+{% block title %}Choose Login{% endblock %}
 {% block content %}
-<section class="card">
-  <h1 class="h">Choose login</h1>
-  <p class="muted">Select which portal to access.</p>
+<section class="card-grid">
+  <a class="card" href="{{ url_for('auth.login', role='client') }}">
+    <h3>Client Login</h3>
+    <p>For customers & partners.</p>
+  </a>
 
-  <div class="grid">
-    <!-- Client: always public -->
-    <a class="btn primary" href="{{ url_for('auth.login', role='client') }}">Client Login</a>
-
-    <!-- Employee: only when authenticated (guarded in route) -->
-    {% if show_employee %}
-      <a class="btn" href="{{ url_for('auth.login', role='employee') }}">Employee Login</a>
-    {% else %}
-      <button class="btn disabled" title="Restricted">Employee Login</button>
-    {% endif %}
-
-    <!-- Admin: only when authenticated (guarded in route) -->
-    {% if show_admin %}
-      <a class="btn" href="{{ url_for('auth.login', role='admin') }}">Admin Login</a>
-    {% else %}
-      <button class="btn disabled" title="Restricted">Admin Login</button>
-    {% endif %}
+  <!-- Guarded roles: shown disabled -->
+  <div class="card card--disabled" aria-disabled="true" title="Disabled for now">
+    <h3>Employee Login</h3>
+    <p>Disabled</p>
+  </div>
+  <div class="card card--disabled" aria-disabled="true" title="Disabled for now">
+    <h3>Admin Login</h3>
+    <p>Disabled</p>
   </div>
 </section>
 {% endblock %}
