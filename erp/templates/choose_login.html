@@ -1,20 +1,35 @@
+{# erp/templates/choose_login.html #}
 {% extends "base.html" %}
 {% block content %}
-<section class="login-grid">
-  <!-- Client is public -->
-  <a class="login-tile" href="{{ url_for('auth.login', role='client') }}">
+<div class="tiles">
+  <a class="login-tile {{ 'disabled' if not login_activation.client }}"
+     href="{{ url_for('auth.login', role='client', device=current_device_id) if login_activation.client else '#' }}"
+     aria-disabled="{{ 'true' if not login_activation.client else 'false' }}">
     <h3>Client Portal</h3>
     <p>Order status, invoices, and more.</p>
   </a>
 
-  <!-- Guarded tiles (disabled for anonymous users per your requirement) -->
-  <div class="login-tile disabled" aria-disabled="true" title="Staff-only">
+  <a class="login-tile {{ 'disabled' if not login_activation.employee }}"
+     href="{{ url_for('auth.login', role='employee', device=current_device_id) if login_activation.employee else '#' }}"
+     aria-disabled="{{ 'true' if not login_activation.employee else 'false' }}">
     <h3>Employee Login</h3>
     <p>Restricted</p>
-  </div>
-  <div class="login-tile disabled" aria-disabled="true" title="Admin-only">
+  </a>
+
+  <a class="login-tile {{ 'disabled' if not login_activation.admin }}"
+     href="{{ url_for('auth.login', role='admin', device=current_device_id) if login_activation.admin else '#' }}"
+     aria-disabled="{{ 'true' if not login_activation.admin else 'false' }}">
     <h3>Admin Login</h3>
     <p>Restricted</p>
-  </div>
-</section>
+  </a>
+</div>
+
+<style>
+  .login-tile.disabled {
+    pointer-events: none;
+    opacity: 0.45;
+    filter: grayscale(0.6);
+    cursor: not-allowed;
+  }
+</style>
 {% endblock %}
