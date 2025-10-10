@@ -1,26 +1,12 @@
-<!-- erp/templates/auth/login.html -->
-<form method="post" class="space-y-4" autocomplete="off">
-  <div>
-    <label for="email" class="block text-sm font-medium">Email</label>
-    <input id="email" name="email" type="email" required class="mt-1 w-full rounded border px-3 py-2" autocomplete="username">
-  </div>
-
-  <div>
-    <label for="password" class="block text-sm font-medium">Password</label>
-    <input id="password" name="password" type="password" required class="mt-1 w-full rounded border px-3 py-2" autocomplete="current-password">
-  </div>
-
-  <div>
-    <label for="token" class="block text-sm font-medium">Authentication code</label>
-    <input id="token" name="token" inputmode="numeric" pattern="[0-9]*" placeholder="123456"
-           class="mt-1 w-full rounded border px-3 py-2" autocomplete="one-time-code" aria-describedby="mfa-help">
-    <p id="mfa-help" class="text-xs text-gray-500">Enter your 6-digit MFA code or a recovery code.</p>
-  </div>
-
-  <div class="flex items-center">
-    <input id="remember" name="remember" type="checkbox" class="mr-2">
-    <label for="remember">Stay signed in on this device</label>
-  </div>
-
-  <button type="submit" class="w-full rounded bg-blue-600 px-4 py-2 text-white">Sign in</button>
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<form method="post" class="card form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="role" value="{{ role }}">
+  <h2>{{ role|capitalize }} Login</h2>
+  <label>Email <input type="email" name="email" required></label>
+  <label>Password <input type="password" name="password" required></label>
+  <button type="submit">Sign in</button>
 </form>
+{% endblock %}
