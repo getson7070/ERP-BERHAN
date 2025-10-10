@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Feedback · BERHAN ERP{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold text-brand mb-4">Feedback</h1>
+<p class="text-gray-700 mb-4">Tell us what’s working and what’s not.</p>
+
+<form method="post" action="#">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <textarea name="message" rows="5" class="w-full rounded-lg border px-3 py-2" placeholder="Your feedback"></textarea>
+  <button class="mt-4 rounded-lg bg-brand text-white px-4 py-2 font-medium hover:bg-brandDark" type="submit">Send</button>
+</form>
+{% endblock %}
