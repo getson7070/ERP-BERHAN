@@ -1,24 +1,31 @@
-from flask import Blueprint, render_template, redirect, url_for
+# erp/routes/main.py
+from flask import Blueprint, render_template
 
-main_bp = Blueprint("main", __name__)
+main = Blueprint("main", __name__)
 
-@main_bp.route("/")
+@main.route("/")
 def index():
-    return redirect(url_for("main.choose_login"))
-
-@main_bp.route("/choose_login")
-def choose_login():
-    # Only client login is public; others appear disabled
+    # Redirect elsewhere if you prefer; keeping a minimal landing
     return render_template("choose_login.html")
 
-@main_bp.route("/help")
+@main.route("/choose_login")
+def choose_login():
+    return render_template("choose_login.html")
+
+# Public info pages (no login required)
+@main.route("/help")
 def help_page():
     return render_template("info/help.html")
 
-@main_bp.route("/privacy")
+@main.route("/privacy")
 def privacy_page():
     return render_template("info/privacy.html")
 
-@main_bp.route("/feedback")
+@main.route("/feedback")
 def feedback_page():
     return render_template("info/feedback.html")
+
+# Simple health endpoint so platforms don't 404 on health checks
+@main.route("/health")
+def health():
+    return {"status": "ok"}, 200
