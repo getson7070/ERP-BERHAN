@@ -1,13 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Choose Login{% endblock %}
+{% block title %}Choose Login · BERHAN ERP{% endblock %}
+
 {% block content %}
-  <header class="page-header">
-    <h1 class="page-title">Choose your workspace</h1>
-    <p class="page-subtitle">Pick the portal that matches your role.</p>
-  </header>
-  <nav class="button-grid" aria-label="Select a role to sign in">
-    <a class="btn btn--surface" href="{{ url_for('auth.login', role='admin') }}">Admin</a>
-    <a class="btn btn--surface" href="{{ url_for('auth.login', role='employee') }}">Employee</a>
-    <a class="btn btn--surface" href="{{ url_for('auth.login', role='client') }}">Client</a>
-  </nav>
+<section class="text-center mb-8">
+  <h1 class="text-2xl font-semibold text-brand">Choose your workspace</h1>
+  <p class="text-gray-600">Pick the portal that matches your role.</p>
+</section>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto">
+  <!-- Client (public) -->
+  <a href="{{ url_for('auth.login', role='client') }}"
+     class="rounded-2xl border bg-white p-6 shadow-soft hover:shadow-md transition">
+    <h3 class="text-brand font-semibold text-lg mb-1">Client</h3>
+    <p class="text-sm text-gray-600">Place and track orders, view invoices.</p>
+  </a>
+
+  {% if current_user.is_authenticated and current_user.role in ['admin','employee'] %}
+    <a href="{{ url_for('auth.login', role='employee') }}"
+       class="rounded-2xl border bg-white p-6 shadow-soft">
+      <h3 class="text-brand font-semibold text-lg mb-1">Employee</h3>
+      <p class="text-sm text-gray-600">Internal portal.</p>
+    </a>
+
+    <a href="{{ url_for('auth.login', role='admin') }}"
+       class="rounded-2xl border bg-white p-6 shadow-soft">
+      <h3 class="text-brand font-semibold text-lg mb-1">Admin</h3>
+      <p class="text-sm text-gray-600">Administration console.</p>
+    </a>
+  {% endif %}
+</div>
 {% endblock %}
