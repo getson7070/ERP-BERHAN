@@ -19,7 +19,10 @@ depends_on = None
 
 
 def _ensure_column(table: str, col: str, ddl_to_add: str) -> None:
-    """Create a column if it doesn't exist."""
+    """Create a column if it doesn't exist.
+
+    ddl_to_add must be the TYPE + constraints, e.g. "BOOLEAN NOT NULL DEFAULT TRUE".
+    """
     op.execute(
         f"""
         DO $$
@@ -30,23 +33,25 @@ def _ensure_column(table: str, col: str, ddl_to_add: str) -> None:
                  WHERE table_name = '{table}'
                    AND column_name = '{col}'
             ) THEN
-                ALTER TABLE {table} ADD COLUMN {ddl_to_add};
+                ALTER TABLE {table} ADD COLUMN {col} {ddl_to_add};
             END IF;
         END$$;
         """
     )
 
 
-def _ensure_default_and_not_null(table: str, col: str, default_sql: str, fill_value_sql: str) -> None:
+def _ensure_default_and_not_null(
+    table: str, col: str, default_sql: str, fill_value_sql: str
+) -> None:
     """
     Ensure a column has a DEFAULT and is NOT NULL.
 
     default_sql:   e.g. "FALSE" or "0" or "'client'"
     fill_value_sql same literal to fill existing NULLs.
     """
-    # Set DEFAULT
+    # Set DEFAULT (if column exists)
     op.execute(f"ALTER TABLE {table} ALTER COLUMN {col} SET DEFAULT {default_sql};")
-    # Normalize NULLs
+    # Normalize existing NULLs
     op.execute(f"UPDATE {table} SET {col} = {fill_value_sql} WHERE {col} IS NULL;")
     # Enforce NOT NULL
     op.execute(f"ALTER TABLE {table} ALTER COLUMN {col} SET NOT NULL;")
@@ -65,7 +70,7 @@ def upgrade() -> None:
     _ensure_column("users", "failed_login_attempts", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column("users", "is_locked", "BOOLEAN NOT NULL DEFAULT FALSE")
 
-    # In case the columns already existed but lacked defaults or NOT NULL, make that true now.
+    # If columns already existed but without DEFAULT/NOT NULL, fix that now.
     _ensure_default_and_not_null("users", "is_active", "TRUE", "TRUE")
     _ensure_default_and_not_null("users", "role", "'client'", "'client'")
     _ensure_default_and_not_null("users", "user_type", "'client'", "'client'")
@@ -73,7 +78,7 @@ def upgrade() -> None:
     _ensure_default_and_not_null("users", "failed_login_attempts", "0", "0")
     _ensure_default_and_not_null("users", "is_locked", "FALSE", "FALSE")
 
-    # device_authorizations (for per-user allowlist)
+    # device_authorizations (per-user allowlist)
     op.execute(
         """
         CREATE TABLE IF NOT EXISTS device_authorizations (
@@ -158,7 +163,7 @@ def upgrade() -> None:
     employee_id = email_to_id.get("employee1@local")
     if employee_id:
         conn.execute(upsert_device_sql, {"user_id": employee_id, "device_id": win_pc})
-        # (Optionally allow the Android for employee as well; leave out if admin-only.)
+        # (Leave Android admin-only.)
 
     # Client login is public (no device row needed).
 
@@ -179,7 +184,7 @@ def downgrade() -> None:
         )
     )
 
-    # Remove seeded users (only if these are test accounts)
+    # Remove seeded users (only test accounts)
     conn.execute(
         text(
             """
@@ -189,5 +194,4 @@ def downgrade() -> None:
         )
     )
 
-    # Keep structure changes; rolling these back can break real data.
-    # If you truly need to revert, you can DROP defaults/columns here.
+    # Keep structure changes to avoid breaking real data.
