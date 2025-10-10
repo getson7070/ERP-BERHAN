@@ -1,24 +1,21 @@
 {% extends "base.html" %}
-{% block title %}{{ role|capitalize }} Login · BERHAN ERP{% endblock %}
+{% block title %}{{ role|capitalize }} Login · Berhan ERP{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-md bg-white rounded-2xl border shadow-soft p-6">
-  <h1 class="text-xl font-semibold text-brand mb-2">{{ role|capitalize }} Login</h1>
-  <p class="text-sm text-gray-600 mb-6">Enter your credentials to continue.</p>
+<section class="card narrow">
+  <h1 class="h">{{ role|capitalize }} Login</h1>
 
-  <form method="post" action="">
+  <form method="post" action="/auth/login">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="role" value="{{ role }}">
 
-    <label class="block text-sm font-medium text-gray-700">Email</label>
-    <input name="email" type="email" required class="mt-1 w-full rounded-lg border px-3 py-2" placeholder="you@example.com">
+    <label>Email</label>
+    <input name="email" type="email" required placeholder="you@company.com">
 
-    <label class="block text-sm font-medium text-gray-700 mt-4">Password</label>
-    <input name="password" type="password" required class="mt-1 w-full rounded-lg border px-3 py-2" placeholder="••••••••">
+    <label>Password</label>
+    <input name="password" type="password" required placeholder="••••••••">
 
-    <button type="submit" class="mt-6 w-full rounded-lg bg-brand text-white px-4 py-2 font-medium hover:bg-brandDark">
-      Sign in
-    </button>
+    <button class="btn primary" type="submit">Sign in</button>
   </form>
-</div>
+</section>
 {% endblock %}
