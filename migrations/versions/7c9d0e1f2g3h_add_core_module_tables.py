@@ -9,64 +9,48 @@ branch_labels = None
 depends_on = None
 
 
-def _has_table(conn, name: str) -> bool:
-    insp = sa.inspect(conn)
+def _has_table(insp, name: str) -> bool:
+    return insp.has_table(name)
+
+def _unique_names(insp, table: str) -> set[str]:
     try:
-        return insp.has_table(name)
+        return {uc["name"] for uc in insp.get_unique_constraints(table)}
     except Exception:
-        return False
+        return set()
 
-
-def upgrade() -> None:
-    conn = op.get_bind()
-    dialect = conn.dialect.name
+def upgrade():
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
 
     # --- organizations -------------------------------------------------------
-    if not _has_table(conn, "organizations"):
+    if not _has_table(insp, "organizations"):
+        # Create the table if missing (no constraint inside CREATE to avoid replays)
         op.create_table(
             "organizations",
             sa.Column("id", sa.Integer(), primary_key=True),
-            sa.Column("name", sa.String(length=255), nullable=False),
-            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-            sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column("name", sa.String(), nullable=False),
         )
-        # unique(name)
-        if dialect == "sqlite":
-            op.create_index("uq_organizations_name", "organizations", ["name"], unique=True)
-        else:
-            op.create_unique_constraint("uq_organizations_name", "organizations", ["name"])
-    else:
-        # Ensure unique on name exists without crashing if it already does
-        if dialect == "sqlite":
-            op.create_index("uq_organizations_name", "organizations", ["name"], unique=True)
-        else:
-            op.execute(sa.text(
-                "DO $$ BEGIN "
-                "IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_organizations_name') THEN "
-                "ALTER TABLE organizations ADD CONSTRAINT uq_organizations_name UNIQUE (name); "
-                "END IF; END $$;"
-            ))
 
-    # TODO: repeat the same “exists” pattern for any *other* tables that this
-    # migration originally created (e.g., departments, projects, etc).
-    # Wrap each op.create_table(...) in an if-not-exists guard like above.
+    # Ensure uniqueness on name regardless of prior state
+    uqs = _unique_names(insp, "organizations")
+    if "uq_organizations_name" not in uqs:
+        # Prefer a named UNIQUE constraint (portable)
+        op.create_unique_constraint("uq_organizations_name", "organizations", ["name"])
 
+    # NOTE: if you previously created a UNIQUE index instead of a constraint,
+    # keep both guards (constraint + index) or remove the index to avoid duplication:
+    # existing = {i['name'] for i in insp.get_indexes('organizations')}
+    # if 'uq_organizations_name' not in existing:
+    #     op.create_index('uq_organizations_name', 'organizations', ['name'], unique=True)
 
-def downgrade() -> None:
-    # Be conservative: drop unique/index then table if it exists.
-    conn = op.get_bind()
-    dialect = conn.dialect.name
+def downgrade():
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
 
-    if _has_table(conn, "organizations"):
-        if dialect == "sqlite":
-            # SQLite: index name
-            try:
-                op.drop_index("uq_organizations_name", table_name="organizations")
-            except Exception:
-                pass
-        else:
-            try:
-                op.drop_constraint("uq_organizations_name", "organizations", type_="unique")
-            except Exception:
-                pass
+    # Drop uniqueness first (guarded)
+    uqs = _unique_names(insp, "organizations")
+    if "uq_organizations_name" in uqs:
+        op.drop_constraint("uq_organizations_name", "organizations", type_="unique")
+
+    if _has_table(insp, "organizations"):
         op.drop_table("organizations")
