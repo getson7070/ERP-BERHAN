@@ -4,29 +4,32 @@ from ..security_shim import read_device_id, compute_activation_for_device
 
 main_bp = Blueprint("main", __name__)
 
-@main_bp.route("/")
+@main_bp.get("/")
 def index():
+    # Just reuse the same view so "/" behaves like "/choose_login"
     return choose_login()
 
-@main_bp.route("/choose_login")
+@main_bp.get("/choose_login")
 def choose_login():
     device_id = read_device_id(request)
     activation = compute_activation_for_device(device_id)
-    # activation is a dict like: {"client": True, "employee": False, "admin": False}
-    return render_template("choose_login.html", activation=activation)
+    # Provide both names so the template works even if it still uses login_activation.
+    return render_template(
+        "choose_login.html",
+        activation=activation,
+        login_activation=activation,  # safe alias; remove once template is updated
+    )
 
-@main_bp.route("/help")
+@main_bp.get("/help")
 def help_page():
     return render_template("help.html")
 
-@main_bp.route("/privacy")
+@main_bp.get("/privacy")
 def privacy_page():
     return render_template("privacy.html")
 
-@main_bp.route("/feedback")
+@main_bp.get("/feedback")
 def feedback_page():
     return render_template("feedback.html")
 
-@main_bp.route("/health")
-def health():
-    return ("OK", 200)
+# Do NOT define /health here since the app-level /health exists in create_app().
