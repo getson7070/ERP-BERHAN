@@ -1,5 +1,8 @@
-import os
+# >>> add these two lines at the very top <<<
+import eventlet
+eventlet.monkey_patch()
 
+import os
 from erp import create_app
 
 app = create_app()
