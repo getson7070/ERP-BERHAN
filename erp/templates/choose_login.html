@@ -1,35 +1,29 @@
-{# erp/templates/choose_login.html #}
 {% extends "base.html" %}
+{% block title %}Choose Login{% endblock %}
+
 {% block content %}
-<div class="tiles">
-  <a class="login-tile {{ 'disabled' if not login_activation.client }}"
-     href="{{ url_for('auth.login', role='client', device=current_device_id) if login_activation.client else '#' }}"
-     aria-disabled="{{ 'true' if not login_activation.client else 'false' }}">
-    <h3>Client Portal</h3>
-    <p>Order status, invoices, and more.</p>
-  </a>
+  {# Normalize and guard against missing fields #}
+  {% set a = activation if activation is defined and activation else {} %}
+  {% set client_on = a.client if a is mapping and 'client' in a else (a.client if a is not mapping and a is defined and a.client is defined else false) %}
+  {% set warehouse_on = a.warehouse if a is mapping and 'warehouse' in a else (a.warehouse if a is not mapping and a is defined and a.warehouse is defined else false) %}
+  {% set admin_on = a.admin if a is mapping and 'admin' in a else (a.admin if a is not mapping and a is defined and a.admin is defined else false) %}
 
-  <a class="login-tile {{ 'disabled' if not login_activation.employee }}"
-     href="{{ url_for('auth.login', role='employee', device=current_device_id) if login_activation.employee else '#' }}"
-     aria-disabled="{{ 'true' if not login_activation.employee else 'false' }}">
-    <h3>Employee Login</h3>
-    <p>Restricted</p>
-  </a>
+  <h1>Choose how to sign in</h1>
 
-  <a class="login-tile {{ 'disabled' if not login_activation.admin }}"
-     href="{{ url_for('auth.login', role='admin', device=current_device_id) if login_activation.admin else '#' }}"
-     aria-disabled="{{ 'true' if not login_activation.admin else 'false' }}">
-    <h3>Admin Login</h3>
-    <p>Restricted</p>
-  </a>
-</div>
+  <div class="login-grid">
+    <a class="login-tile {{ '' if client_on else 'disabled' }}"
+       href="{{ url_for('auth.login') if has_endpoint('auth.login') and client_on else '#' }}">
+      Client
+    </a>
 
-<style>
-  .login-tile.disabled {
-    pointer-events: none;
-    opacity: 0.45;
-    filter: grayscale(0.6);
-    cursor: not-allowed;
-  }
-</style>
+    <a class="login-tile {{ '' if warehouse_on else 'disabled' }}"
+       href="{{ url_for('auth.login') if has_endpoint('auth.login') and warehouse_on else '#' }}">
+      Warehouse
+    </a>
+
+    <a class="login-tile {{ '' if admin_on else 'disabled' }}"
+       href="{{ url_for('auth.login') if has_endpoint('auth.login') and admin_on else '#' }}">
+      Admin
+    </a>
+  </div>
 {% endblock %}
