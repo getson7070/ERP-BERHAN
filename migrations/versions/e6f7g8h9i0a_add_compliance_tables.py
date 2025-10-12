@@ -2,7 +2,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "e6f7g8h9i0a"
-down_revision = "20251010_seed_test_users_and_device"  # keep your actual parent
+down_revision = "20251010_seed_test_users_dev"  # keep your actual parent
 branch_labels = None
 depends_on = None
 
