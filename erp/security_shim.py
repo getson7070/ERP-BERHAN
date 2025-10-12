@@ -1,15 +1,22 @@
-import os
+# erp/security_shim.py
+from flask import Request
 
-def _flag(env: str, default: bool = False) -> bool:
-    v = os.getenv(env)
-    if v is None:
-        return default
-    return v.strip().lower() in {"1", "true", "yes", "on"}
+def read_device_id(req: Request) -> str:
+    return (
+        req.headers.get("X-Device-ID")
+        or req.cookies.get("device_id")
+        or req.remote_addr
+        or "unknown"
+    )
 
 def compute_activation_for_device(device_id: str) -> dict:
-    # Adjust defaults as you like via environment variables on Render
+    """
+    Keys used by templates:
+      - client, employee, admin, warehouse (all booleans)
+    """
     return {
-        "show_client":   _flag("ENABLE_CLIENT_LOGIN",   True),
-        "show_employee": _flag("ENABLE_EMPLOYEE_LOGIN", False),  # Warehouse hidden by default
-        "show_admin":    _flag("ENABLE_ADMIN_LOGIN",    False),
+        "client": True,
+        "employee": True,
+        "admin": True,
+        "warehouse": False,  # hide unless you really want to expose it
     }
