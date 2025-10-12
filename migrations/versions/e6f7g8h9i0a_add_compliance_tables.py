@@ -1,9 +1,8 @@
-# migrations/versions/e6f7g8h9i0a_add_compliance_tables.py
 from alembic import op
 import sqlalchemy as sa
 
 revision = "e6f7g8h9i0a"
-down_revision = "20251010_seed_test_users_and_device"   # keep your actual chain here
+down_revision = "20251010_seed_test_users_and_device"  # keep your actual parent
 branch_labels = None
 depends_on = None
 
@@ -17,8 +16,6 @@ def _columns(bind, table, schema="public"):
 
 def upgrade():
     bind = op.get_bind()
-    cols = set()
-
     if not _table_exists(bind, "electronic_signatures"):
         op.create_table(
             "electronic_signatures",
