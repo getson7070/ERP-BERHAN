@@ -1,11 +1,16 @@
-# c20251010_seed_test_users_and_device_placeholder.py
 from alembic import op
 import sqlalchemy as sa
 
-revision = "cf161230ed7f"
-down_revision = "b35337b9d8a7"  
+# <=32 chars so it's safe even if alembic_version is varchar(32)
+revision = "20251010_seed_test_users_dev"
+# Point to a real, existing merge head in this repo
+down_revision = "cf161230ed7f"
 branch_labels = None
 depends_on = None
 
-def upgrade(): pass
-def downgrade(): pass
+def upgrade():
+    # placeholder/no-op: keeps the chain consistent
+    pass
+
+def downgrade():
+    pass
