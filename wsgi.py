@@ -1,6 +1,4 @@
 import os
-import eventlet
-eventlet.monkey_patch()  # must be first if you're using Socket.IO with eventlet
 
 from erp import create_app
 
