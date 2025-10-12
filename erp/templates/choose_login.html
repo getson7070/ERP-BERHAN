@@ -1,29 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Choose Login{% endblock %}
-
+{% block title %}Choose Login · ERP BERHAN{% endblock %}
 {% block content %}
-  {# Normalize and guard against missing fields #}
-  {% set a = activation if activation is defined and activation else {} %}
-  {% set client_on = a.client if a is mapping and 'client' in a else (a.client if a is not mapping and a is defined and a.client is defined else false) %}
-  {% set warehouse_on = a.warehouse if a is mapping and 'warehouse' in a else (a.warehouse if a is not mapping and a is defined and a.warehouse is defined else false) %}
-  {% set admin_on = a.admin if a is mapping and 'admin' in a else (a.admin if a is not mapping and a is defined and a.admin is defined else false) %}
-
   <h1>Choose how to sign in</h1>
 
-  <div class="login-grid">
-    <a class="login-tile {{ '' if client_on else 'disabled' }}"
-       href="{{ url_for('auth.login') if has_endpoint('auth.login') and client_on else '#' }}">
-      Client
-    </a>
-
-    <a class="login-tile {{ '' if warehouse_on else 'disabled' }}"
-       href="{{ url_for('auth.login') if has_endpoint('auth.login') and warehouse_on else '#' }}">
-      Warehouse
-    </a>
-
-    <a class="login-tile {{ '' if admin_on else 'disabled' }}"
-       href="{{ url_for('auth.login') if has_endpoint('auth.login') and admin_on else '#' }}">
-      Admin
-    </a>
-  </div>
+  <!-- Use the variable actually passed from the route: "activation" -->
+  <a class="login-tile {{ 'disabled' if not activation.client }}" href="{{ url_for('auth.login', role='client') }}">Client</a>
+  <a class="login-tile {{ 'disabled' if not activation.employee }}" href="{{ url_for('auth.login', role='warehouse') }}">Warehouse Admin</a>
+  <a class="login-tile {{ 'disabled' if not activation.admin }}" href="{{ url_for('auth.login', role='admin') }}">Admin</a>
 {% endblock %}
