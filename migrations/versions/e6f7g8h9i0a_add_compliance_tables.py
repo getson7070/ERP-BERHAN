@@ -1,51 +1,43 @@
-"""add compliance tables for part 11/gmp"""
-
+# migrations/versions/e6f7g8h9i0a_add_compliance_tables.py
 from alembic import op
 import sqlalchemy as sa
 
 revision = "e6f7g8h9i0a"
-down_revision = "20250830_fix_rls_policies"
+down_revision = "20251010_seed_test_users_and_device"   # keep your actual chain here
 branch_labels = None
 depends_on = None
 
+def _table_exists(bind, name, schema="public"):
+    insp = sa.inspect(bind)
+    return name in insp.get_table_names(schema=schema)
+
+def _columns(bind, table, schema="public"):
+    insp = sa.inspect(bind)
+    return {c["name"] for c in insp.get_columns(table, schema=schema)}
 
 def upgrade():
-    op.create_table(
-        "electronic_signatures",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("intent", sa.String(length=255), nullable=False),
-        sa.Column("signed_at", sa.DateTime(), nullable=False),
-        sa.Column("prev_hash", sa.String(length=64)),
-        sa.Column("signature_hash", sa.String(length=64), nullable=False),
-    )
-    op.create_table(
-        "batch_records",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("lot_number", sa.String(length=64), nullable=False, unique=True),
-        sa.Column("description", sa.Text()),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
-    )
-    op.create_table(
-        "non_conformances",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "batch_record_id",
-            sa.Integer,
-            sa.ForeignKey("batch_records.id"),
-            nullable=False,
-        ),
-        sa.Column("description", sa.Text(), nullable=False),
-        sa.Column("detected_at", sa.DateTime(), nullable=False),
-        sa.Column("resolved_at", sa.DateTime()),
-        sa.Column(
-            "status", sa.String(length=32), nullable=False, server_default="open"
-        ),
-    )
+    bind = op.get_bind()
+    cols = set()
 
+    if not _table_exists(bind, "electronic_signatures"):
+        op.create_table(
+            "electronic_signatures",
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("user_id", sa.Integer, nullable=False),
+            sa.Column("intent", sa.String(255), nullable=False),
+            sa.Column("signed_at", sa.DateTime, nullable=False),
+            sa.Column("prev_hash", sa.String(64)),
+            sa.Column("signature_hash", sa.String(64), nullable=False),
+            sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        )
+    else:
+        cols = _columns(bind, "electronic_signatures")
+        if "prev_hash" not in cols:
+            op.add_column("electronic_signatures", sa.Column("prev_hash", sa.String(64)))
+        if "signature_hash" not in cols:
+            op.add_column("electronic_signatures", sa.Column("signature_hash", sa.String(64), nullable=False))
 
 def downgrade():
-    op.drop_table("non_conformances")
-    op.drop_table("batch_records")
-    op.drop_table("electronic_signatures")
+    bind = op.get_bind()
+    if _table_exists(bind, "electronic_signatures"):
+        op.drop_table("electronic_signatures")
