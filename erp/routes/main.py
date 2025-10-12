@@ -6,19 +6,14 @@ main_bp = Blueprint("main", __name__)
 
 @main_bp.get("/")
 def index():
-    # Just reuse the same view so "/" behaves like "/choose_login"
     return choose_login()
 
 @main_bp.get("/choose_login")
 def choose_login():
     device_id = read_device_id(request)
     activation = compute_activation_for_device(device_id)
-    # Provide both names so the template works even if it still uses login_activation.
-    return render_template(
-        "choose_login.html",
-        activation=activation,
-        login_activation=activation,  # safe alias; remove once template is updated
-    )
+    # Keep legacy name too so older templates don't break
+    return render_template("choose_login.html", activation=activation, login_activation=activation)
 
 @main_bp.get("/help")
 def help_page():
@@ -31,5 +26,3 @@ def privacy_page():
 @main_bp.get("/feedback")
 def feedback_page():
     return render_template("feedback.html")
-
-# Do NOT define /health here since the app-level /health exists in create_app().
