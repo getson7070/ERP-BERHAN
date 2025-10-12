@@ -1,28 +1,46 @@
-{% set brand_logo = url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>BERHAN ERP</title>
+  <title>{% block title %}ERP BERHAN{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="{{ url_for('static', filename='css/brand.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='brand.css') }}" rel="stylesheet">
 </head>
 <body>
   <header class="site-header">
-    <img src="{{ brand_logo }}" alt="Berhan Pharma Logo" class="brand-logo" />
-    <nav class="top-nav">
-      <a href="{{ url_for('help.help_page') }}">Help</a>
-      <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
-      <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
+    <nav class="nav">
+      <a href="{{ url_for('main.home') if has_endpoint('main.home') else '#' }}">Home</a>
+
+      {% if has_endpoint('auth.login') %}
+        <a href="{{ url_for('auth.login') }}">Login</a>
+      {% endif %}
+      {% if has_endpoint('auth.logout') %}
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
+      {% endif %}
+      {% if has_endpoint('dashboard.index') %}
+        <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+      {% endif %}
+
+      <span class="spacer"></span>
+
+      {% if has_endpoint('main.help_page') %}
+        <a href="{{ url_for('main.help_page') }}">Help</a>
+      {% endif %}
+      {% if has_endpoint('main.privacy_page') %}
+        <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
+      {% endif %}
+      {% if has_endpoint('main.feedback_page') %}
+        <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
+      {% endif %}
     </nav>
   </header>
 
-  <main class="page-wrap">
+  <main class="container">
     {% block content %}{% endblock %}
   </main>
 
   <footer class="site-footer">
-    <small>&copy; {{ 2025 }} Berhan Pharma</small>
+    <small>&copy; {{  now().year if 'now' in globals() else ''  }} BERHAN</small>
   </footer>
 </body>
 </html>
