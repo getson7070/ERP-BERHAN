@@ -1,75 +1,84 @@
-import os
+# erp/__init__.py
+import datetime
 import importlib
+import os
 import pkgutil
-from datetime import date
-from typing import Any
+from flask import Flask, render_template
+from .extensions import init_app_extensions, db, login_manager, csrf, limiter, socketio
 
-from flask import Flask, render_template, Blueprint
+def create_app():
+    app = Flask(__name__, template_folder="templates", static_folder="static")
 
-from .extensions import db, login_manager, csrf, limiter, socketio
-
-
-def _register_blueprints(app: Flask) -> None:
-    import erp.routes as routes_pkg
-    for _finder, module_short_name, _ispkg in pkgutil.iter_modules(routes_pkg.__path__):
-        module_fqn = f"{routes_pkg.__name__}.{module_short_name}"
-        module = importlib.import_module(module_fqn)
-        for obj in module.__dict__.values():
-            if isinstance(obj, Blueprint):
-                app.register_blueprint(obj)
-
-
-def _load_default_config(app: Flask) -> None:
-    app.config.setdefault("SECRET_KEY", os.getenv("SECRET_KEY", "change-me"))
-    db_url = os.getenv("DATABASE_URL", "sqlite:///instance/app.db")
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    app.config.setdefault("SQLALCHEMY_DATABASE_URI", db_url)
+    # Core config
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-me"))
+    app.config.setdefault(
+        "SQLALCHEMY_DATABASE_URI",
+        os.environ.get("DATABASE_URL", "sqlite:///berhan.sqlite3").replace("postgres://", "postgresql://")
+    )
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
-    app.config.setdefault("PREFERRED_URL_SCHEME", os.getenv("PREFERRED_URL_SCHEME", "https"))
-    app.config.setdefault("SESSION_COOKIE_SECURE", os.getenv("SESSION_COOKIE_SECURE", "true").lower() in {"1", "true", "yes"})
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", os.getenv("SESSION_COOKIE_SAMESITE", "Lax"))
-    # CORS for SocketIO, if used
-    app.config.setdefault("SOCKETIO_CORS", os.getenv("SOCKETIO_CORS", "*"))
+    app.config.setdefault("JSON_SORT_KEYS", False)
+    app.config.setdefault("SEND_FILE_MAX_AGE_DEFAULT", 0)
 
+    # Extensions
+    init_app_extensions(app)
 
-def create_app(config_object: Any | None = None) -> Flask:
-    app = Flask(__name__, static_folder="static", template_folder="templates")
-
-    _load_default_config(app)
-    if config_object is not None:
-        app.config.from_object(config_object)
-
-    # Init core extensions
-    db.init_app(app)
-    login_manager.init_app(app)
-    csrf.init_app(app)
-
-    # Init optional ones if present
-    if limiter is not None:
-        limiter.init_app(app)
-    if socketio is not None:
-        socketio.init_app(app, cors_allowed_origins=app.config["SOCKETIO_CORS"])
-
+    # Brand + year for templates
     @app.context_processor
-    def inject_globals():
-        # Use this in templates instead of calling now()/globals()
-        return {"current_year": date.today().year}
+    def inject_brand_and_year():
+        return {
+            "brand_name": os.environ.get("BRAND_NAME", "BERHAN"),
+            "brand_primary": os.environ.get("BRAND_PRIMARY", "#0f6ab5"),
+            "brand_logo": os.environ.get("BRAND_LOGO", "pictures/BERHAN-PHARMA-LOGO.jpg"),
+            "current_year": datetime.datetime.utcnow().year,
+        }
 
+    # Healthcheck
     @app.get("/health")
     def health():
-        return {"status": "ok"}, 200
+        return {"ok": True}, 200
 
+    # Errors
     @app.errorhandler(404)
-    def not_found(_e):
-        tpl = os.path.join(app.template_folder, "errors", "404.html")
-        return (render_template("errors/404.html"), 404) if os.path.exists(tpl) else ("Not Found", 404)
+    def not_found(e):
+        return render_template("errors/404.html"), 404
 
     @app.errorhandler(500)
-    def server_error(_e):
-        tpl = os.path.join(app.template_folder, "errors", "500.html")
-        return (render_template("errors/500.html"), 500) if os.path.exists(tpl) else ("Internal Server Error", 500)
+    def server_error(e):
+        try:
+            return render_template("errors/500.html"), 500
+        except Exception:
+            return ("Internal Server Error", 500)
 
     _register_blueprints(app)
-    app.url_map.strict_slashes = False
     return app
+
+def _register_blueprints(app):
+    """Autoload blueprints from erp.routes.*; skip modules that fail import."""
+    from . import routes as routes_pkg
+    for _, module_name, is_pkg in pkgutil.iter_modules(routes_pkg.__path__):
+        if is_pkg or module_name.startswith("_"):
+            continue
+        module_fqn = f"{routes_pkg.__name__}.{module_name}"
+        try:
+            module = importlib.import_module(module_fqn)
+        except Exception as exc:
+            app.logger.warning("Skipping routes module %s due to import error: %s", module_fqn, exc)
+            continue
+
+        bp = getattr(module, "bp", None)
+        if bp is None:
+            for attr in dir(module):
+                if attr.endswith("_bp"):
+                    bp = getattr(module, attr)
+                    break
+
+        if bp is not None:
+            try:
+                app.register_blueprint(bp)
+                app.logger.info("Registered blueprint from %s", module_fqn)
+            except Exception as exc:
+                app.logger.warning("Failed to register blueprint from %s: %s", module_fqn, exc)
+        else:
+            app.logger.debug("No blueprint found in %s", module_fqn)
+
+__all__ = ["create_app", "db", "login_manager", "csrf", "limiter", "socketio"]
