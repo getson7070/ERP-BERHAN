@@ -1,9 +1,15 @@
-# erp/security_shim.py
-# Minimal no-op shims so imports never break during Alembic runs.
+import os
 
-def read_device_id(request=None) -> str | None:
-    return None
+def _flag(env: str, default: bool = False) -> bool:
+    v = os.getenv(env)
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "on"}
 
-def compute_activation_for_device(device_id: str | None):
-    # return a structure compatible with your templates, keep everything enabled by default
-    return {"show_client": True, "show_employee": True, "show_admin": True}
+def compute_activation_for_device(device_id: str) -> dict:
+    # Adjust defaults as you like via environment variables on Render
+    return {
+        "show_client":   _flag("ENABLE_CLIENT_LOGIN",   True),
+        "show_employee": _flag("ENABLE_EMPLOYEE_LOGIN", False),  # Warehouse hidden by default
+        "show_admin":    _flag("ENABLE_ADMIN_LOGIN",    False),
+    }
