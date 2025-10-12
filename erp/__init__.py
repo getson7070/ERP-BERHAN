@@ -1,66 +1,83 @@
+import logging
 import os
-import pkgutil
 import importlib
-
-from flask import Flask, render_template, Blueprint
+import inspect
+import pkgutil
+from flask import Flask, jsonify, render_template
+from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from .extensions import db, login_manager
-from .config import DevelopmentConfig, ProductionConfig
 
-
-def _register_blueprints(app: Flask) -> None:
-    """Import and register every Blueprint under erp.routes.*"""
-    import erp.routes as routes_pkg
-
-    for _finder, module_name, _ispkg in pkgutil.iter_modules(routes_pkg.__path__):
-        module = importlib.import_module(f"{routes_pkg.__name__}.{module_name}")
-        for attr in dir(module):
-            obj = getattr(module, attr)
-            if isinstance(obj, Blueprint):
-                app.register_blueprint(obj)
-
+db = SQLAlchemy()
+migrate = Migrate()
 
 def create_app() -> Flask:
-    # Keep templates/static inside the erp package
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    env = os.getenv("APP_ENV", "production")
-    if env == "development":
-        app.config.from_object(DevelopmentConfig)
-    else:
-        app.config.from_object(ProductionConfig)
+    # ---- Config ----
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # --- Extensions ---
+    # ---- Extensions ----
     db.init_app(app)
-    Migrate(app, db)
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
+    migrate.init_app(app, db)
 
-    # Import models so Flask-Login/SQLAlchemy can see them
-    from .models import User  # noqa: F401
+    # ---- Jinja helper: guard against missing endpoints in templates ----
+    def has_endpoint(endpoint: str) -> bool:
+        return endpoint in app.view_functions
 
-    @login_manager.user_loader
-    def load_user(user_id: str):
-        try:
-            return db.session.get(User, int(user_id))
-        except Exception:
-            return None
+    app.jinja_env.globals["has_endpoint"] = has_endpoint
 
-    # --- Blueprints ---
-    _register_blueprints(app)
+    # ---- Health endpoints (both /healthz and /health) ----
+    @app.get("/healthz")
+    def healthz():
+        return jsonify(status="ok")
 
-    # --- Error handlers ---
+    @app.get("/health")
+    def health():
+        return jsonify(status="ok")
+
+    # ---- Error handlers (render simple templates; base.html is now defensive) ----
     @app.errorhandler(404)
-    def not_found(e):  # pragma: no cover
+    def not_found(_e):
         return render_template("errors/404.html"), 404
 
     @app.errorhandler(500)
-    def server_error(e):  # pragma: no cover
+    def server_error(_e):
+        # Render a friendly page; details are in logs
         return render_template("errors/500.html"), 500
 
-    # Fallback health endpoint (routes.health provides /health once registered)
-    @app.get("/healthz")
-    def healthz():
-        return {"status": "ok"}, 200
+    # ---- Register blueprints from erp.routes robustly ----
+    _register_blueprints(app)
 
     return app
+
+
+def _register_blueprints(app: Flask) -> None:
+    """
+    Import every module in erp.routes and register any Flask Blueprint objects
+    found there. Errors in one module are logged but do NOT block the rest.
+    """
+    import erp.routes as routes_pkg
+    logger = app.logger or logging.getLogger(__name__)
+
+    for finder, module_name, ispkg in pkgutil.iter_modules(routes_pkg.__path__):
+        if ispkg or module_name.startswith("_"):
+            continue
+        full_name = f"{routes_pkg.__name__}.{module_name}"
+        try:
+            module = importlib.import_module(full_name)
+        except Exception:
+            logger.exception("Failed importing %s; continuing without it.", full_name)
+            continue
+
+        # Register any Blueprint objects defined in the module
+        for _, obj in inspect.getmembers(module):
+            try:
+                from flask import Blueprint  # local import to avoid hard dependency here
+                if isinstance(obj, Blueprint):
+                    app.register_blueprint(obj)
+                    logger.info("Registered blueprint '%s' from %s", obj.name, full_name)
+            except Exception:
+                logger.exception("Failed registering blueprint from %s", full_name)
+                continue
