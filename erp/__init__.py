@@ -1,70 +1,66 @@
 import os
-from flask import Flask, render_template, request, jsonify
-from erp.extensions import db, login_manager
+import pkgutil
+import importlib
 
-def create_app(config_object=None):
-    app = Flask(__name__, static_folder="static", template_folder="templates")
+from flask import Flask, render_template, Blueprint
+from flask_migrate import Migrate
+from .extensions import db, login_manager
+from .config import DevelopmentConfig, ProductionConfig
 
-    # Load config
-    app.config.from_object(config_object or os.getenv("FLASK_CONFIG", "erp.config.ProductionConfig"))
-    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-me"))  # ensure sessions work
 
-    # Init extensions
+def _register_blueprints(app: Flask) -> None:
+    """Import and register every Blueprint under erp.routes.*"""
+    import erp.routes as routes_pkg
+
+    for _finder, module_name, _ispkg in pkgutil.iter_modules(routes_pkg.__path__):
+        module = importlib.import_module(f"{routes_pkg.__name__}.{module_name}")
+        for attr in dir(module):
+            obj = getattr(module, attr)
+            if isinstance(obj, Blueprint):
+                app.register_blueprint(obj)
+
+
+def create_app() -> Flask:
+    # Keep templates/static inside the erp package
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    env = os.getenv("APP_ENV", "production")
+    if env == "development":
+        app.config.from_object(DevelopmentConfig)
+    else:
+        app.config.from_object(ProductionConfig)
+
+    # --- Extensions ---
     db.init_app(app)
+    Migrate(app, db)
     login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
 
-    # --- Auth wiring: user loader(s) ---
-    # Import here to avoid circulars
-    from erp.models.user import User
+    # Import models so Flask-Login/SQLAlchemy can see them
+    from .models import User  # noqa: F401
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        """
-        Return a User by primary key for session-based auth.
-        Use SQLAlchemy 2.0-safe 'db.session.get'.
-        Guarded so deploys don't 500 if migrations haven't run yet.
-        """
         try:
-            # User IDs are ints; return None on bad casts or DB errors.
             return db.session.get(User, int(user_id))
         except Exception:
             return None
 
-    @login_manager.request_loader
-    def load_user_from_request(req: "request"):
-        """
-        Optional token-based hook. Return None to skip silently.
-        This prevents Flask-Login from raising during template context updates.
-        """
-        _ = req.headers.get("Authorization") or req.headers.get("X-Auth-Token")
-        return None
-
-    # --- Blueprints (adjust if your modules differ) ---
-    try:
-        from erp.auth.routes import bp as auth_bp
-        app.register_blueprint(auth_bp)
-    except Exception:
-        pass
-
-    try:
-        from erp.main.routes import bp as main_bp
-        app.register_blueprint(main_bp)
-    except Exception:
-        pass
-
-    # --- Health check: fast, no DB, no auth, always 200 ---
-    @app.get("/healthz")
-    def healthz():
-        return jsonify(status="ok"), 200
+    # --- Blueprints ---
+    _register_blueprints(app)
 
     # --- Error handlers ---
+    @app.errorhandler(404)
+    def not_found(e):  # pragma: no cover
+        return render_template("errors/404.html"), 404
+
     @app.errorhandler(500)
-    def server_error(e):
-        # Template is fine; with loaders above, current_user resolves safely
+    def server_error(e):  # pragma: no cover
         return render_template("errors/500.html"), 500
 
-    @app.errorhandler(404)
-    def not_found(e):
-        return render_template("errors/404.html"), 404
+    # Fallback health endpoint (routes.health provides /health once registered)
+    @app.get("/healthz")
+    def healthz():
+        return {"status": "ok"}, 200
 
     return app
