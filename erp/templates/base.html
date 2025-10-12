@@ -1,45 +1,53 @@
+<!-- erp/templates/base.html -->
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}ERP BERHAN{% endblock %}</title>
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{% block title %}{{ brand_name }} · ERP{% endblock %}</title>
 
-  <!-- Brand CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
-  <style>
-    /* minimal safety net if brand.css fails to load */
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif; margin:0; }
-    header { display:flex; align-items:center; gap:.75rem; padding:1rem; border-bottom:1px solid #eee; }
-    .brand { font-weight:700; letter-spacing:.5px; }
-    main { max-width:960px; margin:2rem auto; padding:0 1rem; }
-    .login-tile { display:inline-block; padding:.75rem 1rem; border:1px solid #ddd; border-radius:.5rem; margin:.25rem .5rem .25rem 0; text-decoration:none; }
-    .login-tile.disabled { pointer-events:none; opacity:.4; }
-    footer { padding:2rem 1rem; border-top:1px solid #eee; text-align:center; color:#666; }
-  </style>
-  {% block head %}{% endblock %}
-</head>
-<body>
-  <header>
-    <img src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}" alt="BERHAN" height="36" loading="lazy">
-    <div class="brand">ERP BERHAN</div>
-  </header>
+    <link rel="icon" href="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
 
-  <main>
-    {% block content %}{% endblock %}
-  </main>
+    <!-- Brand + App styles (both exist in erp/static/css/) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 
-  <footer>
-    <nav style="margin-bottom:.5rem;">
-      <a href="{{ url_for('auth.login') }}">Login</a> ·
-      <a href="{{ url_for('main.help') }}">Help</a> ·
-      <a href="{{ url_for('main.privacy') }}">Privacy</a> ·
-      <a href="{{ url_for('main.feedback') }}">Feedback</a>
-    </nav>
-    <small>&copy; {{ current_year }} BERHAN</small>
-  </footer>
+    <!-- Optional: allow overriding primary color from context -->
+    {% if brand_primary_color %}
+    <style>:root { --brand-primary: {{ brand_primary_color }}; }</style>
+    {% endif %}
 
-  {% block scripts %}{% endblock %}
-</body>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="{{ url_for('main.index') }}" class="brand">
+          <img class="brand-logo"
+               src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}"
+               alt="{{ brand_name }}">
+          <span class="brand-title">{{ brand_name }}</span>
+        </a>
+
+        <nav class="main-nav">
+          <a href="{{ url_for('main.choose_login') }}">Login</a>
+          <a href="{{ url_for('main.help_page') }}">Help</a>
+          <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
+          <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="site-main container">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <small>&copy; {{ current_year }} {{ brand_name }}</small>
+      </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+  </body>
 </html>
