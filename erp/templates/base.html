@@ -2,47 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}ERP BERHAN{% endblock %}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="{{ url_for('static', filename='brand.css') }}" rel="stylesheet">
+
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
+  <style>
+    /* minimal safety net if brand.css fails to load */
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif; margin:0; }
+    header { display:flex; align-items:center; gap:.75rem; padding:1rem; border-bottom:1px solid #eee; }
+    .brand { font-weight:700; letter-spacing:.5px; }
+    main { max-width:960px; margin:2rem auto; padding:0 1rem; }
+    .login-tile { display:inline-block; padding:.75rem 1rem; border:1px solid #ddd; border-radius:.5rem; margin:.25rem .5rem .25rem 0; text-decoration:none; }
+    .login-tile.disabled { pointer-events:none; opacity:.4; }
+    footer { padding:2rem 1rem; border-top:1px solid #eee; text-align:center; color:#666; }
+  </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <header class="site-header">
-    <nav class="nav">
-      {% if has_endpoint('main.home') %}
-        <a href="{{ url_for('main.home') }}">Home</a>
-      {% endif %}
-
-      {% if has_endpoint('auth.login') %}
-        <a href="{{ url_for('auth.login') }}">Login</a>
-      {% endif %}
-      {% if has_endpoint('auth.logout') %}
-        <a href="{{ url_for('auth.logout') }}">Logout</a>
-      {% endif %}
-      {% if has_endpoint('dashboard.index') %}
-        <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
-      {% endif %}
-
-      <span class="spacer"></span>
-
-      {% if has_endpoint('main.help_page') %}
-        <a href="{{ url_for('main.help_page') }}">Help</a>
-      {% endif %}
-      {% if has_endpoint('main.privacy_page') %}
-        <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
-      {% endif %}
-      {% if has_endpoint('main.feedback_page') %}
-        <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
-      {% endif %}
-    </nav>
+  <header>
+    <img src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}" alt="BERHAN" height="36" loading="lazy">
+    <div class="brand">ERP BERHAN</div>
   </header>
 
-  <main class="container">
+  <main>
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="site-footer">
+  <footer>
+    <nav style="margin-bottom:.5rem;">
+      <a href="{{ url_for('auth.login') }}">Login</a> ·
+      <a href="{{ url_for('main.help') }}">Help</a> ·
+      <a href="{{ url_for('main.privacy') }}">Privacy</a> ·
+      <a href="{{ url_for('main.feedback') }}">Feedback</a>
+    </nav>
     <small>&copy; {{ current_year }} BERHAN</small>
   </footer>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>
