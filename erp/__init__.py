@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging, importlib, os, pkgutil, datetime
 from flask import Flask, render_template
 from .config import get_config
-from .extensions import init_extensions
+from .extensions import init_extensions, login_manager  # keep login_manager available
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -11,6 +11,13 @@ def create_app() -> Flask:
 
     # Init Flask extensions
     init_extensions(app)
+
+    # IMPORTANT: ensure user_loader is registered
+    # This import executes the @login_manager.user_loader decorator.
+    from . import auth_loaders as _auth_loaders  # noqa: F401  👈 REQUIRED
+
+    # Optional: sanity log to confirm loader is in place
+    app.logger.info("Login user_loader set? %s", getattr(login_manager, "_user_callback", None) is not None)
 
     # Register blueprints (fault-tolerant)
     _register_blueprints(app)
@@ -25,12 +32,10 @@ def create_app() -> Flask:
             "current_year": datetime.datetime.utcnow().year,
         }
 
-    # Simple health
     @app.route("/health")
     def health():
         return {"status": "ok"}, 200
 
-    # Friendly 500 page
     @app.errorhandler(500)
     def server_error(_e):
         return render_template("errors/500.html"), 500
@@ -38,18 +43,12 @@ def create_app() -> Flask:
     return app
 
 def _register_blueprints(app: Flask) -> None:
-    """
-    Load only healthy blueprints.
-    If a module is broken (SyntaxError / ImportError), we log and keep going.
-    This prevents one bad route from crashing the whole service.
-    """
     logger = logging.getLogger("erp")
     routes_pkg = "erp.routes"
 
-    # Start with the essentials explicitly
     essential = [
-        ("erp.routes.main", "main_bp"),     # choose_login, index
-        ("erp.routes.auth", "auth_bp"),     # login endpoints
+        ("erp.routes.main", "main_bp"),
+        ("erp.routes.auth", "auth_bp"),  # endpoints: auth.login_client, auth.login_employee, auth.login_admin
     ]
     for modname, attr in essential:
         try:
@@ -61,26 +60,19 @@ def _register_blueprints(app: Flask) -> None:
         except Exception as e:
             logger.exception("Failed to register %s: %s", modname, e)
 
-    # Best-effort auto-discovery of additional route modules
     try:
         pkg = importlib.import_module(routes_pkg)
         for _, name, ispkg in pkgutil.iter_modules(pkg.__path__, routes_pkg + "."):
-            if ispkg:
-                continue
-            # Avoid double-loading essentials
-            if name in {"erp.routes.main", "erp.routes.auth"}:
+            if ispkg or name in {"erp.routes.main", "erp.routes.auth"}:
                 continue
             try:
                 m = importlib.import_module(name)
-                # Look for any Blueprint instances
+                from flask import Blueprint
                 for attr in dir(m):
                     obj = getattr(m, attr)
-                    if getattr(obj, "name", None) and getattr(obj, "register", None):
-                        # crude check for Blueprint
-                        from flask import Blueprint
-                        if isinstance(obj, Blueprint):
-                            app.register_blueprint(obj)
-                            logger.info("Registered blueprint: %s.%s", name, attr)
+                    if isinstance(obj, Blueprint):
+                        app.register_blueprint(obj)
+                        logger.info("Registered blueprint: %s.%s", name, attr)
             except Exception as e:
                 logger.warning("Skipped broken routes module %s: %s", name, e)
     except Exception as e:
