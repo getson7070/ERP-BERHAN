@@ -1,74 +1,68 @@
-# erp/__init__.py
+# erp/__init__.py — deterministic blueprint registration
 from __future__ import annotations
-
-import importlib
 import logging
-import os
-from datetime import datetime
-
 from flask import Flask, render_template
-from flask_login import LoginManager
-from werkzeug.middleware.proxy_fix import ProxyFix
+from .extensions import init_extensions
 
-from erp.extensions import db  # existing SQLAlchemy instance
-from erp.models import User  # existing model
-
-login_manager = LoginManager()
-login_manager.login_view = "main.choose_login"
-
-_BLUEPRINTS = [
-    "erp.routes.main:bp",
-    "erp.routes.auth:bp",
-]
+logger = logging.getLogger("erp")
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.config.from_prefixed_env()  # APP_/FLASK_
 
-    # ---- Core config (keeps your existing env keys) -------------------------
-    app.config.from_object(os.getenv("FLASK_CONFIG", "erp.config.ProductionConfig"))
-    app.config.setdefault("BRAND_NAME", "BERHAN")
-    app.config.setdefault("BRAND_PRIMARY", "#0f773e")  # green
-    app.config.setdefault("AUTHORIZED_DEVICES", "Xiaomi Pad 6")  # comma-separated
+    init_extensions(app)
 
-    # ---- DB / Login ---------------------------------------------------------
-    db.init_app(app)
-    login_manager.init_app(app)
-
-    @login_manager.user_loader
-    def load_user(user_id: str):
-        try:
-            return db.session.get(User, int(user_id))
-        except Exception:
-            return None
-
-    # ---- Context available to all templates --------------------------------
-    @app.context_processor
-    def inject_globals():
-        return dict(
-            brand_name=app.config.get("BRAND_NAME", "BERHAN"),
-            brand_primary=app.config.get("BRAND_PRIMARY", "#0f773e"),
-            year=datetime.utcnow().year,
-        )
-
-    # ---- Error pages --------------------------------------------------------
+    # Error pages
     @app.errorhandler(404)
-    def not_found(_):
-        return render_template("errors/404.html"), 404
+    def not_found(e):
+        try:
+            return render_template("errors/404.html"), 404
+        except Exception:
+            return "Not Found", 404
 
     @app.errorhandler(500)
-    def server_error(_):
-        # Keep generic UI but no recursion into crashing context
-        return render_template("errors/500.html"), 500
-
-    # ---- Blueprints (stable ones only) -------------------------------------
-    log = logging.getLogger("erp")
-    for spec in _BLUEPRINTS:
-        mod_name, attr = spec.split(":")
+    def internal(e):
         try:
-            mod = importlib.import_module(mod_name)
-            app.register_blueprint(getattr(mod, attr))
-        except Exception as exc:
-            log.warning("Skipped blueprint %s due to error: %s", spec, exc)
+            return render_template("errors/500.html"), 500
+        except Exception:
+            return "Server Error", 500
+
+    # Explicit, safe blueprint registration
+    from .routes.main import main_bp
+    app.register_blueprint(main_bp)
+
+    # Auth
+    try:
+        from .routes.auth import bp as auth_bp
+    except Exception:
+        from .routes.auth import bp as auth_bp  # keep alias; fail loudly if missing
+    app.register_blueprint(auth_bp)
+
+    # Core UI routes (safe if files exist)
+    def _try_register(path, name):
+        try:
+            mod = __import__(path, fromlist=[name])
+            bp = getattr(mod, name, None)
+            if bp is not None:
+                app.register_blueprint(bp)
+                logger.info("Registered blueprint %s.%s", path, name)
+        except Exception as ex:
+            logger.warning("Skipped blueprint %s.%s: %s", path, name, ex)
+
+    _try_register("erp.routes.inventory", "bp")           # UI list page
+    _try_register("erp.routes.receive_inventory", "bp")   # QR/receiving
+    _try_register("erp.finance.routes", "finance_bp")     # API finance
+    _try_register("erp.inventory.routes", "inventory_bp") # API inventory
+    _try_register("erp.procurement.routes", "proc_bp")    # API procurement
+    _try_register("erp.sales.routes", "sales_bp")         # API sales
+    _try_register("erp.routes.hr", "bp")
+    _try_register("erp.routes.hr_workflows", "bp")
+    _try_register("erp.routes.crm", "bp")
+    _try_register("erp.routes.analytics", "bp")
+    _try_register("erp.routes.admin", "bp")
+    _try_register("erp.routes.projects", "bp")
+    _try_register("erp.routes.report_builder", "bp")
+    _try_register("erp.routes.tenders", "bp")
+    _try_register("erp.routes.plugins", "bp")
 
     return app
