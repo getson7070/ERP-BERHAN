@@ -1,14 +1,26 @@
 # erp/routes/dashboard_customize.py
-from flask import Blueprint, render_template, abort
+from flask import Blueprint, request, jsonify
+from flask_login import login_required, current_user
 from erp.extensions import db
-import erp.models as models
+from erp.models import UserDashboard
 
-dashboard_customize_bp = Blueprint("dashboard_customize", __name__, url_prefix="/dashboard-customize")
+dashboard_customize_bp = Blueprint("dashboard_customize", __name__, url_prefix="/api/dashboard")
 
-@dashboard_customize_bp.get("/")
-def customize():
-    UserDashboard = getattr(models, "UserDashboard", None)
-    if UserDashboard is None:
-        abort(404)
-    items = UserDashboard.query.limit(10).all()
-    return render_template("dashboard/customize.html", items=items)
+@login_required
+@dashboard_customize_bp.get("/layout")
+def get_layout():
+    row = UserDashboard.query.filter_by(user_id=current_user.id).first()
+    return jsonify(row.layout if row and row.layout else {}), 200
+
+@login_required
+@dashboard_customize_bp.post("/layout")
+def save_layout():
+    payload = request.get_json(silent=True) or {}
+    row = UserDashboard.query.filter_by(user_id=current_user.id).first()
+    if not row:
+        row = UserDashboard(user_id=current_user.id, layout=payload)
+        db.session.add(row)
+    else:
+        row.layout = payload
+    db.session.commit()
+    return jsonify({"ok": True}), 200
