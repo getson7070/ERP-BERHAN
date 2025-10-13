@@ -1,33 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Choose login · {{ brand_name }}{% endblock %}
+{% block title %}Choose how to sign in · {{ brand_name }}{% endblock %}
 {% block content %}
-  <div class="text-center mb-4">
-    <img src="{{ url_for('static', filename=brand_logo_path) }}" alt="{{ brand_name }} logo" style="height:64px" class="mb-2"/>
-    <h1 class="h4">Welcome to {{ brand_name }} ERP</h1>
-    <p class="text-muted">Select how you’d like to sign in</p>
-  </div>
+  <div class="tiles">
+    <a class="tile {{ 'disabled' if not activation.client }}" href="{{ url_for('auth.login', role='client') if activation.client else '#' }}">
+      <h3>Client Portal</h3>
+      <div class="muted">Order status, invoices, and more.</div>
+    </a>
 
-  <div class="row g-3">
-    <div class="col-12 col-md-4">
-      <a class="btn btn-outline-primary w-100 py-3 {% if not activation.client %}disabled{% endif %}" href="{{ url_for('auth.login_client') if activation.client else '#' }}">
-        Client
-      </a>
-    </div>
-    <div class="col-12 col-md-4">
-      <a class="btn btn-outline-primary w-100 py-3 {% if not activation.employee %}disabled{% endif %}" href="{{ url_for('auth.login_employee') if activation.employee else '#' }}">
-        Employee
-      </a>
-    </div>
-    <div class="col-12 col-md-4">
-      <a class="btn btn-outline-primary w-100 py-3 {% if not activation.admin %}disabled{% endif %}" href="{{ url_for('auth.login_admin') if activation.admin else '#' }}">
-        Admin
-      </a>
-    </div>
-  </div>
+    <a class="tile {{ 'disabled' if not activation.employee }}" href="{{ url_for('auth.login', role='employee') if activation.employee else '#' }}">
+      <h3>Employee Login</h3>
+      <div class="muted">{{ 'Restricted' if not activation.employee else 'Internal tools' }}</div>
+    </a>
 
-  {% if not (activation.client or activation.employee or activation.admin) %}
-  <div class="alert alert-warning mt-4">
-    Your device is not activated for any login mode. Please contact support.
+    <a class="tile {{ 'disabled' if not activation.admin }}" href="{{ url_for('auth.login', role='admin') if activation.admin else '#' }}">
+      <h3>Admin Login</h3>
+      <div class="muted">{{ 'Restricted' if not activation.admin else 'Administration' }}</div>
+    </a>
   </div>
-  {% endif %}
 {% endblock %}
