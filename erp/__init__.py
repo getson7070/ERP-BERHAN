@@ -32,7 +32,7 @@ def _register_blueprints_autodiscover(app: Flask) -> None:
         "erp.inventory", "erp.finance", "erp.procurement", "erp.sales", "erp.hr", "erp.crm",
         "erp.analytics", "erp.admin", "erp.reports", "erp.plugins", "erp.tenders", "erp.manufacturing",
         "erp.api", "erp.dashboard_customize", "erp.observability",
-    , "erp.auth"]
+        "erp.auth"]
     strict = os.getenv("STRICT_BP_IMPORTS", "0") == "1"
 
     def _register_bp(obj):
