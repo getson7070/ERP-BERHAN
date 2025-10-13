@@ -6,48 +6,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>{% block title %}{{ brand_name }} · ERP{% endblock %}</title>
 
-    <link rel="icon" href="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}">
+    <link rel="icon" href="{{ url_for('static', filename=brand_logo_path) }}">
 
-    <!-- Brand + App styles (both exist in erp/static/css/) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <!-- Vendor CSS (Bootstrap) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}"/>
 
-    <!-- Optional: allow overriding primary color from context -->
-    {% if brand_primary_color %}
-    <style>:root { --brand-primary: {{ brand_primary_color }}; }</style>
-    {% endif %}
+    <!-- Brand/theme CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}"/>
 
-    {% block head_extra %}{% endblock %}
+    <style>
+      :root { --brand-primary: {{ brand_primary_color }}; }
+      .brand-bg { background-color: var(--brand-primary) !important; }
+      .brand-text { color: var(--brand-primary) !important; }
+      .navbar-brand img { height: 36px; width: auto; }
+      .footer { border-top: 1px solid #e5e5e5; margin-top: 2rem; padding: 1.5rem 0; color:#6c757d;}
+    </style>
+
+    {% block head %}{% endblock %}
   </head>
   <body>
-    <header class="site-header">
-      <div class="container header-inner">
-        <a href="{{ url_for('main.index') }}" class="brand">
-          <img class="brand-logo"
-               src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}"
-               alt="{{ brand_name }}">
-          <span class="brand-title">{{ brand_name }}</span>
+    <nav class="navbar navbar-expand-md navbar-dark brand-bg">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('main.index') }}">
+          <img src="{{ url_for('static', filename=brand_logo_path) }}" alt="{{ brand_name }} logo"/>
+          <span>{{ brand_name }}</span>
         </a>
-
-        <nav class="main-nav">
-          <a href="{{ url_for('main.choose_login') }}">Login</a>
-          <a href="{{ url_for('main.help_page') }}">Help</a>
-          <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
-          <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
-        </nav>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="topNav">
+          <ul class="navbar-nav ms-auto">
+            <!-- Keep nav minimal; do NOT show warehouse/admin links unless pages add them explicitly -->
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.help_page') }}">Help</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.privacy_page') }}">Privacy</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.feedback_page') }}">Feedback</a></li>
+          </ul>
+        </div>
       </div>
-    </header>
+    </nav>
 
-    <main class="site-main container">
+    <main class="container my-4">
       {% block content %}{% endblock %}
     </main>
 
-    <footer class="site-footer">
-      <div class="container footer-inner">
-        <small>&copy; {{ current_year }} {{ brand_name }}</small>
+    <footer class="footer">
+      <div class="container d-flex justify-content-between">
+        <small class="text-muted">© {{ current_year }} {{ brand_name }}</small>
+        <small class="text-muted">Powered by ERP</small>
       </div>
     </footer>
 
+    <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>
