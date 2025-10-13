@@ -1,54 +1,45 @@
-<!-- erp/templates/base.html -->
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>{% block title %}{{ brand_name }} · ERP{% endblock %}</title>
+<head>
+  <meta charset="utf-8">
+  <title>{{ brand_name }} · BERHAN</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
+  <style>
+    :root {
+      --berhan-primary: #0B5C4B;
+      --berhan-accent: #1AAE8F;
+    }
+    .navbar {
+      background-color: var(--berhan-primary);
+    }
+    .navbar-brand img {
+      height: 40px;
+    }
+  </style>
+</head>
 
-    <link rel="icon" href="{{ url_for('static', filename=brand_logo) }}">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
-    <style>
-      body{ background:#f7fbff; }
-      .appbar{ background:#0d6efd; color:#fff; }
-      .appbar .brand { display:flex; align-items:center; gap:.5rem; padding:.75rem 1rem; }
-      .appbar img{ height:28px; width:auto; border-radius:4px; background:#fff; padding:2px; }
-      .content{ padding:2rem 1rem; max-width:1200px; margin:0 auto; }
-      .tile{ border-radius:16px; border:1px solid #e8eef7; padding:1.25rem; background:#fff; box-shadow:0 6px 24px rgba(13,110,253,.06); transition:transform .08s ease; text-decoration:none; color:inherit; display:block; }
-      .tile:hover{ transform:translateY(-1px); box-shadow:0 10px 32px rgba(13,110,253,.12); }
-      .tile.disabled{ pointer-events:none; opacity:.45; filter:grayscale(10%); box-shadow:none; }
-      .muted{ color:#6c757d; }
-      footer{ color:#6c757d; padding:2rem 1rem; text-align:left; }
-      .nav-links a{ color:#fff; opacity:.95; margin-left:1rem; text-decoration:none; }
-      .nav-links a:hover{ text-decoration:underline; }
-    </style>
-    {% block head %}{% endblock %}
-  </head>
-  <body>
-    <header class="appbar">
-      <div class="d-flex justify-content-between align-items-center">
-        <div class="brand">
-          <img src="{{ url_for('static', filename=brand_logo) }}" alt="logo"/>
-          <strong>BERHAN</strong>
-        </div>
-        <nav class="nav-links pe-3">
-          <a href="{{ url_for('main.help_page') }}">Help</a>
-          <a href="{{ url_for('main.privacy_page') }}">Privacy</a>
-          <a href="{{ url_for('main.feedback_page') }}">Feedback</a>
-        </nav>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('main.index') }}">
+        <img src="{{ url_for('static', filename='pictures/BERHAN PHARMA LOGO.jpg') }}" alt="Berhan Pharma Logo">
+      </a>
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="{{ url_for('main.help_page') }}">Help</a>
+        <a class="nav-link" href="{{ url_for('main.privacy_page') }}">Privacy</a>
+        <a class="nav-link" href="{{ url_for('main.feedback_page') }}">Feedback</a>
       </div>
-    </header>
+    </div>
+  </nav>
 
-    <main class="content">
-      {% block content %}{% endblock %}
-    </main>
+  <div class="container mt-5">
+    {% block content %}{% endblock %}
+  </div>
 
-    <footer>
-      © {{ year }} BERHAN
-    </footer>
+  <footer class="text-center mt-5 mb-3">
+    <small>© {{ current_year }} BERHAN</small>
+  </footer>
 
-    <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
-    {% block scripts %}{% endblock %}
-  </body>
+  <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
+</body>
 </html>
