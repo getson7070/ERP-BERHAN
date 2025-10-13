@@ -1,8 +1,9 @@
 # erp/models/__init__.py
 # Re-export models here so `from erp.models import X` works everywhere.
 from erp.extensions import db
-from .user import User, DeviceAuthorization, DataLineage  # keep existing models
-from .user_dashboard import UserDashboard  # ensure dashboard feature never breaks imports
+from .user import User, DeviceAuthorization, DataLineage  # existing models
+from .user_dashboard import UserDashboard                  # existing model
+from .employee import Employee                             # NEW
 
 __all__ = [
     "db",
@@ -10,4 +11,5 @@ __all__ = [
     "DeviceAuthorization",
     "DataLineage",
     "UserDashboard",
+    "Employee",
 ]
