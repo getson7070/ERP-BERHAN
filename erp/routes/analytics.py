@@ -1,17 +1,24 @@
 # erp/routes/analytics.py
-from flask import Blueprint, jsonify, render_template_string
+from flask import Blueprint, jsonify, current_app
 
 analytics_bp = Blueprint("analytics", __name__, url_prefix="/analytics")
 
-try:
-    from erp.observability import KPI_SALES_MV_AGE
-except Exception:
-    KPI_SALES_MV_AGE = "kpi:sales:mv_age"
+@analytics_bp.route("/kpis")
+def kpis():
+    """Return KPIs; tolerate missing observability symbols so analytics never breaks the app."""
+    try:
+        import erp.observability as obs
+    except Exception as e:
+        current_app.logger.warning("Observability import failed: %r", e)
+        obs = None
 
-@analytics_bp.get("/")
-def analytics_home():
-    return render_template_string("<h1 class='h4'>Analytics</h1><p>Coming soon.</p>")
+    # Safely read counters/values if present; otherwise return zeros/defaults
+    def _get(name, default):
+        return getattr(obs, name, default) if obs else default
 
-@analytics_bp.get("/kpis")
-def analytics_kpis():
-    return jsonify({"KPI_SALES_MV_AGE": KPI_SALES_MV_AGE})
+    payload = {
+        "kpi_sales_mv_age": _get("KPI_SALES_MV_AGE", 0),
+        "token_errors": _get("TOKEN_ERRORS", []),
+        "graphql_rejects": _get("GRAPHQL_REJECTS", []),
+    }
+    return jsonify(payload)
