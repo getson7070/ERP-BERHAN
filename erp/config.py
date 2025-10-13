@@ -1,42 +1,53 @@
 # erp/config.py
 import os
-from pathlib import Path
 
-def _normalize_db_uri(uri: str | None) -> str | None:
-    if not uri:
-        return None
-    # SQLAlchemy requires postgresql://
-    if uri.startswith("postgres://"):
-        return uri.replace("postgres://", "postgresql://", 1)
-    return uri
+class BaseConfig:
+    APP_ENV = os.getenv("APP_ENV", "development")
+    SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-secret")
 
-class Config:
-    SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
-
-    # Try several common envs, then fall back to a safe local sqlite DB
-    SQLALCHEMY_DATABASE_URI = _normalize_db_uri(
+    # DB: accept either SQLALCHEMY_DATABASE_URI or DATABASE_URL
+    SQLALCHEMY_DATABASE_URI = (
         os.getenv("SQLALCHEMY_DATABASE_URI")
         or os.getenv("DATABASE_URL")
-        or os.getenv("POSTGRES_URL")
-        or os.getenv("POSTGRESQL_URL")
+        or ""
     )
-    if not SQLALCHEMY_DATABASE_URI:
-        instance_dir = Path(os.getenv("INSTANCE_PATH", "instance"))
-        instance_dir.mkdir(parents=True, exist_ok=True)
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{instance_dir / 'app.db'}"
-
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # Rate limiting / Redis
-    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI")  # optional
-    REDIS_URL = os.getenv("REDIS_URL") or os.getenv("REDIS_TLS_URL")
-    SOCKETIO_MESSAGE_QUEUE = os.getenv("SOCKETIO_MESSAGE_QUEUE") or REDIS_URL
 
     # CORS
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
 
+    # Cache
+    CACHE_TYPE = os.getenv("CACHE_TYPE", "SimpleCache")
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "300"))
+
+    # Limiter storage (prefer explicit, default to memory)
+    FLASK_LIMITER_STORAGE_URI = (
+        os.getenv("FLASK_LIMITER_STORAGE_URI")
+        or os.getenv("RATELIMIT_STORAGE_URI")
+        or "memory://"
+    )
+    DEFAULT_RATE_LIMITS = os.getenv("DEFAULT_RATE_LIMITS", "300 per minute; 30 per second")
+
+    # SocketIO / Eventlet
+    SOCKETIO_CORS = CORS_ORIGINS
+
     # Branding
-    BRAND_NAME = os.getenv("BRAND_NAME", "BERHAN")
-    BRAND_LOGO_PATH = os.getenv("BRAND_LOGO_PATH", "pictures/BERHAN-PHARMA-LOGO.jpg")
-    BRAND_PRIMARY = os.getenv("BRAND_PRIMARY", "#1e88e5")
-    BRAND_ACCENT = os.getenv("BRAND_ACCENT", "#00acc1")
+    BRAND_NAME = os.getenv("BRAND_NAME", "Berhan Pharma")
+    BRAND_TAGLINE = os.getenv("BRAND_TAGLINE", "Care to Every Shipment")
+    BRAND_LOGO = os.getenv("BRAND_LOGO", "pictures/BERHAN-PHARMA-LOGO.jpg")
+
+    # Entry template (home)
+    ENTRY_TEMPLATE = os.getenv("ENTRY_TEMPLATE", "choose_login.html")
+
+    # Feature toggles for logins
+    ENABLE_CLIENT_LOGIN = os.getenv("ENABLE_CLIENT_LOGIN", "true").lower() == "true"
+    ENABLE_EMPLOYEE_LOGIN = os.getenv("ENABLE_EMPLOYEE_LOGIN", "false").lower() == "true"
+    ENABLE_ADMIN_LOGIN = os.getenv("ENABLE_ADMIN_LOGIN", "false").lower() == "true"
+
+
+class ProductionConfig(BaseConfig):
+    DEBUG = False
+
+
+class DevelopmentConfig(BaseConfig):
+    DEBUG = True
