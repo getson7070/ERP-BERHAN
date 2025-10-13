@@ -3,25 +3,22 @@ from flask_login import login_required
 from decimal import Decimal
 
 try:
-    # Prefer your project modules if present
-    from erp.inventory.models import Delivery, StockLedgerEntry
-    from erp.inventory.valuation import post_sle
     from erp.extensions import db
-except Exception:
-    # Fallback shims for older layouts
-    from extensions import db  # type: ignore
+    from erp.inventory.valuation import post_sle
+    from erp.inventory.models import Delivery
+except Exception as e:
+    db = None
+    post_sle = None
     Delivery = None
-    StockLedgerEntry = None
-    def post_sle(item_id, warehouse_id, qty, voucher_type, voucher_id, lot_id=None, rate=None):
-        raise RuntimeError("post_sle not available; add erp.inventory.valuation.post_sle")
 
 inventory_delivery_bp = Blueprint("inventory_delivery", __name__, url_prefix="/inventory")
 
 @inventory_delivery_bp.route("/delivery", methods=["POST"])
 @login_required
 def create_delivery():
+    if db is None or post_sle is None:
+        return jsonify({"error": "Inventory ledger not available"}), 500
     data = request.get_json(silent=True) or {}
-    # allow running without Delivery model
     delivery_id = None
     if Delivery is not None:
         d = Delivery(customer_id=data.get("customer_id"))
@@ -38,4 +35,4 @@ def create_delivery():
                  voucher_id=delivery_id,
                  lot_id=ln.get("lot_id"))
     db.session.commit()
-    return jsonify(dict(id=str(delivery_id) if delivery_id else None)), 201
+    return jsonify({"id": str(delivery_id) if delivery_id else None}), 201
