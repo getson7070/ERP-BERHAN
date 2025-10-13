@@ -1,117 +1,108 @@
 # erp/__init__.py
-from __future__ import annotations
-
-import importlib
 import os
+import pkgutil
+import importlib
 from datetime import datetime
-from typing import Optional
+from flask import Flask, render_template, g
 
-from flask import Flask, render_template
-from .extensions import (
-    db,
-    migrate,
-    login_manager,
-    cors,
-    cache,
-    mail,
-    socketio,
-    limiter,
-)
+from .extensions import db, login_manager, csrf, limiter, socketio, init_extensions
 
-def create_app(config_object: Optional[str] = None) -> Flask:
-    """
-    Application factory.
-    """
-    app = Flask(__name__, static_folder="static", template_folder="templates")
-
-    # ---------------------------
-    # Basic configuration
-    # ---------------------------
-    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-me"))
-    # Render provides DATABASE_URL. SQLAlchemy prefers postgresql+psycopg2://
-    db_uri = os.environ.get("DATABASE_URL")
-    if db_uri and db_uri.startswith("postgres://"):
-        db_uri = db_uri.replace("postgres://", "postgresql://", 1)
-    app.config.setdefault("SQLALCHEMY_DATABASE_URI", db_uri or "sqlite:///app.db")
+def _default_config(app: Flask):
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    app.config.setdefault("BRAND_NAME", os.getenv("BRAND_NAME", "BERHAN"))
+    app.config.setdefault("BRAND_PRIMARY_COLOR", os.getenv("BRAND_PRIMARY_COLOR", "#005aa7"))
+    app.config.setdefault("BRAND_LOGO_PATH", os.getenv("BRAND_LOGO_PATH", "pictures/BERHAN-PHARMA-LOGO.jpg"))
+    # If Alembic didn’t create new tables yet, we’ll ensure they exist to prevent crashes.
+    app.config.setdefault("AUTO_CREATE_TABLES", True)
+    # Useful for health checks
+    app.config.setdefault("HEALTH_OK_TEXT", "OK")
 
-    # Branding
-    app.config.setdefault("BRAND_NAME", os.environ.get("BRAND_NAME", "BERHAN"))
-    app.config.setdefault("BRAND_PRIMARY", os.environ.get("BRAND_PRIMARY", "#17468B"))
-    app.config.setdefault("BRAND_ACCENT", os.environ.get("BRAND_ACCENT", "#00AEEF"))
+def _register_blueprints(app: Flask):
+    """Auto-register all blueprints under erp.routes.*.
+    Will LOG and SKIP routes that fail to import to avoid taking down the app."""
+    routes_pkg = importlib.import_module("erp.routes")
+    for module_info in pkgutil.iter_modules(routes_pkg.__path__):
+        module_fqn = f"{routes_pkg.__name__}.{module_info.name}"
+        try:
+            module = importlib.import_module(module_fqn)
+        except Exception as e:
+            app.logger.error("Failed importing %s: %r", module_fqn, e)
+            continue
 
-    # Limiter storage (avoid prod warning)
-    # If REDIS_URL is set, Flask-Limiter will use it; otherwise memory://
-    app.config.setdefault(
-        "RATELIMIT_STORAGE_URI", os.environ.get("REDIS_URL", "memory://")
-    )
+        # find any Flask Blueprint instances exposed by the module
+        for attr_name in dir(module):
+            obj = getattr(module, attr_name)
+            # duck-type check to avoid importing Flask here
+            if getattr(obj, "name", None) and getattr(obj, "register", None):
+                # looks like a blueprint
+                try:
+                    app.register_blueprint(obj)
+                    app.logger.info("Registered blueprint from %s: %s", module_fqn, obj.name)
+                except Exception as e:
+                    app.logger.error("Failed registering blueprint %s: %r", module_fqn, e)
 
-    # Optional external config override
-    if config_object:
-        app.config.from_object(config_object)
-
-    # ---------------------------
-    # Init extensions
-    # ---------------------------
-    db.init_app(app)
-    migrate.init_app(app, db)
-    cache.init_app(app)
-    cors.init_app(app, resources={r"/*": {"origins": "*"}})
-    mail.init_app(app)
-    limiter.init_app(app)
-
-    # Flask-Login
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
-
-    # Flask-SocketIO (eventlet is configured in wsgi.py/gunicorn)
-    socketio.init_app(app, cors_allowed_origins="*")
-
-    # ---------------------------
-    # Template context
-    # ---------------------------
-    @app.context_processor
-    def inject_brand():
-        return {
-            "brand_name": app.config["BRAND_NAME"],
-            "brand_primary": app.config["BRAND_PRIMARY"],
-            "brand_accent": app.config["BRAND_ACCENT"],
-            "current_year": datetime.utcnow().year,
-        }
-
-    # ---------------------------
-    # Error handlers
-    # ---------------------------
+def _register_error_pages(app: Flask):
     @app.errorhandler(404)
-    def not_found(_):
+    def not_found(_e):
         return render_template("errors/404.html"), 404
 
     @app.errorhandler(500)
-    def server_error(_):
+    def server_error(_e):
         return render_template("errors/500.html"), 500
 
-    # ---------------------------
-    # Blueprints
-    # ---------------------------
+def _context_processors(app: Flask):
+    @app.context_processor
+    def inject_brand_and_year():
+        return {
+            "brand_name": app.config.get("BRAND_NAME"),
+            "brand_primary_color": app.config.get("BRAND_PRIMARY_COLOR"),
+            "brand_logo_path": app.config.get("BRAND_LOGO_PATH"),
+            "current_year": datetime.utcnow().year,
+        }
+
+    # A very light global to help nav decide visibility in templates that choose to use it.
+    @app.before_request
+    def _set_default_activation():
+        # Avoid template errors if a page doesn’t pass activation explicitly
+        g.activation = getattr(g, "activation", {}) or {}
+
+def _ensure_tables(app: Flask):
+    if app.config.get("AUTO_CREATE_TABLES"):
+        try:
+            with app.app_context():
+                db.create_all()
+        except Exception as e:
+            app.logger.warning("db.create_all() failed (non-fatal): %r", e)
+
+def create_app(config_object=None) -> Flask:
+    app = Flask(
+        __name__,
+        static_folder="static",
+        static_url_path="/static",
+        template_folder="templates",
+    )
+
+    _default_config(app)
+
+    if config_object:
+        app.config.from_object(config_object)
+    # Allow env-based overrides (Render etc.)
+    if os.getenv("SECRET_KEY"):
+        app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
+
+    # Init extensions
+    init_extensions(app)
+
+    # CRITICAL: register Flask-Login loader early so current_user is safe in templates
+    try:
+        from .auth import user_loader as _user_loader  # noqa: F401
+    except Exception as e:
+        app.logger.error("Failed to import auth.user_loader: %r", e)
+
+    _register_error_pages(app)
+    _context_processors(app)
     _register_blueprints(app)
+    _ensure_tables(app)
 
-    # Ensure Flask-Login loaders are registered
-    # (auth_loaders.py ties into the shared login_manager instance)
-    from . import auth_loaders as _  # noqa: F401
-
+    app.logger.info("ERP app created. Brand=%s", app.config.get("BRAND_NAME"))
     return app
-
-
-def _register_blueprints(app: Flask) -> None:
-    """
-    Dynamically import modules under erp.routes.* and register any "bp" blueprint.
-    """
-    import pkgutil
-    from . import routes as routes_pkg
-
-    for modinfo in pkgutil.iter_modules(routes_pkg.__path__):
-        module_fqn = f"{routes_pkg.__name__}.{modinfo.name}"
-        module = importlib.import_module(module_fqn)
-        bp = getattr(module, "bp", None)
-        if bp is not None:
-            app.register_blueprint(bp)
