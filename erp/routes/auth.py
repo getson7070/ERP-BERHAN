@@ -1,26 +1,39 @@
 # erp/routes/auth.py
 from __future__ import annotations
+
 from flask import Blueprint, render_template, abort
-from jinja2 import TemplateNotFound
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+# Canonical endpoint: auth.login (requires a role)
 @auth_bp.route("/login/<role>")
 def login(role: str):
-    """
-    Single endpoint used by templates via: url_for('auth.login', role='client'|'employee'|'admin')
-    Tries role-specific template, then a generic fallback, then plain text.
-    """
     role = (role or "").lower()
-    allowed = {"client", "employee", "admin"}
-    if role not in allowed:
+    if role not in {"client", "employee", "admin"}:
         abort(404)
 
-    candidates = [f"auth/login_{role}.html", "auth/login.html"]
-    for tpl in candidates:
+    # Try role-specific template, fall back to generic
+    for tpl in (f"auth/login_{role}.html", "auth/login.html"):
         try:
             return render_template(tpl, role=role)
-        except TemplateNotFound:
+        except Exception:
+            # swallow TemplateNotFound and continue
             continue
-    return f"{role.capitalize()} login page", 200
+    return f"{role.capitalize()} login", 200
+
+
+# -------- Backward-compatibility aliases (so url_for('auth.login_client') etc. work) --------
+@auth_bp.route("/login/client")
+def login_client():
+    return login("client")
+
+
+@auth_bp.route("/login/employee")
+def login_employee():
+    return login("employee")
+
+
+@auth_bp.route("/login/admin")
+def login_admin():
+    return login("admin")
