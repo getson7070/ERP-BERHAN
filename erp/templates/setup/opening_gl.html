@@ -1,1 +1,13 @@
 
+{% extends "base.html" %}
+{% block content %}
+<h2>Opening Balance (GL)</h2>
+<p>POST JSON to <code>/setup/opening/gl</code> with <code>posting_date</code> and <code>lines</code> (account_id,debit,credit,description).</p>
+<pre>{
+  "posting_date": "2025-10-01",
+  "lines": [
+    {"account_id":"...", "debit": 100000, "credit": 0, "description":"OB Cash"},
+    {"account_id":"...", "debit": 0, "credit": 100000, "description":"OB Equity"}
+  ]
+}</pre>
+{% endblock %}

@@ -1,0 +1,11 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Opening Stock</h2>
+<p>POST JSON to <code>/setup/opening/stock</code> with items (item_id, warehouse_id, qty, rate[, lot_id]).</p>
+<pre>{
+  "items":[
+    {"item_id":"...", "warehouse_id":"...", "qty": 10, "rate": 2500.00, "lot_id": null}
+  ]
+}</pre>
+{% endblock %}
