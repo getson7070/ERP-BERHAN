@@ -1,47 +1,30 @@
-# erp/routes/main.py
-import os
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 
-from ..security_shim import read_device_id, compute_activation_for_device
+main_bp = Blueprint("main", __name__)
 
-bp = Blueprint("main", __name__)
-
-def _env_enabled_flags():
-    return {
-        "client": os.getenv("ENABLE_CLIENT_LOGIN", "false").lower() == "true",
-        "employee": os.getenv("ENABLE_EMPLOYEE_LOGIN", "false").lower() == "true",
-        "admin": os.getenv("ENABLE_ADMIN_LOGIN", "false").lower() == "true",
-    }
-
-@bp.route("/")
+@main_bp.route("/")
 def index():
-    return choose_login()
+    return render_template("choose_login.html")
 
-@bp.route("/choose_login")
-def choose_login():
-    # device-based activation + env toggles
-    device_id = read_device_id(request)
-    device_activation = compute_activation_for_device(device_id) or {}
-    env_activation = _env_enabled_flags()
-    activation = {
-        "client": bool(device_activation.get("client", True) and env_activation["client"]),
-        "employee": bool(device_activation.get("employee", False) and env_activation["employee"]),
-        "admin": bool(device_activation.get("admin", False) and env_activation["admin"]),
-    }
-    return render_template("choose_login.html", activation=activation)
-
-@bp.route("/help")
+@main_bp.route("/help")
 def help_page():
     return render_template("help.html")
 
-@bp.route("/privacy")
+@main_bp.route("/privacy")
 def privacy_page():
-    return render_template("privacy.html")
+    privacy_config = {
+        "company_name": "Berhan Pharma PLC",
+        "officer_email": "info@berhanpharma.com",
+        "last_update": "October 2025",
+        "policy_summary": "We value your privacy and protect your data under Ethiopian and international data protection principles.",
+    }
+    return render_template("privacy.html", privacy_config=privacy_config)
 
-@bp.route("/feedback")
+@main_bp.route("/feedback", methods=["GET", "POST"])
 def feedback_page():
+    if request.method == "POST":
+        msg = request.form.get("feedback")
+        # In production: store to DB or email
+        flash("Thank you for your feedback!", "success")
+        return redirect(url_for("main.feedback_page"))
     return render_template("feedback.html")
-
-@bp.route("/health")
-def health():
-    return ("OK", 200)
