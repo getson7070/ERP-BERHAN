@@ -1,15 +1,13 @@
 # wsgi.py
-import os
-
-# Patch BEFORE importing anything else that may use stdlib sockets/locks
-import eventlet
+# IMPORTANT: eventlet must be monkey-patched BEFORE importing anything else.
+import eventlet  # type: ignore
 eventlet.monkey_patch()
 
-from erp import create_app  # noqa: E402
+from erp import create_app, socketio  # noqa
 
-# Gunicorn points to this
 app = create_app()
 
+# For local runs only; Render will run gunicorn against `wsgi:app`
 if __name__ == "__main__":
-    # For local debugging only
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+    # Uses eventlet by default via SocketIO
+    socketio.run(app, host="0.0.0.0", port=5000)
