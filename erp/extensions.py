@@ -1,46 +1,37 @@
 # erp/extensions.py
 import os
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_login import LoginManager
-from flask_wtf import CSRFProtect
-from flask_caching import Cache
+from flask_wtf.csrf import CSRFProtect
+from flask_socketio import SocketIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_socketio import SocketIO
 
 db = SQLAlchemy()
-migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
-cache = Cache(config={"CACHE_TYPE": "SimpleCache", "CACHE_DEFAULT_TIMEOUT": 300})
 
-REDIS_URL = (
-    os.environ.get("REDIS_URL")
-    or os.environ.get("REDISCLOUD_URL")
-    or os.environ.get("UPSTASH_REDIS_URL")
-)
+# Rate limiting storage
+def _rate_limit_storage_uri():
+    # Prefer explicit RATELIMIT_STORAGE_URI (Flask-Limiter standard)
+    return (
+        os.getenv("RATELIMIT_STORAGE_URI")
+        or os.getenv("RATE_LIMIT_STORAGE_URL")  # compatibility
+        or os.getenv("REDIS_URL")               # Render default if provided
+        or "memory://"
+    )
 
-# Rate limiter (Redis in prod if available, memory otherwise)
-if REDIS_URL:
-    limiter = Limiter(key_func=get_remote_address, storage_uri=REDIS_URL, strategy="fixed-window")
-else:
-    limiter = Limiter(key_func=get_remote_address, storage_uri="memory://", strategy="fixed-window")
+limiter = Limiter(key_func=get_remote_address, storage_uri=_rate_limit_storage_uri())
 
-# Socket.IO prefers eventlet when available; otherwise threading
-try:
-    import eventlet  # noqa
-    async_mode = "eventlet"
-except Exception:
-    async_mode = "threading"
+# SocketIO on eventlet
+socketio = SocketIO(async_mode="eventlet", cors_allowed_origins=os.getenv("SOCKETIO_CORS", "*"))
 
-socketio = SocketIO(async_mode=async_mode, cors_allowed_origins="*")
-
-def init_app_extensions(app):
+def init_extensions(app):
     db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
     csrf.init_app(app)
-    cache.init_app(app)
+    login_manager.init_app(app)
     limiter.init_app(app)
-    socketio.init_app(app, message_queue=REDIS_URL if REDIS_URL else None)
+    socketio.init_app(app, message_queue=os.getenv("SOCKETIO_MESSAGE_QUEUE"))
+    # reasonable defaults
+    login_manager.login_view = "auth.login"  # if/when you add auth blueprint
+    login_manager.session_protection = "strong"
