@@ -1,68 +1,78 @@
-# erp/__init__.py — deterministic blueprint registration
 from __future__ import annotations
-import logging
-from flask import Flask, render_template
-from .extensions import init_extensions
+import os
+import pkgutil
+import importlib
+from flask import Flask, Blueprint
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-logger = logging.getLogger("erp")
+# Expecting these in your project; adjust if differing
+try:
+    from erp.extensions import db, migrate, login_manager, limiter, socketio  # type: ignore
+except Exception:  # fallback names for older codebases
+    db = migrate = login_manager = limiter = socketio = None  # type: ignore
 
-def create_app() -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.config.from_prefixed_env()  # APP_/FLASK_
+def _init_extensions(app: Flask) -> None:
+    # Initialize extensions safely if present
+    for ext in (db, migrate, login_manager, limiter):
+        if hasattr(ext, "init_app"):
+            ext.init_app(app)
+    # SocketIO optional (gunicorn/eventlet)
+    if hasattr(socketio, "init_app"):
+        socketio.init_app(app, async_mode="eventlet", cors_allowed_origins="*", logger=False, engineio_logger=False)
 
-    init_extensions(app)
+def _register_blueprints_autodiscover(app: Flask) -> None:
+    """Discover and register all Flask Blueprints under known ERP packages."""
+    visited = set()
+    def _register_bp(obj):
+        if isinstance(obj, Blueprint):
+            if obj.name not in visited:
+                app.register_blueprint(obj)
+                visited.add(obj.name)
 
-    # Error pages
-    @app.errorhandler(404)
-    def not_found(e):
+    packages = [
+        "erp.routes",
+        "erp.inventory", "erp.finance", "erp.procurement", "erp.sales", "erp.hr", "erp.crm",
+        "erp.analytics", "erp.admin", "erp.reports", "erp.plugins", "erp.tenders", "erp.manufacturing",
+        "erp.api", "erp.dashboard_customize",
+    ]
+    for pkg_name in packages:
         try:
-            return render_template("errors/404.html"), 404
+            pkg = importlib.import_module(pkg_name)
         except Exception:
-            return "Not Found", 404
+            continue
+        # Register any blueprint directly on the package (rare)
+        for v in vars(pkg).values():
+            _register_bp(v)
+        # Walk submodules
+        pkg_path = getattr(pkg, "__path__", None)
+        if not pkg_path:
+            continue
+        for finder, name, ispkg in pkgutil.walk_packages(pkg_path, pkg.__name__ + "."):
+            try:
+                mod = importlib.import_module(name)
+            except Exception:
+                continue
+            for v in vars(mod).values():
+                _register_bp(v)
 
-    @app.errorhandler(500)
-    def internal(e):
-        try:
-            return render_template("errors/500.html"), 500
-        except Exception:
-            return "Server Error", 500
+def create_app(config_object: str | None = None) -> Flask:
+    app = Flask(__name__, instance_relative_config=True)
+    # Load configuration
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret-key"))
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.environ.get("DATABASE_URL", "sqlite:///app.db"))
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)  # behind proxy
 
-    # Explicit, safe blueprint registration
-    from .routes.main import main_bp
-    app.register_blueprint(main_bp)
+    # external config module path support
+    if config_object:
+        app.config.from_object(config_object)
 
-    # Auth
-    try:
-        from .routes.auth import bp as auth_bp
-    except Exception:
-        from .routes.auth import bp as auth_bp  # keep alias; fail loudly if missing
-    app.register_blueprint(auth_bp)
+    _init_extensions(app)
+    _register_blueprints_autodiscover(app)
 
-    # Core UI routes (safe if files exist)
-    def _try_register(path, name):
-        try:
-            mod = __import__(path, fromlist=[name])
-            bp = getattr(mod, name, None)
-            if bp is not None:
-                app.register_blueprint(bp)
-                logger.info("Registered blueprint %s.%s", path, name)
-        except Exception as ex:
-            logger.warning("Skipped blueprint %s.%s: %s", path, name, ex)
-
-    _try_register("erp.routes.inventory", "bp")           # UI list page
-    _try_register("erp.routes.receive_inventory", "bp")   # QR/receiving
-    _try_register("erp.finance.routes", "finance_bp")     # API finance
-    _try_register("erp.inventory.routes", "inventory_bp") # API inventory
-    _try_register("erp.procurement.routes", "proc_bp")    # API procurement
-    _try_register("erp.sales.routes", "sales_bp")         # API sales
-    _try_register("erp.routes.hr", "bp")
-    _try_register("erp.routes.hr_workflows", "bp")
-    _try_register("erp.routes.crm", "bp")
-    _try_register("erp.routes.analytics", "bp")
-    _try_register("erp.routes.admin", "bp")
-    _try_register("erp.routes.projects", "bp")
-    _try_register("erp.routes.report_builder", "bp")
-    _try_register("erp.routes.tenders", "bp")
-    _try_register("erp.routes.plugins", "bp")
+    # Basic health route if not provided
+    @app.get("/healthz")
+    def _healthz():
+        return {"status": "ok"}, 200
 
     return app

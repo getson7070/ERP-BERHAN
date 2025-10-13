@@ -1,31 +1,10 @@
---- a/app.py
-+++ b/app.py
-@@
- from flask import Flask
--from erp.models import db
-+from erp.models import db
-+from erp.extensions import limiter
-+from werkzeug.middleware.proxy_fix import ProxyFix
+import eventlet
+eventlet.monkey_patch()
 
- def create_app():
-     app = Flask(__name__)
-     app.config.from_prefixed_env()  # FLASK_* or APP_*
+from erp import create_app
 
-+    # Secure session cookies (prod values via env config)
-+    app.config.setdefault("SESSION_COOKIE_SECURE", True)
-+    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-+    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)  # respect reverse proxy for HTTPS
+app = create_app()
 
-     db.init_app(app)
-+    limiter.init_app(app)
-
-     # set global security headers
-     @app.after_request
-     def set_headers(resp):
-         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-         resp.headers.setdefault("X-Frame-Options", "DENY")
-         resp.headers.setdefault("Referrer-Policy", "no-referrer")
-         resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-         return resp
-     return app
+if __name__ == "__main__":
+    # For local dev only
+    app.run(host="0.0.0.0", port=5000, debug=True)
