@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><title>Diagnostics</title></head>
+<body>
+  <h1>Diagnostics</h1>
+  <h2>Registered Blueprints ({{ blueprints|length }})</h2>
+  <ul>
+    {% for b in blueprints %}<li>{{ b }}</li>{% endfor %}
+  </ul>
+  <h2>Import Failures ({{ failures|length }})</h2>
+  <ul>
+    {% for name, err in failures %}
+      <li><strong>{{ name }}</strong><pre style="white-space:pre-wrap">{{ err }}</pre></li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
