@@ -1,36 +1,26 @@
 # erp/routes/auth.py
-from flask import Blueprint, request, render_template, redirect, url_for, flash
-from flask_login import login_user
-from ..models import User, DeviceAuthorization
-from ..extensions import db
+from __future__ import annotations
+from flask import Blueprint, render_template, abort
+from jinja2 import TemplateNotFound
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-def get_device_id_from_request():
-    return request.args.get("device") or request.headers.get("X-Device-Id")
 
-@bp.route("/login", methods=["GET", "POST"])
-def login():
-    role = request.args.get("role", "client")  # client / employee / admin
-    if request.method == "GET":
-        return render_template("auth/login.html", role=role)
+@auth_bp.route("/login/<role>")
+def login(role: str):
+    """
+    Single endpoint used by templates via: url_for('auth.login', role='client'|'employee'|'admin')
+    Tries role-specific template, then a generic fallback, then plain text.
+    """
+    role = (role or "").lower()
+    allowed = {"client", "employee", "admin"}
+    if role not in allowed:
+        abort(404)
 
-    email = (request.form.get("email") or "").strip().lower()
-    password = request.form.get("password") or ""
-    device_id = get_device_id_from_request()
-
-    user = User.query.filter_by(email=email, role=role, is_active=True).first()
-    if not user or not user.check_password(password):
-        flash("Invalid credentials", "error")
-        return render_template("auth/login.html", role=role), 401
-
-    if device_id and role in ("employee", "admin"):
-        allowed = DeviceAuthorization.query.filter_by(
-            user_id=user.id, device_id=device_id, allowed=True
-        ).first()
-        if not allowed:
-            flash("This device is not authorized for your account.", "error")
-            return render_template("auth/login.html", role=role), 403
-
-    login_user(user)
-    return redirect(url_for("main.index"))
+    candidates = [f"auth/login_{role}.html", "auth/login.html"]
+    for tpl in candidates:
+        try:
+            return render_template(tpl, role=role)
+        except TemplateNotFound:
+            continue
+    return f"{role.capitalize()} login page", 200
