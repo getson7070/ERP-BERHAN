@@ -1,15 +1,15 @@
 # wsgi.py
 import os
 
-# MUST patch before importing anything else that does I/O
+# Patch BEFORE importing anything else that may use stdlib sockets/locks
 import eventlet
 eventlet.monkey_patch()
 
-from erp import create_app, socketio  # noqa: E402
+from erp import create_app  # noqa: E402
 
+# Gunicorn points to this
 app = create_app()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "10000"))
-    # Use SocketIO runner (eventlet)
-    socketio.run(app, host="0.0.0.0", port=port)
+    # For local debugging only
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
