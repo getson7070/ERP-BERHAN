@@ -2,14 +2,27 @@
 import os
 from flask import Request
 
-def read_device_id(request: Request) -> str:
-    # Use a stable cookie or fallback to IP/UA combo
-    return request.cookies.get("device_id") or f"{request.remote_addr}|{request.user_agent.string}"
+def read_device_id(req: Request) -> str:
+    return (
+        req.headers.get("X-Device-ID")
+        or req.cookies.get("device_id")
+        or req.remote_addr
+        or "unknown"
+    )
+
+def _as_bool(v: str | None, default=False) -> bool:
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "on"}
 
 def compute_activation_for_device(device_id: str) -> dict:
-    # Driven by env feature toggles so UI reflects brand choices
+    """
+    Controls which tiles appear on the choose-login screen.
+    Driven by env flags so you can flip without a code deploy.
+    """
     return {
-        "client": os.getenv("ENABLE_CLIENT_LOGIN", "true").lower() == "true",
-        "employee": os.getenv("ENABLE_EMPLOYEE_LOGIN", "false").lower() == "true",
-        "admin": os.getenv("ENABLE_ADMIN_LOGIN", "false").lower() == "true",
+        "client":   _as_bool(os.getenv("ENABLE_CLIENT_LOGIN", "true"), True),
+        "employee": _as_bool(os.getenv("ENABLE_EMPLOYEE_LOGIN", "false")),
+        "admin":    _as_bool(os.getenv("ENABLE_ADMIN_LOGIN", "false")),
+        "warehouse":_as_bool(os.getenv("ENABLE_WAREHOUSE", "false")),
     }
