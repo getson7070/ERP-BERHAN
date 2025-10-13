@@ -1,55 +1,58 @@
+<!-- erp/templates/choose_login.html -->
 {% extends "base.html" %}
-{% block title %}Choose Login · {{ brand_name }} ERP{% endblock %}
-{% block content %}
-<div class="container mt-5">
-  <h1 class="mb-4">Welcome to {{ brand_name }}</h1>
-  <p class="text-muted">Select how you want to sign in</p>
+{% block title %}Choose how to sign in · {{ brand_name }}{% endblock %}
 
-  <div class="row g-3">
+{% block content %}
+<div class="container py-4">
+  <h1 class="h3 mb-4">Choose how to sign in</h1>
+
+  <div class="row g-4">
     <!-- Client -->
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-lg-4">
       {% set enabled = activation.client %}
-      <a class="tile d-block p-4 rounded-4 text-decoration-none {{ '' if enabled else 'disabled opacity-50' }}"
-         href="{{ url_for('auth.login_client') if enabled else '#' }}"
-         style="border:1px solid #e5e7eb;">
-        <h5 class="mb-1">Client</h5>
-        <small class="text-muted">Order & invoices</small>
+      <a class="text-decoration-none d-block"
+         href="{{ url_for('auth.login', role='client') if enabled else '#' }}"
+         aria-disabled="{{ 'true' if not enabled else 'false' }}">
+        <div class="card shadow-sm {{ '' if enabled else 'opacity-50' }}">
+          <div class="card-body">
+            <h2 class="h5 mb-2">Client Portal</h2>
+            <p class="text-muted mb-0">
+              {{ 'Order status, invoices, and more.' if enabled else 'Restricted' }}
+            </p>
+          </div>
+        </div>
       </a>
     </div>
 
     <!-- Employee -->
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-lg-4">
       {% set enabled = activation.employee %}
-      <a class="tile d-block p-4 rounded-4 text-decoration-none {{ '' if enabled else 'disabled opacity-50' }}"
-         href="{{ url_for('auth.login_employee') if enabled else '#' }}"
-         style="border:1px solid #e5e7eb;">
-        <h5 class="mb-1">Employee</h5>
-        <small class="text-muted">Internal tools</small>
+      <a class="text-decoration-none d-block"
+         href="{{ url_for('auth.login', role='employee') if enabled else '#' }}"
+         aria-disabled="{{ 'true' if not enabled else 'false' }}">
+        <div class="card shadow-sm {{ '' if enabled else 'opacity-50' }}">
+          <div class="card-body">
+            <h2 class="h5 mb-2">Employee Login</h2>
+            <p class="text-muted mb-0">{{ 'Internal tools' if enabled else 'Restricted' }}</p>
+          </div>
+        </div>
       </a>
     </div>
 
     <!-- Admin -->
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-lg-4">
       {% set enabled = activation.admin %}
-      <a class="tile d-block p-4 rounded-4 text-decoration-none {{ '' if enabled else 'disabled opacity-50' }}"
-         href="{{ url_for('auth.login_admin') if enabled else '#' }}"
-         style="border:1px solid #e5e7eb;">
-        <h5 class="mb-1">Admin</h5>
-        <small class="text-muted">System administration</small>
+      <a class="text-decoration-none d-block"
+         href="{{ url_for('auth.login', role='admin') if enabled else '#' }}"
+         aria-disabled="{{ 'true' if not enabled else 'false' }}">
+        <div class="card shadow-sm {{ '' if enabled else 'opacity-50' }}">
+          <div class="card-body">
+            <h2 class="h5 mb-2">Admin Login</h2>
+            <p class="text-muted mb-0">{{ 'Restricted area' if enabled else 'Restricted' }}</p>
+          </div>
+        </div>
       </a>
     </div>
-
-    <!-- Warehouse (only if you actually want it visible) -->
-    {% if activation.warehouse %}
-    <div class="col-12 col-md-4">
-      <a class="tile d-block p-4 rounded-4 text-decoration-none"
-         href="{{ url_for('warehouse.index') }}"
-         style="border:1px solid #e5e7eb;">
-        <h5 class="mb-1">Warehouse</h5>
-        <small class="text-muted">Inventory & dispatch</small>
-      </a>
-    </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}
