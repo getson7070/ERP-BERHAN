@@ -1,41 +1,36 @@
-# erp/routes/auth.py
-import os
-from flask import Blueprint, abort, render_template
+# erp/routes/auth.py — complete login
+from flask import Blueprint, request, render_template, redirect, url_for, flash
+from flask_login import login_user
+from ..extensions import db, login_manager
+from ..models import User, DeviceAuthorization
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-def _enabled(role: str) -> bool:
-    if role == "client":
-        return os.getenv("ENABLE_CLIENT_LOGIN", "false").lower() == "true"
-    if role == "employee":
-        return os.getenv("ENABLE_EMPLOYEE_LOGIN", "false").lower() == "true"
-    if role == "admin":
-        return os.getenv("ENABLE_ADMIN_LOGIN", "false").lower() == "true"
-    return False
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    role = request.args.get("role", "client")
+    if request.method == "GET":
+        return render_template("auth/login.html", role=role)
 
-@auth_bp.route("/login/<role>", methods=["GET"], endpoint="login")
-def login(role: str):
-    if role not in {"client", "employee", "admin"}:
-        abort(404)
-    if not _enabled(role):
-        abort(404)
-    # If you have specific templates per role, render them; otherwise show a simple stub.
-    tmpl = f"auth/login_{role}.html"
-    try:
-        return render_template(tmpl)
-    except Exception:
-        # Minimal stub to avoid 500s while front-end is not wired yet
-        return f"{role.capitalize()} login coming soon.", 200
+    email = request.form.get("email") or (request.json and request.json.get("email"))
+    password = request.form.get("password") or (request.json and request.json.get("password"))
+    device_id = request.args.get("device") or request.headers.get("X-Device-Id")
 
-# Convenience endpoints so url_for('auth.login_client') also works
-@auth_bp.route("/login/client", endpoint="login_client")
-def login_client():
-    return login("client")
+    if not email or not password:
+        flash("Email and password are required.", "error")
+        return render_template("auth/login.html", role=role), 400
 
-@auth_bp.route("/login/employee", endpoint="login_employee")
-def login_employee():
-    return login("employee")
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        flash("Invalid credentials", "error")
+        return render_template("auth/login.html", role=role), 401
 
-@auth_bp.route("/login/admin", endpoint="login_admin")
-def login_admin():
-    return login("admin")
+    # Device gating for elevated roles
+    if device_id and role in ("employee", "admin"):
+        allowed = DeviceAuthorization.query.filter_by(user_id=user.id, device_id=device_id, allowed=True).first()
+        if not allowed:
+            flash("This device is not authorized for your account.", "error")
+            return render_template("auth/login.html", role=role), 403
+
+    login_user(user)
+    return redirect(url_for("main.index"))
