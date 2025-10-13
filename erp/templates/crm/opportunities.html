@@ -1,0 +1,11 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Opportunities</h2>
+<table class="table">
+  <tr><th>Title</th><th>Stage</th><th>Value</th></tr>
+  {% for o in opportunities %}
+  <tr><td>{{o.title}}</td><td>{{o.stage}}</td><td>{{o.value}}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

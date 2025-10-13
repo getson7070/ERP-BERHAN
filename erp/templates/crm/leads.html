@@ -1,0 +1,11 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Leads</h2>
+<table class="table">
+  <tr><th>Name</th><th>Status</th><th>Created</th></tr>
+  {% for l in leads %}
+  <tr><td>{{l.name}}</td><td>{{l.status}}</td><td>{{l.created_at}}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
