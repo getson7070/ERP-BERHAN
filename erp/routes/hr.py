@@ -1,29 +1,20 @@
-from flask import Blueprint, render_template, session, request, redirect, url_for
+# erp/routes/hr.py
+from flask import Blueprint, jsonify
+from erp.models import db, Employee
 
-from erp.extensions import db
-from erp.models import Employee
-from erp.utils import login_required
-from erp.workflow import require_enabled
+hr_bp = Blueprint("hr", __name__, url_prefix="/hr")
 
-bp = Blueprint("hr", __name__, url_prefix="/hr")
-
-
-@bp.route("/")
-@login_required
-@require_enabled("hr")
-def index():
-    employees = Employee.tenant_query().order_by(Employee.id).all()
-    return render_template("hr/index.html", employees=employees)
-
-
-@bp.route("/add", methods=["GET", "POST"])
-@login_required
-@require_enabled("hr")
-def add_employee():
-    if request.method == "POST":
-        name = request.form["name"]
-        emp = Employee(org_id=session.get("org_id"), name=name)
-        db.session.add(emp)
-        db.session.commit()
-        return redirect(url_for("hr.index"))
-    return render_template("hr/add.html")
+@hr_bp.route("/employees")
+def list_employees():
+    data = [
+        {
+            "id": e.id,
+            "first_name": e.first_name,
+            "last_name": e.last_name,
+            "email": e.email,
+            "role": e.role,
+            "is_active": e.is_active,
+        }
+        for e in Employee.query.order_by(Employee.id).limit(100).all()
+    ]
+    return jsonify(data)
