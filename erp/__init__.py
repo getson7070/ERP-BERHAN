@@ -1,110 +1,87 @@
 # erp/__init__.py
-import importlib
-import logging
-import os
-import pkgutil
-from datetime import datetime
-
+from __future__ import annotations
+import logging, importlib, os, pkgutil, datetime
 from flask import Flask, render_template
-from flask_cors import CORS
-
-from .extensions import (
-    db, migrate, login_manager, mail, cache, limiter, socketio
-)
-
-def _register_blueprints(app: Flask) -> None:
-    """Autodiscover and register all blueprints in erp.routes.* safely."""
-    import erp.routes as routes_pkg  # noqa: F401
-
-    package = routes_pkg
-    package_prefix = package.__name__ + "."
-    for _, module_name, _ in pkgutil.iter_modules(package.__path__):  # type: ignore[attr-defined]
-        module_fqn = f"{package_prefix}{module_name}"
-        try:
-            module = importlib.import_module(module_fqn)
-        except Exception as e:  # don't crash app on a bad route module
-            app.logger.error("Skipping routes module %s due to import error: %s", module_fqn, e)
-            continue
-
-        # Convention: each routes module exposes `<name>_bp` Blueprint
-        bp_attr = [a for a in dir(module) if a.endswith("_bp")]
-        for attr in bp_attr:
-            bp = getattr(module, attr, None)
-            try:
-                if bp is not None:
-                    app.register_blueprint(bp)
-                    app.logger.info("Registered blueprint %s from %s", bp.name, module_fqn)
-            except Exception as e:
-                app.logger.error("Failed to register blueprint from %s: %s", module_fqn, e)
-
+from .config import get_config
+from .extensions import init_extensions
 
 def create_app() -> Flask:
-    app = Flask(__name__, static_folder="static", template_folder="templates")
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+    app.config.from_object(get_config())
 
-    # ---- Config ----
-    cfg_path = os.getenv("FLASK_CONFIG", "erp.config.ProductionConfig")
-    module_name, class_name = cfg_path.rsplit(".", 1)
-    config_cls = getattr(importlib.import_module(module_name), class_name)
-    app.config.from_object(config_cls)
+    # Init Flask extensions
+    init_extensions(app)
 
-    # Ensure DB URI is present (fixes: "Either SQLALCHEMY_DATABASE_URI or BINDS must be set")
-    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
-        db_uri = os.getenv("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL")
-        if not db_uri:
-            raise RuntimeError("SQLALCHEMY_DATABASE_URI (or DATABASE_URL) is required")
-        app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
-
-    # ---- Logging ----
-    logging.basicConfig(level=logging.INFO)
-
-    # ---- Extensions ----
-    db.init_app(app)
-    migrate.init_app(app, db)
-    mail.init_app(app)
-    cache.init_app(app)
-    limiter.init_app(app)
-    CORS(app, resources={r"/*": {"origins": app.config.get("CORS_ORIGINS", "*")}})
-
-    # Flask-Login
-    login_manager.init_app(app)
-    login_manager.login_view = "main.choose_login"
-
-    from erp.models import User  # local import to avoid circular refs
-
-    @login_manager.user_loader
-    def load_user(user_id: str):
-        try:
-            return User.query.get(int(user_id))  # type: ignore[arg-type]
-        except Exception:
-            return None
-
-    # SocketIO
-    socketio.init_app(app, message_queue=None)
-
-    # ---- Jinja context ----
-    @app.context_processor
-    def inject_branding():
-        return dict(
-            brand_name=app.config["BRAND_NAME"],
-            brand_tagline=app.config["BRAND_TAGLINE"],
-            brand_logo=app.config["BRAND_LOGO"],
-            current_year=datetime.utcnow().year,
-        )
-
-    # ---- Error pages ----
-    @app.errorhandler(404)
-    def not_found(e):
-        return render_template("errors/404.html"), 404
-
-    @app.errorhandler(500)
-    def server_error(e):
-        return render_template("errors/500.html"), 500
-
-    # ---- Routes ----
+    # Register blueprints (fault-tolerant)
     _register_blueprints(app)
+
+    # Branding + convenience vars for all templates
+    @app.context_processor
+    def inject_brand():
+        return {
+            "brand_name": app.config.get("BRAND_NAME", "BERHAN"),
+            "brand_primary": app.config.get("BRAND_PRIMARY", "#0d6efd"),
+            "brand_accent": app.config.get("BRAND_ACCENT", "#198754"),
+            "current_year": datetime.datetime.utcnow().year,
+        }
+
+    # Simple health
+    @app.route("/health")
+    def health():
+        return {"status": "ok"}, 200
+
+    # Friendly 500 page
+    @app.errorhandler(500)
+    def server_error(_e):
+        return render_template("errors/500.html"), 500
 
     return app
 
+def _register_blueprints(app: Flask) -> None:
+    """
+    Load only healthy blueprints.
+    If a module is broken (SyntaxError / ImportError), we log and keep going.
+    This prevents one bad route from crashing the whole service.
+    """
+    logger = logging.getLogger("erp")
+    routes_pkg = "erp.routes"
 
-# re-export for wsgi
-from .extensions import socketio  # noqa: E402
+    # Start with the essentials explicitly
+    essential = [
+        ("erp.routes.main", "main_bp"),     # choose_login, index
+        ("erp.routes.auth", "auth_bp"),     # login endpoints
+    ]
+    for modname, attr in essential:
+        try:
+            m = importlib.import_module(modname)
+            bp = getattr(m, attr, None)
+            if bp:
+                app.register_blueprint(bp)
+                logger.info("Registered blueprint: %s.%s", modname, attr)
+        except Exception as e:
+            logger.exception("Failed to register %s: %s", modname, e)
+
+    # Best-effort auto-discovery of additional route modules
+    try:
+        pkg = importlib.import_module(routes_pkg)
+        for _, name, ispkg in pkgutil.iter_modules(pkg.__path__, routes_pkg + "."):
+            if ispkg:
+                continue
+            # Avoid double-loading essentials
+            if name in {"erp.routes.main", "erp.routes.auth"}:
+                continue
+            try:
+                m = importlib.import_module(name)
+                # Look for any Blueprint instances
+                for attr in dir(m):
+                    obj = getattr(m, attr)
+                    if getattr(obj, "name", None) and getattr(obj, "register", None):
+                        # crude check for Blueprint
+                        from flask import Blueprint
+                        if isinstance(obj, Blueprint):
+                            app.register_blueprint(obj)
+                            logger.info("Registered blueprint: %s.%s", name, attr)
+            except Exception as e:
+                logger.warning("Skipped broken routes module %s: %s", name, e)
+    except Exception as e:
+        logging.getLogger("erp").warning("Route auto-discovery failed: %s", e)
