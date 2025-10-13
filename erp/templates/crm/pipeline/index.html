@@ -1,1 +1,10 @@
-
+<!doctype html>
+<html><body>
+<h1>CRM - Pipeline</h1>
+<table border="1" cellpadding="6">
+<tr><th>Stage</th><th>Count</th></tr>
+{% for s in stages %}
+<tr><td>{{ s.name }}</td><td>{{ s.count }}</td></tr>
+{% endfor %}
+</table>
+</body></html>
