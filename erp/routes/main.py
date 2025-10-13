@@ -6,14 +6,13 @@ main_bp = Blueprint("main", __name__)
 
 @main_bp.route("/")
 def index():
-    # Home goes to choose_login for device-based activation
     return redirect(url_for("main.choose_login"))
 
 @main_bp.route("/choose_login")
 def choose_login():
     device_id = read_device_id(request)
     activation = compute_activation_for_device(device_id) or {}
-    # store on g so base/layout can read if needed without breaking
+    # expose to templates safely
     g.activation = activation
     return render_template("choose_login.html", activation=activation)
 
@@ -28,7 +27,3 @@ def privacy_page():
 @main_bp.route("/feedback")
 def feedback_page():
     return render_template("feedback.html")
-
-@main_bp.route("/health")
-def health():
-    return ("OK", 200)
