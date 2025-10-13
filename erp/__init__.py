@@ -1,91 +1,106 @@
 # erp/__init__.py
 from __future__ import annotations
-import logging
 import importlib
-import pkgutil
-import datetime
+import logging
+import os
+from typing import List
+
 from flask import Flask, render_template
-from .config import get_config
-from .extensions import init_extensions, login_manager  # keep login_manager available
 
+from .extensions import db, migrate, login_manager, cache, mail, limiter, socketio
+from .config import ProductionConfig, DevelopmentConfig, BaseConfig
 
-def create_app() -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.config.from_object(get_config())
+LOG = logging.getLogger("erp")
+logging.basicConfig(level=logging.INFO)
 
-    # Init Flask extensions (db, migrate, login_manager, limiter, cors, cache, socketio, etc.)
-    init_extensions(app)
+def _load_config(app: Flask) -> None:
+    cfg_path = os.getenv("FLASK_CONFIG", "").strip()
+    if cfg_path:
+        module, _, name = cfg_path.rpartition(".")
+        app.config.from_object(importlib.import_module(module).__dict__[name])
+    else:
+        # Default to Production if APP_ENV==production; else Dev
+        app_env = os.getenv("APP_ENV", "production").lower()
+        app.config.from_object(ProductionConfig if app_env == "production" else DevelopmentConfig)
 
-    # IMPORTANT: ensure user_loader is registered (executes @login_manager.user_loader)
-    from . import auth_loaders as _auth_loaders  # noqa: F401
+    # If rate limits provided, apply to limiter default limits
+    default_limits = app.config.get("DEFAULT_RATE_LIMITS", [])
+    if default_limits:
+        limiter._default_limits = default_limits  # type: ignore[attr-defined]
 
-    # Optional: sanity log to confirm loader is in place
-    app.logger.info(
-        "Login user_loader set? %s",
-        getattr(login_manager, "_user_callback", None) is not None,
-    )
+def _init_extensions(app: Flask) -> None:
+    db.init_app(app)
+    migrate.init_app(app, db)
+    cache.init_app(app)
+    mail.init_app(app)
+    limiter.init_app(app)
+    socketio.init_app(app)
 
-    # Register blueprints (auth + all others)
-    _register_blueprints(app)
+    # ---- Flask-Login wiring (fixes "Missing user_loader") ----
+    @login_manager.user_loader
+    def load_user(user_id: str):
+        from erp.models import User  # local import to avoid circulars
+        try:
+            return User.query.get(int(user_id))
+        except Exception:
+            return None
 
-    # Branding + convenience vars for all templates
-    @app.context_processor
-    def inject_brand():
-        return {
-            "brand_name": app.config.get("BRAND_NAME", "BERHAN"),
-            "brand_primary": app.config.get("BRAND_PRIMARY", "#0d6efd"),
-            "brand_accent": app.config.get("BRAND_ACCENT", "#198754"),
-            "current_year": datetime.datetime.utcnow().year,
-        }
-
-    @app.route("/health")
-    def health():
-        return {"status": "ok"}, 200
-
-    @app.errorhandler(500)
-    def server_error(_e):
-        return render_template("errors/500.html"), 500
-
-    return app
-
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"  # fallback
 
 def _register_blueprints(app: Flask) -> None:
     """
-    1) Register essential blueprints explicitly (so core routes always exist).
-    2) Auto-discover & register any other Blueprints under erp.routes.*
+    Keep the list small & safe-by-default. Optional modules are guarded.
     """
-    logger = logging.getLogger("erp")
-
-    # Register essentials first
-    essentials = [
-        ("erp.routes.main", "main_bp"),
-        ("erp.routes.auth", "auth_bp"),  # provides endpoint: auth.login (role param)
+    modules: List[str] = [
+        "erp.routes.main",
+        "erp.routes.auth",
+        # Optional routes may import missing models in your current DB;
+        # they are loaded best-effort without breaking the app:
+        "erp.routes.analytics",
+        "erp.routes.api",
+        "erp.routes.dashboard_customize",
+        "erp.routes.hr",
+        "erp.routes.hr_workflows",
+        "erp.routes.inventory",
+        "erp.routes.orders",
+        "erp.routes.privacy",
+        "erp.routes.report_builder",
+        "erp.routes.tenders",
     ]
-    for modname, attr in essentials:
+    for module_fqn in modules:
         try:
-            m = importlib.import_module(modname)
-            bp = getattr(m, attr, None)
-            if bp:
+            module = importlib.import_module(module_fqn)
+            bp = getattr(module, "bp", None) or getattr(module, "blueprint", None) or getattr(module, "auth_bp", None)
+            if bp is not None:
                 app.register_blueprint(bp)
-                logger.info("Registered blueprint: %s.%s", modname, attr)
-        except Exception as e:
-            logger.exception("Failed to register %s: %s", modname, e)
+        except Exception as exc:  # non-fatal
+            LOG.warning("Skipped routes module %s due to error: %s", module_fqn, exc)
 
-    # Auto-register any additional blueprints in erp.routes.*
-    try:
-        routes_pkg = importlib.import_module("erp.routes")
-        for _finder, modname, ispkg in pkgutil.iter_modules(routes_pkg.__path__, routes_pkg.__name__ + "."):
-            if ispkg or modname in {"erp.routes.main", "erp.routes.auth"}:
-                continue
-            try:
-                m = importlib.import_module(modname)
-                from flask import Blueprint
-                for attr in dir(m):
-                    obj = getattr(m, attr)
-                    if isinstance(obj, Blueprint):
-                        app.register_blueprint(obj)
-                        logger.info("Registered blueprint: %s.%s", modname, attr)
-            except Exception as e:
-                logger.warning("Skipped routes module %s due to error: %s", modname, e)
-    except Exception as e:
-        logging.getLogger("erp").warning("Route auto-discovery failed: %s", e)
+def _inject_branding(app: Flask) -> None:
+    @app.context_processor
+    def inject_brand():
+        return dict(
+            brand_name="BERHAN",
+            brand_logo="pictures/BERHAN-PHARMA-LOGO.jpg",
+            year="2025",
+        )
+
+def create_app() -> Flask:
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    _load_config(app)
+    _init_extensions(app)
+    _register_blueprints(app)
+    _inject_branding(app)
+
+    # ---- Error pages ----
+    @app.errorhandler(404)
+    def not_found(e):  # pragma: no cover
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(e):  # pragma: no cover
+        return render_template("errors/500.html"), 500
+
+    return app
