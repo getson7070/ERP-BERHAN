@@ -1,13 +1,14 @@
-# wsgi.py
-# IMPORTANT: eventlet must be monkey-patched BEFORE importing anything else.
-import eventlet  # type: ignore
+# wsgi.py — entrypoint for Gunicorn on Render
+
+# IMPORTANT: eventlet must be patched before importing anything else
+import eventlet
 eventlet.monkey_patch()
 
-from erp import create_app, socketio  # noqa
+from erp import create_app
 
+# Gunicorn looks for 'app'
 app = create_app()
 
-# For local runs only; Render will run gunicorn against `wsgi:app`
+# Optional local run (Render won’t use this)
 if __name__ == "__main__":
-    # Uses eventlet by default via SocketIO
-    socketio.run(app, host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=8000)
