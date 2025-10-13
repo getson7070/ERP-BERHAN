@@ -13,9 +13,15 @@ except ImportError:  # fallback if project uses a flat `extensions.py`
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-class PurchaseOrder(db.Model):
-    __tablename__ = "purchase_orders"
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    supplier_id = db.Column(UUID(as_uuid=True))
-    posting_date = db.Column(db.Date, default=date.today)
-    status = db.Column(db.String(16), default="Draft")  # Draft, Submitted, Ordered, Received, Closed
+proc_bp = Blueprint('procurement', __name__, url_prefix='/procurement')
+
+@proc_bp.route('/po', methods=['GET','POST'])
+@login_required
+def purchase_orders():
+    if request.method == 'POST':
+        data = request.json or {}
+        po = PurchaseOrder(supplier_id=data.get('supplier_id'))
+        db.session.add(po); db.session.commit()
+        return jsonify(dict(id=str(po.id))), 201
+    rows = PurchaseOrder.query.order_by(PurchaseOrder.posting_date.desc()).limit(200).all()
+    return jsonify([dict(id=str(r.id), status=r.status, posting_date=r.posting_date.isoformat()) for r in rows])
