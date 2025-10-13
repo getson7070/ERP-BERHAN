@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 # Keep your chosen identifiers
 revision = "20250830_fix_rls_policies"
-down_revision = "d4e5f6g7h8i"
+down_revision = ("<headA>", "<headB>")  # tuple, not list
 branch_labels = None
 depends_on = None
 
