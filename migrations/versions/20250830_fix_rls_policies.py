@@ -4,8 +4,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # Keep your chosen identifiers
-revision: str = "20250830_fix_rls_policies"
-down_revision: str = "d4e5f6g7h8i"
+revision = "20250830_fix_rls_policies"
+down_revision = "d4e5f6g7h8i"
 branch_labels = None
 depends_on = None
 
