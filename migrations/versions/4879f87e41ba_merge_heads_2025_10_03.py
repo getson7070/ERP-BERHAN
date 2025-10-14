@@ -2,7 +2,7 @@
 """merge heads 2025-10-03"""
 
 revision = "4879f87e41ba"
-down_revision = ("revX", "revY")
+down_revision = ("e75b638f0ca3", "cf161230ed7f")
 branch_labels = None
 depends_on = None
 
