@@ -1,12 +1,11 @@
-# gunicorn.conf.py
-import os
+import multiprocessing
 
-bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
+bind = "0.0.0.0:10000"
+workers = 1
 worker_class = "eventlet"
-workers = int(os.environ.get("WEB_CONCURRENCY", "1"))
-threads = int(os.environ.get("THREADS", "1"))
-timeout = int(os.environ.get("TIMEOUT", "120"))
-graceful_timeout = int(os.environ.get("GRACEFUL_TIMEOUT", "30"))
+threads = 1
+timeout = 120
+graceful_timeout = 30
+keepalive = 5
 accesslog = "-"
 errorlog = "-"
-loglevel = os.environ.get("LOG_LEVEL", "info")
