@@ -3,25 +3,25 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>{{ title }}</title>
-    <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-light bg-light">
   <a class="navbar-brand" href="{{ url_for('main.index') }}">
-    <img src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}" alt="Berhan Pharma Logo" height="40">
+    <img src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}" alt="Logo" height="40">
   </a>
 </nav>
 <div class="container mt-4">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'danger' if category=='error' else category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category=='error' else category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
 </div>
 <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
 </body>
