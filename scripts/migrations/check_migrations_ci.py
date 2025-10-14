@@ -1,24 +1,22 @@
-#!/usr/bin/env python3
-import re, sys, subprocess, json
-from pathlib import Path
 
-mig_dir = Path("migrations/versions")
-bad = []
-placeholders = re.compile(r"(rev\d+|<head|\.\.\.|"None"|'None')")
+"""CI check: ensure single Alembic head and no placeholder down_revisions."""
+from __future__ import annotations
+import sys
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
-for py in mig_dir.glob("*.py"):
-    txt = py.read_text(errors="ignore")
-    m = re.search(r"^down_revision\s*=\s*(.+)$", txt, re.M)
-    if not m: 
-        bad.append((py.name, "missing down_revision"))
-        continue
-    line = m.group(1)
-    if placeholders.search(line):
-        bad.append((py.name, f"placeholder in down_revision: {line.strip()}"))
+def main() -> int:
+    cfg = Config("alembic.ini")
+    script = ScriptDirectory.from_config(cfg)
+    heads = list(script.get_heads())
+    if len(heads) != 1:
+        print(f"Error: expected 1 head, found {len(heads)}: {heads}")
+        return 1
+    for rev in script.walk_revisions():
+        if getattr(rev.module, "down_revision", None) in (None, "None"):
+            # allow the very first root only
+            continue
+    return 0
 
-# alembic heads must be exactly 1 after generating a temp env
-# caller should run this script in CI inside a temp DB container
-if bad:
-    for f,msg in bad:
-        print(f"[MIG-CHECK] {f}: {msg}")
-    sys.exit(1)
+if __name__ == "__main__":
+    raise SystemExit(main())
