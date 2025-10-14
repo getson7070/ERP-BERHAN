@@ -9,7 +9,7 @@ def main():
     script = ScriptDirectory.from_config(cfg)
     heads = list(script.get_heads())
     if len(heads) > 1:
-        command.merge(cfg, heads, message=f"automerge {datetime.datetime.utcnow():%Y-%m-%d %H:%M:%S}")
+    command.merge(cfg, heads, message="automerge ...")
     command.upgrade(cfg, "head")
 
 if __name__ == "__main__":
