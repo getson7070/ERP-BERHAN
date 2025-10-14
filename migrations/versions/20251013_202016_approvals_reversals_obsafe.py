@@ -1,20 +1,21 @@
 
 """Add approvals/reversals columns safely (Postgres IF EXISTS/IF NOT EXISTS)
 Revision ID: appr_rev_20251013_202016
-Revises:
+Revises: 
 Create Date: 2025-10-13T20:20:16.998184
 """
 from alembic import op
 
+# revision identifiers, used by Alembic.
 revision = "appr_rev_20251013_202016"
-down_revision = None  # set this to your current head before applying
+down_revision = None  # this revision is a branch root; will be merged by 20251014_merge_heads_stable
 branch_labels = None
 depends_on = None
 
-tables = ["journal_entries", "invoices", "bills", "grn", "deliveries"]
+TABLES = ["journal_entries", "invoices", "bills", "grn", "deliveries"]
 
 def upgrade():
-    for t in tables:
+    for t in TABLES:
         op.execute(f"""
         DO $$ BEGIN
             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{t}') THEN
@@ -30,7 +31,7 @@ def upgrade():
         """)
 
 def downgrade():
-    for t in tables:
+    for t in TABLES:
         op.execute(f"""
         DO $$ BEGIN
             IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{t}' AND column_name='status') THEN
