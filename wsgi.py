@@ -1,12 +1,11 @@
+
 import eventlet
 eventlet.monkey_patch()
-# wsgi.py
-# Do eventlet monkey patching BEFORE any other imports to avoid green/thread issues.
 
-from erp import create_app
-
+from erp import create_app  # do not move upward
 app = create_app()
 
-# Optional local run:
+# Optional: expose socketio runner for local dev
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    from erp.extensions import socketio
+    socketio.run(app, host="0.0.0.0", port=10000)
