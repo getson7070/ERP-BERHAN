@@ -1,7 +1,7 @@
-# wsgi.py
-# Do eventlet monkey patching BEFORE any other imports to avoid green/thread issues.
 import eventlet
 eventlet.monkey_patch()
+# wsgi.py
+# Do eventlet monkey patching BEFORE any other imports to avoid green/thread issues.
 
 from erp import create_app
 
