@@ -1,17 +1,18 @@
-
 {% extends "base.html" %}
 {% block content %}
-<h3>Login ({{ role|default('client') }})</h3>
-<form method="post" action="{{ url_for('auth.login', role=role) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="mb-3">
-    <label>Email</label>
-    <input class="form-control" name="email" type="email" required>
-  </div>
-  <div class="mb-3">
-    <label>Password</label>
-    <input class="form-control" name="password" type="password" required>
-  </div>
-  <button class="btn btn-primary" type="submit">Sign in</button>
-</form>
+<div class="container py-5" style="max-width:420px;">
+  <h2 class="mb-3">Sign in</h2>
+  <form method="POST" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input class="form-control" type="email" name="email" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Password</label>
+      <input class="form-control" type="password" name="password" required>
+    </div>
+    <button class="btn btn-primary w-100" type="submit">Login</button>
+  </form>
+</div>
 {% endblock %}
