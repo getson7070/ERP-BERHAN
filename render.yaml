@@ -3,12 +3,14 @@ services:
     name: erp-berhan-backend
     env: python
     buildCommand: pip install -r requirements.txt
-    preDeployCommand: alembic upgrade head
-    startCommand: gunicorn -k eventlet -w 1 wsgi:app
+    preDeployCommand: bash scripts/predeploy.sh
+    startCommand: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:10000 ERP-BERHAN-main.wsgi:app
     envVars:
-      - key: DATABASE_URL
-        sync: false
       - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
         sync: false
       - key: FLASK_ENV
         value: production
+      - key: REDIS_URL
+        sync: false
