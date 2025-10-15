@@ -1,5 +1,5 @@
 # tools/dedupe_alembic.py
-import argparse, re, sys, pathlib
+import re, sys, pathlib
 VERS = pathlib.Path("migrations/versions")
 
 def scan():
@@ -8,7 +8,10 @@ def scan():
         print("migrations/versions not found", file=sys.stderr)
         return {}
     for f in VERS.glob("*.py"):
-        txt = f.read_text(errors="ignore")
+        try:
+            txt = f.read_text(errors="ignore")
+        except Exception:
+            continue
         m = re.search(r"^revision\s*=\s*['\"]([A-Za-z0-9_]+)['\"]", txt, re.M)
         if not m:
             continue
@@ -17,8 +20,7 @@ def scan():
     return by_rev
 
 def main():
-    by_rev = scan()
-    dupes = {k:v for k,v in by_rev.items() if len(v) > 1}
+    dupes = {rev:paths for rev, paths in scan().items() if len(paths) > 1}
     if not dupes:
         print("No duplicate revision IDs detected.")
         return 0
@@ -27,9 +29,7 @@ def main():
         print(f"  {rev}:")
         for p in paths:
             print(f"    - {p}")
-    if "--check-only" in sys.argv:
-        return 2
-    return 0
+    return 2  # non-zero so CI flags it
 
 if __name__ == "__main__":
     sys.exit(main())
