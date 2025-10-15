@@ -5,64 +5,59 @@ from datetime import datetime, timezone
 def sh(*args):
     return subprocess.run(args, text=True, capture_output=True)
 
-def parse_heads_verbose(text: str):
-    # Only accept "Rev: <id>" lines to avoid "Parent:", "Branches", etc.
-    revs = []
-    for ln in text.splitlines():
-        m = re.match(r"^\s*Rev:\s+([A-Za-z0-9_]+)", ln)
-        if m:
-            revs.append(m.group(1))
-    # de-dupe preserve order
-    out, seen = [], set()
-    for r in revs:
-        if r not in seen:
-            seen.add(r); out.append(r)
-    return out
+def heads_quiet():
+    """Use the canonical source of truth: only real head IDs, one per line."""
+    r = sh("alembic", "heads", "-q")
+    if r.returncode != 0:
+        return []
+    return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
 
-def parse_heads_fallback(text: str):
-    # Fallback when --verbose not available; filter out words and colon lines
-    stopwords = {"parent", "branches", "path", "merges", "auto-merge", "add"}
-    revs = []
-    for ln in text.splitlines():
-        s = ln.strip()
-        if not s or ":" in s:
-            continue
-        # take first token, strip annotations like "(head)"
-        tok = s.split()[0]
-        tok = tok.split("(")[0].strip().rstrip(",")
-        if not tok or not re.match(r"^[A-Za-z0-9_]+$", tok):
-            continue
-        if tok.lower() in stopwords:
-            continue
-        revs.append(tok)
-    # de-dupe
-    out, seen = [], set()
-    for r in revs:
-        if r not in seen:
-            seen.add(r); out.append(r)
-    return out
-
-def get_heads():
-    # Prefer --verbose and parse only "Rev:" lines
+def heads_verbose_marked():
+    """Fallback: parse only lines like 'Rev: <id> (head ...)' from --verbose."""
     r = sh("alembic", "heads", "--verbose")
-    if r.returncode == 0 and r.stdout.strip():
-        revs = parse_heads_verbose(r.stdout)
-        if revs:
-            return revs
-    # Fallback to non-verbose parsing with strict filters
-    r = sh("alembic", "heads")
-    if r.returncode == 0 and r.stdout.strip():
-        revs = parse_heads_fallback(r.stdout)
-        if revs:
-            return revs
-    return []
+    if r.returncode != 0:
+        return []
+    out = []
+    for ln in r.stdout.splitlines():
+        m = re.match(r"^\s*Rev:\s+([A-Za-z0-9_]+)\s+\(head\b", ln)
+        if m:
+            out.append(m.group(1))
+    # de-dupe preserve order
+    seen, res = set(), []
+    for x in out:
+        if x not in seen:
+            seen.add(x); res.append(x)
+    return res
+
+def get_heads_strict():
+    # 1) Prefer -q (real heads only)
+    q = heads_quiet()
+    if q:
+        return q
+    # 2) Fallback to verbose (only '(head)' lines)
+    v = heads_verbose_marked()
+    if not v:
+        return []
+    # 3) If verbose returned something but -q was empty, trust verbose
+    return v
 
 def main():
-    heads = get_heads()
+    # Resolve heads strictly
+    heads = get_heads_strict()
+    # Extra safety: if both quiet and verbose are available, intersect with -q
+    q = heads_quiet()
+    if q and heads:
+        heads = [h for h in heads if h in set(q)]
+
+    # De-duplicate
+    seen = set(); heads = [h for h in heads if not (h in seen or seen.add(h))]
+
     if len(heads) > 1:
         rid = "automerge_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         print(f"[automerge] Multiple heads detected: {heads}. Creating merge {rid}", flush=True)
         subprocess.check_call(["alembic", "merge", "-m", f"Auto-merge heads {rid}", *heads])
+
+    # Always upgrade to the final head after potential merge
     subprocess.check_call(["alembic", "upgrade", "head"])
 
 if __name__ == "__main__":
