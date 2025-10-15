@@ -1,31 +1,11 @@
-# Migration Hygiene & Render Pre-Deploy
+# Migration Hygiene & Render Pre-Deploy (v2)
 
-## What this bundle contains
-- `scripts/migrations/automerge_and_upgrade.py`: robust pre-deploy that detects true Alembic heads and merges them safely, then upgrades.
-- `.github/workflows/alembic-one-head.yml`: CI guard that fails if the repo has more than one head or duplicate revision IDs.
-- `scripts/migrations/print_heads.py`: quick diagnostic to see heads on the runner.
-- `tools/dedupe_alembic.py`: lists duplicate revision IDs across files.
+**What changed in v2**
+- `automerge_and_upgrade.py` now captures output, detects real heads from `--verbose` or `branches`, and never relies on exceptions to read Alembic errors.
+- On failure it prints `heads`, `branches`, and `history --verbose` so you can see *exact* IDs Render sees.
+- CI keeps enforcing a single head and flags duplicate `revision` values.
 
-## How to wire it in Render
-In `render.yaml` (or the Render dashboard), set **Predeploy Command** to:
-```bash
+**Render Predeploy**
+```
 python -m scripts.migrations.automerge_and_upgrade
 ```
-
-## Local sanity checks
-```bash
-pip install -r requirements.txt
-alembic -c alembic.ini heads -q
-python tools/dedupe_alembic.py --check-only
-python -m scripts.migrations.automerge_and_upgrade
-```
-
-## Clean up duplicates (after deploy is green)
-1. Run `python tools/dedupe_alembic.py` to list duplicates.
-2. For each duplicate `revision = '...'` shown:
-   - Keep the correct file.
-   - Rename the extra file(s) to a **new** unique `revision` value and adjust their filenames accordingly,
-     or remove them if truly unused.
-   - If those files are needed, chain them linearly by setting their `down_revision` to the previous revision
-     or create an explicit **merge** revision with `down_revisions = ('revA', 'revB', ...)`.
-3. Ensure `alembic -c alembic.ini heads -q` prints exactly one id.
