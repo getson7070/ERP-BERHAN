@@ -1,12 +1,5 @@
-{% raw %}
-{% extends 'base.html' %}
-{% block title %}Marketing{% endblock %}
-{% block header %}Marketing{% endblock %}
+{% extends "base.html" %}
 {% block content %}
-<section class="grid md:grid-cols-3 gap-4">
-  <a href="/crm" class="rounded bg-white p-4 shadow-sm hover:shadow">CRM</a>
-  <a href="/plugins/marketplace" class="rounded bg-white p-4 shadow-sm hover:shadow">Extensions</a>
-  <a href="/report_builder?domain=crm" class="rounded bg-white p-4 shadow-sm hover:shadow">Campaign Reports</a>
-</section>
+<h4>Marketing</h4>
+<p class="text-muted">Starter dashboard. Add campaigns, leads, and funnels here.</p>
 {% endblock %}
-{% endraw %}
