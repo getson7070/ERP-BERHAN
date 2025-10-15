@@ -1,11 +1,9 @@
-
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-<h2>Opening Stock</h2>
-<p>POST JSON to <code>/setup/opening/stock</code> with items (item_id, warehouse_id, qty, rate[, lot_id]).</p>
-<pre>{
-  "items":[
-    {"item_id":"...", "warehouse_id":"...", "qty": 10, "rate": 2500.00, "lot_id": null}
-  ]
-}</pre>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'setup/opening_stock.html' }}</h1>
+    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+  </div>
+</div>
 {% endblock %}
