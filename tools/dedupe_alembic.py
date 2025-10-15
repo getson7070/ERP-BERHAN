@@ -1,5 +1,8 @@
-import re, sys, pathlib
-VERS = pathlib.Path("migrations/versions")
+
+import re, sys
+from pathlib import Path
+
+VERS = Path("migrations/versions")
 
 def scan():
     by_rev = {}

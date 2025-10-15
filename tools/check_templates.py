@@ -1,13 +1,15 @@
-import os, re, sys, pathlib
-APP = pathlib.Path(".")
-TEMPLATES = APP / "templates"
 
-render_re = re.compile(r"render_template\(['"]([^'"]+)['"]")
+import os, re, sys
+from pathlib import Path
+
+APP = Path(".")
+TEMPLATES = APP / "templates"
+render_re = re.compile(r"render_template\(['\"]([^'\"]+)['\"]")
 missing = []
 
 renders = set()
 for py in APP.rglob("*.py"):
-    if any(x in py.parts for x in (".venv","venv","migrations","tests","site-packages")):
+    if any(x in py.parts for x in (".venv","venv","migrations","tests","site-packages","__pycache__")):
         continue
     try:
         txt = py.read_text(errors="ignore")
