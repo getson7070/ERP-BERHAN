@@ -1,0 +1,5 @@
+{# HINT: ensure your templates reference the logo without spaces #}
+{# <img src="{{ url_for('static', filename='pictures/BERHAN-PHARMA-LOGO.jpg') }}" alt="Berhan"> #}
+
+{# HINT: if a form is not based on FlaskForm, add: #}
+{# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
