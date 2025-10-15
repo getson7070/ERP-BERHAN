@@ -1,16 +1,32 @@
-# erp/routes/inventory.py — UI list that matches template
-from flask import Blueprint, render_template, request
-from sqlalchemy import func
+from __future__ import annotations
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from ..extensions import db
-from ..inventory.models import Item, StockLedgerEntry
+from ..models import Item
+from ..forms import ItemForm
 
-bp = Blueprint("inventory_ui", __name__, url_prefix="/inventory")
+inventory_bp = Blueprint("inventory", __name__, template_folder="../templates/inventory")
 
-@bp.route("/")
+@inventory_bp.get("/")
+@login_required
 def index():
-    sku = request.args.get("sku")
-    q = db.session.query(Item.id, Item.sku, Item.name, func.coalesce(func.sum(StockLedgerEntry.qty), 0).label("quantity"))            .outerjoin(StockLedgerEntry, StockLedgerEntry.item_id == Item.id)            .group_by(Item.id)
-    if sku:
-        q = q.filter(Item.sku == sku)
-    items = [{"id": str(r.id), "sku": r.sku, "name": r.name, "quantity": float(r.quantity or 0)} for r in q.all()]
+    items = Item.query.order_by(Item.id.desc()).limit(100).all()
     return render_template("inventory/index.html", items=items)
+
+@inventory_bp.route("/new", methods=["GET", "POST"])
+@login_required
+def new_item():
+    form = ItemForm()
+    if form.validate_on_submit():
+        item = Item(
+            sku=form.sku.data.strip(),
+            name=form.name.data.strip(),
+            qty_on_hand=form.qty_on_hand.data or 0,
+            price=form.price.data or 0,
+        )
+        db.session.add(item)
+        db.session.commit()
+        flash("Item created.", "success")
+        return redirect(url_for("inventory.index"))
+    return render_template("inventory/new.html", form=form)
