@@ -4,13 +4,14 @@ from datetime import datetime, timezone
 
 ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
-def run_capture(*args):
-    p = subprocess.run(args, text=True, capture_output=True)
+def run_capture(*argv):
+    p = subprocess.run(argv, text=True, capture_output=True)
     out = (p.stdout or "") + ("\n" + p.stderr if p.stderr else "")
     return p.returncode, out
 
 def a(*args):
-    return run_capture(*((*ALEMBIC,), *args))
+    # IMPORTANT: expand as separate args, not a nested tuple
+    return run_capture(*ALEMBIC, *args)
 
 def _parse_heads_verbose(s: str):
     ids, seen = [], set()
@@ -23,12 +24,13 @@ def _parse_heads_verbose(s: str):
     return ids
 
 def get_heads():
+    # Prefer quiet (pure IDs)
     rc, out = a("heads", "-q")
     if rc == 0:
         ids = [t for t in (tok.strip() for tok in out.split()) if re.fullmatch(r"[A-Za-z0-9_]+", t)]
         if ids:
-            # dedupe preserving order
             return list(dict.fromkeys(ids))
+    # Fallback to verbose, then branches
     rc, out = a("heads", "--verbose")
     ids = _parse_heads_verbose(out)
     if ids:
@@ -68,7 +70,7 @@ def main():
         print("[upgrade] Database is up-to-date.", flush=True)
         return
 
-    # if still multiple heads, merge and retry once
+    # still multiple heads? merge and retry once
     if "Multiple head revisions are present" in out:
         print("[upgrade] Multiple heads during upgrade; merging and retrying…", flush=True)
         heads = get_heads()
