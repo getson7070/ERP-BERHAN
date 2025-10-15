@@ -5,40 +5,56 @@ from datetime import datetime, timezone
 def sh(*args):
     return subprocess.run(args, text=True, capture_output=True)
 
-def _parse_heads_lines(lines):
+def parse_heads_verbose(text: str):
+    # Only accept "Rev: <id>" lines to avoid "Parent:", "Branches", etc.
     revs = []
-    for ln in lines:
-        s = ln.strip()
-        if not s:
-            continue
-        # forms seen in the wild:
-        #   "Rev: 123abc (head)"
-        #   "123abc (branchpoint)"
-        #   "123abc"
-        if s.startswith("Rev:"):
-            parts = s.split()
-            rid = parts[1] if len(parts) > 1 else ""
-        else:
-            rid = s.split()[0]
-        rid = rid.split("(")[0].strip().rstrip(",")  # remove annotations, commas
-        if rid:
-            revs.append(rid)
-    # de-dupe while preserving order
-    out = []
-    seen = set()
+    for ln in text.splitlines():
+        m = re.match(r"^\s*Rev:\s+([A-Za-z0-9_]+)", ln)
+        if m:
+            revs.append(m.group(1))
+    # de-dupe preserve order
+    out, seen = [], set()
     for r in revs:
         if r not in seen:
-            seen.add(r)
-            out.append(r)
+            seen.add(r); out.append(r)
+    return out
+
+def parse_heads_fallback(text: str):
+    # Fallback when --verbose not available; filter out words and colon lines
+    stopwords = {"parent", "branches", "path", "merges", "auto-merge", "add"}
+    revs = []
+    for ln in text.splitlines():
+        s = ln.strip()
+        if not s or ":" in s:
+            continue
+        # take first token, strip annotations like "(head)"
+        tok = s.split()[0]
+        tok = tok.split("(")[0].strip().rstrip(",")
+        if not tok or not re.match(r"^[A-Za-z0-9_]+$", tok):
+            continue
+        if tok.lower() in stopwords:
+            continue
+        revs.append(tok)
+    # de-dupe
+    out, seen = [], set()
+    for r in revs:
+        if r not in seen:
+            seen.add(r); out.append(r)
     return out
 
 def get_heads():
-    for cmd in (["alembic", "heads", "-q"], ["alembic", "heads", "--verbose"], ["alembic", "heads"]):
-        r = sh(*cmd)
-        if r.returncode == 0 and r.stdout.strip():
-            revs = _parse_heads_lines(r.stdout.splitlines())
-            if revs:
-                return revs
+    # Prefer --verbose and parse only "Rev:" lines
+    r = sh("alembic", "heads", "--verbose")
+    if r.returncode == 0 and r.stdout.strip():
+        revs = parse_heads_verbose(r.stdout)
+        if revs:
+            return revs
+    # Fallback to non-verbose parsing with strict filters
+    r = sh("alembic", "heads")
+    if r.returncode == 0 and r.stdout.strip():
+        revs = parse_heads_fallback(r.stdout)
+        if revs:
+            return revs
     return []
 
 def main():
