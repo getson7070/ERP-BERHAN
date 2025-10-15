@@ -1,6 +1,8 @@
 import os
 
 class Config:
+    WTF_CSRF_ENABLED = True
+    REMEMBER_COOKIE_HTTPONLY = True
     # Core
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-prod")
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///local.db")
@@ -16,3 +18,4 @@ class Config:
 
     # CORS
     CORS_SUPPORTS_CREDENTIALS = True
+
