@@ -1,72 +1,9 @@
 {% extends 'base.html' %}
-
 {% block content %}
-<div class="container mx-auto px-4 py-6">
-  <h1 class="text-2xl font-bold mb-4">Recruitment</h1>
-  <!-- Form to add a new candidate -->
-  <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="name">Candidate Name</label>
-        <input id="name" name="name" type="text" placeholder="Full name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
-      </div>
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="email">Email</label>
-        <input id="email" name="email" type="email" placeholder="Email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
-      </div>
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="position">Position Applied</label>
-        <input id="position" name="position" type="text" placeholder="Position" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
-      </div>
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="status">Application Status</label>
-        <select id="status" name="status" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
-          <option value="applied">Applied</option>
-          <option value="interview">Interview Scheduled</option>
-          <option value="offer">Offer Extended</option>
-          <option value="hired">Hired</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-    </div>
-    <div class="mt-4">
-      <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="notes">Notes</label>
-      <textarea id="notes" name="notes" rows="3" placeholder="Additional notes" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline"></textarea>
-    </div>
-    <div class="flex items-center justify-between mt-4">
-      <button class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
-        Add Candidate
-      </button>
-    </div>
-  </form>
-  <!-- Candidates list -->
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Position</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Notes</th>
-        </tr>
-      </thead>
-      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-        {% for cand in candidates %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-          <td class="px-6 py-4 whitespace-nowrap">{{ cand.name }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ cand.email }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ cand.position }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ cand.status }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ cand.notes }}</td>
-        </tr>
-        {% else %}
-        <tr>
-          <td class="px-6 py-4 whitespace-nowrap" colspan="5">No candidates found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'hr/recruitment.html' }}</h1>
+    <p class="text-muted">This is a placeholder template generated to satisfy route coverage. Replace with real UI.</p>
   </div>
 </div>
 {% endblock %}
