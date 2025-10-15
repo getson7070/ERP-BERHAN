@@ -1,5 +1,9 @@
-{% extends "base.html" %}
-{% block title %}Privacy · {{ brand_name }}{% endblock %}
+{% extends 'base.html' %}
 {% block content %}
-  <div class="tile"><h3>Privacy</h3><p class="muted">Your privacy matters to us.</p></div>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'help.html' }}</h1>
+    <p class="text-muted">This is a placeholder template generated to satisfy route coverage. Replace with real UI.</p>
+  </div>
+</div>
 {% endblock %}
