@@ -1,17 +1,11 @@
-import eventlet
-eventlet.monkey_patch()
-
-from erp import create_app
-app = create_app()
-
-# optional: expose socketio if you're using it, e.g. in Render shell
+"""WSGI entrypoint for ERP-BERHAN."""
+# eventlet must be monkey-patched before other imports if used
 try:
-    from erp.extensions import socketio
+    import eventlet
+    eventlet.monkey_patch()
 except Exception:
-    socketio = None
+    pass
 
-if __name__ == "__main__":
-    if socketio:
-        socketio.run(app, host="0.0.0.0", port=5000)
-    else:
-        app.run(host="0.0.0.0", port=5000)
+from ERP-BERHAN-main import create_app  # adjust if your factory name differs
+
+app = create_app()
