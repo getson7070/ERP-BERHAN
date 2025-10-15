@@ -1,46 +1,53 @@
-# erp/models.py
+from __future__ import annotations
+
 from datetime import datetime
-from enum import Enum
-from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 from .extensions import db
 
-class Role(str, Enum):
-    CLIENT = "client"
-    EMPLOYEE = "employee"
-    ADMIN = "admin"
-
+# --- Users for auth
 class User(UserMixin, db.Model):
     __tablename__ = "users"
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.Enum(Role, native_enum=False), nullable=False, index=True)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    role = db.Column(db.String(50), default="user")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # MFA (already present in your migrations)
-    mfa_secret = db.Column(db.String(64))
-    mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    def set_password(self, pwd: str) -> None:
+        self.password_hash = generate_password_hash(pwd)
 
-    def set_password(self, raw):
-        self.password_hash = generate_password_hash(raw)  # pbkdf2:sha256
+    def check_password(self, pwd: str) -> bool:
+        return check_password_hash(self.password_hash, pwd)
 
-    def check_password(self, raw):
-        return check_password_hash(self.password_hash, raw)
-
-class DeviceAuthorization(db.Model):
-    """
-    Allow-list of hardware IDs permitted to log in.
-    If you already have a similar table, keep it; just ensure uniqueness and FK.
-    """
-    __tablename__ = "device_authorizations"
+# --- Customers & Items (Inventory/Orders/Marketing starter)
+class Customer(db.Model):
+    __tablename__ = "customers"
     id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.String(64), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    allowed = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(255), nullable=True, unique=True)
+    phone = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        db.UniqueConstraint("device_id", "user_id", name="uq_device_user"),
-    )
+class Item(db.Model):
+    __tablename__ = "items"
+    id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(255), nullable=False)
+    qty_on_hand = db.Column(db.Integer, default=0)
+    uom = db.Column(db.String(16), default="EA")
+    cost = db.Column(db.Numeric(12,2), default=0)
+    price = db.Column(db.Numeric(12,2), default=0)
+    active = db.Column(db.Boolean, default=True)
+
+class Order(db.Model):
+    __tablename__ = "orders"
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    status = db.Column(db.String(32), default="draft")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    customer = db.relationship("Customer", lazy="joined")
