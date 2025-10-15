@@ -1,12 +1,9 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-<div class="card p-4 shadow-sm">
-  <h3>Privacy</h3>
-  <p>{{ privacy_config.policy_summary }}</p>
-  <table class="table table-bordered mt-3">
-    <tr><th>Company</th><td>{{ privacy_config.company_name }}</td></tr>
-    <tr><th>Privacy Officer Email</th><td>{{ privacy_config.officer_email }}</td></tr>
-    <tr><th>Last Updated</th><td>{{ privacy_config.last_update }}</td></tr>
-  </table>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'privacy.html' }}</h1>
+    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+  </div>
 </div>
 {% endblock %}

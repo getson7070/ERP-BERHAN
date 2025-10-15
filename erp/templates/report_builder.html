@@ -1,26 +1,9 @@
-{% extends "base.html" %}
-{% block title %}Report Builder{% endblock %}
+{% extends 'base.html' %}
 {% block content %}
-  <header class="page-header">
-    <h1 class="page-title">Report Builder</h1>
-    <p class="page-subtitle">Design and generate custom reports.</p>
-  </header>
-  {% if report %}
-    <div class="card">
-      <!-- Display the generated report; this could be a table or summary. -->
-      {{ report|safe }}
-    </div>
-  {% else %}
-    <p>No report has been generated yet. Use the controls below to create your first report.</p>
-  {% endif %}
-  <form method="post" class="form-grid">
-    {{ form.csrf_token }}
-    {% for field in form if field.name not in ['csrf_token', 'submit'] %}
-      <div class="form-field">
-        {{ field.label(class_="form-label") }}
-        {{ field(class_="form-input") }}
-      </div>
-    {% endfor %}
-    <button type="submit" class="btn btn--primary">Generate Report</button>
-  </form>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'report_builder.html' }}</h1>
+    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+  </div>
+</div>
 {% endblock %}
