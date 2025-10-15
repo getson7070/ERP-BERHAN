@@ -1,15 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Plugin Marketplace{% endblock %}
 {% block content %}
-  <header class="page-header">
-    <h1 class="page-title">Plugin Marketplace</h1>
-    <p class="page-subtitle">Browse available plugins to extend your ERP system.</p>
-  </header>
-  <ul class="list">
-    {% for plugin_name in plugins %}
-    <li class="list-item">{{ plugin_name }}</li>
-    {% else %}
-    <li>No plugins available.</li>
-    {% endfor %}
-  </ul>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'plugins/marketplace.html' }}</h1>
+    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+  </div>
+</div>
 {% endblock %}

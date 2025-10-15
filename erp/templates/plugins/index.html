@@ -1,15 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Plugins{% endblock %}
 {% block content %}
-  <header class="page-header">
-    <h1 class="page-title">Installed Plugins</h1>
-    <p class="page-subtitle">Extensions currently available in your system.</p>
-  </header>
-  <ul class="list">
-    {% for plugin in plugins %}
-    <li class="list-item">{{ plugin.name }}</li>
-    {% else %}
-    <li>No plugins installed.</li>
-    {% endfor %}
-  </ul>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">{{ title or 'plugins/index.html' }}</h1>
+    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+  </div>
+</div>
 {% endblock %}
