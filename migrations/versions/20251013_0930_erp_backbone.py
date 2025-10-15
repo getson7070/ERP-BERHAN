@@ -9,7 +9,7 @@ import uuid
 
 # revision identifiers, used by Alembic.
 revision = 'erp_backbone_20251013_0930'
-down_revision = None  # <-- IMPORTANT: set this to your current head before running!
+down_revision = '0001_initial_core'  # <-- IMPORTANT: set this to your current head before running!
 branch_labels = None
 depends_on = None
 

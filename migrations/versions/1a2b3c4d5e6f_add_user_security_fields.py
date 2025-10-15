@@ -15,7 +15,7 @@ def _table_exists(conn, name: str) -> bool:
 
 # revision identifiers, used by Alembic.
 revision = "1a2b3c4d5e6f"
-down_revision = None
+down_revision = '0001_initial_core'
 branch_labels = None
 depends_on = None
 

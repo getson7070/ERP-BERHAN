@@ -8,7 +8,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "appr_rev_20251013_202016"
-down_revision = None  # this revision is a branch root; will be merged by 20251014_merge_heads_stable
+down_revision = '0001_initial_core'  # this revision is a branch root; will be merged by 20251014_merge_heads_stable
 branch_labels = None
 depends_on = None
 
