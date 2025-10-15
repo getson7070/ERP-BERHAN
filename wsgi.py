@@ -1,11 +1,15 @@
-"""WSGI entrypoint for ERP-BERHAN."""
-# eventlet must be monkey-patched before other imports if used
+import os
+# Patch as early as possible for eventlet to avoid RLock warnings
 try:
     import eventlet
-    eventlet.monkey_patch()
+    eventlet.monkey_patch(all=True)
 except Exception:
     pass
 
-from ERP-BERHAN-main import create_app  # adjust if your factory name differs
-
+from erp import create_app
 app = create_app()
+
+if __name__ == "__main__":
+    # For local testing
+    from erp.extensions import socketio
+    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))

@@ -1,16 +1,14 @@
 services:
   - type: web
     name: erp-berhan-backend
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt
-    preDeployCommand: bash scripts/predeploy.sh
-    startCommand: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:10000 ERP-BERHAN-main.wsgi:app
+    startCommand: gunicorn -c gunicorn.conf.py wsgi:app
     envVars:
+      - key: PYTHONUNBUFFERED
+        value: "true"
       - key: SECRET_KEY
         sync: false
       - key: DATABASE_URL
         sync: false
-      - key: FLASK_ENV
-        value: production
-      - key: REDIS_URL
-        sync: false
+    preDeployCommand: python -m scripts.migrations.automerge_and_upgrade
