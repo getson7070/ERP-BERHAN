@@ -1,4 +1,3 @@
-# tools/dedupe_alembic.py
 import re, sys, pathlib
 VERS = pathlib.Path("migrations/versions")
 
@@ -29,7 +28,7 @@ def main():
         print(f"  {rev}:")
         for p in paths:
             print(f"    - {p}")
-    return 2  # non-zero so CI flags it
+    return 2
 
 if __name__ == "__main__":
     sys.exit(main())
