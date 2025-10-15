@@ -27,3 +27,11 @@ class ProductionConfig(BaseConfig):
 class DevelopmentConfig(BaseConfig):
     ENV = "development"
     DEBUG = True
+
+
+# --- Security hardening (auto) ---
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+REMEMBER_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+WTF_CSRF_ENABLED = True
