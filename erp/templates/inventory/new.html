@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">New Item</h4>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">{{ form.sku.label(class="form-label") }} {{ form.sku(class="form-control") }}</div>
+  <div class="mb-3">{{ form.name.label(class="form-label") }} {{ form.name(class="form-control") }}</div>
+  <div class="mb-3">{{ form.qty_on_hand.label(class="form-label") }} {{ form.qty_on_hand(class="form-control") }}</div>
+  <div class="mb-3">{{ form.price.label(class="form-label") }} {{ form.price(class="form-control") }}</div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}
