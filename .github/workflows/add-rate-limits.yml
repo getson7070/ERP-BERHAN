@@ -1,144 +1,60 @@
-name: Add Per-Endpoint Rate Limits (Auto-Discover → PR)
-
+name: Add Per-Endpoint Limits (PR)
 on:
   workflow_dispatch:
     inputs:
       base_branch:
-        description: "Base branch to receive changes"
+        description: Base branch
+        default: main
         required: true
-        default: "main"
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
-  patch:
+  edit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.base_branch }}
-          fetch-depth: 0
-
-      - name: Ensure limiter is wired in app factory (erp/__init__.py)
-        shell: bash
-        run: |
-          set -euo pipefail
-          FILE="erp/__init__.py"
-          if [ -f "$FILE" ]; then
-            python - <<'PY'
-import pathlib, re, sys
-p = pathlib.Path("erp/__init__.py")
-s = p.read_text()
-changed = False
-if "from erp.extensions import init_extensions" not in s:
-    s = "from erp.extensions import init_extensions\n" + s
-    changed = True
-# Try to detect create_app() and ensure init_extensions(app) is called once.
-m = re.search(r"def\\s+create_app\\s*\\(\\s*\\)\\s*:\\s*\\n(\\s*)app\\s*=\\s*Flask\\(", s)
-if m and "init_extensions(app)" not in s:
-    indent = m.group(1) or "    "
-    s = s.replace("return app", f"{indent}init_extensions(app)\n{indent}return app")
-    changed = True
-if changed:
-    p.write_text(s)
-    print("init_extensions(app) wired into erp/__init__.py")
-else:
-    print("erp/__init__.py already wired; no change")
-PY
-          else
-            echo "::warning file=erp/__init__.py::No app factory found (skipped)"
-          fi
-
-      - name: Auto-discover routes and add @limiter.limit decorators
+        with: { ref: ${{ github.event.inputs.base_branch }}, fetch-depth: 0 }
+      - name: Add decorators
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-import pathlib, re, sys
+import re, pathlib
 
-ROOT = pathlib.Path("erp")
-if not ROOT.exists():
-    print("No erp/ directory found.", file=sys.stderr); sys.exit(1)
+def ensure_import(file):
+    p=pathlib.Path(file)
+    if not p.exists(): return False
+    s=p.read_text()
+    if "from erp.extensions import limiter" not in s:
+        s = "from erp.extensions import limiter\n" + s
+    p.write_text(s); return True
 
-# Patterns we care about (extend if you need more)
-TARGETS = [
-    # auth endpoints (tight limits)
-    (r'@bp\\.post\\("/auth/token"\\)', '@limiter.limit("10 per minute; 3 per second")'),
-    (r'@bp\\.post\\("/auth/login"\\)', '@limiter.limit("10 per minute; 3 per second")'),
-    # finance journal posting
-    (r'@bp\\.post\\("/finance/journals"\\)', '@limiter.limit("30 per minute")'),
-    (r'@bp\\.post\\("/journals"\\)', '@limiter.limit("30 per minute")'),
-    # finance reversal (we already fixed logic; still rate-limit)
-    (r'@bp\\.post\\("/journals/<uuid:entry_id>/reverse"\\)', '@limiter.limit("10 per minute")'),
-    # sample webhook/integration endpoints (idempotency likely applied too)
-    (r'@bp\\.post\\("/integrations/[^\"]+"\\)', '@limiter.limit("10 per minute")'),
-]
+def add_limit(file, route_re, dec):
+    p=pathlib.Path(file)
+    if not p.exists(): return 0
+    s=p.read_text()
+    pat = rf'(@bp\\.post\\("{route_re}"\\)\\s*\\n)(def\\s+\\w+\\()'
+    ns, n = re.subn(pat, rf'\\1{dec}\\n\\2', s)
+    if n: p.write_text(ns)
+    return n
 
-def ensure_import(text: str) -> str:
-    if "from erp.extensions import limiter" in text:
-        return text
-    # Put import near top; avoid before shebang/encoding lines if any
-    lines = text.splitlines()
-    insert_at = 0
-    # skip module docstring header block if present
-    if lines and lines[0].startswith(('"""', "'''")):
-        i = 1
-        while i < len(lines):
-            if lines[i].startswith(('"""', "'''")):
-                insert_at = i + 1
-                break
-            i += 1
-    lines.insert(insert_at, "from erp.extensions import limiter")
-    return "\n".join(lines)
-
-def add_decorator(text: str, route_regex: str, decorator_line: str) -> tuple[str, int]:
-    # Insert decorator immediately after the route decorator line
-    # Capture route decorator + any whitespace/newlines up to the next token
-    pattern = re.compile(rf'({route_regex}\\s*\\n)(\\s*)(def\\s+\\w+\\()', re.M)
-    def repl(m):
-        return f'{m.group(1)}{m.group(2)}{decorator_line}\n{m.group(2)}{m.group(3)}'
-    new_text, n = pattern.subn(repl, text)
-    return new_text, n
-
-changed_files = []
-decorations = []
-
-for pyfile in ROOT.rglob("*.py"):
-    if pyfile.name.startswith("_"):
-        continue
-    s = pyfile.read_text(encoding="utf-8")
-    file_changed = False
-    local_hits = 0
-    for route_regex, decorator in TARGETS:
-        ns, n = add_decorator(s, route_regex, decorator)
-        if n:
-            s = ns; file_changed = True; local_hits += n
-    if file_changed:
-        # Ensure import exists once
-        s2 = ensure_import(s)
-        if s2 != s:
-            s = s2; file_changed = True
-        pyfile.write_text(s, encoding="utf-8")
-        changed_files.append(str(pyfile))
-        decorations.append((str(pyfile), local_hits))
-
-if not changed_files:
-    print("No target routes found. If your paths differ, re-run with extended patterns.", file=sys.stderr)
-else:
-    print("Decorated routes in these files:")
-    for f, n in decorations:
-        print(f"  {f}  (+{n} decorators)")
+changed=0
+# auth
+if ensure_import("erp/routes/auth.py"):
+    changed += add_limit("erp/routes/auth.py", "/auth/token", "@limiter.limit(\"10 per minute; 3 per second\")")
+    changed += add_limit("erp/routes/auth.py", "/auth/login", "@limiter.limit(\"10 per minute; 3 per second\")")
+# finance
+if ensure_import("erp/finance/routes_approval.py"):
+    changed += add_limit("erp/finance/routes_approval.py", r"/journals/<uuid:entry_id>/reverse", "@limiter.limit(\"10 per minute\")")
+    changed += add_limit("erp/finance/routes_approval.py", "/finance/journals", "@limiter.limit(\"30 per minute\")")
+    changed += add_limit("erp/finance/routes_approval.py", "/journals", "@limiter.limit(\"30 per minute\")")
+print(f"decorations_added={changed}")
 PY
-
-      - name: Create PR
-        uses: peter-evans/create-pull-request@v6
+      - uses: peter-evans/create-pull-request@v6
         with:
-          branch: "ci/add-rate-limits-${{ github.run_id }}"
+          branch: ci/add-limits-${{ github.run_id }}
           base: ${{ github.event.inputs.base_branch }}
-          commit-message: "chore: add per-endpoint rate limits (auto-discover)"
-          title: "Add per-endpoint rate limits (auto-discover)"
-          body: |
-            This PR auto-discovered routes and added @limiter.limit(...) where appropriate.
-            Review log of modified files in workflow output for exact locations.
+          commit-message: "chore: add per-endpoint rate limits"
+          title: "Add per-endpoint rate limits"
+          body: "Decorates auth and finance routes with Flask-Limiter."
