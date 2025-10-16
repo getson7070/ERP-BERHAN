@@ -1,4 +1,5 @@
 from flask import jsonify, g
+from erp.extensions import limiter
 from erp import db
 from erp.finance.models import JournalEntry, JournalLine  # adjust import path if different
 from erp.finance.services import reverse_doc             # existing helper that flips status/metadata
