@@ -1,4 +1,4 @@
-* text=auto
+# Keep Python files with LF and no BOM
 *.py text eol=lf
-*.ps1 text eol=crlf
-*.bat text eol=crlf
+*.sh text eol=lf
+*.yml text eol=lf
