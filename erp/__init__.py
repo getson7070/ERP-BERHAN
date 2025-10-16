@@ -1,15 +1,19 @@
-from __future__ import annotations
 from flask import Flask
-from .extensions import db, migrate
-from .config import BaseConfig
+from .config import Config
+from .extensions import db
+from .views.main import bp as main_bp
 
-def create_app(config_object: str | None = None) -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.config.from_object(BaseConfig)
+def create_app() -> Flask:
+    app = Flask(__name__, template_folder="templates")
+    app.config.from_object(Config)
 
     db.init_app(app)
-    migrate.init_app(app, db)
 
-    from .views.main import bp as main_bp
+    # Blueprints
     app.register_blueprint(main_bp)
+
+    @app.get("/healthz")
+    def healthz():
+        return {"status": "ok"}
+
     return app
