@@ -1,4 +1,4 @@
-    import os, subprocess, sys, shlex
+﻿import os, subprocess, sys, shlex
 
     ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
