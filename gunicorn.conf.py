@@ -1,11 +1,9 @@
 import multiprocessing
-import os
-
-bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8000")
-workers = int(os.getenv("GUNICORN_WORKERS", "2"))
-threads = int(os.getenv("GUNICORN_THREADS", "8"))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "eventlet")
-timeout = int(os.getenv("GUNICORN_TIMEOUT", "120"))
-keepalive = int(os.getenv("GUNICORN_KEEPALIVE", "5"))
+bind = "0.0.0.0:10000"
+workers = max(2, multiprocessing.cpu_count() * 2 + 1)
+threads = 2
+worker_class = "eventlet"
+timeout = 60
+graceful_timeout = 30
 preload_app = True
-loglevel = os.getenv("GUNICORN_LOGLEVEL", "info")
+loglevel = "info"
