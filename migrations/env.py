@@ -1,58 +1,77 @@
 from __future__ import annotations
-from logging.config import fileConfig
 import os
-from alembic import context
+from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
+from alembic import context
+
+# this is the Alembic Config object
 config = context.config
+
+# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = None
-def _discover_metadata():
-    for spec in ("app:db","src.app:db","application:db","main:db"):
-        mod, attr = spec.split(":")
-        try:
-            m = __import__(mod, fromlist=[attr])
-            db = getattr(m, attr)
-            md = getattr(db, "metadata", None)
-            if md is not None:
-                return md
-        except Exception:
-            continue
-    spec = os.getenv("MIGRATIONS_METADATA_PATH")
-    if spec:
-        mod, attr = spec.split(":")
-        m = __import__(mod, fromlist=[attr])
-        return getattr(m, attr)
-    return None
-target_metadata = _discover_metadata()
+# Load target metadata from app factory dynamically
+# Support either APP_FACTORY path or default import
+APP_FACTORY = os.getenv("APP_FACTORY", "app:create_app")
+module_name, factory_name = APP_FACTORY.split(":")
 
-def get_url():
-    url = config.get_main_option("sqlalchemy.url")
-    if url and "://":
-        return url
-    env_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI")
-    if env_url: return env_url
-    raise RuntimeError("No DB URL for Alembic.")
+def get_metadata():
+    mod = __import__(module_name, fromlist=[factory_name])
+    create_app = getattr(mod, factory_name)
+    app = create_app()
+    db = getattr(mod, "db", None)
+    if db is None and hasattr(app, "extensions") and "sqlalchemy" in app.extensions:
+        db = app.extensions["sqlalchemy"].db
+    if db is None:
+        raise RuntimeError("Could not locate SQLAlchemy metadata via app factory")
+    return db.metadata
 
-def get_engine():
-    section = config.get_section(config.config_ini_section) or {}
-    section["sqlalchemy.url"] = get_url()
-    stmt_ms = os.getenv("DB_STATEMENT_TIMEOUT_MS","900000")
-    lock_ms = os.getenv("DB_LOCK_TIMEOUT_MS","5000")
-    idle_ms = os.getenv("DB_IDLE_TX_TIMEOUT_MS", stmt_ms)
-    connect_args = {"options": f"-c statement_timeout={stmt_ms} -c lock_timeout={lock_ms} -c idle_in_transaction_session_timeout={idle_ms}"}
-    return engine_from_config(section, prefix="sqlalchemy.", poolclass=pool.NullPool, connect_args=connect_args)
+target_metadata = get_metadata()
+
+# Optional DB timeouts
+STATEMENT_TIMEOUT = os.getenv("DB_STATEMENT_TIMEOUT_MS", "900000")  # 15min
+LOCK_TIMEOUT = os.getenv("DB_LOCK_TIMEOUT_MS", "5000")
+IDLE_TX_TIMEOUT = os.getenv("DB_IDLE_IN_TX_SESSION_TIMEOUT_MS", "0")
+
+def _set_timeouts(connection):
+    try:
+        connection.execute(f"SET statement_timeout TO {int(STATEMENT_TIMEOUT)}")
+        connection.execute(f"SET lock_timeout TO {int(LOCK_TIMEOUT)}")
+        if int(IDLE_TX_TIMEOUT) > 0:
+            connection.execute(f"SET idle_in_transaction_session_timeout = {int(IDLE_TX_TIMEOUT)}")
+    except Exception:
+        # don't hard-fail alembic for timeouts
+        pass
 
 def run_migrations_offline():
-    context.configure(url=get_url(), target_metadata=target_metadata, literal_binds=True, compare_type=True)
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=True,
+        compare_server_default=True,
+        render_as_batch=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online():
-    connectable = get_engine()
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        _set_timeouts(connection)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+            render_as_batch=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 
