@@ -1,26 +1,36 @@
-import os
+﻿import os
 import subprocess
-import sys
+import shlex
 
-def normalize(url: str) -> str:
-    url = (url or "").strip()
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+
+def normalize_database_url(url: str) -> str:
+    # Render commonly supplies postgres://... ; SQLAlchemy wants postgresql+psycopg2://...
+    if url and url.startswith("postgres://"):
+        return "postgresql+psycopg2://" + url[len("postgres://"):]
     return url
 
-def main() -> int:
-    db = normalize(os.environ.get("DATABASE_URL", ""))
-    if not db:
-        print("DATABASE_URL is not set; cannot run migrations.", file=sys.stderr)
-        return 1
-    env = os.environ.copy()
-    env["DATABASE_URL"] = db
 
-    # Try to stamp the baseline (no-op if table already exists / version is set)
-    subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini", "stamp", "8de54ef00dfe"], check=False, env=env)
-    # Upgrade to head
-    subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"], check=True, env=env)
-    return 0
+def run(cmd: str) -> None:
+    print(f"$ {cmd}")
+    subprocess.check_call(shlex.split(cmd))
+
+
+def main() -> None:
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise SystemExit("DATABASE_URL is not set")
+
+    os.environ["DATABASE_URL"] = normalize_database_url(url)
+
+    # Safe even if already stamped
+    try:
+        run("alembic -c alembic.ini stamp 8de54ef00dfe")
+    except subprocess.CalledProcessError as e:
+        print(f"stamp ignored: {e}")
+
+    # Upgrade to single head (0001_initial_core)
+    run("alembic -c alembic.ini upgrade head")
+
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
