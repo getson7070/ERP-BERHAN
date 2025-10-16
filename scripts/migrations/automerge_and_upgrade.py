@@ -1,92 +1,80 @@
 #!/usr/bin/env python3
-"""Robust pre-deploy migration runner.
-- Detects true Alembic heads via `alembic --verbose heads`
-- If multiple heads, generates a merge revision and retries upgrade
-- Logs everything; avoids brittle parsing and invalid CLI flags
-- Fails loudly if database references a revision that is not present in code
-"""
-import subprocess, sys, re
-from datetime import datetime, timezone
+import os, re, shlex, subprocess, sys, time
 
-ALEMBIC = ("alembic", "-c", "alembic.ini")
+ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
-def run(*argv):
-    p = subprocess.run(argv, text=True, capture_output=True)
-    out = (p.stdout or "") + (("\n" + p.stderr) if p.stderr else "")
-    return p.returncode, out.strip()
+def run(*args, allow_fail=False):
+    cmd = list(args)
+    print("$", " ".join(shlex.quote(a) for a in cmd), flush=True)
+    p = subprocess.run(cmd, text=True, capture_output=True)
+    if p.stdout:
+        print(p.stdout, end="")
+    if p.stderr:
+        print(p.stderr, end="")
+    if p.returncode and not allow_fail:
+        sys.exit(p.returncode)
+    return p.returncode, (p.stdout or "") + (p.stderr or "")
 
-def a(*args):
-    rc, out = run(*ALEMBIC, *args)
-    print(f"$ alembic {' '.join(args)}\n{out}\n", flush=True)
-    return rc, out
+def parse_heads(out: str):
+    revs = []
+    for ln in out.splitlines():
+        m = re.match(r"^Rev:\s+([0-9a-f_]+)\s+\(head", ln)
+        if m:
+            revs.append(m.group(1))
+            continue
+        t = ln.strip()
+        if re.fullmatch(r"[0-9a-f_]{6,}", t):
+            revs.append(t)
+    return sorted(set(revs))
 
-def parse_heads():
-    rc, out = a("--verbose", "heads")
+def get_heads():
+    rc, out = run(*ALEMBIC, "heads", "--verbose", allow_fail=True)
     if rc != 0:
-        return rc, [], out
-    # Example lines: 'Rev: 1234abcd (head)' or 'Rev: 1234abcd (head) (mergepoint)'
-    heads = re.findall(r"Rev:\s+([0-9A-Za-z_]+)\s+\(head\)", out)
-    # fall back to last token on 'Rev:' lines
-    if not heads:
-        heads = [m.group(1) for m in re.finditer(r"Rev:\s+([0-9A-Za-z_]+)", out)]
-    # keep only token-like ids
-    heads = [h for h in heads if re.fullmatch(r"[0-9A-Za-z_]+", h)]
-    # de-dupe
-    uniq = []
-    for h in heads:
-        if h not in uniq:
-            uniq.append(h)
-    return 0, uniq, out
-
-import os
-
-def merge_heads(heads):
-    rid = "automerge_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    msg = f"Auto-merge heads {', '.join(heads)} ({rid})"
-    # Create a merge revision that points all heads into one
-    return a("merge", "-m", msg, *heads)
+        rc, out = run(*ALEMBIC, "heads", allow_fail=True)
+    return parse_heads(out)
 
 def upgrade_head():
-    return a("upgrade", "head")
+    rc, out = run(*ALEMBIC, "upgrade", "head", allow_fail=True)
+    if rc == 0:
+        print("[upgrade] success", flush=True); return True, ""
+    ol = (out or "").lower()
+    if "multiple head revisions" in ol: return False, "multiple_heads"
+    if "can't locate revision" in ol or "can't locate" in ol: return False, "missing_revision"
+    if "lock timeout" in ol or "statement timeout" in ol: return False, "db_timeout"
+    return False, out or "unknown_error"
 
 def main():
-    # Helpful context in logs
-    a("branches")
-    a("--verbose", "heads")
+    print("[predeploy] start", flush=True)
+    run(*ALEMBIC, "current", allow_fail=True)
+    run(*ALEMBIC, "history", "--verbose", allow_fail=True)
 
-    rc, heads, _ = parse_heads()
-    if rc != 0:
-        sys.exit(rc)
+    ok, why = upgrade_head()
+    if ok: return
 
-    if len(heads) > 1:
-        print(f"[automerge] Multiple heads detected: {heads}", flush=True)
-        if os.getenv('AUTO_MERGE_MIGRATIONS','0') != '1':
-            print('[automerge] SAFE_MODE: refusing to create a merge revision during deploy. Set AUTO_MERGE_MIGRATIONS=1 to enable.', flush=True)
-            sys.exit(3)
-        mrc, mout = merge_heads(heads)
-        if mrc != 0:
-            print("[automerge] Merge failed; aborting.", flush=True)
-            sys.exit(mrc)
+    if why == "missing_revision":
+        print("[fatal] DB references a revision not present in code. Create a no-op shim with the missing revision id and correct down_revision, commit, redeploy.", flush=True)
+        sys.exit(1)
 
-    urc, uout = upgrade_head()
-    if urc == 0:
-        print("[upgrade] Database is up-to-date.", flush=True)
-        sys.exit(0)
+    if why == "multiple_heads":
+        heads = get_heads()
+        print(f"[heads] {', '.join(heads) or '(none)'}", flush=True)
+        if os.getenv("AUTO_MERGE_MIGRATIONS") == "1":
+            rid = "automerge_" + time.strftime("%Y%m%d%H%M%S", time.gmtime())
+            print(f"[merge] creating {rid}", flush=True)
+            run(*ALEMBIC, "merge", "-m", f"Auto-merge heads {rid}", *heads)
+            ok2, why2 = upgrade_head()
+            if ok2: 
+                print("[merge+upgrade] success", flush=True); sys.exit(0)
+            print(f"[merge+upgrade] failed: {why2}", flush=True); sys.exit(1)
+        else:
+            print("[abort] Multiple heads. Commit a manual merge or set AUTO_MERGE_MIGRATIONS=1 in staging only.", flush=True)
+            sys.exit(1)
 
-    # Known failure: DB points to a revision we don't have in code
-    m = re.search(r"Can't locate revision identified by '([0-9A-Za-z_]+)'", uout)
-    if m:
-        missing = m.group(1)
-        print("[fatal] Database references a missing revision:", missing, flush=True)
-        print("        Options:", flush=True)
-        print("        1) Recreate DB or run `alembic stamp base && alembic upgrade head` on a fresh DB.", flush=True)
-        print("        2) Add an empty shim migration with revision '%s' that points to the correct parent, then upgrade." % missing, flush=True)
-        print("        3) Manually stamp the DB to a valid revision that exists in code (risky on non-empty DB).", flush=True)
-        sys.exit(2)
+    if why == "db_timeout":
+        print("[fatal] Migration hit DB timeout; split heavy DDL, use CONCURRENTLY for indexes, avoid data backfills in migrations.", flush=True)
+        sys.exit(1)
 
-    print("[fatal] Alembic upgrade failed for an unknown reason:", flush=True)
-    print(uout, flush=True)
-    sys.exit(1)
+    print(f"[fatal] alembic upgrade failed: {why}", flush=True); sys.exit(1)
 
 if __name__ == "__main__":
     main()

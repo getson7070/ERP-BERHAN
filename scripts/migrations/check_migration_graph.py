@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-import re, sys
-from pathlib import Path
-from collections import defaultdict
-
-VERSIONS = Path(__file__).resolve().parents[2] / "migrations" / "versions"
-rev_to_files = defaultdict(list)
-
-for f in VERSIONS.glob("*.py"):
-    t = f.read_text(encoding="utf-8", errors="ignore")
-    m = re.search(r"^revision\s*=\s*['\"]([0-9A-Za-z_]+)['\"]", t, re.M)
-    rid = m.group(1) if m else f.name.split("_")[0]
-    rev_to_files[rid].append(f.name)
-
-dupes = {k:v for k,v in rev_to_files.items() if len(v)>1}
-if dupes:
-    print("Duplicate revision ids detected:\n", dupes)
-    sys.exit(1)
-print("No duplicate revision ids detected.")
+import glob, re, sys
+revs, owners, down = {}, {}, {}
+problems = 0
+for p in glob.glob("migrations/versions/*.py"):
+    try: text = open(p, encoding="utf-8").read()
+    except Exception as e:
+        print(f"[error] cannot read {p}: {e}"); problems += 1; continue
+    r_m = re.search(r"^revision\s*=\s*['\"]([0-9a-f_]+)['\"]", text, re.M)
+    d_m = re.search(r"^down_revision\s*=\s*(['\"][^'\"]+['\"]|None)", text, re.M)
+    if not r_m:
+        print(f"[error] {p}: missing 'revision'"); problems += 1; continue
+    r = r_m.group(1); d = d_m.group(1) if d_m else "None"
+    if r in revs:
+        print(f"[dup] revision {r} appears in both {owners[r]} and {p}"); problems += 1
+    revs[r] = p; owners[r] = p; down[r] = d.strip("'\"")
+for r, d in down.items():
+    if d != "None" and d not in revs:
+        print(f"[missing-parent] {r} -> down_revision {d} not found on disk"); problems += 1
+if problems: print(f"[result] FAIL with {problems} problem(s)"); sys.exit(1)
+print("[result] OK")
