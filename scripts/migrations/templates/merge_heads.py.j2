@@ -1,7 +1,7 @@
-    """No-op shim to realign migration graph for missing revision.
+    """Auto-merge of multiple heads.
 
 Revision ID: {{ revision }}
-Revises: {{ down_revision }}
+Revises: {{ down_revisions }}
 Create Date: {{ create_date }}
 """
 
@@ -10,14 +10,12 @@ Create Date: {{ create_date }}
 
     # revision identifiers, used by Alembic.
     revision = "{{ revision }}"
-    down_revision = "{{ down_revision }}"
+    down_revision = ({{ down_revisions_tuple }})
     branch_labels = None
     depends_on = None
 
     def upgrade():
-        # Intentionally no-op: this revision only restores continuity.
         pass
 
     def downgrade():
-        # Intentionally no-op
         pass
