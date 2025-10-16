@@ -1,0 +1,79 @@
+name: Apply Finance Reversal Fix (PR)
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: "Base branch to receive the fix"
+        default: "main"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Patch erp/finance/routes_approval.py in place
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="erp/finance/routes_approval.py"
+          test -f "$FILE" || { echo "::error::$FILE not found"; exit 1; }
+          python - <<'PY'
+import re, sys, pathlib
+p = pathlib.Path("erp/finance/routes_approval.py")
+s = p.read_text()
+
+pattern = r"""
+    reverse_doc\(je\)\s*\n
+    \s*#\s*TODO:.*?reversal\ entries\s*\n
+    \s*db\.session\.commit\(\)\s*\n
+    \s*return\ jsonify\(\{.*?\}\)
+""".strip()
+
+replacement = '''# Update journal status/metadata
+    reverse_doc(je)
+
+    # Create mirror lines to properly reverse debit/credit impact
+    # Assumes: JournalEntry has relationship `lines`, JournalLine has fields:
+    # account_id, debit, credit, description, created_by
+    for line in je.lines:
+        mirror_desc = f"Reversal of {line.description or 'JE line'}"
+        debit = line.credit or 0
+        credit = line.debit or 0
+        mirror = JournalLine(
+            entry_id=je.id,
+            account_id=line.account_id,
+            debit=debit,
+            credit=credit,
+            description=mirror_desc,
+            created_by=getattr(g, 'user_id', None),
+        )
+        db.session.add(mirror)
+
+    db.session.commit()
+    return jsonify({"id": str(je.id), "status": je.status, "reversed_lines": len(je.lines)})'''
+
+ns, n = re.subn(pattern, replacement, s, flags=re.S)
+if n == 0:
+    print("Pattern not found. The target code block may have changed.", file=sys.stderr)
+    sys.exit(1)
+p.write_text(ns)
+print("Patched finance reversal successfully.")
+PY
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "ci/finance-reversal-fix-${{ github.run_id }}"
+          base: ${{ github.event.inputs.base_branch }}
+          commit-message: "Finance: add mirror lines on reversal (automated)"
+          title: "Finance: add mirror lines on reversal"
+          body: "Automated content edit: implements mirror lines in reverse_journal to maintain double-entry integrity."
