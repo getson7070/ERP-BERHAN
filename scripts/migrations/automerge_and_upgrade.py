@@ -1,80 +1,52 @@
-#!/usr/bin/env python3
-import os, re, shlex, subprocess, sys, time
+    import os, subprocess, sys, shlex
 
-ALEMBIC = ["alembic", "-c", "alembic.ini"]
+    ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
-def run(*args, allow_fail=False):
-    cmd = list(args)
-    print("$", " ".join(shlex.quote(a) for a in cmd), flush=True)
-    p = subprocess.run(cmd, text=True, capture_output=True)
-    if p.stdout:
-        print(p.stdout, end="")
-    if p.stderr:
-        print(p.stderr, end="")
-    if p.returncode and not allow_fail:
-        sys.exit(p.returncode)
-    return p.returncode, (p.stdout or "") + (p.stderr or "")
+    def run(*args):
+        proc = subprocess.run(list(args), text=True, capture_output=True)
+        return proc.returncode, (proc.stdout or "") + (("
+"+proc.stderr) if proc.stderr else "")
 
-def parse_heads(out: str):
-    revs = []
-    for ln in out.splitlines():
-        m = re.match(r"^Rev:\s+([0-9a-f_]+)\s+\(head", ln)
-        if m:
-            revs.append(m.group(1))
-            continue
-        t = ln.strip()
-        if re.fullmatch(r"[0-9a-f_]{6,}", t):
-            revs.append(t)
-    return sorted(set(revs))
+    def a(*sub):
+        rc, out = run(*ALEMBIC, *sub)
+        print(f"$ alembic -c alembic.ini {' '.join(sub)}\n{out}", flush=True)
+        return rc, out
 
-def get_heads():
-    rc, out = run(*ALEMBIC, "heads", "--verbose", allow_fail=True)
-    if rc != 0:
-        rc, out = run(*ALEMBIC, "heads", allow_fail=True)
-    return parse_heads(out)
-
-def upgrade_head():
-    rc, out = run(*ALEMBIC, "upgrade", "head", allow_fail=True)
-    if rc == 0:
-        print("[upgrade] success", flush=True); return True, ""
-    ol = (out or "").lower()
-    if "multiple head revisions" in ol: return False, "multiple_heads"
-    if "can't locate revision" in ol or "can't locate" in ol: return False, "missing_revision"
-    if "lock timeout" in ol or "statement timeout" in ol: return False, "db_timeout"
-    return False, out or "unknown_error"
-
-def main():
-    print("[predeploy] start", flush=True)
-    run(*ALEMBIC, "current", allow_fail=True)
-    run(*ALEMBIC, "history", "--verbose", allow_fail=True)
-
-    ok, why = upgrade_head()
-    if ok: return
-
-    if why == "missing_revision":
-        print("[fatal] DB references a revision not present in code. Create a no-op shim with the missing revision id and correct down_revision, commit, redeploy.", flush=True)
-        sys.exit(1)
-
-    if why == "multiple_heads":
-        heads = get_heads()
-        print(f"[heads] {', '.join(heads) or '(none)'}", flush=True)
-        if os.getenv("AUTO_MERGE_MIGRATIONS") == "1":
-            rid = "automerge_" + time.strftime("%Y%m%d%H%M%S", time.gmtime())
-            print(f"[merge] creating {rid}", flush=True)
-            run(*ALEMBIC, "merge", "-m", f"Auto-merge heads {rid}", *heads)
-            ok2, why2 = upgrade_head()
-            if ok2: 
-                print("[merge+upgrade] success", flush=True); sys.exit(0)
-            print(f"[merge+upgrade] failed: {why2}", flush=True); sys.exit(1)
-        else:
-            print("[abort] Multiple heads. Commit a manual merge or set AUTO_MERGE_MIGRATIONS=1 in staging only.", flush=True)
+    def main():
+        # 1) sanity: show heads
+        rc, heads_out = a("heads", "--verbose")
+        if rc != 0:
             sys.exit(1)
 
-    if why == "db_timeout":
-        print("[fatal] Migration hit DB timeout; split heavy DDL, use CONCURRENTLY for indexes, avoid data backfills in migrations.", flush=True)
-        sys.exit(1)
+        # 2) detect multiple heads
+        rc, out = a("heads")
+        head_lines = [ln.strip() for ln in out.splitlines() if ln.strip().startswith("Rev:")]
+        head_ids = []
+        for ln in head_lines:
+            # "Rev: X (head)"
+            parts = ln.split()
+            if len(parts) >= 2:
+                head_ids.append(parts[1])
+        head_ids = list(dict.fromkeys(head_ids))  # dedupe preserving order
 
-    print(f"[fatal] alembic upgrade failed: {why}", flush=True); sys.exit(1)
+        auto_merge = os.getenv("AUTO_MERGE_MIGRATIONS") == "1"
+        if len(head_ids) > 1:
+            if not auto_merge:
+                print(f"[predeploy] Multiple heads detected: {head_ids}. Set AUTO_MERGE_MIGRATIONS=1 to merge in staging.", flush=True)
+                sys.exit(1)
+            # merge
+            msg = "Auto-merge heads " + ", ".join(head_ids)
+            rc, out = a("merge", "-m", msg, *head_ids)
+            if rc != 0:
+                sys.exit(1)
 
-if __name__ == "__main__":
-    main()
+        # 3) upgrade
+        rc, out = a("upgrade", "head")
+        if rc != 0:
+            # If failure says "Can't locate revision", do not attempt auto-fix here
+            sys.exit(1)
+
+        print("[predeploy] Migrations upgraded to head.", flush=True)
+
+    if __name__ == "__main__":
+        sys.exit(main())
