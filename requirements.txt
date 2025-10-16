@@ -42,3 +42,6 @@ prometheus-client==0.20.0
 Flask-Mail==0.9.1
 PyJWT==2.10.1
 cryptography==43.0.1
+tenacity>=8.2,<9
+pybreaker>=1.0,<2
+httpx>=0.24,<1
