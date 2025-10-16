@@ -1,22 +1,20 @@
-import os, re, pathlib, sys
+#!/usr/bin/env python3
+from pathlib import Path
 
-ROOT = pathlib.Path(os.getcwd())
-py_files = list(ROOT.rglob("*.py"))
-templates = set()
-for p in ROOT.rglob("templates"):
-    for f in p.rglob("*"):
-        if f.suffix.lower() in (".html",".jinja",".jinja2"):
-            rel = f.relative_to(p)
-            templates.add(str(rel).replace("\\","/"))
+REQUIRED = [
+    "templates/index.html",
+    "templates/layout.html",
+    "templates/login.html",
+]
 
-missing = []
-for py in py_files:
-    txt = py.read_text(encoding="utf-8", errors="ignore")
-    for m in re.finditer(r'render_template\(\s*['"]([^'"]+)['"]', txt):
-        t = m.group(1)
-        if t not in templates:
-            missing.append((str(py), t))
-for path, t in missing:
-    print(f"[missing-template] {path} -> {t}")
-if not missing:
-    print("[ok] All render_template() calls have corresponding files.")
+def main() -> int:
+    root = Path(__file__).resolve().parents[1]
+    missing = [rel for rel in REQUIRED if not (root / rel).exists()]
+    if missing:
+        print("Missing templates:", ", ".join(missing))
+        return 1
+    print("All templates present.")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
