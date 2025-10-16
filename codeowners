@@ -1,2 +1,7 @@
 # Code owners for approval gating
 * @getson7070
+# Require domain reviews
+/erp/finance/  @getson7070
+/erp/api/      @getson7070
+/erp/auth/     @getson7070
+/migrations/   @getson7070
