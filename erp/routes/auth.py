@@ -5,6 +5,7 @@ from flask_login import login_user, logout_user, current_user
 from ..extensions import login_manager, db
 from ..models import User
 from ..forms import LoginForm
+from erp.extensions import limiter
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates/auth")
 
