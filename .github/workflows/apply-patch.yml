@@ -1,0 +1,41 @@
+# .github/workflows/apply-patch.yml
+name: Apply Patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch_b64:
+        description: "Base64-encoded unified diff"
+        required: true
+      target_branch:
+        description: "Branch to apply patch to"
+        required: true
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Decode patch
+        run: |
+          echo "${{ github.event.inputs.patch_b64 }}" | base64 -d > patch.diff
+          echo "---- PATCH PREVIEW ----"
+          head -n 50 patch.diff || true
+
+      - name: Apply patch
+        run: |
+          git config user.name "berhan-ci"
+          git config user.email "ci@berhanpharma.local"
+          git apply --whitespace=fix patch.diff
+          git add -A
+          git commit -m "CI: apply patch from workflow_dispatch" || echo "Nothing to commit"
+          git push origin HEAD:${{ github.event.inputs.target_branch }}
