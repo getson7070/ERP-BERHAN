@@ -1,20 +1,20 @@
+# erp/extensions.py
 from __future__ import annotations
 
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
-from flask_socketio import SocketIO
+from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-db = SQLAlchemy()
-migrate = Migrate()
-login_manager = LoginManager()
-csrf = CSRFProtect()
-socketio = SocketIO(cors_allowed_origins="*")
+# Global limiter object used across the app.
+# storage_uri can be swapped to redis:// for multi-instance deployments.
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per minute"],
+    storage_uri="memory://",
+)
 
-login_manager.login_view = "auth.login"
-
-# Global rate limiter (default: 200/day; 50/hour)
-limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"]) 
+def init_extensions(app: Flask) -> None:
+    """
+    Call this exactly once in your create_app() to wire extensions.
+    """
+    limiter.init_app(app)
