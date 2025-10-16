@@ -1,4 +1,5 @@
 name: Add Per-Endpoint Limits (PR)
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,55 +7,71 @@ on:
         description: Base branch
         default: main
         required: true
+
 permissions:
   contents: write
   pull-requests: write
+
 jobs:
   edit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { ref: ${{ github.event.inputs.base_branch }}, fetch-depth: 0 }
-      - name: Add decorators
-        shell: bash
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Inject imports & decorators
         run: |
           set -euo pipefail
           python - <<'PY'
-import re, pathlib
+          import re, pathlib, sys
 
-def ensure_import(file):
-    p=pathlib.Path(file)
-    if not p.exists(): return False
-    s=p.read_text()
-    if "from erp.extensions import limiter" not in s:
-        s = "from erp.extensions import limiter\n" + s
-    p.write_text(s); return True
+          def ensure_import(file, line):
+              p = pathlib.Path(file)
+              if not p.exists():
+                  return False
+              s = p.read_text()
+              if line not in s:
+                  s = line + "\n" + s
+                  p.write_text(s)
+              return True
 
-def add_limit(file, route_re, dec):
-    p=pathlib.Path(file)
-    if not p.exists(): return 0
-    s=p.read_text()
-    pat = rf'(@bp\\.post\\("{route_re}"\\)\\s*\\n)(def\\s+\\w+\\()'
-    ns, n = re.subn(pat, rf'\\1{dec}\\n\\2', s)
-    if n: p.write_text(ns)
-    return n
+          def add_limit(file, route_regex, decorator):
+              p = pathlib.Path(file)
+              if not p.exists():
+                  return 0
+              s = p.read_text()
+              pat = rf'(@bp\.post\("{route_regex}"\)\s*\n)(def\s+\w+\()'
+              ns, n = re.subn(pat, rf'\1{decorator}\n\2', s)
+              if n:
+                  p.write_text(ns)
+              return n
 
-changed=0
-# auth
-if ensure_import("erp/routes/auth.py"):
-    changed += add_limit("erp/routes/auth.py", "/auth/token", "@limiter.limit(\"10 per minute; 3 per second\")")
-    changed += add_limit("erp/routes/auth.py", "/auth/login", "@limiter.limit(\"10 per minute; 3 per second\")")
-# finance
-if ensure_import("erp/finance/routes_approval.py"):
-    changed += add_limit("erp/finance/routes_approval.py", r"/journals/<uuid:entry_id>/reverse", "@limiter.limit(\"10 per minute\")")
-    changed += add_limit("erp/finance/routes_approval.py", "/finance/journals", "@limiter.limit(\"30 per minute\")")
-    changed += add_limit("erp/finance/routes_approval.py", "/journals", "@limiter.limit(\"30 per minute\")")
-print(f"decorations_added={changed}")
-PY
-      - uses: peter-evans/create-pull-request@v6
+          changed = 0
+
+          # 1) AUTH: erp/routes/auth.py
+          if ensure_import("erp/routes/auth.py", "from erp.extensions import limiter"):
+              changed += add_limit("erp/routes/auth.py", "/auth/token", "@limiter.limit(\"10 per minute; 3 per second\")")
+              changed += add_limit("erp/routes/auth.py", "/auth/login", "@limiter.limit(\"10 per minute; 3 per second\")")
+
+          # 2) FINANCE: erp/finance/routes_approval.py
+          if ensure_import("erp/finance/routes_approval.py", "from erp.extensions import limiter"):
+              changed += add_limit("erp/finance/routes_approval.py", r"/journals/<uuid:entry_id>/reverse", "@limiter.limit(\"10 per minute\")")
+              changed += add_limit("erp/finance/routes_approval.py", "/finance/journals", "@limiter.limit(\"30 per minute\")")
+              changed += add_limit("erp/finance/routes_approval.py", "/journals", "@limiter.limit(\"30 per minute\")")
+
+          print(f"decorations_added={changed}")
+          if changed == 0:
+              print("No route patterns matched. Verify file paths/routes.", file=sys.stderr)
+          PY
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
         with:
           branch: ci/add-limits-${{ github.run_id }}
           base: ${{ github.event.inputs.base_branch }}
           commit-message: "chore: add per-endpoint rate limits"
           title: "Add per-endpoint rate limits"
-          body: "Decorates auth and finance routes with Flask-Limiter."
+          body: "Adds Flask-Limiter decorators to auth and finance routes."
