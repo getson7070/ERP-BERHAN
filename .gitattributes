@@ -1,4 +1,6 @@
-# Keep Python files with LF and no BOM
-*.py text eol=lf
-*.sh text eol=lf
-*.yml text eol=lf
+﻿*.py           text eol=lf
+*.sh           text eol=lf
+templates/*    text eol=lf
+*.html         text eol=lf
+*.jinja        text eol=lf
+*.jinja2       text eol=lf
