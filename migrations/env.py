@@ -30,7 +30,7 @@ def load_db():
     return mod.db
 
 db = load_db()
-target_metadata = db.metadata
+target_metadata = getattr(db, "metadata", getattr(getattr(db, "Model", object), "metadata", None))
 
 def run_migrations_offline():
     url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
