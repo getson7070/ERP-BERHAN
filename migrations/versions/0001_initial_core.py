@@ -1,4 +1,4 @@
-"""initial core tables
+﻿"""initial core tables
 
 Revision ID: 0001_initial_core
 Revises: 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0001_initial_core'
-down_revision = None
+down_revision = '8de54ef00dfe'
 branch_labels = None
 depends_on = None
 
