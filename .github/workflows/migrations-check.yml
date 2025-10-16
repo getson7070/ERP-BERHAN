@@ -17,13 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: { python-version: '3.12' }
       - run: pip install -r requirements.txt
-      - name: Alembic upgrade and single-head check
+      - name: Upgrade and enforce single head
         run: |
           alembic upgrade head
-          HEADS=$(alembic heads -v | wc -l)
-          if [ "$HEADS" -ne 1 ]; then
-            echo "Multiple Alembic heads ($HEADS) detected"; exit 1
-          fi
+          H=$(alembic heads -v | wc -l)
+          if [ "$H" -ne 1 ]; then echo "Multiple Alembic heads ($H)"; exit 1; fi
