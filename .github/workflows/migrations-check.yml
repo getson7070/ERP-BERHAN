@@ -1,0 +1,29 @@
+name: Migrations Check
+on: [push, pull_request]
+jobs:
+  alembic-heads:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: erp
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Alembic upgrade and single-head check
+        run: |
+          alembic upgrade head
+          HEADS=$(alembic heads -v | wc -l)
+          if [ "$HEADS" -ne 1 ]; then
+            echo "Multiple Alembic heads ($HEADS) detected"; exit 1
+          fi
