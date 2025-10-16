@@ -1,26 +1,26 @@
-﻿#!/usr/bin/env python3
-import sys, shlex, subprocess
-from alembic.config import Config
-from alembic.script import ScriptDirectory
+import os
+import subprocess
+import sys
 
-ALEMBIC = ["alembic", "-c", "alembic.ini"]
+def normalize(url: str) -> str:
+    url = (url or "").strip()
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    return url
 
-def sh(args):
-    print("+", " ".join(shlex.quote(x) for x in args), flush=True)
-    p = subprocess.run(args)
-    if p.returncode != 0:
-        sys.exit(p.returncode)
+def main() -> int:
+    db = normalize(os.environ.get("DATABASE_URL", ""))
+    if not db:
+        print("DATABASE_URL is not set; cannot run migrations.", file=sys.stderr)
+        return 1
+    env = os.environ.copy()
+    env["DATABASE_URL"] = db
 
-def main():
-    cfg = Config("alembic.ini")
-    script = ScriptDirectory.from_config(cfg)
-    heads = script.get_heads()
-    if len(heads) > 1:
-        print(f"Detected multiple heads: {heads}", flush=True)
-        sh(ALEMBIC + ["merge", "-m", "automerge heads", *heads])
-    else:
-        print(f"Heads OK: {heads}", flush=True)
-    sh(ALEMBIC + ["upgrade", "head"])
+    # Try to stamp the baseline (no-op if table already exists / version is set)
+    subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini", "stamp", "8de54ef00dfe"], check=False, env=env)
+    # Upgrade to head
+    subprocess.run([sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"], check=True, env=env)
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

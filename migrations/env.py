@@ -1,74 +1,54 @@
+from __future__ import annotations
+
 import os
-import sys
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config, pool
 from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.engine import create_engine
+from sqlalchemy.engine import url as sa_url
 
-# Alembic Config
+# Alembic Config object
 config = context.config
 
-# Logging
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+def _normalized_db_url() -> str:
+    # Prefer env var; fall back to alembic.ini
+    raw = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url", "").strip()
+    if not raw:
+        raise RuntimeError("DATABASE_URL is not set and sqlalchemy.url is empty in alembic.ini")
+    # Normalize old postgres scheme
+    if raw.startswith("postgres://"):
+        raw = raw.replace("postgres://", "postgresql+psycopg2://", 1)
+    return raw
 
-# Add project root to import path (so `erp` can be imported)
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+DB_URL = _normalized_db_url()
+# Write back so script env sees the effective URL
+config.set_main_option("sqlalchemy.url", DB_URL)
 
-# Import metadata from your app
-from erp.extensions import db  # type: ignore
-
-target_metadata = db.metadata
-
-def _normalize_url(url: str) -> str:
-    url = (url or "").strip()
-    if url.startswith("postgres://"):
-        # Normalize deprecated scheme to SQLAlchemy's expected driver syntax
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
-    return url
-
-def get_url() -> str:
-    env_url = _normalize_url(os.getenv("DATABASE_URL", ""))
-    if env_url:
-        return env_url
-    # fallback to alembic.ini if present
-    ini_url = _normalize_url(config.get_main_option("sqlalchemy.url") or "")
-    return ini_url or "sqlite:///dev.db"
+# If you later add models, set target_metadata to your Base.metadata
+target_metadata = None
 
 def run_migrations_offline() -> None:
-    \"\"\"Run migrations in 'offline' mode.\"\"\"
-    url = get_url()
+    """Run migrations in 'offline' mode."""
+    url = DB_URL
+    is_sqlite = sa_url.make_url(url).get_backend_name().startswith("sqlite")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        compare_type=True,
-        compare_server_default=True,
-        dialect_opts={\"paramstyle\": \"named\"},
+        render_as_batch=is_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    \"\"\"Run migrations in 'online' mode.\"\"\"
-    ini_section = config.get_section(config.config_ini_section) or {}
-    ini_section[\"sqlalchemy.url\"] = get_url()
-
-    connectable = engine_from_config(
-        ini_section,
-        prefix=\"sqlalchemy.\",
-        poolclass=pool.NullPool,
-    )
-
-    with connectable.connect() as connection:
+    """Run migrations in 'online' mode."""
+    url = DB_URL
+    is_sqlite = sa_url.make_url(url).get_backend_name().startswith("sqlite")
+    engine = create_engine(url, poolclass=pool.NullPool, future=True)
+    with engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_type=True,
-            compare_server_default=True,
-            render_as_batch=(connection.dialect.name == \"sqlite\"),
+            render_as_batch=is_sqlite,
         )
         with context.begin_transaction():
             context.run_migrations()
