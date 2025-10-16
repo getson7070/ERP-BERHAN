@@ -4,4 +4,4 @@ bp = Blueprint("main", __name__)
 
 @bp.get("/")
 def index():
-    return render_template("index.html", title="ERP Berhan — Dashboard")
+    return render_template("index.html")
