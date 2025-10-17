@@ -1,13 +1,43 @@
-from flask_sqlalchemy import SQLAlchemy
+# erp/db.py
+from __future__ import annotations
 
-db = SQLAlchemy()
+import os
+from dataclasses import dataclass
+from typing import Optional
+
+from flask import current_app
+from redis import Redis
+from sqlalchemy import create_engine
+
+from erp.extensions import db as sqla_db
 
 
-def init_db(app) -> None:
-    db.init_app(app)
+def get_db():
+    """Return the scoped SQLAlchemy session from the app's extension."""
+    return sqla_db.session
 
 
-class Health:
-    @staticmethod
-    def ok() -> bool:
-        return True
+def get_engine():
+    """Return a SQLAlchemy engine from env or app config."""
+    url = os.getenv("DATABASE_URL") or current_app.config.get("SQLALCHEMY_DATABASE_URI")
+    if not url:
+        raise RuntimeError("DATABASE_URL/SQLALCHEMY_DATABASE_URI not configured")
+    return create_engine(url, future=True)
+
+
+@dataclass(frozen=True)
+class _RedisClient:
+    client: Optional[Redis]
+    is_real: bool
+
+
+def _make_redis() -> _RedisClient:
+    """Create a Redis client if a URL is set; otherwise return a no-op shim."""
+    url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
+    if not url:
+        return _RedisClient(client=None, is_real=False)
+    return _RedisClient(client=Redis.from_url(url, decode_responses=True), is_real=True)
+
+
+# Module-level singleton Redis client
+redis_client = _make_redis()
