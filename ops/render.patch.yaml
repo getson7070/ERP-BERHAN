@@ -1,0 +1,15 @@
+# Example additions for Render service (do not overwrite your file blindly)
+services:
+  - name: erp-berhan-web
+    envVars:
+      - key: GUNICORN_WORKER_CLASS
+        value: eventlet
+      - key: PROMETHEUS_MULTIPROC_DIR
+        value: /tmp/prom
+      - key: METRICS_BEARER
+        sync: false
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+    startCommand: gunicorn "wsgi_eventlet:app" --config gunicorn.conf.py
