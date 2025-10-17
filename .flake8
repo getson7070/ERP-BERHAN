@@ -1,44 +1,22 @@
+# .flake8
 [flake8]
 max-line-length = 200
-
-# keep style noise from blocking CI while we stabilize
-extend-ignore = E203,E501,E302,E231,E401,E402,E702,E261
-exclude = .git,__pycache__,.venv,venv,dist,build,migrations
-
-per-file-ignores =
-  # big files or formatting noise
-  bot/handlers.py: E203,E501
-  config.py: W391
-  init_db.py: E501
-
-  # stubs / placeholder modules — allow unused imports, etc.
-  erp/**/models.py: F401,E741
-  erp/**/routes.py: F401,E702,E231
-
-  # specific files still under construction
-  erp/banking/routes.py: E741
-  erp/celery_app.py: E306
-  erp/db.py: E305
-  erp/finance/routes.py: F821
-  erp/finance/routes_approval.py: F401,F821
-  erp/inventory/inventory.py: F401
-  erp/inventory/valuation.py: F401
-  erp/procurment/routes.py: F821
-  erp/sales/routes.py: F821
-  erp/routes/api.py: F401
-  erp/routes/auth.py: F401
-  erp/routes/hr.py: F401
-  erp/routes/inventory.py: F401
-  erp/routes/main.py: F841
-  erp/routes/tenders.py: E501
-  erp/security.py: F401
-  erp/security/policies.py: F401
-  erp/utils/retries.py: E305
-
-  # tooling / tests – don’t block CI on formatting
-  tools/*.py: F401,E305,E225,E401
-  tools/*/*.py: F401,E305,E225,E401
-  scripts/*.py: E221,E225,E305
-  scripts/*/*.py: E221,E225,E305
-  tests/*.py: F401,E501,E306,W391
-  tests/*/*.py: F401,E501,E306,W391
+extend-ignore =
+    E203,
+    W503,
+    E501,
+    F401,  # unused imports
+    F841,  # assigned but unused vars
+    E305,  # blank lines around class/func
+    E306,  # blank lines before nested def
+    E741,  # ambiguous var name like 'l'
+    E221,  # multiple spaces around operator
+    E225,  # missing whitespace around operator
+    E701,
+    E702
+exclude =
+    .git,
+    __pycache__,
+    venv, .venv, env,
+    build, dist,
+    migrations
