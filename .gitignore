@@ -109,3 +109,4 @@ generated/
 
 # UI preview build artifacts
 ui-preview/node_modules/
+*.zip
