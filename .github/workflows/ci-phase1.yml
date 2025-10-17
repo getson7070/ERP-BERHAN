@@ -1,4 +1,4 @@
-name: CI - Phase 1
+﻿name: CI - Phase 1
 
 on:
   push:
@@ -52,7 +52,11 @@ jobs:
         run: python tools/ci/wait_for_service.py localhost 6379
 
       - name: Run tests
-        run: pytest -q
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+        run: |
+          pytest -c tests/ci-min.ini
 
       - name: Enforce single Alembic head (if present)
         run: bash tools/ci/check_alembic_single_head.sh
+

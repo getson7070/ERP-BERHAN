@@ -27,14 +27,14 @@ except Exception as e:
 2. **Fail-fast on missing envs** early during boot (before serving requests):
 
 ```python
-from erp.config.validate_env import validate_required_env, REQUIRED_ENV_DEFAULT
+from erp.config_ext.validate_env import validate_required_env, REQUIRED_ENV_DEFAULT
 validate_required_env(REQUIRED_ENV_DEFAULT)
 ```
 
 3. **Apply security defaults** (cookies & headers) once at init time:
 
 ```python
-from erp.config.security import apply_security_defaults, register_secure_headers
+from erp.config_ext.security import apply_security_defaults, register_secure_headers
 apply_security_defaults(app)
 register_secure_headers(app)
 ```

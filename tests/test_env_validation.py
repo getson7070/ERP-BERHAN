@@ -1,6 +1,6 @@
 import os
 import pytest
-from erp.config.validate_env import validate_required_env
+from erp.config_ext.validate_env import validate_required_env
 
 def test_validate_env_missing(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
