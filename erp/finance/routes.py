@@ -1,3 +1,4 @@
+﻿from .models import Account, JournalEntry, JournalLine, Invoice, Bill
 # NOTE: This file is part of the ERP backbone patch.
 # It assumes you have a Flask app factory and a SQLAlchemy `db` instance at `erp.extensions`.
 # If your project uses a different path (e.g., `from extensions import db`), adjust the import below.
@@ -63,3 +64,4 @@ def ap_bills():
         return jsonify(dict(id=str(b.id))), 201
     rows = Bill.query.order_by(Bill.posting_date.desc()).limit(200).all()
     return jsonify([dict(id=str(r.id), total=float(r.total), status=r.status, posting_date=r.posting_date.isoformat()) for r in rows])
+

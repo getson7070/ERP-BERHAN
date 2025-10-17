@@ -1,3 +1,4 @@
+﻿from .models import PurchaseOrder
 # NOTE: This file is part of the ERP backbone patch.
 # It assumes you have a Flask app factory and a SQLAlchemy `db` instance at `erp.extensions`.
 # If your project uses a different path (e.g., `from extensions import db`), adjust the import below.
@@ -25,3 +26,4 @@ def purchase_orders():
         return jsonify(dict(id=str(po.id))), 201
     rows = PurchaseOrder.query.order_by(PurchaseOrder.posting_date.desc()).limit(200).all()
     return jsonify([dict(id=str(r.id), status=r.status, posting_date=r.posting_date.isoformat()) for r in rows])
+

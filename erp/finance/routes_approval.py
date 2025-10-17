@@ -1,3 +1,4 @@
+﻿from .routes import bp
 
 from flask import Blueprint, jsonify, abort
 from flask_login import login_required
@@ -29,3 +30,4 @@ def reverse_journal(entry_id):
     # TODO: add mirror lines posting if your GL needs reversal entries
     db.session.commit()
     return jsonify({"id": str(je.id), "status": je.status})
+

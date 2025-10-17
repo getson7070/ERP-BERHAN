@@ -1,4 +1,25 @@
-[flake8]
+﻿[flake8]
 max-line-length = 200
-exclude = tests,migrations,erp/routes/*,erp/domains/*,plugins/*,scripts/*,config.py,init_db.py,generate_hash.py
 extend-ignore = E203,W503
+per-file-ignores =
+    bot/handlers.py: E203,E501
+    config.py: W391
+    erp/banking/routes.py: E741
+    erp/api/integrations.py: F401
+    erp/context.py: F401
+    erp/finance/routes_approval.py: F401
+    erp/inventory/inventory.py: F401
+    erp/inventory/valuation.py: F401
+    erp/routes/api.py: F401
+    erp/routes/main.py: F841
+    erp/routes/tenders.py: E501
+    tests/test_auth_mfa.py: F401
+    tests/test_auth_queries.py: E501
+    tests/test_oauth.py: E501
+    tests/test_rbac_matrix.py: E225
+    tools/scan_truncation.py: E225,E305
+    tools/repair_migration_heads.py: E305
+    tools/linearize_migrations.py: E305,F401,E401
+    tools/check_templates.py: F401,E401,E231
+    scripts/guard_create_tables.py: E221
+    init_db.py: E501

@@ -1,5 +1,4 @@
-import secrets
-def test_login_mfa_flow(client, db_session, user_factory):
+﻿def test_login_mfa_flow(client, db_session, user_factory):
     u = user_factory(email="mfa@example.com")
     u.set_password("Passw0rd!")
     u.enable_mfa()
@@ -18,3 +17,4 @@ def test_login_mfa_flow(client, db_session, user_factory):
     assert rec and len(rec) > 0
     r = client.post("/auth/login", data={"email": u.email, "password": "Passw0rd!", "token": rec[0]})
     assert r.status_code in (302, 303)
+
