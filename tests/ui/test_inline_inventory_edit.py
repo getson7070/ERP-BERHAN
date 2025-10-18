@@ -1,8 +1,8 @@
-from pathlib import Path
+﻿from pathlib import Path
 from typing import Tuple
 
 from erp import create_app
-from erp.models import db, User, Inventory
+from erp.db import db, User, Inventory
 
 
 def setup_app(tmp_path: Path, monkeypatch) -> Tuple[object, int, int]:
@@ -41,3 +41,4 @@ def test_inline_edit_updates_item(tmp_path, monkeypatch):
         item = Inventory.tenant_query(org_id=1).filter_by(id=item_id).first()
         assert item is not None
         assert item.name == "Gadget"
+

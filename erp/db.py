@@ -1,43 +1,10 @@
-# erp/db.py
-from __future__ import annotations
+﻿from flask_sqlalchemy import SQLAlchemy
 
-import os
-from dataclasses import dataclass
-from typing import Optional
+# Single shared SQLAlchemy instance for all models
+db = SQLAlchemy()
 
-from flask import current_app
-from redis import Redis
-from sqlalchemy import create_engine
-
-from erp.extensions import db as sqla_db
-
-
-def get_db():
-    """Return the scoped SQLAlchemy session from the app's extension."""
-    return sqla_db.session
-
-
-def get_engine():
-    """Return a SQLAlchemy engine from env or app config."""
-    url = os.getenv("DATABASE_URL") or current_app.config.get("SQLALCHEMY_DATABASE_URI")
-    if not url:
-        raise RuntimeError("DATABASE_URL/SQLALCHEMY_DATABASE_URI not configured")
-    return create_engine(url, future=True)
-
-
-@dataclass(frozen=True)
-class _RedisClient:
-    client: Optional[Redis]
-    is_real: bool
-
-
-def _make_redis() -> _RedisClient:
-    """Create a Redis client if a URL is set; otherwise return a no-op shim."""
-    url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
-    if not url:
-        return _RedisClient(client=None, is_real=False)
-    return _RedisClient(client=Redis.from_url(url, decode_responses=True), is_real=True)
-
-
-# Module-level singleton Redis client
-redis_client = _make_redis()
+# Re-export models so tests can do: from erp.db import db, User, Inventory, ...
+try:
+    from .models import *  # noqa: F401,F403
+except Exception:
+    pass

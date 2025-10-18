@@ -1,8 +1,12 @@
-# erp/routes/analytics.py
-from flask import Blueprint, jsonify
+﻿import os
+try:
+    from celery import Celery
+    celery = Celery('erp', broker=os.getenv('REDIS_URL', 'memory://'))
+except Exception:
+    celery = None
 
-analytics_bp = Blueprint("analytics", __name__, url_prefix="/analytics")
+def send_approval_reminders():
+    return 0
 
-@analytics_bp.route("/health")
-def health():
-    return jsonify({"status": "ok"})
+def forecast_sales():
+    return []

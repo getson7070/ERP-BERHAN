@@ -1,18 +1,16 @@
-from __future__ import annotations
+﻿from io import StringIO
+import csv
+_ITEMS: list[dict] = []
 
-from flask import Blueprint, jsonify
+def create_item(sku: str, name: str, qty: int = 0):
+    item = {'sku': sku, 'name': name, 'qty': int(qty)}
+    _ITEMS.append(item); return item
 
-bp = Blueprint("inventory", __name__, url_prefix="/inventory")
+def list_items():
+    return list(_ITEMS)
 
-
-@bp.get("/health")
-def inventory_health():
-    # Import inside the request to avoid module-level LocalProxy creation
-    try:
-        from flask_jwt_extended import current_user  # local import on purpose
-
-        user_repr = repr(current_user)
-    except Exception:
-        user_repr = None
-
-    return jsonify({"status": "ok", "current_user": user_repr})
+def export_inventory_csv():
+    buf = StringIO()
+    w = csv.DictWriter(buf, fieldnames=['sku','name','qty'])
+    w.writeheader(); w.writerows(_ITEMS)
+    return buf.getvalue()

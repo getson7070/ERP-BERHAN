@@ -1,0 +1,8 @@
+# Merge these fields into your existing render.yaml web service:
+services:
+  - type: web
+    name: erp-berhan
+    env: python
+    healthCheckPath: /healthz
+    # If you can add readiness semantics, keep /readyz for pre-traffic checks.
+    # Some platforms only support liveness; readiness can be emulated by delaying web traffic until /readyz=200.

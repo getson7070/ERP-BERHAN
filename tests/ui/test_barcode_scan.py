@@ -1,5 +1,5 @@
-from erp import create_app
-from erp.models import db, User
+﻿from erp import create_app
+from erp.db import db, User
 
 
 def setup_app():
@@ -37,3 +37,4 @@ def test_verify_barcode_endpoint():
         headers={"X-CSRFToken": token},
     )
     assert resp.json["valid"] is True
+

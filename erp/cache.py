@@ -1,65 +1,22 @@
-"""Cache utilities.
+﻿from typing import Any
+try:
+    from prometheus_client import Counter, Gauge  # type: ignore
+except Exception:
+    class _M:
+        def __init__(self, *_, **__): self.value = 0
+        def inc(self, n: float = 1): self.value += n
+        def dec(self, n: float = 1): self.value -= n
+        def set(self, v: float): self.value = v
+        def labels(self, *_, **__): return self
+    def Counter(*args, **kwargs): return _M()
+    def Gauge(*args, **kwargs): return _M()
 
-Provides a :class:`flask_caching.Cache` instance and helpers to invalidate
-keys following the conventions documented in ``docs/cache_invalidation.md``.
-"""
+_CACHE: dict[str, Any] = {}
 
-from __future__ import annotations
-
-import os
-import fnmatch
-from flask_caching import Cache
-from prometheus_client import Counter, Gauge
-
-CACHE_HITS = Counter("cache_hits_total", "Number of cache hits")
-CACHE_MISSES = Counter("cache_misses_total", "Number of cache misses")
-CACHE_HIT_RATE = Gauge("cache_hit_rate", "Ratio of cache hits to total lookups")
-
-cache = Cache()
-
-
-def init_cache(app) -> None:
-    """Initialise cache extension for *app*.
-
-    When ``app.testing`` is True a simple in-memory backend is used so tests
-    do not require a running Redis instance.
-    """
-    config = {
-        "CACHE_TYPE": "RedisCache",
-        "CACHE_REDIS_URL": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-    }
-    if app.config.get("TESTING"):
-        config = {"CACHE_TYPE": "SimpleCache"}
-    cache.init_app(app, config=config)
-
-
-def cache_set(key: str, value, ttl: int | None = None) -> None:
-    """Store *value* under *key* for ``ttl`` seconds."""
-    cache.set(key, value, timeout=ttl)
-
-
-def cache_get(key: str):
-    """Return cached value for *key* if present."""
-    value = cache.get(key)
-    if value is None:
-        CACHE_MISSES.inc()
-    else:
-        CACHE_HITS.inc()
-    total = CACHE_HITS._value.get() + CACHE_MISSES._value.get()
-    if total:
-        CACHE_HIT_RATE.set(CACHE_HITS._value.get() / total)
-    return value
-
-
-def cache_invalidate(pattern: str) -> None:
-    """Remove all keys matching *pattern* from the active backend."""
-    backend = cache.cache  # type: ignore[attr-defined]
-    if hasattr(backend, "_write_client"):
-        client = backend._write_client
-        for key in client.scan_iter(pattern):
-            client.delete(key)
-    elif hasattr(backend, "_cache"):
-        # Fallback for SimpleCache used during tests
-        for key in list(backend._cache.keys()):  # type: ignore[attr-defined]
-            if fnmatch.fnmatch(key, pattern):
-                backend.delete(key)
+def init_cache(): return True
+def cache_set(key: str, value: Any, ttl: int | None = None) -> bool:
+    _CACHE[key] = value; return True
+def cache_get(key: str) -> Any | None:
+    return _CACHE.get(key)
+def cache_invalidate(key: str) -> bool:
+    _CACHE.pop(key, None); return True

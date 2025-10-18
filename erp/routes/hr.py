@@ -1,6 +1,6 @@
-# erp/routes/hr.py
+﻿# erp/routes/hr.py
 from flask import Blueprint, jsonify
-from erp.models import db, Employee
+from erp.db import db, Employee
 
 hr_bp = Blueprint("hr", __name__, url_prefix="/hr")
 
@@ -18,3 +18,4 @@ def list_employees():
         for e in Employee.query.order_by(Employee.id).limit(100).all()
     ]
     return jsonify(data)
+

@@ -1,10 +1,10 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
 
 from erp import create_app  # noqa: E402
-from erp.models import db, Inventory  # noqa: E402
+from erp.db import db, Inventory  # noqa: E402
 
 
 def _setup_app(tmp_path, monkeypatch):
@@ -62,3 +62,4 @@ def test_invalid_direction_defaults_to_asc(tmp_path, monkeypatch):
     resp = client.get("/inventory/?sort=quantity&dir=sideways")
     data = resp.get_json()
     assert data[0]["quantity"] == 1
+

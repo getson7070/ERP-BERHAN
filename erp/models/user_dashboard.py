@@ -1,4 +1,4 @@
-# erp/models/user_dashboard.py
+﻿# erp/models/user_dashboard.py
 from erp.extensions import db
 
 class UserDashboard(db.Model):
