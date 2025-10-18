@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+<<<< HEAD
 # erp/models/__init__.py
 from erp.db import db  # the ONE shared instance
 =======
