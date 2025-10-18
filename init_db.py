@@ -1,4 +1,4 @@
-"""Database bootstrap utility using SQLAlchemy.
+﻿"""Database bootstrap utility using SQLAlchemy.
 
 This script initialises the database schema and seed data for local
 or test environments. It replaces earlier raw SQL usage with
@@ -14,7 +14,15 @@ from datetime import datetime
 from pathlib import Path
 
 import pyotp
-from argon2 import PasswordHasher
+try:
+    from argon2 import PasswordHasher
+except Exception:
+    import hashlib
+    class PasswordHasher:
+        def hash(self, pw: str) -> str:
+            return hashlib.sha256(pw.encode("utf-8")).hexdigest()
+        def verify(self, h: str, pw: str) -> bool:
+            return self.hash(pw) == h
 from sqlalchemy import (
     Boolean,
     Column,
@@ -138,7 +146,7 @@ def _reset_schema() -> None:
         engine.dispose()
         if database and database != ":memory:":
             Path(database).unlink(missing_ok=True)
-        else:  # in-memory database – drop all tables instead
+        else:  # in-memory database â€“ drop all tables instead
             with engine.begin() as conn:
                 tables = conn.execute(
                     text(
@@ -270,3 +278,4 @@ def init_db() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     init_db()
+

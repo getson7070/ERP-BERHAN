@@ -31,3 +31,6 @@ def create_app(test_config=None):
     app.register_blueprint(health_bp, url_prefix="/")
 
     return app
+
+
+oauth = None

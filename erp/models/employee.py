@@ -1,6 +1,6 @@
 ﻿# erp/models/employee.py
 from datetime import datetime
-from . import db  # re-exported from erp.models.__init__
+from erp.db import db  # re-exported from erp.models.__init__
 
 class Employee(db.Model):
     __tablename__ = "employees"
@@ -18,3 +18,4 @@ class Employee(db.Model):
 
     def __repr__(self) -> str:
         return f"<Employee {self.id} {self.email}>"
+
