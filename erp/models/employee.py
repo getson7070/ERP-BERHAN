@@ -1,4 +1,4 @@
-# erp/models/employee.py
+﻿# erp/models/employee.py
 from datetime import datetime
 from . import db  # re-exported from erp.models.__init__
 

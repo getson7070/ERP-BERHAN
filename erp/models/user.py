@@ -1,4 +1,4 @@
-# erp/models/user.py
+﻿# erp/models/user.py
 from datetime import datetime
 from erp.extensions import db
 

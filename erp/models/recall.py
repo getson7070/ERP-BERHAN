@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from erp.extensions import db
 
 class ProductRecall(db.Model):

@@ -1,5 +1,5 @@
-from erp import create_app
-from erp.models import db, User
+﻿from erp import create_app
+from erp.db import db, User
 
 
 def setup_app():
@@ -27,3 +27,4 @@ def test_kanban_board_renders():
     resp = client.get("/kanban/")
     assert b"To Do" in resp.data
     assert resp.status_code == 200
+
