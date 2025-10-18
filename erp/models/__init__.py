@@ -1,15 +1,14 @@
 # erp/models/__init__.py
-# Re-export models here so `from erp.models import X` works everywhere.
-from erp.extensions import db
-from .user import User, DeviceAuthorization, DataLineage  # existing models
-from .user_dashboard import UserDashboard                  # existing model
-from .employee import Employee                             # NEW
+from erp.db import db  # the ONE shared instance
 
-__all__ = [
-    "db",
-    "User",
-    "DeviceAuthorization",
-    "DataLineage",
-    "UserDashboard",
-    "Employee",
-]
+# re-export model classes without defining another db/Base here
+try:
+    from .user import *            # noqa
+    from .employee import *        # noqa
+    from .finance import *         # noqa
+    from .idempotency import *     # noqa
+    from .integration import *     # noqa
+    from .recall import *          # noqa
+    from .user_dashboard import *  # noqa
+except Exception:
+    pass
