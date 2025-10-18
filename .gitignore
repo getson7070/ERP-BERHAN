@@ -111,3 +111,21 @@ generated/
 ui-preview/node_modules/
 *.zip
 *.zip
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtualenvs
+.venv*/
+venv/
+env/
+ENV/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
