@@ -1,23 +1,13 @@
-<<<< HEAD
 # erp/models/__init__.py
-from erp.db import db  # the ONE shared instance
-=======
-﻿# erp/models/__init__.py
-# Re-export models here so `from erp.models import X` works everywhere.
-from erp.extensions import db
-from .user import User, DeviceAuthorization, DataLineage  # existing models
-from .user_dashboard import UserDashboard                  # existing model
-from .employee import Employee                             # NEW
->>>>>>> chore/phase1-upgrade-20251017-1848
+from erp.db import db  # single shared SQLAlchemy instance
 
-# re-export model classes without defining another db/Base here
-try:
-    from .user import *            # noqa
-    from .employee import *        # noqa
-    from .finance import *         # noqa
-    from .idempotency import *     # noqa
-    from .integration import *     # noqa
-    from .recall import *          # noqa
-    from .user_dashboard import *  # noqa
-except Exception:
-    pass
+# Import all model modules so SQLAlchemy registers tables once
+from .user import *          # noqa: F401,F403
+from .employee import *      # noqa: F401,F403
+from .finance import *       # noqa: F401,F403
+from .idempotency import *   # noqa: F401,F403
+from .integration import *   # noqa: F401,F403
+from .recall import *        # noqa: F401,F403
+from .user_dashboard import *  # noqa: F401,F403
+
+__all__ = [name for name in globals().keys() if not name.startswith('_')]
