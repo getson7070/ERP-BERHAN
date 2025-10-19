@@ -176,3 +176,24 @@ def stream_export(rows, filename: str = "export.csv", headers=None, mimetype: st
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 # ---- /CSV stream export helper ----
+# ---- robust login_required wrapper ----
+# Use Flask-Login's decorator only if its extension is initialized.
+def login_required(func=None, **kwargs):
+    try:
+        import flask_login
+        from flask import current_app
+
+        def _apply(f):
+            try:
+                lm = getattr(current_app, "extensions", {}).get("login_manager")
+            except Exception:
+                lm = None
+            if getattr(flask_login, "login_required", None) and lm:
+                return flask_login.login_required(f)
+            return f
+
+        return _apply if func is None else _apply(func)
+    except Exception:
+        # Flask-Login not installed: act as a no-op decorator
+        return (lambda f: f) if func is None else func
+# ---- /robust login_required wrapper ----
