@@ -30,7 +30,7 @@ def index():
         items = [dict(r) for r in rows]
 
     html = """
-    <h1>Privacy Dashboard</h1>
+    <h1>Privacy & Compliance Center</h1>
     <ul>
     {% for it in items %}
       <li class="pia">
@@ -42,3 +42,5 @@ def index():
     </ul>
     """
     return render_template_string(html, items=items)
+
+
