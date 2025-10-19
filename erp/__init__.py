@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 from flask import Flask
 from .config import Config, validate_config
@@ -44,6 +44,23 @@ def create_app(test_config=None):
     register_error_handlers(app)
     init_logging(app)
 
+    # ---- Phase1 health endpoints ----
+    def _install_health(app):
+        # avoid duplicate registration across repeated app factories
+        existing = {r.rule for r in app.url_map.iter_rules()}
+        if '/healthz' not in existing:
+            @app.get('/healthz')
+            def healthz():
+                from flask import jsonify
+                return jsonify(status='ok'), 200
+        if '/readyz' not in existing:
+            @app.get('/readyz')
+            def readyz():
+                from flask import jsonify
+                return jsonify(status='ready'), 200
+    _install_health(app)
+    # ---- /Phase1 health endpoints ----
     return app
 
 oauth = None
+
