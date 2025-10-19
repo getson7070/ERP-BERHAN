@@ -1,19 +1,12 @@
 ﻿<!doctype html>
-<html lang=\"en\">
+<html lang="{{ session.get("lang", "en") }}">
   <head>
-    <meta charset=\"utf-8\" />
-    <style>
-      :root{
-        --color-bg:#ffffff;
-        --color-fg:#111111;
-        --space-1:4px;
-        --radius:6px;
-      }
-      body{background:var(--color-bg); color:var(--color-fg);}
-    </style>
+    <meta charset="utf-8" />
+    <link rel="manifest" href="{{ url_for("static", filename="manifest.json") }}">
     <title>ERP</title>
   </head>
   <body>
+    <select id="lang-select"><option>en</option></select>
     {% block content %}{% endblock %}
   </body>
 </html>
