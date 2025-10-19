@@ -281,3 +281,34 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 
+# ---- helper hashing API (stable across backends) ----
+try:
+    ph  # reuse whatever PasswordHasher/shim is already configured above
+except NameError:  # last-resort shim if something changes unexpectedly
+    try:
+        from argon2 import PasswordHasher as _Argon2PH
+        ph = _Argon2PH(time_cost=2, memory_cost=51200, parallelism=2, hash_len=32, salt_len=16)
+    except Exception:
+        from werkzeug.security import generate_password_hash, check_password_hash
+        class _PHShim:
+            def hash(self, pw: str) -> str:
+                return generate_password_hash(pw, method="pbkdf2:sha256", salt_length=16)
+            def verify(self, hashed: str, pw: str) -> bool:
+                try:
+                    return check_password_hash(hashed, pw)
+                except Exception:
+                    return False
+        ph = _PHShim()
+
+def hash_password(pw: str) -> str:
+    return ph.hash(pw)
+
+def verify_password(pw: str, hashed: str) -> bool:
+    try:
+        return ph.verify(hashed, pw)  # argon2 style
+    except TypeError:
+        # just in case a shim expects (pw, hashed)
+        return ph.verify(pw, hashed)
+    except Exception:
+        return False
+# ---- /helper hashing API ----
