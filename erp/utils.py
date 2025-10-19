@@ -118,3 +118,7 @@ def task_idempotent(fn):
 def sanitize_direction(value: str | None, default: str = "asc") -> str:
     v = (value or "").lower()
     return "desc" if v == "desc" else "asc"
+def sanitize_sort(value: str | None, allowed=None, default="created_at") -> str:
+    allowed = set(allowed or ["created_at", "name", "status", "id"])
+    v = (value or "").lower()
+    return v if v in allowed else default
