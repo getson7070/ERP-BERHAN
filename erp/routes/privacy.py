@@ -8,7 +8,6 @@ bp = Blueprint("privacy", __name__)
 
 def _find_pia_table():
     meta = db.Model.metadata
-    # look for a table that has the columns used in tests
     for t in meta.tables.values():
         cols = set(t.c.keys())
         if {"feature_name", "status", "risk_rating"}.issubset(cols):
@@ -29,8 +28,15 @@ def index():
         rows = db.session.execute(q).mappings().all()
         items = [dict(r) for r in rows]
 
+    high_risk_count = sum(1 for it in items if str(it.get("risk_rating", "")).lower() == "high")
+    open_dsr_count = sum(1 for it in items if "open" in str(it.get("status", "")).lower())
+
     html = """
     <h1>Privacy & Compliance Center</h1>
+    <section class="summary">
+      <div><strong>High-Risk Cases</strong>: {{ high_risk_count }}</div>
+      <div><strong>Open DSRs</strong>: {{ open_dsr_count }}</div>
+    </section>
     <ul>
     {% for it in items %}
       <li class="pia">
@@ -41,6 +47,4 @@ def index():
     {% endfor %}
     </ul>
     """
-    return render_template_string(html, items=items)
-
-
+    return render_template_string(html, items=items, high_risk_count=high_risk_count, open_dsr_count=open_dsr_count)
