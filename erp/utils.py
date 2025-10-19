@@ -98,3 +98,23 @@ def dead_letter_handler(*, sender=None, task_id=None, exception=None, args=(), k
         "kwargs": kwargs or {},
     }
     redis_client.rpush("dead_letter", json.dumps(payload))
+# ---- Celery task idempotency (used by retention/reporting tests) ----
+def task_idempotent(fn):
+    import functools
+    @functools.wraps(fn)
+    def wrapper(*a, **k):
+        key = k.get("idempotency_key") or k.get("task_id") or k.get("key")
+        if not key:
+            return fn(*a, **k)
+        ck = f"task_idemp:{fn.__name__}:{key}"
+        if redis_client.get(ck):
+            RATE_LIMIT_REJECTIONS.inc()
+            raise RuntimeError("Duplicate task")
+        redis_client.set(ck, "1")
+        return fn(*a, **k)
+    return wrapper
+
+# ---- Small sanitizer expected by tenders workflow tests ----
+def sanitize_direction(value: str | None, default: str = "asc") -> str:
+    v = (value or "").lower()
+    return "desc" if v == "desc" else "asc"
