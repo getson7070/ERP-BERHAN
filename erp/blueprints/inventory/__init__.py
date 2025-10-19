@@ -43,7 +43,6 @@ def export_items(session) -> List[dict]:
     return out
 
 # ---- inventory public API shims (service-backed with in-memory fallback) ----
-from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -124,3 +123,4 @@ def list_items() -> List[Dict[str, Any]]:
 
 __all__ = ["create_item", "get_item", "update_item", "delete_item", "list_items"]
 # ---- /inventory public API shims ----
+
