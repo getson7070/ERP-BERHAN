@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 from flask import Flask
 from .config import Config, validate_config
@@ -44,6 +44,49 @@ def create_app(test_config=None):
     register_error_handlers(app)
     init_logging(app)
 
-    return app
+        # ---- Phase1: ensure health endpoints are present ----
+
+
+        try:
+
+
+            from .blueprints.health import bp as health_bp
+
+
+            app.register_blueprint(health_bp, url_prefix="/")
+
+
+        except Exception:
+
+
+            # Fallback inline routes if blueprint unavailable
+
+
+            from flask import jsonify
+
+
+            @app.get("/healthz")
+
+
+            def healthz():
+
+
+                return jsonify(status="ok"), 200
+
+
+            @app.get("/readyz")
+
+
+            def readyz():
+
+
+                return jsonify(status="ready"), 200
+
+
+        # ---- /Phase1 health ----
+
+
+        return app
 
 oauth = None
+
