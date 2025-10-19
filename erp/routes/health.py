@@ -29,3 +29,5 @@ def healthz():
 def readyz():
     ready = _ping_db()
     return jsonify({"ready": bool(ready), "status": "ready" if ready else "not_ready"}), 200 if ready else 503
+
+

@@ -12,3 +12,6 @@ class ProductRecall(db.Model):
     status = db.Column(db.String(16), nullable=False, default="open")  # open/closed
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     closed_at = db.Column(db.DateTime, nullable=True)
+
+
+

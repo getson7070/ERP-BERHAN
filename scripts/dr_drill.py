@@ -1,4 +1,4 @@
-"""Run a disaster-recovery restore drill.
+﻿"""Run a disaster-recovery restore drill.
 
 This helper ensures the repository root is on ``sys.path`` so the
 ``backup`` module can be imported even when the script is executed from an
@@ -37,3 +37,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

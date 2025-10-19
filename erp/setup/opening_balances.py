@@ -1,4 +1,4 @@
-
+﻿
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required
 from datetime import date
@@ -50,3 +50,5 @@ def opening_stock_load():
                  qty=Decimal(str(it["qty"])), voucher_type="Opening", voucher_id=None,
                  lot_id=it.get("lot_id"), rate=Decimal(str(it.get("rate",0))))
     return jsonify({"posted": len(items)}), 201
+
+

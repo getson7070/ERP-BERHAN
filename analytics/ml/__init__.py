@@ -15,3 +15,5 @@ class InventoryAnomalyDetector:
         return self
     def is_anomalous(self, x):
         return False if self.mad == 0 else abs(x - self.mean) > self.threshold * self.mad
+
+

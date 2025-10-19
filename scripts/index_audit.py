@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Report sequential scan statistics to guide index creation.
 
 Connects to the database defined by ``DATABASE_URL`` and prints
@@ -83,3 +83,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

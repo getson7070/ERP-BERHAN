@@ -154,3 +154,5 @@ def init_cache(app=None, **config):
     _update_size_gauge()
     return True
 
+
+

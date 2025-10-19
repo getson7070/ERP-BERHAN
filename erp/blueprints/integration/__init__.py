@@ -1,4 +1,4 @@
-"""Endpoints exposing integration hooks and tokens."""
+﻿"""Endpoints exposing integration hooks and tokens."""
 
 from __future__ import annotations
 
@@ -43,3 +43,5 @@ def integrations_powerbi_token() -> dict:
     """Expose a Power BI embed token for authorized dashboard rendering."""
     token = powerbi.get_embed_token()
     return {"token": token}
+
+

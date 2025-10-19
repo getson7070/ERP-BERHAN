@@ -36,3 +36,5 @@ def get_dlq_snapshot() -> list[dict]:
     """Return a shallow copy of the DLQ (testing aid)."""
     with _DLQ_LOCK:
         return list(_DLQ)
+
+

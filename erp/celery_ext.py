@@ -1,4 +1,4 @@
-"""
+﻿"""
 Safe Celery integration that doesn't run unless ENABLE_CELERY=true and CELERY_BROKER_URL is set.
 
 - Avoids importing Celery at process import time when you don't need it.
@@ -18,7 +18,7 @@ def init_celery(flask_app) -> Optional[Celery]:
 
     celery = Celery(flask_app.import_name, broker=broker, backend=backend)
 
-    # New-style lowercase config only – prevents the crash seen in logs
+    # New-style lowercase config only â€“ prevents the crash seen in logs
     celery.conf.update(
         task_serializer="json",
         accept_content=["json"],
@@ -37,3 +37,5 @@ def init_celery(flask_app) -> Optional[Celery]:
     celery.Task = AppContextTask
     flask_app.extensions["celery"] = celery
     return celery
+
+

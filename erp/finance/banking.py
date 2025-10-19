@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify
+﻿from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_required
 from datetime import datetime
 from decimal import Decimal
@@ -73,3 +73,5 @@ def api_unmatched():
         return jsonify([])
     txs = db.session.query(BankStatement).filter_by(matched=False).order_by(BankStatement.date.desc()).limit(500).all()
     return jsonify([{"id": t.id, "date": t.date.isoformat(), "description": t.description, "amount": float(t.amount)} for t in txs])
+
+

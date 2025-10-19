@@ -1,4 +1,4 @@
-"""Helpers for Microsoft Power BI integrations."""
+﻿"""Helpers for Microsoft Power BI integrations."""
 
 import os
 
@@ -13,3 +13,5 @@ def get_embed_token() -> str:
     if not token:
         raise RuntimeError("POWERBI_TOKEN is not configured")
     return token
+
+

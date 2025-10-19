@@ -4,3 +4,5 @@ bp = Blueprint("plugins_sample", __name__, url_prefix="/plugins/sample")
 @bp.get("/")
 def index():
     return Response("ok", mimetype="text/plain")
+
+

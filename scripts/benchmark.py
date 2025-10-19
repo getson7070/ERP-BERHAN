@@ -1,4 +1,4 @@
-"""Measure request throughput for an endpoint using timeit."""
+﻿"""Measure request throughput for an endpoint using timeit."""
 
 import os
 import timeit
@@ -20,3 +20,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

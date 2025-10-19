@@ -1,4 +1,4 @@
-# erp/middleware/idempotency.py
+﻿# erp/middleware/idempotency.py
 from __future__ import annotations
 
 from functools import wraps
@@ -38,3 +38,5 @@ def idempotent(endpoint_name: str, status_code_on_duplicate: int = 200):
                 raise
         return inner
     return wrap
+
+

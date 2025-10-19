@@ -8,3 +8,5 @@ bp = Blueprint("misc", __name__)
 @idempotent
 def idem():
     return jsonify({"status": "ok"})
+
+

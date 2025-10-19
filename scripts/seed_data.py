@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Populate the database with large demo datasets for load testing."""
 from __future__ import annotations
 
@@ -45,3 +45,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

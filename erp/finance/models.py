@@ -1,4 +1,4 @@
-# NOTE: This file is part of the ERP backbone patch.
+﻿# NOTE: This file is part of the ERP backbone patch.
 # It assumes you have a Flask app factory and a SQLAlchemy `db` instance at `erp.extensions`.
 # If your project uses a different path (e.g., `from extensions import db`), adjust the import below.
 from datetime import datetime, date
@@ -105,3 +105,5 @@ class Payment(db.Model):
     bill_id = db.Column(UUID(as_uuid=True), db.ForeignKey("bills.id"))
     amount = db.Column(db.Numeric(18,2), nullable=False)
     paid_on = db.Column(db.Date, default=date.today)
+
+

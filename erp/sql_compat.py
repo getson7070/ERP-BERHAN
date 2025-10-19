@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import re
 
 _question_mark_outside_quotes = re.compile(
@@ -36,3 +36,5 @@ def to_psql(sql: str) -> str:
 def execute(cur, sql: str, params=None):
     """Drop-in replacement for cursor.execute(sql, params) that tolerates '?' binds on Postgres."""
     cur.execute(to_psql(sql), params or [])
+
+

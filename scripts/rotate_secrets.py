@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Rotate database and API secrets with audit logging."""
 
 import datetime
@@ -35,3 +35,5 @@ def main() -> Dict[str, str]:
 
 if __name__ == "__main__":
     main()
+
+

@@ -1,4 +1,4 @@
-"""Nightly export of fact tables to an OLAP store.
+﻿"""Nightly export of fact tables to an OLAP store.
 
 This script extracts materialized KPI tables and pushes them to an
 external warehouse (e.g., TimescaleDB or ClickHouse). The implementation
@@ -47,3 +47,5 @@ def main() -> Path:
 if __name__ == "__main__":
     path = main()
     print(f"Exported to {path}")
+
+

@@ -88,3 +88,5 @@ def get_dialect() -> str:
         return create_engine(url, future=True).dialect.name
     except Exception:
         return "unknown"
+
+

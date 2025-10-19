@@ -24,3 +24,5 @@ def run_backup(src: str, dst: str) -> bool:
     create_backup(src, dst)
     BACKUP_LAST_SUCCESS = int(time.time())
     return True
+
+

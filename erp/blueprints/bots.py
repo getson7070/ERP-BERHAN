@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 import os
 
 bots_bp = Blueprint("bots", __name__, url_prefix="/bots")
@@ -12,3 +12,5 @@ def slack_health():
 def slack_echo():
     payload = request.get_json(silent=True) or {}
     return jsonify(received=payload)
+
+

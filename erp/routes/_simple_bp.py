@@ -7,3 +7,5 @@ def simple_health(name, prefix=None):
     @bp.get("/health")
     def health(): return jsonify({"status":"ok"})
     return bp
+
+

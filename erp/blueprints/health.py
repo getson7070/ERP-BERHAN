@@ -9,3 +9,5 @@ def healthz():
 @bp.route("/readyz")
 def readyz():
     return jsonify(status="ready"), 200
+
+

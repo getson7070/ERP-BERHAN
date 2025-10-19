@@ -1,4 +1,4 @@
-import os
+﻿import os
 def init_sentry(app):
     dsn = os.getenv("SENTRY_DSN")
     if not dsn:
@@ -10,3 +10,5 @@ def init_sentry(app):
         app.logger.info("Sentry initialized")
     except Exception as e:
         app.logger.warning("Sentry init failed: %s", e)
+
+

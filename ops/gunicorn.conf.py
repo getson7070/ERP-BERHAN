@@ -1,4 +1,4 @@
-import multiprocessing, os
+﻿import multiprocessing, os
 
 bind = os.getenv("GUNICORN_BIND", "0.0.0.0:10000")
 workers = int(os.getenv("WEB_CONCURRENCY", str(multiprocessing.cpu_count() * 2 + 1)))
@@ -14,3 +14,5 @@ def post_worker_init(worker):
     # Prometheus multiprocess for Gunicorn
     os.environ.setdefault("PROMETHEUS_MULTIPROC_DIR", "/tmp/prom")
     os.makedirs("/tmp/prom", exist_ok=True)
+
+

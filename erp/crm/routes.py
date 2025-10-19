@@ -1,4 +1,4 @@
-
+﻿
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required
 from erp.extensions import db
@@ -27,3 +27,5 @@ def opportunities():
         return jsonify({"id": str(obj.id)}), 201
     rows = Opportunity.query.order_by(Opportunity.title).all()
     return render_template("crm/opportunities.html", opportunities=rows)
+
+

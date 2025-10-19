@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+﻿from flask import Blueprint, render_template
 import importlib
 import pkgutil
 import logging
@@ -33,3 +33,5 @@ def marketplace():
         logger.warning("Marketplace listing failed: %s", exc)
         available = []
     return render_template("plugins/marketplace.html", plugins=available)
+
+

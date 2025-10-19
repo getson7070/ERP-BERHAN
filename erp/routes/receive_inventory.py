@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, abort
+﻿from flask import Blueprint, render_template, request, jsonify, session, abort
 from ..extensions import db
 from ..inventory.models import Item
 import secrets
@@ -33,3 +33,5 @@ def verify_qr():
     if not data:
         abort(400)
     return jsonify({"valid": bool(_exists_sku(data))})
+
+

@@ -16,3 +16,5 @@ def check_audit_chain(entries: list[dict], secret: str = 'k') -> bool:
         if test[-1]['h'] != e['h']:
             return False
     return True
+
+

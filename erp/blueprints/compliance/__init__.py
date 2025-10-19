@@ -1,4 +1,4 @@
-"""API endpoints for compliance workflows."""
+﻿"""API endpoints for compliance workflows."""
 
 from __future__ import annotations
 
@@ -38,3 +38,5 @@ def get_batch_record(record_id: int):
             "description": record.description,
         }
     )
+
+

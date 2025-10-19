@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session
+﻿from flask import Blueprint, render_template, request, session
 from sqlalchemy import text
 from db import get_db
 from erp.utils import login_required, mfa_required
@@ -37,3 +37,5 @@ def workflows():
 def panel():
     """Simple administrative panel protected by MFA."""
     return "admin panel"
+
+

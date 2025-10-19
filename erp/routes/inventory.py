@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
@@ -30,3 +30,5 @@ def new_item():
         flash("Item created.", "success")
         return redirect(url_for("inventory.index"))
     return render_template("inventory/new.html", form=form)
+
+

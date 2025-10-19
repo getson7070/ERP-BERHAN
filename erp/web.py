@@ -1,4 +1,4 @@
-# erp/web.py
+﻿# erp/web.py
 from flask import Blueprint, render_template, redirect, url_for
 
 web_bp = Blueprint("web", __name__)
@@ -12,3 +12,5 @@ def login_page():
 @web_bp.route("/login")
 def compat_login():
     return redirect(url_for("web.login_page"))
+
+

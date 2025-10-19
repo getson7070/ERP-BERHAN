@@ -1,4 +1,4 @@
-from flask import Flask
+﻿from flask import Flask
 
 def apply_security_defaults(app: Flask) -> None:
     # Secure cookie settings
@@ -16,3 +16,5 @@ def register_secure_headers(app: Flask) -> None:
         # Keep CSP minimal unless you audit front-end assets; too strict can break current UI.
         # resp.headers.setdefault("Content-Security-Policy", "default-src 'self'")
         return resp
+
+

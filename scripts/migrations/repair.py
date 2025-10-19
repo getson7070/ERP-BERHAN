@@ -1,4 +1,4 @@
-import os, subprocess, sys, re, datetime, pathlib, textwrap
+﻿import os, subprocess, sys, re, datetime, pathlib, textwrap
 
 ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
@@ -66,3 +66,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+

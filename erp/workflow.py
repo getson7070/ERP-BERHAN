@@ -1,4 +1,4 @@
-from functools import wraps
+﻿from functools import wraps
 from flask import session, abort
 from db import get_db
 from sqlalchemy import text
@@ -35,3 +35,5 @@ def require_enabled(module):
         return wrapper
 
     return decorator
+
+

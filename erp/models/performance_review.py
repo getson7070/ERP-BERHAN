@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import datetime, date
-from erp.db import db
+from erp.models import db
 
 class PerformanceReview(db.Model):
     __tablename__ = "performance_reviews"
@@ -43,3 +43,6 @@ class PerformanceReview(db.Model):
 
     def __repr__(self) -> str:
         return f"<PerformanceReview {self.id} user={self.user_id} score={self.score}>"
+
+
+

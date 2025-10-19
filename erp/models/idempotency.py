@@ -28,3 +28,6 @@ class IdempotencyKey(db.Model):
         cutoff = datetime.utcnow() - timedelta(hours=hours)
         res = db.session.query(IdempotencyKey).filter(IdempotencyKey.created_at < cutoff).delete()
         return res
+
+
+

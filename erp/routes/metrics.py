@@ -31,3 +31,5 @@ def metrics():
     body += f"graphql_rejects {GRAPHQL_REJECTS._value.get()}\n"
     body += f"queue_lag {QUEUE_LAG._value.get()}\n"
     return Response(body, mimetype="text/plain")
+
+

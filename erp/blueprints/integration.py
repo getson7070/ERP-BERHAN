@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 from erp.extensions import db
 from erp.models.integration import IntegrationConfig
 
@@ -30,3 +30,5 @@ def upsert_config():
     row.config_json = data.get("config_json", {})
     db.session.commit()
     return jsonify(id=row.id, name=row.name)
+
+

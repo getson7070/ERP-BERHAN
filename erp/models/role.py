@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import datetime
-from erp.db import db
+from erp.models import db
 
 class Role(db.Model):
     __tablename__ = "roles"
@@ -14,3 +14,6 @@ class Role(db.Model):
 
     def __repr__(self) -> str:
         return f"<Role {self.id} {self.name!r}>"
+
+
+

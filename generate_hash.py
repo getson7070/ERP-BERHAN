@@ -1,4 +1,4 @@
-from argon2 import PasswordHasher
+﻿from argon2 import PasswordHasher
 from getpass import getpass
 
 
@@ -11,3 +11,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

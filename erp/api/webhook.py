@@ -1,4 +1,4 @@
-# erp/api/webhook.py
+﻿# erp/api/webhook.py
 from __future__ import annotations
 import hmac, hashlib, json
 from flask import Blueprint, current_app, request, jsonify
@@ -29,3 +29,5 @@ def receive_webhook(source: str):
         return jsonify({"error": "invalid_signature"}), 401
     data = request.get_json(silent=True) or {}
     return jsonify({"status": "ok", "source": source, "received": bool(data)}), 200
+
+

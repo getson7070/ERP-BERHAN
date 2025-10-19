@@ -1,4 +1,4 @@
-from flask import (
+﻿from flask import (
     Blueprint,
     current_app,
     flash,
@@ -350,3 +350,5 @@ def advance_tender(tender_id):
     conn.commit()
     conn.close()
     return redirect(url_for("tenders.tenders_list"))
+
+

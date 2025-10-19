@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Audit log integrity check script."""
 from erp.audit import check_audit_chain
 
@@ -8,3 +8,5 @@ if __name__ == "__main__":
         print(f"Audit chain broken: {breaks} issues detected")
     else:
         print("Audit chain verified")
+
+

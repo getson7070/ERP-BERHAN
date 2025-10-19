@@ -1,4 +1,4 @@
-from flask import Blueprint
+﻿from flask import Blueprint
 
 bp = Blueprint("sample_plugin", __name__, url_prefix="/plugins/sample")
 
@@ -11,3 +11,5 @@ def index():
 def register(app, registry):
     app.register_blueprint(bp)
     registry("sample_plugin", bp=bp)
+
+

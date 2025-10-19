@@ -1,4 +1,4 @@
-"""Telegram bot interface for BERHAN ERP."""
+﻿"""Telegram bot interface for BERHAN ERP."""
 
 # mypy: ignore-errors
 
@@ -2174,3 +2174,5 @@ def register(application: Application) -> None:
     )
 
     # Application run occurs in bot.main
+
+

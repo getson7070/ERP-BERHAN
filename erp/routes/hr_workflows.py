@@ -1,4 +1,4 @@
-from flask import (
+﻿from flask import (
     Blueprint,
     render_template,
     request,
@@ -66,3 +66,5 @@ def performance():
         .all()
     )
     return render_template("hr/performance.html", reviews=reviews)
+
+

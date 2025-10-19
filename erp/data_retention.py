@@ -1,4 +1,4 @@
-"""Retention and anonymization tasks.
+﻿"""Retention and anonymization tasks.
 
 Scheduled Celery jobs to purge expired data, anonymize PII and export
 quarterly access recertification reports."""
@@ -86,3 +86,5 @@ def run_access_recert_export(idempotency_key: str | None = None) -> str:
     """Generate and persist an immutable access recertification export."""
     output = export_recert()
     return str(output)
+
+

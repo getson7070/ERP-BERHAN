@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 from flask import Blueprint, current_app, request, abort
 import hmac, hashlib, os
+=======
+﻿from __future__ import annotations
+>>>>>>> 6232ca4 (Renormalize line endings)
 
 bp = Blueprint("webhook", __name__)
 
@@ -11,6 +15,7 @@ def webhook(name):
     auth = request.headers.get("Authorization", "")
     if api_token and auth != f"Bearer {api_token}":
         abort(401)
+<<<<<<< HEAD
 
     # NEW: require secret to be configured; otherwise 500
     secret = (current_app.config.get("WEBHOOK_SECRET")
@@ -29,3 +34,8 @@ def webhook(name):
     # if not hmac.compare_digest(sig, computed): abort(401)
 
     return ("", 204)
+=======
+    return "", 204
+
+
+>>>>>>> 6232ca4 (Renormalize line endings)

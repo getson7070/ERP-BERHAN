@@ -1,4 +1,4 @@
-# erp/routes/dashboard_customize.py
+﻿# erp/routes/dashboard_customize.py
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from erp.extensions import db
@@ -24,3 +24,5 @@ def save_layout():
         row.layout = payload
     db.session.commit()
     return jsonify({"ok": True}), 200
+
+

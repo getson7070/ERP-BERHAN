@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Validate that all blueprints import correctly."""
 import importlib
 import sys
@@ -25,3 +25,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+

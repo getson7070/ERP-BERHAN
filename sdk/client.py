@@ -1,4 +1,4 @@
-"""Simple Python SDK for the ERP REST API."""
+﻿"""Simple Python SDK for the ERP REST API."""
 
 import hashlib
 import hmac
@@ -68,3 +68,5 @@ class ERPClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+

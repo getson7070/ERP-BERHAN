@@ -1,4 +1,4 @@
-"""User feedback collection endpoints."""
+﻿"""User feedback collection endpoints."""
 
 from flask import Blueprint, current_app, request, render_template
 
@@ -15,3 +15,5 @@ def submit():
     data = request.get_json() or {}
     current_app.logger.info("user_feedback", extra={"feedback": data})
     return ("", 204)
+
+

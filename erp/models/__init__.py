@@ -1,9 +1,17 @@
+<<<<<<< HEAD
 # erp/models/__init__.py
 
 # Use the shared SQLAlchemy instance (do NOT create a new one here)
 from ..extensions import db
 
 # Tolerant imports: exclude 'inventory' to avoid import-time side-effects
+=======
+﻿from __future__ import annotations
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+# Tolerant imports: only bring in modules that actually exist
+>>>>>>> 6232ca4 (Renormalize line endings)
 _modules = [
     "user",
     "employee",
@@ -37,6 +45,7 @@ from .order import *                 # noqa: F401,F403
 from .role import *                  # noqa: F401,F403
 from .user_dashboard import *        # noqa: F401,F403
 
+<<<<<<< HEAD
 # ---- Safe, back-compat export for Item (no star-imports, no side-effects) ----
 try:
     from . import inventory as _inv  # import module only
@@ -49,3 +58,9 @@ try:
         Item = None  # tolerate in minimal/test environments
 except Exception:
     Item = None
+=======
+
+
+
+
+>>>>>>> 6232ca4 (Renormalize line endings)

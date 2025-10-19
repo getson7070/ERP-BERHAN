@@ -1,4 +1,4 @@
-"""Privacy compliance utilities and models."""
+﻿"""Privacy compliance utilities and models."""
 
 from __future__ import annotations
 
@@ -283,3 +283,5 @@ __all__ = [
     "UpcomingReview",
     "build_privacy_program_snapshot",
 ]
+
+

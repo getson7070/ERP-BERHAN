@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+﻿from flask import Blueprint, render_template
 from flask_login import login_required
 
 crm_pipeline_bp = Blueprint("crm_pipeline", __name__, url_prefix="/crm", template_folder="../templates")
@@ -15,3 +15,5 @@ def pipeline():
         {"name": "Lost", "count": 0},
     ]
     return render_template("crm/pipeline/index.html", stages=stages)
+
+

@@ -5,6 +5,12 @@ from .config import Config, validate_config
 from .observability import init_logging
 from .security import apply_security_headers
 from .errors import register_error_handlers
+# init_db.py
+from argon2 import PasswordHasher
+
+# Use defaults (good for tests)
+ph = PasswordHasher()
+
 
 GRAPHQL_REJECTS = 0
 QUEUE_LAG = 0
@@ -114,7 +120,8 @@ except Exception:
         # no-op fallback
         return
 
-from importlib import import_module
+
+from importlib import import_module
 import pkgutil
 from flask import Flask, session, Response
 from werkzeug.exceptions import HTTPException

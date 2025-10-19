@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 from erp.extensions import db
 from erp.models.recall import ProductRecall
 
@@ -34,3 +34,5 @@ def create_recall():
     db.session.add(r)
     db.session.commit()
     return jsonify(id=r.id, ref=r.ref), 201
+
+

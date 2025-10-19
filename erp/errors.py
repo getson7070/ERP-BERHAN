@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 from flask import jsonify, g
 
@@ -29,3 +29,5 @@ def register_error_handlers(app):
         return _payload("internal_error", 500)
 
     return app
+
+

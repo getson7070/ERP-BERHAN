@@ -1,4 +1,4 @@
-"""bridge: resurrect missing baseline
+﻿"""bridge: resurrect missing baseline
 
 Revision ID: 8de54ef00dfe
 Revises: None
@@ -18,3 +18,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     pass
+
+

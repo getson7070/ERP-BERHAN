@@ -11,3 +11,5 @@ def help():
 @bp.get("/offline")
 def offline():
     return Response("<html><body>The application is offline</body></html>", mimetype="text/html")
+
+

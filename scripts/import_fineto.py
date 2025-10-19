@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 import json
 import pathlib
 
@@ -39,3 +39,5 @@ def import_fineto():
 
 if __name__ == "__main__":
     import_fineto()
+
+

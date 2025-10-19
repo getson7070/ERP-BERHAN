@@ -1,4 +1,4 @@
-from celery import Celery
+﻿from celery import Celery
 
 
 def make_celery(app) -> Celery:
@@ -15,3 +15,5 @@ def make_celery(app) -> Celery:
 
     _register_tasks()
     return celery
+
+

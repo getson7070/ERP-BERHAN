@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 from functools import wraps
 from flask import g, request, jsonify
@@ -25,3 +25,5 @@ def require_permissions(required: Iterable[str] | Set[str]) -> Callable:
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+

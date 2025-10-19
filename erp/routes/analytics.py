@@ -36,3 +36,5 @@ def send_approval_reminders():
 def forecast_sales(months: int = 3):
     # return trivial forecast structure
     return [{"month": i+1, "forecast": 0} for i in range(months)]
+
+
