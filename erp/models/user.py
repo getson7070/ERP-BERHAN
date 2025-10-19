@@ -1,41 +1,33 @@
-﻿# erp/models/user.py
+﻿from __future__ import annotations
 from datetime import datetime
-from erp.extensions import db
+from erp.db import db
 
 class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    # add other fields you need...
 
-class DeviceAuthorization(db.Model):
-    __tablename__ = "device_authorizations"
+    # Optional org linkage (tests often create both)
+    organization_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    device_fingerprint = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    role = db.Column(db.String(50), nullable=False, default="user")
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    user = db.relationship("User", backref=db.backref("device_authorizations", lazy="dynamic"))
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
-class ElectronicSignature(db.Model):
-    __tablename__ = "electronic_signatures"
+    organization = db.relationship(
+        "Organization",
+        backref=db.backref("users", lazy=True, cascade="all, delete-orphan"),
+        foreign_keys=[organization_id],
+    )
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    intent = db.Column(db.String(255), nullable=False)
-    signed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    prev_hash = db.Column(db.String(255))
-    signature_hash = db.Column(db.String(255), nullable=False)
-
-class DataLineage(db.Model):
-    __tablename__ = "data_lineage"
-
-    id = db.Column(db.Integer, primary_key=True)
-    source_table = db.Column(db.String(255), nullable=False)
-    target_table = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    def __repr__(self) -> str:
+        return f"<User {self.id} {self.email!r} role={self.role}>"
