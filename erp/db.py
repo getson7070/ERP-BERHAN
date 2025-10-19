@@ -1,30 +1,17 @@
 ﻿from __future__ import annotations
-from flask_sqlalchemy import SQLAlchemy
+# Thin re-export shim so tests can: from erp.db import db, User, Inventory, ...
+from erp import models as _models
 
-# Single shared SQLAlchemy instance
-db = SQLAlchemy()
+# Re-export the SQLAlchemy instance
+db = _models.db
 
-# Lazily expose model names so tests can do:
-#   from erp.db import db, User, Inventory, ...
-# without creating an import cycle.
+# Forward any attribute lookups to erp.models (User, Role, Inventory, etc.)
 def __getattr__(name: str):
-    from . import models as _m
-    if hasattr(_m, name):
-        return getattr(_m, name)
-    raise AttributeError(name)
+    return getattr(_models, name)
 
-__all__ = ["db"]  # model symbols are resolved lazily via __getattr__
-
-# Back-compat: expose Inventory model here for tests
+# Best-effort __all__
 try:
-    from .models import Inventory  # noqa: F401
+    _all = list(getattr(_models, "__all__", []))
 except Exception:
-    pass
-
-
-# Back-compat: expose UserDashboard model here for tests
-try:
-    from .models import UserDashboard  # noqa: F401
-except Exception:
-    pass
-
+    _all = []
+__all__ = ["db", *_all]
