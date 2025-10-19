@@ -90,3 +90,14 @@ except Exception:
 
 
 
+# --- tenant_query helper for tests ---
+def _invoice_tenant_query(cls, org_id):
+    col = getattr(cls, "org_id", None) or getattr(cls, "organization_id", None)
+    if col is None:
+        # fall back to unscoped query if the column isn't present
+        return cls.query
+    return cls.query.filter(col == org_id)
+
+if not hasattr(Invoice, "tenant_query"):
+    Invoice.tenant_query = classmethod(_invoice_tenant_query)
+# --- /tenant_query ---
