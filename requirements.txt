@@ -17,3 +17,5 @@ slack-sdk>=3.26.0
 bleach>=6.1.0
 
 prometheus-client==0.20.0
+
+Flask-Limiter==3.7.0
