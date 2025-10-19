@@ -81,6 +81,16 @@ def create_app(test_config=None):
             app.register_blueprint(_privacy.bp)
     except Exception:
         pass
+        # Ensure models are loaded and tables exist (useful for tests / SQLite)
+    try:
+        from . import models as _models  # noqa: F401
+    except Exception:
+        pass
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception:
+        pass
     return app
 
 oauth = None
@@ -103,4 +113,5 @@ except Exception:
     def _dead_letter_handler(*args, **kwargs):  # noqa: D401
         # no-op fallback
         return
+
 
