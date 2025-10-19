@@ -60,7 +60,15 @@ def create_app(test_config=None):
                 return jsonify(status='ready'), 200
     _install_health(app)
     # ---- /Phase1 health endpoints ----
+    # Phase1 observability
+    try:
+        from .observability import register_metrics_endpoint
+        register_metrics_endpoint(app)
+    except Exception:
+        pass
+
     return app
 
 oauth = None
+
 
