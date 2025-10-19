@@ -1,6 +1,11 @@
-﻿* text=auto
-*.py  text eol=lf
-*.ini text eol=lf
-*.sh  text eol=lf
-*.bat text eol=crlf
-*.ps1 text eol=crlf
+﻿*           text=auto eol=lf
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.py        text eol=lf
+*.html      text eol=lf
+*.js        text eol=lf
+*.css       text eol=lf
