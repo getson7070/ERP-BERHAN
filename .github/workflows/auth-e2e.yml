@@ -18,4 +18,4 @@ jobs:
           echo "worker_class = 'gthread'" >> gunicorn.conf.py
           echo "threads = 2" >> gunicorn.conf.py
       - name: Run Auth E2E
-        run: pytest -q tests/test_auth_e2e.py
+        run: pytest -q tests/test_auth_e2e.py tests/plugins/test_auth_e2e.py || pytest -q -k "auth and e2e"
