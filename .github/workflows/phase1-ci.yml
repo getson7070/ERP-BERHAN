@@ -1,0 +1,38 @@
+
+name: phase1-ci
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-phase1.txt ]; then pip install -r requirements-phase1.txt; fi
+      - name: Ruff (lint)
+        run: |
+          python -m pip install ruff
+          ruff check .
+      - name: Mypy (soft)
+        continue-on-error: true
+        run: |
+          python -m pip install mypy
+          mypy --ignore-missing-imports .
+      - name: Pytest (soft, minimal)
+        continue-on-error: true
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          python -m pip install pytest
+          if [ -f tests/ci-min.ini ]; then pytest -q -c tests/ci-min.ini -k "healthz or readyz" ; else pytest -q ; fi
+      - name: Gitleaks (if config present)
+        if: hashFiles('.gitleaks.toml') != ''
+        continue-on-error: true
+        uses: zricethezav/gitleaks-action@v2

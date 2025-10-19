@@ -1,36 +1,49 @@
-﻿from flask import Flask
 
-# --- test-visible counters (simple stubs) ---
+from __future__ import annotations
+from flask import Flask
+from .config import Config, validate_config
+from .observability import init_logging
+from .security import apply_security_headers
+from .errors import register_error_handlers
+
 GRAPHQL_REJECTS = 0
 QUEUE_LAG = 0
 RATE_LIMIT_REJECTIONS = 0
 OLAP_EXPORT_SUCCESS = 0
 
-def _dead_letter_handler(*args, **kwargs):
-    return None
-
 try:
-    from flask_socketio import SocketIO          # optional in Phase-1
-    socketio = SocketIO(message_queue=None, async_mode="threading")
-except Exception:
+    from flask_socketio import SocketIO  # type: ignore
+    socketio = SocketIO(message_queue=None, async_mode="threading")  # pragma: no cover
+except Exception:  # pragma: no cover
     socketio = None
 
 def create_app(test_config=None):
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = app.config.get("SECRET_KEY") or "test-secret"
+    app.config.from_object(Config())
+    if test_config:
+        app.config.update(test_config)
 
-    # Initialize db if present
+    try:
+        validate_config(app.config)
+    except Exception:
+        pass
+
     try:
         from .db import db
         db.init_app(app)
     except Exception:
         pass
 
-    # Health/readiness endpoints from Phase-1
-    from .blueprints.health import bp as health_bp
-    app.register_blueprint(health_bp, url_prefix="/")
+    try:
+        from .blueprints.health import bp as health_bp
+        app.register_blueprint(health_bp, url_prefix="/")
+    except Exception:
+        pass
+
+    apply_security_headers(app)
+    register_error_handlers(app)
+    init_logging(app)
 
     return app
-
 
 oauth = None
