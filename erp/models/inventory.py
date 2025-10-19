@@ -1,9 +1,5 @@
 ﻿from __future__ import annotations
-from flask_sqlalchemy import SQLAlchemy
-from erp import db
-
-db = db  # reuse the same db instance from erp package
-
+from erp.models import db`r`n
 class Inventory(db.Model):
     __tablename__ = "inventory"
     id = db.Column(db.Integer, primary_key=True)
@@ -16,3 +12,4 @@ class Inventory(db.Model):
     @classmethod
     def tenant_query(cls, org_id):
         return cls.query.filter_by(org_id=org_id)
+
