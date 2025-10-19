@@ -21,14 +21,13 @@ def index():
     table = _find_pia_table()
     items = []
     if table is not None:
-        rows = db.session.execute(select(table)).fetchall()
-        for row in rows:
-            m = dict(row._mapping)
-            items.append({
-                "feature_name": m.get("feature_name", ""),
-                "status": m.get("status", ""),
-                "risk_rating": m.get("risk_rating", ""),
-            })
+        q = select(
+            table.c.feature_name.label("feature_name"),
+            table.c.status.label("status"),
+            table.c.risk_rating.label("risk_rating"),
+        )
+        rows = db.session.execute(q).mappings().all()
+        items = [dict(r) for r in rows]
 
     html = """
     <h1>Privacy Dashboard</h1>
