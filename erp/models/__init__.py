@@ -31,3 +31,7 @@ from .organization import *  # noqa: F401,F403
 from .user import *  # noqa: F401,F403
 
 from .invoice import *  # noqa: F401,F403
+
+from .recruitment import *  # noqa: F401,F403
+
+from .performance_review import *  # noqa: F401,F403
