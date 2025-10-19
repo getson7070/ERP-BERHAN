@@ -66,6 +66,13 @@ def create_app(test_config=None):
         register_metrics_endpoint(app)
     except Exception:
         pass
+    # Phase1: rate limiting
+    try:
+        from .extensions import limiter
+        limiter.init_app(app)
+    except Exception:
+        pass
+
 
     return app
 
@@ -81,3 +88,4 @@ except Exception:
     def set_audit_chain_broken(flag: bool = True):  # noqa: D401
         # no-op fallback when observability is unavailable
         return
+
