@@ -1,0 +1,29 @@
+roles:
+  admin:
+    endpoints:
+      - path: /admin/
+        match: prefix
+        methods: [GET, POST, PUT, DELETE]
+        scope: full
+  accountant:
+    endpoints:
+      - path: /finance/
+        match: prefix
+        methods: [GET, POST]
+        scope: read_write
+      - path: /analytics/
+        match: prefix
+        methods: [GET]
+        scope: read_only
+  storekeeper:
+    endpoints:
+      - path: /inventory/
+        match: prefix
+        methods: [GET, POST]
+        scope: read_write
+  sales:
+    endpoints:
+      - path: /crm/
+        match: prefix
+        methods: [GET, POST]
+        scope: read_write
