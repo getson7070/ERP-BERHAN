@@ -43,20 +43,10 @@ from .role import *  # noqa: F401,F403
 
 from .user_dashboard import *  # noqa: F401,F403
 
-
-
-
-
-
-
-
-
-
-from .inventory import Item  # re-export for routes
-
 # Back-compat alias for legacy imports expecting `Item`
 for _cand in ("InventoryItem", "Product", "StockItem"):
     if _cand in globals() and "Item" not in globals():
         globals()["Item"] = globals()[_cand]
         __all__.append("Item")
         break
+
