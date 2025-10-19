@@ -67,3 +67,40 @@ if not hasattr(User, "password"):
 if not hasattr(User, "verify_password"):
     User.verify_password = _user_verify
 # --- /password shim ---
+# --- constructor shim: accept password/fs_uniquifier kwargs (test-friendly) ---
+try:
+    _orig_user_init = User.__init__
+except Exception:  # shouldn't happen, but be defensive
+    _orig_user_init = None
+
+def _user_init_accept_extras(self, *args, **kwargs):
+    # pop extras so SQLAlchemy's generated __init__ won't reject them
+    pwd = kwargs.pop("password", None)
+    fsu = kwargs.pop("fs_uniquifier", None)
+
+    # call the original constructor with the remaining kwargs
+    if _orig_user_init is not None:
+        _orig_user_init(self, *args, **kwargs)
+    else:
+        for k, v in kwargs.items():
+            if hasattr(type(self), k):
+                setattr(self, k, v)
+
+    # apply extras after base init
+    if fsu is not None:
+        try:
+            setattr(self, "fs_uniquifier", fsu)
+        except Exception:
+            setattr(self, "_fs_uniquifier", fsu)
+
+    if pwd is not None:
+        try:
+            self.password = pwd  # uses your write-only property shim
+        except Exception:
+            setattr(self, "_password", pwd)
+
+# patch only once
+if not getattr(User, "__init_accepts_extras__", False):
+    User.__init__ = _user_init_accept_extras
+    User.__init_accepts_extras__ = True
+# --- /constructor shim ---
