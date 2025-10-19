@@ -1,4 +1,4 @@
-"""add idempotency_keys table"""
+﻿"""add idempotency_keys table"""
 
 from alembic import op
 import sqlalchemy as sa
@@ -26,3 +26,5 @@ def downgrade():
     op.drop_index("ix_idem_endpoint", table_name="idempotency_keys")
     op.drop_constraint("uq_idem_key", "idempotency_keys", type_="unique")
     op.drop_table("idempotency_keys")
+
+
