@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 import logging, os, sys, json, time, uuid
 from flask import g, request
@@ -55,3 +55,18 @@ def init_logging(app, level: str | None = None):
         except Exception as e:  # pragma: no cover
             app.logger.warning(f"sentry_init_failed: {e}")
     return app
+
+# --- Phase1: metrics endpoint (Prometheus) ---
+def register_metrics_endpoint(app):
+    try:
+        from flask import Response
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+        @app.get("/metrics")
+        def metrics():
+            data = generate_latest()  # uses default registry
+            return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    except Exception:
+        # Keep app booting even if prometheus_client isn't present in some envs
+        pass
+# --- /Phase1 metrics endpoint ---
