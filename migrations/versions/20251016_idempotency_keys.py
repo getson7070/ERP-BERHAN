@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 # Set to your current head revision ID before generating:
 revision = "a1b2c3d4e5f6"
-down_revision = "<SET_THIS_TO_CURRENT_HEAD>"
+down_revision = "f38a77f2570a"
 branch_labels = None
 depends_on = None
 
