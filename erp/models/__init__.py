@@ -37,3 +37,5 @@ from .recruitment import *  # noqa: F401,F403
 from .performance_review import *  # noqa: F401,F403
 
 from .inventory import *  # noqa: F401,F403
+
+from .order import *  # noqa: F401,F403
