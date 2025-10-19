@@ -1,4 +1,4 @@
-﻿\"\"\"add idempotency_keys table\"\"\"
+"""add idempotency_keys table"""
 
 from alembic import op
 import sqlalchemy as sa
