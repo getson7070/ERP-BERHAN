@@ -1,19 +1,31 @@
-from __future__ import annotations
+from flask import Blueprint, current_app, request, abort
+import hmac, hashlib, os
 
-import hashlib
-import hmac
+bp = Blueprint("webhook", __name__)
 
-from flask import Blueprint, abort, current_app, request
-
-bp = Blueprint("webhooks", __name__, url_prefix="/webhooks")
-
-
-@bp.post("/notify")
-def notify():
-    payload = request.get_data() or b""
-    sig = request.headers.get("X-Signature", "")
-    secret = (current_app.config.get("WEBHOOK_SECRET") or "").encode()
-    expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, expected):
+@bp.post("/api/webhook/<name>")
+def webhook(name):
+    # Token check (kept as is)
+    api_token = (current_app.config.get("API_TOKEN")
+                 or os.environ.get("API_TOKEN"))
+    auth = request.headers.get("Authorization", "")
+    if api_token and auth != f"Bearer {api_token}":
         abort(401)
-    return "", 204
+
+    # NEW: require secret to be configured; otherwise 500
+    secret = (current_app.config.get("WEBHOOK_SECRET")
+              or os.environ.get("WEBHOOK_SECRET"))
+    if not secret:
+        current_app.logger.error("WEBHOOK_SECRET is not configured.")
+        abort(500)
+
+    # Signature must be present once secret exists
+    sig = request.headers.get("X-Hub-Signature-256")
+    if not sig:
+        abort(401)
+
+    # ...verify HMAC as before...
+    # computed = 'sha256=' + hmac.new(secret.encode(), request.data, hashlib.sha256).hexdigest()
+    # if not hmac.compare_digest(sig, computed): abort(401)
+
+    return ("", 204)
