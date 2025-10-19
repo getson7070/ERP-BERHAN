@@ -72,3 +72,12 @@ def create_app(test_config=None):
 oauth = None
 
 
+
+# Phase1: export audit flag API
+try:
+    from .observability import AUDIT_CHAIN_BROKEN, set_audit_chain_broken
+except Exception:
+    AUDIT_CHAIN_BROKEN = False
+    def set_audit_chain_broken(flag: bool = True):  # noqa: D401
+        # no-op fallback when observability is unavailable
+        return
