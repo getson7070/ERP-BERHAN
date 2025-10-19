@@ -92,7 +92,7 @@ except Exception:
     _AUDIT_CHAIN_BROKEN_G = None
 
 def set_audit_chain_broken(flag: bool = True):
-    \"\"\"Mark audit chain as broken/healthy and reflect in metrics.\"\"\"
+    """Mark audit chain as broken/healthy and reflect in metrics."""
     global AUDIT_CHAIN_BROKEN
     AUDIT_CHAIN_BROKEN = bool(flag)
     if _AUDIT_CHAIN_BROKEN_G is not None:
@@ -102,3 +102,4 @@ def set_audit_chain_broken(flag: bool = True):
             # Never break the app due to metrics library quirks
             pass
 # --- /Phase1 audit chain flag + gauge ---
+
