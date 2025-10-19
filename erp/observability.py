@@ -70,3 +70,35 @@ def register_metrics_endpoint(app):
         # Keep app booting even if prometheus_client isn't present in some envs
         pass
 # --- /Phase1 metrics endpoint ---
+
+# --- Phase1: audit chain flag + gauge ---
+try:
+    from prometheus_client import Gauge
+except Exception:
+    class Gauge:  # no-op stub if prometheus_client is missing
+        def __init__(self, *a, **k): pass
+        def set(self, *a, **k): pass
+
+# Module-level boolean exported via erp.__init__
+AUDIT_CHAIN_BROKEN = False
+
+# Prometheus gauge so tests can scrape /metrics
+try:
+    _AUDIT_CHAIN_BROKEN_G = Gauge(
+        "audit_chain_broken", "Audit logging chain broken (1=yes, 0=no)"
+    )
+    _AUDIT_CHAIN_BROKEN_G.set(0)
+except Exception:
+    _AUDIT_CHAIN_BROKEN_G = None
+
+def set_audit_chain_broken(flag: bool = True):
+    \"\"\"Mark audit chain as broken/healthy and reflect in metrics.\"\"\"
+    global AUDIT_CHAIN_BROKEN
+    AUDIT_CHAIN_BROKEN = bool(flag)
+    if _AUDIT_CHAIN_BROKEN_G is not None:
+        try:
+            _AUDIT_CHAIN_BROKEN_G.set(1 if flag else 0)
+        except Exception:
+            # Never break the app due to metrics library quirks
+            pass
+# --- /Phase1 audit chain flag + gauge ---
