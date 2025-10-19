@@ -140,3 +140,16 @@ def cache_invalidate(*keys: str, prefix: Optional[str] = None) -> int:
         _update_size_gauge()
 
     return removed
+def init_cache(app=None, **config):
+    \"\"\"Compatibility initializer for the cache layer.
+
+    Tests may call this to set up/clear cache. We keep our in-module
+    cache implementation and just clear it, then update metrics.
+    If a Flask app is provided, we ignore it (unless you later wire in
+    Flask-Caching here).
+    Returns True to signal initialization succeeded.
+    \"\"\"
+    with _LOCK:
+        _STORE.clear()
+    _update_size_gauge()
+    return True
