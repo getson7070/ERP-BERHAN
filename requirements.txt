@@ -19,3 +19,5 @@ bleach>=6.1.0
 prometheus-client==0.20.0
 
 Flask-Limiter==3.7.0
+
+argon2-cffi==23.1.0
