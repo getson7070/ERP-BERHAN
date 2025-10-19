@@ -118,3 +118,61 @@ def sanitize_sort(
         return v_clean if v_clean in allowed else default
     return v_clean or default
 # ---- /sort sanitize helper ----
+# ---- CSV stream export helper ----
+def stream_export(rows, filename: str = "export.csv", headers=None, mimetype: str = "text/csv"):
+    """
+    Stream a CSV download.
+    - rows: iterable/generator of dicts or sequences
+    - headers: optional header list; if omitted and rows are dicts, use first row's keys
+    """
+    from flask import Response, stream_with_context
+    import csv, io
+
+    def _iter_rows():
+        nonlocal headers
+        it = iter(rows)
+        try:
+            first = next(it)
+        except StopIteration:
+            first = None
+
+        buf = io.StringIO(newline="")
+        writer = csv.writer(buf)
+
+        # Derive headers for dict rows if not provided
+        if headers is None and isinstance(first, dict):
+            headers = list(first.keys())
+
+        # Write header row (if any)
+        if headers:
+            writer.writerow(headers)
+            yield buf.getvalue()
+            buf.seek(0); buf.truncate(0)
+
+        def _emit(r):
+            if isinstance(r, dict):
+                if headers:
+                    writer.writerow([r.get(h, "") for h in headers])
+                else:
+                    writer.writerow(list(r.values()))
+            else:
+                writer.writerow(list(r))
+
+        if first is not None:
+            _emit(first)
+            yield buf.getvalue()
+            buf.seek(0); buf.truncate(0)
+
+        for r in it:
+            _emit(r)
+            out = buf.getvalue()
+            if out:
+                yield out
+                buf.seek(0); buf.truncate(0)
+
+    return Response(
+        stream_with_context(_iter_rows()),
+        mimetype=mimetype,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+# ---- /CSV stream export helper ----
