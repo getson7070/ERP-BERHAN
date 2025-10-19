@@ -89,3 +89,10 @@ except Exception:
         # no-op fallback when observability is unavailable
         return
 
+# Phase1: export DLQ handler (_dead_letter_handler) for tests
+try:
+    from .dlq import dead_letter_handler as _dead_letter_handler  # noqa: F401
+except Exception:
+    def _dead_letter_handler(*args, **kwargs):  # noqa: D401
+        # no-op fallback
+        return
