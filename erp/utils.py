@@ -93,3 +93,12 @@ except Exception:
             return f
         return _decorator if func is None else func
 # ---- /auth decorator export ----
+# ---- sanitize helpers ----
+def sanitize_direction(value: str | None, default: str = "asc") -> str:
+    v = (value or "").strip().lower()
+    if v in ("asc", "ascending", "+", "1", "up"):
+        return "asc"
+    if v in ("desc", "descending", "-", "-1", "down"):
+        return "desc"
+    return default
+# ---- /sanitize helpers ----
