@@ -74,6 +74,13 @@ def create_app(test_config=None):
         pass
 
 
+        # Auto-register privacy blueprint if available
+    try:
+        from .routes import privacy as _privacy
+        if hasattr(_privacy, "bp"):
+            app.register_blueprint(_privacy.bp)
+    except Exception:
+        pass
     return app
 
 oauth = None
@@ -96,3 +103,4 @@ except Exception:
     def _dead_letter_handler(*args, **kwargs):  # noqa: D401
         # no-op fallback
         return
+
