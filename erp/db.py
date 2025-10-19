@@ -14,3 +14,10 @@ def __getattr__(name: str):
     raise AttributeError(name)
 
 __all__ = ["db"]  # model symbols are resolved lazily via __getattr__
+
+# Back-compat: expose Inventory model here for tests
+try:
+    from .models import Inventory  # noqa: F401
+except Exception:
+    pass
+
