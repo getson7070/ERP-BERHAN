@@ -1,17 +1,17 @@
 ﻿from __future__ import annotations
-# Thin re-export shim so tests can: from erp.db import db, User, Inventory, ...
-from erp import models as _models
 
-# Re-export the SQLAlchemy instance
-db = _models.db
-
-# Forward any attribute lookups to erp.models (User, Role, Inventory, etc.)
+# Lazy re-export shim so tests can: from erp.db import db, User, Inventory, ...
 def __getattr__(name: str):
+    from erp import models as _models
+    if name == "db":
+        return _models.db
     return getattr(_models, name)
 
-# Best-effort __all__
-try:
-    _all = list(getattr(_models, "__all__", []))
-except Exception:
-    _all = []
-__all__ = ["db", *_all]
+# Provide an object named "db" that forwards attributes like .Model, .session, ...
+class _DBProxy:
+    def __getattr__(self, attr):
+        from erp import models as _models
+        return getattr(_models.db, attr)
+db = _DBProxy()
+
+__all__ = ["db"]
