@@ -122,3 +122,17 @@ def sanitize_sort(value: str | None, allowed=None, default="created_at") -> str:
     allowed = set(allowed or ["created_at", "name", "status", "id"])
     v = (value or "").lower()
     return v if v in allowed else default
+
+
+def stream_export(rows, filename: str = "export.csv"):
+    from flask import Response
+    def _line(r):
+        if isinstance(r, (list, tuple)):
+            return ",".join(map(str, r))
+        return str(r)
+    body = "\n".join(_line(r) for r in rows)
+    return Response(
+        body,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )

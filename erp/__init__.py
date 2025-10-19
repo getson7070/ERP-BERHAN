@@ -1,6 +1,6 @@
 ﻿
 from __future__ import annotations
-from flask import Flask
+from flask import Flask, session, Response
 from .config import Config, validate_config
 from .observability import init_logging
 from .security import apply_security_headers
@@ -51,12 +51,12 @@ def create_app(test_config=None):
         if '/healthz' not in existing:
             @app.get('/healthz')
             def healthz():
-                from flask import jsonify
+                from flask import Flask, session, Response
                 return jsonify(status='ok'), 200
         if '/readyz' not in existing:
             @app.get('/readyz')
             def readyz():
-                from flask import jsonify
+                from flask import Flask, session, Response
                 return jsonify(status='ready'), 200
     _install_health(app)
     # ---- /Phase1 health endpoints ----
@@ -116,7 +116,7 @@ except Exception:
 
 from importlib import import_module
 import pkgutil
-from flask import session, Response
+from flask import Flask, session, Response
 from werkzeug.exceptions import HTTPException
 
 # export limiter placeholder and oauth stub so tests can import
@@ -171,7 +171,7 @@ def create_app():
     return app
 from importlib import import_module
 import pkgutil
-from flask import session, Response
+from flask import Flask, session, Response
 from werkzeug.exceptions import HTTPException
 
 # export limiter placeholder and oauth stub so tests can import
@@ -224,3 +224,6 @@ def create_app():
         pass
 
     return app
+
+
+
