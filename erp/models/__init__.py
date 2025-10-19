@@ -35,8 +35,7 @@ from .invoice import *  # noqa: F401,F403
 from .recruitment import *  # noqa: F401,F403
 
 from .performance_review import *  # noqa: F401,F403
-
-from .inventory import *  # noqa: F401,F403
+# [disabled] from .inventory import *
 
 from .order import *  # noqa: F401,F403
 
@@ -54,3 +53,4 @@ from .user_dashboard import *  # noqa: F401,F403
 
 
 from .inventory import Item  # re-export for routes
+
