@@ -47,3 +47,4 @@ class Invoice(db.Model):
 
     def __repr__(self) -> str:
         return f"<Invoice {self.id} {self.status} {self.amount} {self.currency}>"
+
