@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pyotp
 try:
-    from argon2 import PasswordHasher
+from argon2 import PasswordHasher
 except Exception:
     import hashlib
     class PasswordHasher:
@@ -278,4 +278,5 @@ def init_db() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     init_db()
+
 
