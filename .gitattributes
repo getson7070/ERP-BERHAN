@@ -1,11 +1,5 @@
-﻿*           text=auto eol=lf
-*.ps1       text eol=crlf
-*.bat       text eol=crlf
-*.cmd       text eol=crlf
-*.sh        text eol=lf
-*.yml       text eol=lf
-*.yaml      text eol=lf
-*.py        text eol=lf
-*.html      text eol=lf
-*.js        text eol=lf
-*.css       text eol=lf
+* text=auto eol=lf
+*.bat eol=crlf
+*.cmd eol=crlf
+*.ps1 eol=crlf
+*.sln eol=crlf
