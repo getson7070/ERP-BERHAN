@@ -52,3 +52,5 @@ from .user_dashboard import *  # noqa: F401,F403
 
 
 
+
+from .inventory import Item  # re-export for routes
