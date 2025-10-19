@@ -1,6 +1,6 @@
-# erp/models/__init__.py
+﻿# erp/models/__init__.py
 # Import the shared SQLAlchemy instance
-from erp.db import db  # noqa: F401
+from flask_sqlalchemy import SQLAlchemy`r`ndb = SQLAlchemy()
 
 # Tolerant imports: only bring in modules that actually exist
 _modules = [
@@ -43,3 +43,4 @@ from .order import *  # noqa: F401,F403
 from .role import *  # noqa: F401,F403
 
 from .user_dashboard import *  # noqa: F401,F403
+
