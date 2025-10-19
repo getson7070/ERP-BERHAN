@@ -1,17 +1,16 @@
-from flask_sqlalchemy import SQLAlchemy  # type: ignore
+﻿from __future__ import annotations
+from flask_sqlalchemy import SQLAlchemy
 
-# Single shared SQLAlchemy instance for the app
+# Single shared SQLAlchemy instance
 db = SQLAlchemy()
 
-# Re-export models so tests can do: from erp.db import db, User, Inventory
-try:
-    from erp import models as _models  # noqa: E402
-    # Copy public names into this module's globals
-    if hasattr(_models, "__all__"):
-        for _n in _models.__all__:
-            globals()[_n] = getattr(_models, _n)
-        __all__ = ["db"] + list(_models.__all__)
-    else:
-        __all__ = ["db"]
-except Exception:  # pragma: no cover - models might import this before ready
-    __all__ = ["db"]
+# Lazily expose model names so tests can do:
+#   from erp.db import db, User, Inventory, ...
+# without creating an import cycle.
+def __getattr__(name: str):
+    from . import models as _m
+    if hasattr(_m, name):
+        return getattr(_m, name)
+    raise AttributeError(name)
+
+__all__ = ["db"]  # model symbols are resolved lazily via __getattr__
