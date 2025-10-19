@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 # Set to your current head revision ID before generating:
 revision = "a1b2c3d4e5f6"
-down_revision = "f38a77f2570a"
+down_revision = ''
 branch_labels = None
 depends_on = None
 
@@ -26,5 +26,7 @@ def downgrade():
     op.drop_index("ix_idem_endpoint", table_name="idempotency_keys")
     op.drop_constraint("uq_idem_key", "idempotency_keys", type_="unique")
     op.drop_table("idempotency_keys")
+
+
 
 
