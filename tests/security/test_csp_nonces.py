@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 from bs4 import BeautifulSoup
 
@@ -12,3 +12,5 @@ def test_inline_scripts_have_nonce():
             if script.get("src"):
                 continue
             assert script.has_attr("nonce"), f"{html_file} inline script missing nonce"
+
+

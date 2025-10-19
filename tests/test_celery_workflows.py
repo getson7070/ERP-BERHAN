@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 import math
 
@@ -39,3 +39,5 @@ def test_forecast_sales(tmp_path, monkeypatch):
     forecast = forecast_sales()
     assert math.isclose(forecast, 40.0)
     conn.close()
+
+

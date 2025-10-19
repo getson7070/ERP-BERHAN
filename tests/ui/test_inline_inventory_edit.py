@@ -42,3 +42,5 @@ def test_inline_edit_updates_item(tmp_path, monkeypatch):
         assert item is not None
         assert item.name == "Gadget"
 
+
+

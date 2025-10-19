@@ -1,0 +1,21 @@
+name: Auth E2E (Prod Worker)
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  auth-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test deps
+        run: pip install -r requirements.txt pytest
+      - name: Pin Gunicorn worker for CI (match prod)
+        run: |
+          echo "worker_class = 'gthread'" >> gunicorn.conf.py
+          echo "threads = 2" >> gunicorn.conf.py
+      - name: Run Auth E2E
+        run: pytest -q tests/test_auth_e2e.py

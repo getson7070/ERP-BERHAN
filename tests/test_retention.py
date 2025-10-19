@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -53,3 +53,5 @@ def test_anonymize_users(tmp_path):
     email, flag = conn.execute("SELECT email, anonymized FROM users").fetchone()
     assert flag == 1 and len(email) == 64
     conn.close()
+
+

@@ -1,4 +1,4 @@
-import runpy
+﻿import runpy
 from pathlib import Path
 
 
@@ -24,3 +24,5 @@ def test_write_status(tmp_path):
     assert "2s" in text
     assert "3" in text
     assert "run 42" in text
+
+

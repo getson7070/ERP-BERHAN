@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -13,3 +13,5 @@ def test_presigned(monkeypatch):
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     url = generate_presigned_url("sample.txt")
     assert "sample.txt" in url
+
+

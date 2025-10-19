@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -79,3 +79,5 @@ def test_invalid_direction_defaults_to_asc(tmp_path, monkeypatch):
     resp = client.get("/orders/list?sort=quantity&dir=sideways")
     data = resp.get_json()
     assert data[0]["quantity"] == 1
+
+

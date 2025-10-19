@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 
 
 def test_metrics_requires_token(monkeypatch):
@@ -11,3 +11,5 @@ def test_metrics_requires_token(monkeypatch):
         client.get("/metrics", headers={"Authorization": "Bearer s3cr3t"}).status_code
         == 200
     )
+
+

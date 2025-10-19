@@ -1,4 +1,4 @@
-from flask import json
+﻿from flask import json
 import pytest
 
 from erp import create_app
@@ -87,3 +87,5 @@ def test_pagination(app, monkeypatch):
     with app.test_request_context(query_string={"limit": 2, "offset": 2}):
         resp = listing()
         assert len(json.loads(resp.data)) == 1
+
+

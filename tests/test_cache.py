@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -10,3 +10,5 @@ def test_cache_set_and_invalidate():
     assert cache_get("test:key") == {"v": 1}
     cache_invalidate("test:*")
     assert cache_get("test:key") is None
+
+

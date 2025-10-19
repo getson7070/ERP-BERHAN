@@ -28,3 +28,5 @@ def test_kanban_board_renders():
     assert b"To Do" in resp.data
     assert resp.status_code == 200
 
+
+

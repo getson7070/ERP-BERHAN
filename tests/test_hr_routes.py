@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.extensions import db
 from erp.models import Employee
 from sqlalchemy import text
@@ -33,3 +33,5 @@ def test_add_and_list_employee(tmp_path, monkeypatch):
     assert b"Alice" in resp.data
     with app.app_context():
         assert Employee.query.count() == 1
+
+

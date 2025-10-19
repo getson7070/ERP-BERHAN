@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 from datetime import datetime, timedelta, UTC
 
@@ -55,3 +55,5 @@ def test_incremental_refresh_and_age_alert(tmp_path, monkeypatch):
             e == "alert" and d.get("metric") == "kpi_sales_mv_age_seconds"
             for e, d in alerts
         )
+
+

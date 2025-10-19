@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.cache import (
     cache_set,
     cache_get,
@@ -19,3 +19,5 @@ def test_cache_hit_miss_metrics(tmp_path, monkeypatch):
     assert CACHE_MISSES._value.get() >= 1
     rate = CACHE_HIT_RATE._value.get()
     assert 0 <= rate <= 1
+
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 
@@ -28,3 +28,5 @@ def test_write_status(tmp_path, monkeypatch):
     assert "Materialized view freshness" in content
     assert "Rate-limit 429s" in content
     assert str(metrics["audit_chain_run_id"]) in content
+
+

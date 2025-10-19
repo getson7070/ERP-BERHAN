@@ -1,4 +1,4 @@
-import hmac
+﻿import hmac
 import hashlib
 import pathlib
 import sys
@@ -76,3 +76,5 @@ def test_webhook_requires_signature(monkeypatch):
         },
     )
     assert resp.status_code == 401  # nosec B101
+
+

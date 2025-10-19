@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 import time
 
@@ -85,3 +85,5 @@ def test_lockout_and_unlock(tmp_path, monkeypatch):
     ]
     conn.close()
     assert "account_lock" in actions and "account_unlock" in actions
+
+

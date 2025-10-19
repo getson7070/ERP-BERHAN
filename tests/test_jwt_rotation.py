@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import subprocess
 import sys
@@ -22,3 +22,5 @@ def test_rotate_jwt_secret(tmp_path):
     log_file = tmp_path / "logs" / "jwt_rotation.log"
     assert log_file.exists()
     assert "Rotated to v1" in result.stdout
+
+

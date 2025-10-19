@@ -1,4 +1,4 @@
-import importlib
+﻿import importlib
 import importlib.util
 import os
 from types import ModuleType
@@ -29,3 +29,5 @@ def test_redis_saturation():
         client.lpush("chaos", payload)
     assert client.llen("chaos") == 100  # nosec B101
     client.delete("chaos")
+
+

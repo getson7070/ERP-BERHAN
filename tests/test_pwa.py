@@ -1,4 +1,4 @@
-import json
+﻿import json
 import pathlib
 import pytest
 
@@ -20,3 +20,5 @@ def test_manifest_defines_icons():
     manifest = json.loads(manifest_path.read_text())
     sizes = {icon.get("sizes") for icon in manifest.get("icons", [])}
     assert {"192x192", "512x512"}.issubset(sizes)  # nosec B101
+
+

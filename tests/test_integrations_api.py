@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 os.environ["USE_FAKE_REDIS"] = "1"
 
@@ -44,3 +44,5 @@ def test_graphql_endpoint(tmp_path):
         )
         assert resp.status_code == 200
         assert resp.get_json() == {"events": []}
+
+

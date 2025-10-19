@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 
 
 def test_waf_blocks_script_tag():
@@ -13,3 +13,5 @@ def test_waf_blocks_img_onerror():
     client = app.test_client()
     resp = client.post("/", data="<img src=x onerror=alert(1)>")
     assert resp.status_code == 400
+
+

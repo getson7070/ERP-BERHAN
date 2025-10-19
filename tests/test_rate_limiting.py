@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
@@ -40,3 +40,5 @@ def test_token_rate_limit(tmp_path, monkeypatch):
     assert resp.status_code == 429
     metrics = client.get("/metrics")
     assert b"rate_limit_rejections_total 1.0" in metrics.data
+
+

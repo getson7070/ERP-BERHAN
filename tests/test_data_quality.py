@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -33,3 +33,5 @@ def test_detect_conflict():
     now = datetime.now(UTC)
     assert detect_conflict(now, now - timedelta(seconds=10)) is True
     assert detect_conflict(now, now + timedelta(seconds=10)) is False
+
+

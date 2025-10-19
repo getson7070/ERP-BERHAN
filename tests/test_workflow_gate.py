@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import pathlib
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -27,3 +27,5 @@ def test_disabled_module_returns_403(tmp_path, monkeypatch):
         sess["org_id"] = 1
     resp = client.get("/crm/")
     assert resp.status_code == 403
+
+

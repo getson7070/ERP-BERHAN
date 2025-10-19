@@ -1,4 +1,4 @@
-import threading
+﻿import threading
 import time
 
 import os
@@ -35,3 +35,5 @@ def test_offline_fallback():
         response = page.goto("http://localhost:5002/static/js/offline.js")
         assert response is not None and response.ok
         browser.close()
+
+

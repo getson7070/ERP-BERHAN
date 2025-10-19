@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.extensions import db
 
 
@@ -33,3 +33,5 @@ def test_run_report_post(tmp_path, monkeypatch):
     rv = client.post("/reports/run", json={"config": {}})
     assert rv.status_code == 200
     assert rv.get_json()["data"] == []
+
+

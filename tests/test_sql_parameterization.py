@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 TARGET_FILES = [
     "erp/audit.py",
@@ -17,3 +17,5 @@ def test_no_question_mark_placeholders() -> None:
         for line in lines:
             if ("execute(" in line or " text(" in line) and "safe_execute" not in line:
                 assert "?" not in line, f"Found '?' placeholder in {file}: {line}"
+
+

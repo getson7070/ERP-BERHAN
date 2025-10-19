@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 import pytest
 
@@ -26,3 +26,5 @@ def test_rls_isolation(tmp_path):
             cur.execute("SELECT COUNT(*) FROM hr_recruitment WHERE org_id = 1")
             assert cur.fetchone()[0] == 0
             conn.rollback()
+
+

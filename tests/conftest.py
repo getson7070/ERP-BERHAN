@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 # Ensure the repository root is importable for tests
@@ -30,3 +30,5 @@ def pytest_collection_modifyitems(
         reason = XFAIL_TESTS.get(item.nodeid)
         if reason:
             item.add_marker(pytest.mark.xfail(reason=reason, strict=True))
+
+

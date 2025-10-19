@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from erp import create_app, socketio
 
@@ -10,3 +10,5 @@ def test_socketio_connect(monkeypatch):
     if not client.is_connected():
         pytest.skip("socket connection failed")
     client.disconnect()
+
+

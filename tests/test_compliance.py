@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.extensions import db
 from erp.compliance import ElectronicSignature
 
@@ -15,3 +15,5 @@ def test_signature_hash_chain(tmp_path):
         db.session.add(second)
         db.session.commit()
         assert second.prev_hash == first.signature_hash
+
+

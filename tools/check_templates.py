@@ -1,4 +1,4 @@
-
+﻿
 import os, re, sys
 from pathlib import Path
 
@@ -30,3 +30,5 @@ if missing:
     sys.exit(2)
 else:
     print("All referenced templates exist.")
+
+

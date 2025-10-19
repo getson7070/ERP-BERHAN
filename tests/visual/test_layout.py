@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright")
@@ -18,3 +18,5 @@ def test_blank_page(page: Page):
         baseline.write_bytes(screenshot)
         raise AssertionError("baseline created; rerun test")
     assert screenshot == baseline.read_bytes()  # nosec B101
+
+

@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 
 def test_service_worker_strips_auth_header():
@@ -12,3 +12,5 @@ def test_service_worker_replays_with_auth_header():
     content = Path("static/js/sw.js").read_text()
     assert "requestWillReplay" in content
     assert "headers.set('Authorization'" in content
+
+

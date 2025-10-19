@@ -38,3 +38,5 @@ def test_verify_barcode_endpoint():
     )
     assert resp.json["valid"] is True
 
+
+

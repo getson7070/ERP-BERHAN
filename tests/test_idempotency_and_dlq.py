@@ -1,4 +1,4 @@
-import json
+﻿import json
 from types import SimpleNamespace
 import sys
 from pathlib import Path
@@ -75,3 +75,5 @@ def test_webhook_failure_queues_dead_letter(client):
     assert resp.status_code == 500
     entries = redis_client.lrange("dead_letter", 0, -1)
     assert entries, "webhook failures should enter dead-letter queue"
+
+

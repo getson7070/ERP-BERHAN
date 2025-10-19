@@ -1,4 +1,4 @@
-import json
+﻿import json
 import subprocess
 import sys
 from pathlib import Path
@@ -15,3 +15,5 @@ def test_rotate_jwt_secret_script(tmp_path, monkeypatch):
     data = json.loads((tmp_path / "jwt_secrets.json").read_text())
     assert "v1" in data
     assert (tmp_path / "logs" / "jwt_rotation.log").exists()
+
+

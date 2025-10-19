@@ -1,4 +1,4 @@
-import threading
+﻿import threading
 import time
 import os
 
@@ -72,3 +72,5 @@ def test_homepage_loads(tmp_path):
         assert "BERHAN" in driver.title  # nosec B101
     finally:
         driver.quit()
+
+

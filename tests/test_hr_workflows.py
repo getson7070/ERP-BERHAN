@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.extensions import db
 from erp.models import Recruitment, PerformanceReview
 from sqlalchemy import text
@@ -52,3 +52,5 @@ def test_performance_flow(tmp_path, monkeypatch):
     assert response.status_code == 200
     with app.app_context():
         assert PerformanceReview.query.count() == 1
+
+

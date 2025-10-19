@@ -1,4 +1,4 @@
-import os
+﻿import os
 import subprocess
 from pathlib import Path
 
@@ -50,3 +50,5 @@ def test_demo_admin_seeded(tmp_path):
             text("SELECT username FROM users WHERE username='admin'")
         ).first()
     assert row is not None
+
+

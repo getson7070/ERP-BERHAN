@@ -1,4 +1,4 @@
-from analytics.ml import DemandForecaster, InventoryAnomalyDetector
+﻿from analytics.ml import DemandForecaster, InventoryAnomalyDetector
 from erp.analytics import retrain_and_predict
 
 
@@ -17,3 +17,5 @@ def test_anomaly_detector_flags_outliers():
 def test_celery_task_returns_forecast_and_anomalies():
     result = retrain_and_predict.run([1, 2, 3], [1, 2, 30])
     assert "forecast" in result and "anomalies" in result
+
+

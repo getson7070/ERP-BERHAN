@@ -1,6 +1,8 @@
-def linearize() -> None:
+﻿def linearize() -> None:
     pass
 
 
 if __name__ == "__main__":
     linearize()
+
+

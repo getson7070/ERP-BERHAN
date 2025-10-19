@@ -1,4 +1,4 @@
-from erp.routes.tenders import WORKFLOW_STATES
+﻿from erp.routes.tenders import WORKFLOW_STATES
 
 
 def test_workflow_states_sequence():
@@ -13,3 +13,5 @@ def test_workflow_states_sequence():
         "evaluated",
         "awarded",
     ]
+
+

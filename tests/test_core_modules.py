@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -10,3 +10,5 @@ def test_core_module_blueprints_registered():
     modules = ["crm", "hr", "procurement", "manufacturing", "projects"]
     for mod in modules:
         assert mod in app.blueprints
+
+

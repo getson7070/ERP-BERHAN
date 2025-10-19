@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.plugins import load_plugins
 
 
@@ -15,3 +15,5 @@ def test_loader_without_exec(tmp_path):
 
     loaded = load_plugins(app)
     assert "sample" in loaded
+
+

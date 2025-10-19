@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, create_engine, event
+﻿from sqlalchemy import Column, ForeignKey, Integer, create_engine, event
 from sqlalchemy.orm import Session, DeclarativeBase, joinedload, relationship
 
 
@@ -41,3 +41,5 @@ def test_joinedload_prevents_n_plus_one(tmp_path):
             _ = list(parent.children)
         event.remove(engine, "before_cursor_execute", before_cursor_execute)
         assert len(queries) <= 2
+
+

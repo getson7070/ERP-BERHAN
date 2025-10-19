@@ -1,4 +1,4 @@
-import os
+﻿import os
 import pytest
 from erp.config_ext.validate_env import validate_required_env
 
@@ -13,3 +13,5 @@ def test_validate_env_ok(monkeypatch):
         validate_required_env(["SECRET_KEY"])
     except SystemExit:
         pytest.fail("validate_required_env raised unexpectedly")
+
+

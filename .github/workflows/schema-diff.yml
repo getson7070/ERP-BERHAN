@@ -22,25 +22,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - name: Install deps
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Apply migrations to DB A (pre)
         env:
           DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/a
         run: |
           alembic upgrade head
-          pg_dump --schema-only --no-owner --no-privileges \
-            postgresql://postgres:postgres@localhost:5432/a > schema_a.sql
-      - name: Reset DB and re-apply (idempotency / contract)
+          pg_dump --schema-only --no-owner --no-privileges             postgresql://postgres:postgres@localhost:5432/a > schema_a.sql
+      - name: Reset DB and re-apply (idempotency check)
         env:
           DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/a
         run: |
           psql postgresql://postgres:postgres@localhost:5432/postgres -c "DROP DATABASE a WITH (FORCE);"
           createdb -h localhost -U postgres a
           alembic upgrade head
-          pg_dump --schema-only --no-owner --no-privileges \
-            postgresql://postgres:postgres@localhost:5432/a > schema_b.sql
+          pg_dump --schema-only --no-owner --no-privileges             postgresql://postgres:postgres@localhost:5432/a > schema_b.sql
       - name: Generate unified diff
         run: |
           diff -u schema_a.sql schema_b.sql > schema.diff || true

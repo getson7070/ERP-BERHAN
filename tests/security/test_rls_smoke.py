@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 import pytest
 
@@ -21,3 +21,5 @@ def test_rls_blocks_cross_org():
             cur.execute("SELECT COUNT(*) FROM audit_logs WHERE org_id = 1")
             assert cur.fetchone()[0] == 0
             conn.rollback()
+
+

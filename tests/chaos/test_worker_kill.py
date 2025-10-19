@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import subprocess  # nosec B404
 import time
 
@@ -20,3 +20,5 @@ def test_kill_celery_worker():
     proc.terminate()
     proc.wait(timeout=5)
     assert proc.poll() is not None  # nosec B101
+
+

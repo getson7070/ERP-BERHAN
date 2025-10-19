@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import shutil
 import subprocess
 import pytest
@@ -12,3 +12,5 @@ def test_base_template_pa11y():
     template = pathlib.Path(__file__).resolve().parents[1] / "templates" / "base.html"
     result = subprocess.run([pa11y, template.as_uri()], capture_output=True, text=True)
     assert result.returncode == 0
+
+

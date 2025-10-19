@@ -1,4 +1,4 @@
-
+﻿
 from db import get_dialect
 
 
@@ -12,3 +12,5 @@ def test_detect_sqlite(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "t.db"))
     assert get_dialect() == "sqlite"
+
+

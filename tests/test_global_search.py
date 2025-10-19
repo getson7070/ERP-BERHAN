@@ -1,4 +1,4 @@
-import os
+﻿import os
 import pathlib
 import sys
 
@@ -49,3 +49,5 @@ def test_global_search_returns_results(tmp_path):
     text = res.get_data(as_text=True)
     assert "Alice Co" in text
     assert "CRM" in text
+
+

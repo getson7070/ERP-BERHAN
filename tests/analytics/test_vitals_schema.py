@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 
 
 def test_collect_vitals_schema(monkeypatch):
@@ -9,3 +9,5 @@ def test_collect_vitals_schema(monkeypatch):
     assert resp.status_code == 400
     resp = client.post("/analytics/vitals", json={"lcp": 1.1})
     assert resp.status_code == 204
+
+

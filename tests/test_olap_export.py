@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 from db import get_db
 from scripts.olap_export import main, OLAP_EXPORT_SUCCESS
@@ -19,3 +19,5 @@ def test_olap_export_creates_csv_and_increments_metric():
     assert after == before + 1
     path.unlink()
     Path("exports").rmdir()
+
+

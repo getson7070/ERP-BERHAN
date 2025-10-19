@@ -1,4 +1,4 @@
-import types
+﻿import types
 from sqlalchemy import select
 
 import init_db
@@ -22,3 +22,5 @@ def test_init_db_seeds_core_tables(tmp_path, monkeypatch):
         regions_rows = conn.execute(select(init_db.regions)).fetchall()
         cities_rows = conn.execute(select(init_db.cities)).fetchall()
         assert regions_rows and cities_rows, "seed data missing"
+
+

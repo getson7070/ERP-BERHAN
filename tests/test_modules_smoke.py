@@ -1,4 +1,4 @@
-import importlib
+﻿import importlib
 import pkgutil
 
 import erp.routes
@@ -15,3 +15,5 @@ def test_blueprints_registered():
             bp = getattr(module, "bp", None)
             assert bp is not None, f"{mod.name} missing bp"
             assert bp.name in app.blueprints, f"{bp.name} not registered"
+
+

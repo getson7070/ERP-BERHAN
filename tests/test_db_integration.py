@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 
 from erp import create_app
 from erp.extensions import db
@@ -14,3 +14,5 @@ def test_invoice_persistence(tmp_path, monkeypatch):
         db.session.commit()
         found = Invoice.tenant_query(org_id=1).filter_by(number="INV-100").one()
         assert found.total == Decimal("99.99")
+
+

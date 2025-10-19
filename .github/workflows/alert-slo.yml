@@ -1,6 +1,6 @@
 name: Security Alert SLO
 on:
-  schedule: [ { cron: "0 3 * * *" } ]  # daily UTC
+  schedule: [ { cron: "0 3 * * *" } ]
   workflow_dispatch:
 
 jobs:
@@ -9,6 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
       - name: Run alert budget check
         run: python tools/check_alert_budget.py

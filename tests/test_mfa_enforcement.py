@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
@@ -21,3 +21,5 @@ def test_mfa_protected_route(tmp_path, monkeypatch):
         sess["logged_in"] = True
         sess["mfa_verified"] = True
     assert client.get("/admin/panel").status_code == 200
+
+

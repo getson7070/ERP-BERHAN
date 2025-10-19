@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 pytest.importorskip("bs4")
 from erp import create_app  # noqa: E402
@@ -29,3 +29,5 @@ def test_locale_switcher_rendered(client):
     html = res.get_data(as_text=True)
     assert 'id="lang-select"' in html
     assert '<option value="am"' in html
+
+

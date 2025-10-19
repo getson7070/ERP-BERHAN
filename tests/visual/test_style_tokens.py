@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import pytest
 
 pytest.importorskip("bs4")
@@ -24,3 +24,5 @@ def test_navbar_has_theme_toggle():
     soup = bs4.BeautifulSoup(NAVBAR, "html.parser")
     toggle = soup.find(id="themeToggle")
     assert toggle is not None  # nosec B101
+
+

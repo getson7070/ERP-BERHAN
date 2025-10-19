@@ -1,4 +1,4 @@
-from erp import create_app  # noqa: E402
+﻿from erp import create_app  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from db import get_db  # noqa: E402
 
@@ -98,3 +98,5 @@ def test_invalid_direction_defaults(tmp_path, monkeypatch):
     resp = client.get("/tenders/list?sort=due_date&dir=sideways")
     data = resp.get_json()
     assert data[0]["description"] == "X"
+
+

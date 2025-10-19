@@ -1,4 +1,4 @@
-import socket, sys, time
+﻿import socket, sys, time
 
 host, port = sys.argv[1], int(sys.argv[2])
 deadline = time.time() + 30
@@ -11,3 +11,5 @@ while time.time() < deadline:
         time.sleep(0.5)
 print("timeout")
 sys.exit(1)
+
+

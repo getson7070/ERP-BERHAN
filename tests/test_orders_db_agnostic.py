@@ -1,4 +1,4 @@
-from sqlalchemy import text
+﻿from sqlalchemy import text
 from flask import session
 from erp import create_app
 from db import get_db
@@ -46,3 +46,5 @@ def test_orders_flow(tmp_path, monkeypatch):
             session["permissions"] = ["view_orders"]
             context = orders_module.orders()
             assert any(o[3] == "Bob" for o in context["pending_orders"])
+
+

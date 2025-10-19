@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -42,3 +42,5 @@ def test_audit_chain_checker(monkeypatch, tmp_path):
     metrics = generate_latest(REGISTRY)
     assert b"audit_chain_broken_total 1.0" in metrics
     conn.close()
+
+

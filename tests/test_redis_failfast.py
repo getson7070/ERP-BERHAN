@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 
 import pytest
 import redis
@@ -20,3 +20,5 @@ def test_redis_connection_failure(monkeypatch):
     import db  # noqa: F401
     with pytest.raises(RuntimeError):
         db.redis_client.ping()
+
+

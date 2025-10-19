@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -59,3 +59,5 @@ def test_plugin_sandbox_blocks_unsafe_calls(tmp_path, monkeypatch):
     load_plugins(app)
     loaded = app.config["LOADED_PLUGINS"]
     assert "danger" in loaded
+
+

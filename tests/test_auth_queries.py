@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 from sqlalchemy import text
 import pyotp
 import pytest
@@ -58,3 +58,5 @@ def test_issue_token(tmp_path, monkeypatch):
             pytest.skip(f"/auth/token returned {resp.status_code}")
         assert "access_token" in resp.json
         assert audit_detail.get("d") == "provider=api"
+
+

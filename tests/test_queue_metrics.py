@@ -1,4 +1,4 @@
-from erp import create_app, QUEUE_LAG
+﻿from erp import create_app, QUEUE_LAG
 from db import redis_client
 from scripts import update_status
 
@@ -31,3 +31,5 @@ def test_update_status(tmp_path, monkeypatch):
     update_status.write_status(path)
     content = path.read_text()
     assert all(x in content for x in ["7ms", "5s", "3", "1", "run 99"])
+
+

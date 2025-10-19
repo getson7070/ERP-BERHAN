@@ -63,3 +63,5 @@ def test_invalid_direction_defaults_to_asc(tmp_path, monkeypatch):
     data = resp.get_json()
     assert data[0]["quantity"] == 1
 
+
+

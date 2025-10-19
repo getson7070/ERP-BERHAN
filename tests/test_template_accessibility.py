@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import pytest
 
 pytest.importorskip("bs4")
@@ -73,3 +73,5 @@ def test_fetch_omits_csrf_on_cross_origin():
         page.evaluate("fetch('https://example.com/test')")
         assert "x-csrftoken" not in captured.get("headers", {})  # nosec B101
         browser.close()
+
+

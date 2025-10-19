@@ -1,4 +1,4 @@
-from sqlalchemy import event
+﻿from sqlalchemy import event
 from erp import create_app
 from erp.extensions import db
 from erp.models import Inventory, Role, User
@@ -53,3 +53,5 @@ def test_user_role_query_count(tmp_path, monkeypatch):
         utils.load_users_with_roles()
         event.remove(db.engine, "before_cursor_execute", count_queries)
     assert counts["n"] <= 2
+
+

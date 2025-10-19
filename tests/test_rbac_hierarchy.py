@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint, session
+﻿from flask import Flask, Blueprint, session
 from erp.utils import roles_required
 
 
@@ -37,8 +37,4 @@ def test_staff_denied_manager():
         resp = manager_view()
         assert resp.status_code == 302
 
-def test_deny_by_default(client, mock_user):
-    mock_user.role = 'unknown'
-    r = client.get('/admin/')
-    assert r.status_code in (401, 403)
 

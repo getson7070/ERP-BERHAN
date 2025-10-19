@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-import sys, json, subprocess
+import sys, subprocess
 
-# Example: run pip-audit & gitleaks and fail if high severity found
 def run(cmd):
     print("+", " ".join(cmd))
     p = subprocess.run(cmd, capture_output=True, text=True)
     print(p.stdout)
-    print(p.stderr, file=sys.stderr)
-    return p.returncode, p.stdout
+    if p.returncode != 0:
+        print(p.stderr, file=sys.stderr)
+    return p.returncode
 
-rc, _ = run(["pip", "install", "pip-audit", "gitleaks"])
-rc_audit, _ = run(["pip-audit", "-f", "json"])
-rc_leaks = subprocess.run(["gitleaks", "detect", "--no-banner", "--report-format", "json", "--report-path", "gitleaks.json"]).returncode
-
-# If either tool fails, fail this job
-if rc_audit != 0 or rc_leaks != 0:
+if run(["pip", "install", "pip-audit", "gitleaks"]) != 0:
     sys.exit(1)
 
-print("Alert budget: OK")
+rc_audit = run(["pip-audit", "-f", "json"])
+rc_leaks = run(["gitleaks", "detect", "--no-banner", "--report-format", "json", "--report-path", "gitleaks.json"])
+
+if rc_audit != 0 or rc_leaks != 0:
+    print("Security alert SLO breached (vulns or secrets found)")
+    sys.exit(1)
+
+print("Alert budget OK")

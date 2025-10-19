@@ -1,4 +1,4 @@
-import types
+﻿import types
 import pytest
 from plugins import telegram_bot
 
@@ -16,3 +16,5 @@ def test_plugin_registers(monkeypatch):
     telegram_bot.register(app, fake_register)
     assert called["name"] == "telegram_bot"
     assert called["jobs"]
+
+

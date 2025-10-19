@@ -1,4 +1,4 @@
-import importlib
+﻿import importlib
 import os
 import types
 
@@ -41,3 +41,5 @@ def test_readyz():
     assert rv.status_code in (200, 503)
     data = rv.get_json()
     assert "ready" in data
+
+

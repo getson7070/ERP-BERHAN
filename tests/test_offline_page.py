@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 
 
 def test_offline_page_available():
@@ -6,3 +6,5 @@ def test_offline_page_available():
     client = app.test_client()
     resp = client.get("/offline")
     assert b"The application is offline" in resp.data
+
+

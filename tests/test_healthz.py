@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from db import get_db
 
 
@@ -28,3 +28,5 @@ def test_health_endpoints(tmp_path, monkeypatch):
         assert cur.fetchone()[0] == 1
         cur.close()
         conn.close()
+
+

@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))  # noqa: E402
@@ -31,3 +31,5 @@ def test_blueprints_autoregister(tmp_path, monkeypatch):
     assert "/reports/builder" in routes
     assert "/plugins/sample/" in routes
     assert "/feedback/" in routes
+
+

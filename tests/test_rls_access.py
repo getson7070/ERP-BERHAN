@@ -1,4 +1,4 @@
-from sqlalchemy import text
+﻿from sqlalchemy import text
 
 from erp import create_app
 from db import get_db
@@ -34,3 +34,5 @@ def test_cross_tenant_inventory_access(tmp_path, monkeypatch):
         conn.close()
     resp = client.get("/inventory/")
     assert b"B2" not in resp.data
+
+

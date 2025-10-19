@@ -1,4 +1,4 @@
-import json
+﻿import json
 import hmac
 import hashlib
 import pathlib
@@ -137,3 +137,5 @@ def test_graphql_complexity_limit(monkeypatch, tmp_path):
     assert resp.get_json() == expected
     metrics = client.get("/metrics")
     assert b"graphql_rejects_total 1.0" in metrics.data
+
+

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+﻿from datetime import date, timedelta
 
 from erp import create_app
 from erp.compliance.privacy import PrivacyImpactAssessment
@@ -58,3 +58,5 @@ def test_privacy_dashboard_lists_assessments():
     assert "Analytics Export" in body
     assert "High-Risk Cases" in body
     assert "privacy@berhan.example" in body
+
+

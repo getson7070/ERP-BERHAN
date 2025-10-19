@@ -1,4 +1,4 @@
-import re
+﻿import re
 import pytest
 
 from erp import create_app
@@ -151,3 +151,5 @@ def test_rate_limit_increments_counter(client):
     assert (
         after >= before + 1.0
     ), f"rate_limit_rejections_total did not increase (before={before}, after={after})"
+
+

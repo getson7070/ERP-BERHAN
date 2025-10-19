@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -12,3 +12,5 @@ def test_access_recert_export_creates_readonly_file(tmp_path, monkeypatch):
     p = Path(result)
     assert p.exists()
     assert oct(p.stat().st_mode & 0o777) == "0o444"
+
+

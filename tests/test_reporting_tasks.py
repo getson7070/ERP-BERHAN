@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -37,3 +37,5 @@ def test_forecast_sales(tmp_path, monkeypatch):
     forecast = forecast_sales.run()
     assert isinstance(forecast, float)
     assert forecast > 0
+
+

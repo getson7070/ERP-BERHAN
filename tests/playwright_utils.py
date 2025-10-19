@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from pathlib import Path
 
 
@@ -21,3 +21,5 @@ def skip_if_browser_missing(browser: str, *, module_level: bool = False) -> None
             f"Playwright {browser} browser not installed or cannot launch: {exc}",
             allow_module_level=module_level,
         )
+
+

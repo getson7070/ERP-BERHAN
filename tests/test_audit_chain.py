@@ -1,4 +1,4 @@
-import sqlite3
+﻿import sqlite3
 
 from erp.audit import log_audit, check_audit_chain
 
@@ -32,3 +32,5 @@ def test_audit_hash_chain(tmp_path, monkeypatch):
     tamper.commit()
     tamper.close()
     assert check_audit_chain() == 1
+
+

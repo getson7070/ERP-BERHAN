@@ -1,4 +1,4 @@
-from erp import create_app
+﻿from erp import create_app
 from erp.routes import analytics
 
 
@@ -10,3 +10,5 @@ def test_mv_staleness_metric(tmp_path, monkeypatch):
         client = app.test_client()
         resp = client.get("/metrics")
     assert b"kpi_sales_mv_age_seconds 7.0" in resp.data
+
+

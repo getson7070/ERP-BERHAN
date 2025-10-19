@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 from unittest.mock import patch
 import sys
 import os
@@ -37,3 +37,5 @@ def test_run_backup_sets_metric(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
     run_backup()
     assert BACKUP_LAST_SUCCESS._value.get() > 0
+
+

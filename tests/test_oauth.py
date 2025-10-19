@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -88,3 +88,5 @@ def test_oauth_admin_requires_totp(monkeypatch, tmp_path):
     assert rv2.status_code == 302
     with client.session_transaction() as sess:
         assert sess.get("logged_in")
+
+

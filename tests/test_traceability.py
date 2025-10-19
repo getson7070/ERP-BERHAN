@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, UTC
+﻿from datetime import datetime, timedelta, UTC
 
 from erp import create_app
 from erp.extensions import db
@@ -16,3 +16,5 @@ def test_lot_assignment_and_expiry(tmp_path):
         lot.expiry_date = datetime.now(UTC) + timedelta(days=10)
         db.session.commit()
         assert check_expiry.apply().get() == 1
+
+

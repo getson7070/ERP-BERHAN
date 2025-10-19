@@ -1,4 +1,4 @@
-import pathlib
+﻿import pathlib
 import sys
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -50,3 +50,5 @@ def test_report_exports(tmp_path, monkeypatch):
     )
     resp = client.post("/analytics/reports/export/pdf", data={"report_type": "orders"})
     assert resp.status_code == 200 and resp.mimetype == "application/pdf"
+
+

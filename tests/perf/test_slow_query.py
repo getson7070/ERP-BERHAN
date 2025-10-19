@@ -1,4 +1,4 @@
-import time
+﻿import time
 from sqlalchemy import create_engine, text
 
 
@@ -9,3 +9,5 @@ def test_simple_query_fast(tmp_path):
         conn.execute(text("SELECT 1"))
     duration = time.perf_counter() - start
     assert duration < 0.1, f"query took {duration} seconds"
+
+
