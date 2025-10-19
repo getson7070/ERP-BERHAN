@@ -1,4 +1,4 @@
-try:
+﻿try:
     from prometheus_client import Gauge  # type: ignore
 except Exception:  # pragma: no cover
     class Gauge:  # minimal shim
@@ -11,7 +11,7 @@ except Exception:  # pragma: no cover
         def inc(self, v=1):
             self.value = getattr(self, "value", 0) + v
 
-MODEL_ACCURACY = Gauge("model_accuracy", "Accuracy of ML model").labels()
+MODEL_ACCURACY = Gauge("model_accuracy", "Accuracy of ML model")
 
 def retrain_and_predict(X=None):
     """Very small placeholder used by tests.
@@ -26,3 +26,4 @@ def retrain_and_predict(X=None):
     except Exception:
         pass
     return score
+
