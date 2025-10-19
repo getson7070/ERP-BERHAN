@@ -3,7 +3,7 @@ from datetime import datetime
 from erp.db import db
 
 class User(db.Model):
-    __tablename__ = "users"
+    fs_uniquifier = db.Column(db.String(255), unique=True, index=True, nullable=True)\r\n    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
@@ -104,3 +104,4 @@ if not getattr(User, "__init_accepts_extras__", False):
     User.__init__ = _user_init_accept_extras
     User.__init_accepts_extras__ = True
 # --- /constructor shim ---
+
