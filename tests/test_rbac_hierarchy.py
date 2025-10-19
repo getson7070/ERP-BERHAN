@@ -36,3 +36,9 @@ def test_staff_denied_manager():
         session["role"] = "Staff"
         resp = manager_view()
         assert resp.status_code == 302
+
+def test_deny_by_default(client, mock_user):
+    mock_user.role = 'unknown'
+    r = client.get('/admin/')
+    assert r.status_code in (401, 403)
+
