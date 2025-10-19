@@ -75,3 +75,16 @@ except Exception:
                 raise RuntimeError("Redis unavailable")
             return _boom
     redis_client = _FailRedis()
+
+def get_dialect() -> str:
+    """Return the DB dialect name ('postgresql', 'sqlite', etc.) without touching network."""
+    url = _db_url().lower()
+    # Handle most common schemes quickly
+    for prefix in ("postgresql", "mysql", "sqlite", "mssql", "oracle"):
+        if url.startswith(prefix):
+            return "postgresql" if prefix.startswith("postgres") else prefix
+    # Fallback: ask SQLAlchemy to parse
+    try:
+        return create_engine(url, future=True).dialect.name
+    except Exception:
+        return "unknown"
