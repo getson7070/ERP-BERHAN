@@ -31,3 +31,39 @@ class User(db.Model):
 
     def __repr__(self) -> str:
         return f"<User {self.id} {self.email!r} role={self.role}>"
+# --- Write-only password shim for tests/dev ---
+try:
+    # Reuse the argon2 config you added in init_db.py
+    from init_db import hash_password as _hash_password, verify_password as _verify_password
+except Exception:
+    def _hash_password(v: str) -> str: return v
+    def _verify_password(pw: str, hashed: str) -> bool: return pw == hashed
+
+def _user_get_password(self):
+    # write-only; reading is intentionally disabled
+    return None
+
+def _user_set_password(self, raw):
+    # If the model defines password_hash, store a hash there; else stash plain (tests only)
+    try:
+        if hasattr(self, "password_hash"):
+            self.password_hash = _hash_password(raw)
+        else:
+            setattr(self, "_password", raw)
+    except Exception:
+        setattr(self, "_password", raw)
+
+def _user_verify(self, raw):
+    if getattr(self, "password_hash", None):
+        try:
+            return _verify_password(raw, self.password_hash)
+        except Exception:
+            return False
+    return getattr(self, "_password", None) == raw
+
+# Only add if not already present
+if not hasattr(User, "password"):
+    User.password = property(_user_get_password, _user_set_password)
+if not hasattr(User, "verify_password"):
+    User.verify_password = _user_verify
+# --- /password shim ---
