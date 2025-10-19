@@ -4,6 +4,8 @@ from decimal import Decimal
 from erp.db import db
 
 class Invoice(db.Model):
+    total  = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    number = db.Column(db.String(64), unique=True, index=True, nullable=False)
     __tablename__ = "invoices"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -85,4 +87,5 @@ try:
 except Exception:
     pass
 # --- /shim ---
+
 
