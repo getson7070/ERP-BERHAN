@@ -102,3 +102,19 @@ def sanitize_direction(value: str | None, default: str = "asc") -> str:
         return "desc"
     return default
 # ---- /sanitize helpers ----
+# ---- sort sanitize helper ----
+def sanitize_sort(
+    value: str | None,
+    allowed: list[str] | set[str] | tuple[str, ...] | None = None,
+    default: str = "created_at",
+) -> str:
+    import re
+    v = (value or "").strip()
+    # allow only letters, digits, underscore and dot (for joined columns like org.name)
+    v_clean = re.sub(r"[^A-Za-z0-9_\.]", "", v)
+    if not v_clean:
+        return default
+    if allowed:
+        return v_clean if v_clean in allowed else default
+    return v_clean or default
+# ---- /sort sanitize helper ----
