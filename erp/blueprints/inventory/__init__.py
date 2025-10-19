@@ -1,16 +1,43 @@
-﻿from io import StringIO
-import csv
-_ITEMS: list[dict] = []
+from typing import Any, List
 
-def create_item(sku: str, name: str, qty: int = 0):
-    item = {'sku': sku, 'name': name, 'qty': int(qty)}
-    _ITEMS.append(item); return item
+def _Inventory():
+    # lazy import to avoid import cycles during tests
+    from erp.models import Inventory as _Inv  # type: ignore
+    return _Inv
 
-def list_items():
-    return list(_ITEMS)
+def get_item(session, item_id: Any):
+    Inv = _Inventory()
+    try:
+        return session.get(Inv, item_id)
+    except AttributeError:
+        # SQLAlchemy <2 compat
+        return session.query(Inv).get(item_id)
 
-def export_inventory_csv():
-    buf = StringIO()
-    w = csv.DictWriter(buf, fieldnames=['sku','name','qty'])
-    w.writeheader(); w.writerows(_ITEMS)
-    return buf.getvalue()
+def create_item(session, **fields):
+    Inv = _Inventory()
+    obj = Inv(**fields)
+    session.add(obj)
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    return obj
+
+def list_items(session) -> List[Any]:
+    Inv = _Inventory()
+    return list(session.query(Inv).all())
+
+def export_items(session) -> List[dict]:
+    rows = list_items(session)
+    out = []
+    for r in rows:
+        if hasattr(r, "to_dict"):
+            out.append(r.to_dict())
+        else:
+            d = {}
+            for k in ("id", "name", "sku", "quantity"):
+                if hasattr(r, k):
+                    d[k] = getattr(r, k)
+            out.append(d)
+    return out

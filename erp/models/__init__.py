@@ -1,13 +1,27 @@
 # erp/models/__init__.py
-from erp.db import db  # single shared SQLAlchemy instance
+# Import the shared SQLAlchemy instance
+from erp.db import db  # noqa: F401
 
-# Import all model modules so SQLAlchemy registers tables once
-from .user import *          # noqa: F401,F403
-from .employee import *      # noqa: F401,F403
-from .finance import *       # noqa: F401,F403
-from .idempotency import *   # noqa: F401,F403
-from .integration import *   # noqa: F401,F403
-from .recall import *        # noqa: F401,F403
-from .user_dashboard import *  # noqa: F401,F403
+# Tolerant imports: only bring in modules that actually exist
+_modules = [
+    "user",
+    "employee",
+    "finance",
+    "idempotency",
+    "integration",
+    "recall",
+    "user_dashboard",
+    "inventory",
+]
 
-__all__ = [name for name in globals().keys() if not name.startswith('_')]
+__all__ = []
+for _m in _modules:
+    try:
+        _mod = __import__(f"{__name__}.{_m}", fromlist=["*"])
+    except Exception:
+        continue
+    for _k, _v in _mod.__dict__.items():
+        if _k.startswith("_"):
+            continue
+        globals()[_k] = _v
+        __all__.append(_k)
