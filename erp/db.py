@@ -21,3 +21,10 @@ try:
 except Exception:
     pass
 
+
+# Back-compat: expose UserDashboard model here for tests
+try:
+    from .models import UserDashboard  # noqa: F401
+except Exception:
+    pass
+

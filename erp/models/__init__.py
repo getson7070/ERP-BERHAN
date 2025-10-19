@@ -41,3 +41,5 @@ from .inventory import *  # noqa: F401,F403
 from .order import *  # noqa: F401,F403
 
 from .role import *  # noqa: F401,F403
+
+from .user_dashboard import *  # noqa: F401,F403
