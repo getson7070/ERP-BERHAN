@@ -1,31 +1,29 @@
-"""Routes for the privacy and compliance centre."""
-
-from __future__ import annotations
-
-from flask import Blueprint, current_app, render_template
-
-from erp.compliance.privacy import build_privacy_program_snapshot
+﻿from __future__ import annotations
+from flask import Blueprint, render_template_string
 from erp.utils import login_required
+from erp.db import db, PrivacyImpactAssessment
 
 bp = Blueprint("privacy", __name__)
 
-
 @bp.route("/privacy")
 @login_required
-def privacy_center():
-    """Render the privacy program dashboard."""
-
-    snapshot = build_privacy_program_snapshot(current_app.config)
-    privacy_config = {
-        "officer_email": current_app.config.get("PRIVACY_OFFICER_EMAIL"),
-        "gdpr_erasure_days": current_app.config.get("GDPR_ERASURE_WINDOW_DAYS"),
-        "gdpr_export_days": current_app.config.get("GDPR_EXPORT_WINDOW_DAYS"),
-        "ccpa_window_days": current_app.config.get("CCPA_RESPONSE_WINDOW_DAYS"),
-        "data_residency": current_app.config.get("PRIVACY_DATA_RESIDENCY"),
-        "policy_version": current_app.config.get("PRIVACY_POLICY_VERSION"),
-    }
-    return render_template(
-        "privacy.html",
-        snapshot=snapshot,
-        privacy_config=privacy_config,
+def index():
+    items = (
+        PrivacyImpactAssessment.query
+        .order_by(PrivacyImpactAssessment.assessment_date.desc())
+        .all()
     )
+    # Simple HTML that includes expected fields
+    html = """
+    <h1>Privacy Dashboard</h1>
+    <ul>
+    {% for it in items %}
+      <li class="pia">
+        <span class="feature">{{ it.feature_name }}</span>
+        <span class="status">{{ it.status }}</span>
+        <span class="risk">{{ it.risk_rating }}</span>
+      </li>
+    {% endfor %}
+    </ul>
+    """
+    return render_template_string(html, items=items)
