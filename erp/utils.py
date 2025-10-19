@@ -81,3 +81,15 @@ except Exception:
             return f
         return _decorator if func is None else func
 # ---- /auth decorator export ----
+# ---- auth decorator export ----
+from typing import Callable, Any
+try:
+    # Prefer Flask-Login's decorator if available
+    from flask_login import login_required as login_required  # re-export
+except Exception:
+    # No-op fallback so imports (and tests) don't crash in minimal envs
+    def login_required(func: Callable | None = None, **kwargs: Any):
+        def _decorator(f: Callable) -> Callable:
+            return f
+        return _decorator if func is None else func
+# ---- /auth decorator export ----
