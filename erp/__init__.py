@@ -26,6 +26,8 @@ except Exception:  # pragma: no cover
 def create_app(test_config=None):
     app = Flask(__name__)
     import os
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
+    import os
     app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     app.config.from_object(Config())
     if test_config:
@@ -145,6 +147,8 @@ def _auto_register_blueprints(app):
 def create_app():
     app = Flask(__name__)
     import os
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
+    import os
     app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     # ... keep your existing config/db setup ...
 
@@ -202,6 +206,8 @@ def _auto_register_blueprints(app):
 def create_app():
     app = Flask(__name__)
     import os
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
+    import os
     app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     # ... keep your existing config/db setup ...
 
@@ -237,6 +243,7 @@ def create_app():
         pass
 
     return app
+
 
 
 
