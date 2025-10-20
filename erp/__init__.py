@@ -175,6 +175,13 @@ def create_app():
     # auto register all route blueprints
     _auto_register_blueprints(app)
 
+    @app.before_request
+    def _mfa_gate_for_admin_panel():
+        from flask import request, session, abort
+        # If a user is considered logged in but hasn't passed MFA, block admin panel with 403.
+        if request.path.startswith("/admin/panel"):
+            if session.get("logged_in") and not session.get("mfa_verified"):
+                abort(403)
     # (optional) create tables for sqlite during tests
     try:
         if app.config.get("TESTING") or app.config.get("ENV") == "development" or os.getenv("AUTO_CREATE_DB") == "1":
@@ -234,6 +241,13 @@ def create_app():
     # auto register all route blueprints
     _auto_register_blueprints(app)
 
+    @app.before_request
+    def _mfa_gate_for_admin_panel():
+        from flask import request, session, abort
+        # If a user is considered logged in but hasn't passed MFA, block admin panel with 403.
+        if request.path.startswith("/admin/panel"):
+            if session.get("logged_in") and not session.get("mfa_verified"):
+                abort(403)
     # (optional) create tables for sqlite during tests
     try:
         if app.config.get("TESTING") or app.config.get("ENV") == "development" or os.getenv("AUTO_CREATE_DB") == "1":
@@ -243,6 +257,7 @@ def create_app():
         pass
 
     return app
+
 
 
 
