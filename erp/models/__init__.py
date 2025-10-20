@@ -1,8 +1,15 @@
 ﻿from __future__ import annotations
-from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
-# Tolerant imports: only bring in modules that actually exist
+# Use the app-wide SQLAlchemy if available; otherwise fall back (eg. for isolated tests/CLI)
+try:
+    from ..extensions import db  # type: ignore
+except Exception:  # pragma: no cover
+    from flask_sqlalchemy import SQLAlchemy
+    db = SQLAlchemy()
+
+__all__ = ["db"]
+
+# Eagerly import only modules known to be safe at import time.  (Exclude "inventory".)
 _modules = [
     "user",
     "employee",
@@ -11,10 +18,14 @@ _modules = [
     "integration",
     "recall",
     "user_dashboard",
-    "inventory",
+    "organization",
+    "invoice",
+    "recruitment",
+    "performance_review",
+    "order",
+    "role",
 ]
 
-__all__ = []
 for _m in _modules:
     try:
         _mod = __import__(f"{__name__}.{_m}", fromlist=["*"])
@@ -26,27 +37,25 @@ for _m in _modules:
         globals()[_k] = _v
         __all__.append(_k)
 
-from .organization import *  # noqa: F401,F403
+# Lazy export for inventory classes to avoid import-time side-effects.
+# Back-compat: accept several possible class names.
+_BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
 
-from .user import *  # noqa: F401,F403
-
-from .invoice import *  # noqa: F401,F403
-
-from .recruitment import *  # noqa: F401,F403
-
-from .performance_review import *  # noqa: F401,F403
-# [disabled] from .inventory import *
-
-from .order import *  # noqa: F401,F403
-
-from .role import *  # noqa: F401,F403
-
-from .user_dashboard import *  # noqa: F401,F403
-
-# Back-compat alias for legacy imports expecting `Item`
-for _cand in ("InventoryItem", "Product", "StockItem"):
-    if _cand in globals() and "Item" not in globals():
-        globals()["Item"] = globals()[_cand]
-        __all__.append("Item")
-        break
-
+def __getattr__(name: str):
+    if name in _BACKCOMPAT_ITEM_NAMES:
+        try:
+            from . import inventory as _inv  # import only when requested
+        except Exception as e:
+            raise AttributeError(
+                f"'erp.models' cannot provide {name!r}: inventory failed to import"
+            ) from e
+        # Cache whichever names exist so subsequent access is direct
+        for _cand in _BACKCOMPAT_ITEM_NAMES:
+            if hasattr(_inv, _cand):
+                _obj = getattr(_inv, _cand)
+                globals()[_cand] = _obj
+                if _cand not in __all__:
+                    __all__.append(_cand)
+        if name in globals():
+            return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
