@@ -101,6 +101,24 @@ def create_app(test_config=None):
             db.create_all()
     except Exception:
         pass
+        # --- ensure /api/webhook/test exists ---
+        try:
+            # Prefer the blueprint if available
+            from erp.routes.webhooks import bp as _webhooks_bp
+            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
+                app.register_blueprint(_webhooks_bp)
+        except Exception as e:
+            # Fall through to direct route registration below
+            app.logger.warning("webhooks blueprint not registered: %s", e)
+    
+        # Fallback: if the route is still missing, attach view directly
+        try:
+            from erp.routes import webhooks as _wh
+            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
+            if not have:
+                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
+        except Exception as e:
+            app.logger.warning("could not attach webhook route: %s", e)
     return app
 
 oauth = None
@@ -199,6 +217,24 @@ def create_app():
     except Exception:
         pass
 
+        # --- ensure /api/webhook/test exists ---
+        try:
+            # Prefer the blueprint if available
+            from erp.routes.webhooks import bp as _webhooks_bp
+            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
+                app.register_blueprint(_webhooks_bp)
+        except Exception as e:
+            # Fall through to direct route registration below
+            app.logger.warning("webhooks blueprint not registered: %s", e)
+    
+        # Fallback: if the route is still missing, attach view directly
+        try:
+            from erp.routes import webhooks as _wh
+            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
+            if not have:
+                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
+        except Exception as e:
+            app.logger.warning("could not attach webhook route: %s", e)
     return app
 from importlib import import_module
 import pkgutil
@@ -274,7 +310,26 @@ def create_app():
     except Exception:
         pass
 
+        # --- ensure /api/webhook/test exists ---
+        try:
+            # Prefer the blueprint if available
+            from erp.routes.webhooks import bp as _webhooks_bp
+            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
+                app.register_blueprint(_webhooks_bp)
+        except Exception as e:
+            # Fall through to direct route registration below
+            app.logger.warning("webhooks blueprint not registered: %s", e)
+    
+        # Fallback: if the route is still missing, attach view directly
+        try:
+            from erp.routes import webhooks as _wh
+            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
+            if not have:
+                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
+        except Exception as e:
+            app.logger.warning("could not attach webhook route: %s", e)
     return app
+
 
 
 
