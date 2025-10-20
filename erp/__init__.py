@@ -119,6 +119,8 @@ def create_app(test_config=None):
                 app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
         except Exception as e:
             app.logger.warning("could not attach webhook route: %s", e)
+    from erp.routes.webhooks import init_app as _wh_init
+    _wh_init(app)
     return app
 
 oauth = None
@@ -235,6 +237,8 @@ def create_app():
                 app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
         except Exception as e:
             app.logger.warning("could not attach webhook route: %s", e)
+    from erp.routes.webhooks import init_app as _wh_init
+    _wh_init(app)
     return app
 from importlib import import_module
 import pkgutil
@@ -328,7 +332,10 @@ def create_app():
                 app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
         except Exception as e:
             app.logger.warning("could not attach webhook route: %s", e)
+    from erp.routes.webhooks import init_app as _wh_init
+    _wh_init(app)
     return app
+
 
 
 
