@@ -25,6 +25,8 @@ except Exception:  # pragma: no cover
 
 def create_app(test_config=None):
     app = Flask(__name__)
+    import os
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     app.config.from_object(Config())
     if test_config:
         app.config.update(test_config)
@@ -142,6 +144,8 @@ def _auto_register_blueprints(app):
 
 def create_app():
     app = Flask(__name__)
+    import os
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     # ... keep your existing config/db setup ...
 
     # error handler: don't turn HTTPException (like 409) into 500
@@ -197,6 +201,8 @@ def _auto_register_blueprints(app):
 
 def create_app():
     app = Flask(__name__)
+    import os
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     # ... keep your existing config/db setup ...
 
     # error handler: don't turn HTTPException (like 409) into 500
@@ -231,6 +237,7 @@ def create_app():
         pass
 
     return app
+
 
 
 
