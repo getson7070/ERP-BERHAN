@@ -1,4 +1,11 @@
-﻿"""Retention and anonymization tasks.
+﻿def _connect_signal_or_noop(app):
+    try:
+        return app.on_after_finalize.connect
+    except AttributeError:
+        def _noop(f):
+            return f
+        return _noop
+"""Retention and anonymization tasks.
 
 Scheduled Celery jobs to purge expired data, anonymize PII and export
 quarterly access recertification reports."""
@@ -17,7 +24,7 @@ from scripts.access_recert_export import export as export_recert
 from sqlalchemy import text
 
 
-@celery.on_after_finalize.connect
+_connect_signal_or_noop(celery)
 def setup_periodic_tasks(sender, **kwargs):
     """Register periodic jobs."""
     sender.add_periodic_task(
@@ -86,5 +93,6 @@ def run_access_recert_export(idempotency_key: str | None = None) -> str:
     """Generate and persist an immutable access recertification export."""
     output = export_recert()
     return str(output)
+
 
 
