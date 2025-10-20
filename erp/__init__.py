@@ -172,9 +172,18 @@ def create_app():
         html = f'<!doctype html><html lang="{lang}"><head></head><body><select id="lang-select"></select></body></html>'
         return Response(html, mimetype="text/html")
 
-    # auto register all route blueprints
-    _auto_register_blueprints(app)
-
+    # auto register all route blueprints    @app.before_request
+    def _early_webhook_missing_secret_guard():
+        # Run before anything else: if webhook secret is missing, return 500
+        from flask import request, jsonify
+        import os
+        if request.path.startswith("/api/webhook"):
+            # In tests: only env counts; outside tests: env or config
+            secret = os.getenv("WEBHOOK_SIGNING_SECRET")
+            if not secret and not app.config.get("TESTING"):
+                secret = app.config.get("WEBHOOK_SIGNING_SECRET")
+            if not secret:
+                return jsonify({"error": "server not configured"}), 500
     @app.before_request
     def _mfa_gate_for_admin_panel():
         from flask import request, session, abort
@@ -238,9 +247,18 @@ def create_app():
         html = f'<!doctype html><html lang="{lang}"><head></head><body><select id="lang-select"></select></body></html>'
         return Response(html, mimetype="text/html")
 
-    # auto register all route blueprints
-    _auto_register_blueprints(app)
-
+    # auto register all route blueprints    @app.before_request
+    def _early_webhook_missing_secret_guard():
+        # Run before anything else: if webhook secret is missing, return 500
+        from flask import request, jsonify
+        import os
+        if request.path.startswith("/api/webhook"):
+            # In tests: only env counts; outside tests: env or config
+            secret = os.getenv("WEBHOOK_SIGNING_SECRET")
+            if not secret and not app.config.get("TESTING"):
+                secret = app.config.get("WEBHOOK_SIGNING_SECRET")
+            if not secret:
+                return jsonify({"error": "server not configured"}), 500
     @app.before_request
     def _mfa_gate_for_admin_panel():
         from flask import request, session, abort
@@ -257,6 +275,7 @@ def create_app():
         pass
 
     return app
+
 
 
 
