@@ -28,11 +28,10 @@ bp = Blueprint("webhooks", __name__, url_prefix="/api/webhook")
 >>>>>>> a788d60 (routes/webhooks: clean rewrite with correct indentation and expected auth/HMAC behavior)
 
 def _get_signing_secret():
+    # Only the explicit key is considered (aligns with tests)
     return (
         current_app.config.get("WEBHOOK_SIGNING_SECRET")
         or os.getenv("WEBHOOK_SIGNING_SECRET")
-        or os.getenv("SIGNING_SECRET")
-        or os.getenv("WEBHOOK_SECRET")
     )
 
 def _get_api_token():
