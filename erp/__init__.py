@@ -5,17 +5,21 @@ import os, json, time
 from .metrics import (
     GRAPHQL_REJECTS, RATE_LIMIT_REJECTIONS, QUEUE_LAG, AUDIT_CHAIN_BROKEN
 )
+from prometheus_client import Gauge
 
-# Success constant used by scripts/olap_export.py and tests
-OLAP_EXPORT_SUCCESS = "olap_export_success"
+# Success constant used by scripts/olap_export.py and tests (gauge so tests can ._value.get())
+OLAP_EXPORT_SUCCESS = Gauge("olap_export_success", "successful OLAP exports")
 
-# ----- very small in-memory "redis" shim for tests -----
+# ----- tiny in-memory "redis" shim for tests -----
 class _MemRedis:
-    def __init__(self):
-        self.kv = {}
+    def __init__(self): self.kv = {}
     def delete(self, key): self.kv.pop(key, None)
-    def rpush(self, key, *vals): self.kv.setdefault(key, []); self.kv[key].extend(vals)
-    def lrange(self, key, start, end): return list(self.kv.get(key, []))[start:(end+1 if end!=-1 else None)]
+    def rpush(self, key, *vals):
+        self.kv.setdefault(key, [])
+        for v in vals: self.kv[key].append(v)
+    def lrange(self, key, start, end):
+        arr = list(self.kv.get(key, []))
+        return arr[start:(end+1 if end!=-1 else None)]
     def llen(self, key): return len(self.kv.get(key, []))
     def sadd(self, key, val): self.kv.setdefault(key, set()).add(val)
     def sismember(self, key, val): return val in self.kv.get(key, set())
@@ -47,10 +51,12 @@ def create_app():
     from .routes.metrics import bp as metrics_bp
     from .routes.analytics import bp as analytics_bp
     from .api.webhook import api_bp
+    from .api.integrations import bp as integrations_bp
     app.register_blueprint(health_bp)
     app.register_blueprint(metrics_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(integrations_bp)
 
     # simple idempotency test endpoint
     @app.route("/idem", methods=["POST"])
@@ -65,7 +71,6 @@ def create_app():
 
     return app
 
-# public exports for tests
 __all__ = [
     "create_app",
     "socketio",
