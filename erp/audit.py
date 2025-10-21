@@ -1,6 +1,6 @@
-﻿import os, sqlite3, hashlib, datetime as dt
+import os, sqlite3, hashlib, datetime as dt
 from typing import Iterable, Optional
-from .metrics import AUDIT_CHAIN_BROKEN, AUDIT_CHAIN_BROKEN_TOTAL
+from .metrics import AUDIT_CHAIN_BROKEN
 
 def get_db():
     path = os.environ.get("DATABASE_PATH") or ":memory:"
@@ -9,10 +9,12 @@ def get_db():
     return conn
 
 def _hash_entry(prev_hash, user_id, org_id, action, details, created_at):
-    s = f"{prev_hash or ""}|{user_id}|{org_id}|{action}|{details or ""}|{created_at}"
+    prev = prev_hash or ""
+    det = details or ""
+    s = f"{prev}|{user_id}|{org_id}|{action}|{det}|{created_at}"
     return hashlib.sha256(s.encode()).hexdigest()
 
-def log_audit(user_id: int, org_id: int, action: str, details: Optional[str]=None):
+def log_audit(user_id: int, org_id: int, action: str, details: Optional[str] = None):
     conn = get_db()
     conn.execute("""CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,8 +37,11 @@ def check_audit_chain(records: Optional[Iterable[sqlite3.Row]] = None) -> int:
     conn = None
     if records is None:
         conn = get_db()
-        cur = conn.execute("SELECT id, user_id, org_id, action, details, prev_hash, hash, created_at FROM audit_logs ORDER BY id")
+        cur = conn.execute(
+            "SELECT id, user_id, org_id, action, details, prev_hash, hash, created_at FROM audit_logs ORDER BY id"
+        )
         records = list(cur.fetchall())
+
     breaks = 0
     prev_hash = None
     for r in records:
@@ -44,8 +49,10 @@ def check_audit_chain(records: Optional[Iterable[sqlite3.Row]] = None) -> int:
         if calc != r["hash"]:
             breaks += 1
         prev_hash = r["hash"]
-    if conn: conn.close()
+
+    if conn:
+        conn.close()
+
     if breaks:
         AUDIT_CHAIN_BROKEN.inc(breaks)
-        AUDIT_CHAIN_BROKEN_TOTAL.inc(breaks)
     return breaks
