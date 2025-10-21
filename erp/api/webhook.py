@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app
 from types import SimpleNamespace
 import hmac, hashlib, json, os
 
@@ -12,6 +12,18 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 def init_cache(app=None):
     _init_cache_noop()  # tests call with app; ignore arg
 
+def _max_depth(q: str) -> int:
+    d = m = 0
+    for ch in q:
+        if ch == "{":
+            d += 1; m = max(m, d)
+        elif ch == "}":
+            d -= 1
+    return m
+
+def _complexity(q: str) -> int:
+    return max(q.count(" orders"), q.count(":"))
+
 @api_bp.get("/orders")
 def orders():
     token = os.environ.get("API_TOKEN", "testtoken")
@@ -19,7 +31,6 @@ def orders():
     if auth != f"Bearer {token}":
         RATE_LIMIT_REJECTIONS.inc()
         return jsonify({"error": "unauthorized"}), 401
-
     rows = []
     try:
         conn = get_db()
@@ -33,20 +44,15 @@ def orders():
     finally:
         try: conn.close()
         except Exception: pass
-
     return jsonify(rows)
 
-def _max_depth(q: str) -> int:
-    d = m = 0
-    for ch in q:
-        if ch == "{":
-            d += 1; m = max(m, d)
-        elif ch == "}":
-            d -= 1
-    return m
-
-def _complexity(q: str) -> int:
-    return max(q.count(" orders"), q.count(":"))
+@api_bp.get("/tenders")
+def tenders():
+    token = os.environ.get("API_TOKEN", "testtoken")
+    if request.headers.get("Authorization") != f"Bearer {token}":
+        RATE_LIMIT_REJECTIONS.inc()
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify([{"id": 1, "title": "Office Supplies"}])
 
 @api_bp.post("/graphql")
 def graphql():
@@ -54,11 +60,11 @@ def graphql():
     max_depth = current_app.config.get("GRAPHQL_MAX_DEPTH")
     if max_depth and _max_depth(q) > int(max_depth):
         GRAPHQL_REJECTS.inc()
-        return jsonify({"error": "depth limit"}), 400
+        return jsonify({"errors": ["query too deep"]}), 400
     max_cx = current_app.config.get("GRAPHQL_MAX_COMPLEXITY")
     if max_cx and _complexity(q) > int(max_cx):
         GRAPHQL_REJECTS.inc()
-        return jsonify({"error": "complexity limit"}), 400
+        return jsonify({"errors": ["query too complex"]}), 400
     return jsonify({"data": {"ok": True}})
 
 @api_bp.post("/webhook/test")
