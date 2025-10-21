@@ -1,5 +1,5 @@
-﻿from flask import Blueprint, request, jsonify
-from typing import Iterable, List, Dict, Any
+from flask import Blueprint, request, jsonify
+from typing import Iterable, List
 from erp.analytics import retrain_and_predict, DemandForecaster
 from erp.audit import get_db
 
@@ -34,13 +34,11 @@ def _forecast_sales(history: List[int] | None = None, observed: List[int] | None
         conn.close()
 
 class _Task:
-    def __call__(self, *a, **k): return self.run(*a, **k)
-    def run(self, *a, **k): raise NotImplementedError
+    def __init__(self, fn):  # emulate a Celery task-like object
+        self.run = fn
+    def __call__(self, *a, **k):
+        return self.run(*a, **k)
 
-class send_approval_reminders(_Task):
-    def run(self, users: Iterable[int] | None = None) -> int:
-        return _send_approval_reminders(users)
-
-class forecast_sales(_Task):
-    def run(self, history: List[int] | None = None, observed: List[int] | None = None) -> float:
-        return _forecast_sales(history, observed)
+# Expose task-like objects that work with both `.run()` and direct call
+send_approval_reminders = _Task(_send_approval_reminders)
+forecast_sales = _Task(_forecast_sales)
