@@ -1,4 +1,4 @@
-"""Simple plugin loader for the ERP system."""
+﻿"""Simple plugin loader for the ERP system."""
 
 import importlib.util
 import pkgutil
@@ -37,3 +37,5 @@ def load_plugins(app) -> List[str]:
     app.config["LOADED_PLUGINS"] = loaded
     app.config["PLUGIN_REGISTRY"] = get_plugins()
     return loaded
+
+

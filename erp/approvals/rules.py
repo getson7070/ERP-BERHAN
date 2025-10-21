@@ -1,4 +1,4 @@
-
+﻿
 from datetime import datetime
 from flask import abort
 from flask_login import current_user
@@ -26,3 +26,5 @@ def reverse_doc(doc, reversal_of=None):
     if hasattr(doc, "reversed_of") and reversal_of:
         doc.reversed_of = reversal_of
     return doc
+
+

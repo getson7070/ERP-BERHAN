@@ -20,3 +20,6 @@ class Payment(db.Model):
     received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     invoice = db.relationship("Invoice", backref=db.backref("payments", lazy="dynamic"))
+
+
+

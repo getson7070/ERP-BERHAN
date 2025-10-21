@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 import os
 
@@ -17,3 +17,5 @@ def validate_config(cfg: Config):
             raise RuntimeError("SECRET_KEY must be set in production")
         if not cfg.DATABASE_URL or cfg.DATABASE_URL.startswith("sqlite://"):
             raise RuntimeError("DATABASE_URL must be a real database in production")
+
+

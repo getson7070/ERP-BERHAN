@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 from datetime import datetime, date
 from decimal import Decimal
-from erp.db import db
+from erp.models import db
 
 class Invoice(db.Model):
     total  = db.Column(db.Numeric(12, 2), nullable=False, default=0)
@@ -101,3 +101,6 @@ def _invoice_tenant_query(cls, org_id):
 if not hasattr(Invoice, "tenant_query"):
     Invoice.tenant_query = classmethod(_invoice_tenant_query)
 # --- /tenant_query ---
+
+
+

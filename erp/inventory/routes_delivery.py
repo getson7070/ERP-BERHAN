@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_login import login_required
 from decimal import Decimal
 
@@ -36,3 +36,5 @@ def create_delivery():
                  lot_id=ln.get("lot_id"))
     db.session.commit()
     return jsonify({"id": str(delivery_id) if delivery_id else None}), 201
+
+

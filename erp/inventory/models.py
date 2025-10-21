@@ -1,4 +1,4 @@
-# erp/inventory/models.py — clean models (items, warehouses, lots, ledger)
+﻿# erp/inventory/models.py â€” clean models (items, warehouses, lots, ledger)
 from __future__ import annotations
 from datetime import datetime, date
 from sqlalchemy.dialects.postgresql import UUID
@@ -36,3 +36,5 @@ class StockLedgerEntry(db.Model):
     value = db.Column(db.Numeric(18,2), nullable=False, default=0) # qty*rate
     voucher_type = db.Column(db.String(32))
     voucher_id = db.Column(UUID(as_uuid=True))
+
+

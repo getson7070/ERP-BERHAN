@@ -1,4 +1,4 @@
-# ensure these metric names exist
+﻿# ensure these metric names exist
 try:
     from prometheus_client import Counter
     metrics = {
@@ -9,3 +9,5 @@ try:
     }
 except Exception:
     metrics = {}
+
+

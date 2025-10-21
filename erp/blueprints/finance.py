@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from decimal import Decimal
 from erp.extensions import db
@@ -51,3 +51,5 @@ def add_payment():
     db.session.add(pay)
     db.session.commit()
     return jsonify(id=pay.id), 201
+
+

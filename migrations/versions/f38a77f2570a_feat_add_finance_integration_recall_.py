@@ -1,4 +1,4 @@
-"""feat: add finance/integration/recall tables
+﻿"""feat: add finance/integration/recall tables
 
 Revision ID: f38a77f2570a
 Revises: 0001_initial_core
@@ -31,3 +31,6 @@ def downgrade():
     sa.UniqueConstraint('email')
     )
     # ### end Alembic commands ###
+
+
+

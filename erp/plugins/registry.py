@@ -1,4 +1,4 @@
-"""In-memory plugin registry with optional chatbot/RPA hooks."""
+﻿"""In-memory plugin registry with optional chatbot/RPA hooks."""
 
 from typing import Callable, Dict, List, Any
 
@@ -18,3 +18,5 @@ def register(
 
 def get_plugins() -> List[Dict[str, Any]]:
     return list(_registry)
+
+

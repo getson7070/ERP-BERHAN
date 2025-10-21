@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template, jsonify
+﻿from flask import Blueprint, current_app, render_template, jsonify
 
 diagnostics_bp = Blueprint("diagnostics", __name__, template_folder="../templates")
 
@@ -15,3 +15,5 @@ def blueprints():
 @diagnostics_bp.get("/import_failures")
 def import_failures():
     return jsonify(current_app.config.get("IMPORT_FAILURES", []))
+
+

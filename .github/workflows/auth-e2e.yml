@@ -19,3 +19,23 @@ jobs:
           echo "threads = 2" >> gunicorn.conf.py
       - name: Run Auth E2E
         run: pytest -q tests/test_auth_e2e.py tests/plugins/test_auth_e2e.py || pytest -q -k "auth and e2e"
+# .github/workflows/auth-e2e.yml (add under steps, before pytest)
+- name: Start app with Gunicorn (gthread like prod)
+  run: |
+    pip install gunicorn
+    gunicorn 'erp.app:create_app()' -w 2 -k gthread -b 127.0.0.1:8000 --daemon
+    python - <<'PY'
+import time, socket
+for _ in range(30):
+    s = socket.socket()
+    try:
+        s.connect(("127.0.0.1", 8000))
+        s.close(); break
+    except OSError:
+        time.sleep(1)
+else:
+    raise SystemExit("server did not start")
+PY
+
+- name: Run Auth E2E (both paths)
+  run: pytest -q tests/test_auth_e2e.py tests/plugins/test_auth_e2e.py || pytest -q -k "auth and e2e"

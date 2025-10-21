@@ -1,4 +1,4 @@
-# NOTE: This file is part of the ERP backbone patch.
+﻿# NOTE: This file is part of the ERP backbone patch.
 # It assumes you have a Flask app factory and a SQLAlchemy `db` instance at `erp.extensions`.
 # If your project uses a different path (e.g., `from extensions import db`), adjust the import below.
 from datetime import datetime, date
@@ -19,3 +19,5 @@ class PurchaseOrder(db.Model):
     supplier_id = db.Column(UUID(as_uuid=True))
     posting_date = db.Column(db.Date, default=date.today)
     status = db.Column(db.String(16), default="Draft")  # Draft, Submitted, Ordered, Received, Closed
+
+

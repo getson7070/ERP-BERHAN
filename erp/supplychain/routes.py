@@ -1,4 +1,4 @@
-
+﻿
 from flask import Blueprint, request, jsonify
 from flask_login import login_required
 from erp.extensions import db
@@ -21,3 +21,5 @@ def policy():
     return jsonify([{"id": str(r.id), "item_id": str(r.item_id), "warehouse_id": str(r.warehouse_id),
                      "service_level": float(r.service_level or 0), "safety_stock": float(r.safety_stock or 0),
                      "reorder_point": float(r.reorder_point or 0)} for r in rows])
+
+

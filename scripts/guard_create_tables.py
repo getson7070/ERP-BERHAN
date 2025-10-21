@@ -1,4 +1,4 @@
-# scripts/guard_create_tables.py
+﻿# scripts/guard_create_tables.py
 import re, pathlib
 
 root = pathlib.Path("migrations/versions")
@@ -26,3 +26,5 @@ for f in root.glob("*.py"):
 
     f.write_text(src, encoding="utf-8")
     print("guarded:", f)
+
+

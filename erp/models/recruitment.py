@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import datetime, date
-from erp.db import db
+from erp.models import db
 
 class Recruitment(db.Model):
     __tablename__ = "recruitments"
@@ -43,3 +43,6 @@ class Recruitment(db.Model):
 
     def __repr__(self) -> str:
         return f"<Recruitment {self.id} {self.position!r} {self.status}>"
+
+
+

@@ -1,4 +1,4 @@
-
+﻿
 from __future__ import annotations
 from flask import Response
 
@@ -27,3 +27,5 @@ def apply_security_headers(app):
         resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
         return resp
     return app
+
+

@@ -1,4 +1,4 @@
-# erp/inventory/routes.py — API for inventory + WAC shim
+﻿# erp/inventory/routes.py â€” API for inventory + WAC shim
 from __future__ import annotations
 from decimal import Decimal
 from flask import Blueprint, request, jsonify
@@ -73,3 +73,5 @@ def delivery():
         db.session.add(sle)
     db.session.commit()
     return jsonify({"status":"ok"}), 201
+
+

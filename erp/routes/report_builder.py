@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify
+﻿from flask import Blueprint, render_template, request, jsonify
 from erp.utils import login_required
 import os
 
@@ -42,3 +42,5 @@ def run_report():
 
     # Placeholder: return an empty result set and message
     return jsonify({"data": [], "message": "Report execution placeholder"})
+
+

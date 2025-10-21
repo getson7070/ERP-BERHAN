@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from threading import RLock
 from typing import Any
@@ -55,3 +55,5 @@ def get_secret(key: str) -> str | None:
     with _lock:
         _cache[cache_key] = secret_val
     return secret_val
+
+

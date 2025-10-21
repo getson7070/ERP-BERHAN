@@ -1,4 +1,4 @@
-"""Stub for accounting system connector."""
+﻿"""Stub for accounting system connector."""
 
 import requests
 import os
@@ -13,3 +13,5 @@ def send_invoice(order: dict) -> bool:
         return resp.status_code == 200
     except requests.RequestException:
         return False
+
+

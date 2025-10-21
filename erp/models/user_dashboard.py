@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import datetime
-from erp.db import db
+from erp.models import db
 
 class UserDashboard(db.Model):
     __tablename__ = "user_dashboards"
@@ -43,3 +43,6 @@ class UserDashboard(db.Model):
 
     def __repr__(self) -> str:
         return f"<UserDashboard id={self.id} user_id={self.user_id}>"
+
+
+

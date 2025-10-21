@@ -1,4 +1,4 @@
-"""Validate Content Security Policy without relying on remote services.
+﻿"""Validate Content Security Policy without relying on remote services.
 
 The original implementation posted the policy to Google's CSP evaluator API.
 That external call occasionally returns ``404`` or times out which caused the
@@ -89,3 +89,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+

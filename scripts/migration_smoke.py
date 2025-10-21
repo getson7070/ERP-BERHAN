@@ -1,4 +1,4 @@
-"""Run Alembic migrations and verify schema before and after."""
+﻿"""Run Alembic migrations and verify schema before and after."""
 
 import os
 import subprocess
@@ -43,3 +43,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

@@ -1,4 +1,4 @@
-# erp/auth_loaders.py
+﻿# erp/auth_loaders.py
 from __future__ import annotations
 from erp.extensions import login_manager, db
 from erp.models import User
@@ -18,3 +18,5 @@ def load_user(user_id: str):
             return db.session.get(User, user_id)
         except Exception:
             return None
+
+

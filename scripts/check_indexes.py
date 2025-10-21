@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Fail if a query would trigger a sequential scan.
 
 Pass a SQL query as the first argument. Connection string taken from
@@ -30,3 +30,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

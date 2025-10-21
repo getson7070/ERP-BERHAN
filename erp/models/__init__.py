@@ -1,49 +1,55 @@
-﻿# erp/models/__init__.py
-# Import the shared SQLAlchemy instance
-from flask_sqlalchemy import SQLAlchemy
+﻿"""Public model exports and shared SQLAlchemy handle."""
+from __future__ import annotations
 
-db = SQLAlchemy()
+# Provide a SQLAlchemy instance early so model modules can import it.
+try:
+    from ..extensions import db  # type: ignore
+except Exception:  # pragma: no cover
+    from flask_sqlalchemy import SQLAlchemy
+    db = SQLAlchemy()
 
-# Tolerant imports: only bring in modules that actually exist
-_modules = [
-    "user",
-    "employee",
-    "finance",
-    "idempotency",
-    "integration",
-    "recall",
-    "user_dashboard",
-    "inventory",
+# Eager exports the tests expect
+from .user import User                  # noqa: F401
+from .role import Role                  # noqa: F401
+from .organization import Organization  # noqa: F401
+from .invoice import Invoice            # noqa: F401
+from .employee import Employee          # noqa: F401
+from .recruitment import Recruitment    # noqa: F401
+from .performance_review import PerformanceReview  # noqa: F401
+from .user_dashboard import UserDashboard          # noqa: F401
+from .order import Order                # noqa: F401
+
+# Inventory: try eager, else lazy fallback + back-compat aliases
+_BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
+
+try:
+    from .inventory import Inventory    # noqa: F401
+    Item = Inventory           # noqa: F401
+    InventoryItem = Inventory  # noqa: F401
+    Product = Inventory        # noqa: F401
+    StockItem = Inventory      # noqa: F401
+except Exception:  # pragma: no cover
+    def __getattr__(name: str):
+        if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
+            from . import inventory as _inv
+            inv = getattr(_inv, "Inventory", None)
+            if inv is None:
+                for alias in _BACKCOMPAT_ITEM_NAMES:
+                    inv = getattr(_inv, alias, None)
+                    if inv is not None:
+                        break
+            if inv is None:
+                raise AttributeError(f"'erp.models' could not resolve {name!r}")
+            globals()["Inventory"] = inv
+            for alias in _BACKCOMPAT_ITEM_NAMES:
+                globals()[alias] = inv
+            return globals()[name]
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+__all__ = [
+    "db",
+    "User", "Role", "Organization", "Invoice",
+    "Employee", "Recruitment", "PerformanceReview",
+    "UserDashboard", "Order",
+    "Inventory", "Item", "InventoryItem", "Product", "StockItem",
 ]
-
-__all__ = []
-for _m in _modules:
-    try:
-        _mod = __import__(f"{__name__}.{_m}", fromlist=["*"])
-    except Exception:
-        continue
-    for _k, _v in _mod.__dict__.items():
-        if _k.startswith("_"):
-            continue
-        globals()[_k] = _v
-        __all__.append(_k)
-
-from .organization import *  # noqa: F401,F403
-
-from .user import *  # noqa: F401,F403
-
-from .invoice import *  # noqa: F401,F403
-
-from .recruitment import *  # noqa: F401,F403
-
-from .performance_review import *  # noqa: F401,F403
-
-from .inventory import *  # noqa: F401,F403
-
-from .order import *  # noqa: F401,F403
-
-from .role import *  # noqa: F401,F403
-
-from .user_dashboard import *  # noqa: F401,F403
-
-

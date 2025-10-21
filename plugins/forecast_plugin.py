@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+﻿from flask import Blueprint, render_template
 
 bp = Blueprint("forecast_plugin", __name__, url_prefix="/plugins/forecast")
 
@@ -13,3 +13,5 @@ def index():
 def register(app, registry):
     app.register_blueprint(bp)
     registry("forecast_plugin", bp=bp)
+
+

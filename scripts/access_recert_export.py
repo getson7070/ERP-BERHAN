@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Export active users and roles to an immutable CSV file."""
 from __future__ import annotations
 
@@ -27,3 +27,5 @@ def export(directory: str = "exports") -> Path:
 
 if __name__ == "__main__":
     export()
+
+

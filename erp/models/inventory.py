@@ -1,16 +1,12 @@
-﻿import socket, sys, time
+﻿from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Integer, String, Column
 
-host, port = sys.argv[1], int(sys.argv[2])
-deadline = time.time() + 30
-while time.time() < deadline:
-    try:
-        with socket.create_connection((host, port), timeout=1):
-            print("ready")
-            sys.exit(0)
-    except Exception:
-        time.sleep(0.5)
-print("timeout")
-sys.exit(1)
+db = SQLAlchemy()
 
-
-
+class Inventory(db.Model):
+    __tablename__ = "inventory_items"
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, nullable=False)           # NEW
+    name = Column(String, nullable=False)
+    sku = Column(String, unique=False, nullable=False) # uniqueness may be per-org in tests
+    quantity = Column(Integer, default=0)

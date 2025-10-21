@@ -14,3 +14,5 @@ def liveness():
 def readiness():
     # Be generous in dev/test; deeper checks can be added later.
     return jsonify(status="ready"), 200
+
+

@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 class Config:
     WTF_CSRF_ENABLED = True
@@ -18,4 +18,6 @@ class Config:
 
     # CORS
     CORS_SUPPORTS_CREDENTIALS = True
+
+
 

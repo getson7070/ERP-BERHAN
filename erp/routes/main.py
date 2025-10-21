@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 main_bp = Blueprint("main", __name__)
 
@@ -28,3 +28,5 @@ def feedback_page():
         flash("Thank you for your feedback!", "success")
         return redirect(url_for("main.feedback_page"))
     return render_template("feedback.html")
+
+

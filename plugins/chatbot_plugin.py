@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 
 bp = Blueprint("chatbot_plugin", __name__, url_prefix="/plugins/chatbot")
 
@@ -16,3 +16,5 @@ def register(app, registry):
         return f"echo: {message}"
 
     registry("chatbot_plugin", bp=bp, chatbot=chatbot_hook)
+
+

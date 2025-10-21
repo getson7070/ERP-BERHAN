@@ -1,4 +1,4 @@
-import os, time, socket
+﻿import os, time, socket
 from typing import Dict, Any
 
 def version_info():
@@ -56,3 +56,5 @@ def _redact(url: str) -> str:
             creds, host = rest.split("@", 1)
             return f"{prefix}://****:****@{host}"
     return url
+
+

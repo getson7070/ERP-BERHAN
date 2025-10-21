@@ -1,4 +1,4 @@
-from flask import session
+﻿from flask import session
 
 
 class TenantMixin:
@@ -10,3 +10,5 @@ class TenantMixin:
         if org_id is None:
             org_id = session.get("org_id")
         return cls.query.filter_by(org_id=org_id)  # type: ignore[attr-defined]
+
+

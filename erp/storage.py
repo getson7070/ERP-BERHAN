@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uuid
 import boto3
 
@@ -46,3 +46,5 @@ def generate_presigned_url(key, expires=3600):
         Params={"Bucket": os.getenv("S3_BUCKET"), "Key": key},
         ExpiresIn=expires,
     )
+
+

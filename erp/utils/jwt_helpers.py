@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -36,3 +36,5 @@ def get_current_user_safe() -> Optional[Any]:
         return current_user  # may still be a LocalProxy but only inside a valid request ctx
     except Exception:
         return None
+
+

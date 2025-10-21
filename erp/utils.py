@@ -1,4 +1,5 @@
 ﻿from __future__ import annotations
+from flask import redirect
 import json, functools, os, hashlib
 from flask import abort, request, session
 from db import redis_client
@@ -46,7 +47,7 @@ def role_required(*roles):
             role = session.get("role")
             needed = max((_RANKS.get(r, 0) for r in roles), default=0)
             if _RANKS.get(role, 0) < needed:
-                abort(403)
+                return redirect('/', code=302)
             return fn(*a, **k)
         return wrapper
     return deco
@@ -58,7 +59,7 @@ def mfa_required(fn):
     @functools.wraps(fn)
     def wrapper(*a, **k):
         if not session.get("mfa_verified"):
-            abort(403)
+            return redirect('/', code=302)
         return fn(*a, **k)
     return wrapper
 
@@ -136,3 +137,7 @@ def stream_export(rows, filename: str = "export.csv"):
         mimetype="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+
+

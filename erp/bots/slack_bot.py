@@ -1,4 +1,4 @@
-"""Minimal Slack bot interface for notifications."""
+﻿"""Minimal Slack bot interface for notifications."""
 
 import os
 import requests
@@ -13,3 +13,5 @@ def send_message(text: str) -> None:
         requests.post(SLACK_WEBHOOK, json={"text": text}, timeout=5)
     except requests.RequestException:
         pass
+
+

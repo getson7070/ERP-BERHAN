@@ -4,9 +4,9 @@ root = true
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
-indent_style = space
-indent_size = 4
+<<<<<<< HEAD
 trim_trailing_whitespace = true
 
-[*.md]
-trim_trailing_whitespace = false
+=======
+trim_trailing_whitespace = true
+>>>>>>> 1a3e3b7 (chore: enforce UTF-8 and LF to avoid BOM/CRLF issues)

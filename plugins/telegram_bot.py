@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 
 
 def register(app, register_plugin):
@@ -46,3 +46,5 @@ def register(app, register_plugin):
         application.run_polling()
 
     register_plugin("telegram_bot", jobs=[run_bot])
+
+

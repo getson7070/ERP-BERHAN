@@ -1,4 +1,4 @@
-import os, re, sys, pathlib, ast
+﻿import os, re, sys, pathlib, ast
 from collections import defaultdict
 
 ROOT = pathlib.Path(os.getcwd())
@@ -66,3 +66,5 @@ for r, a, b in dups:
 for r, d, f in missing:
     print(f"[missing-parent] {f.name}: revision {r} points to down_revision {d} which is not present in versions/")
 print(f"[heads] {len(heads)} head(s): {', '.join(heads)}")
+
+

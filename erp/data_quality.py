@@ -1,4 +1,4 @@
-"""Data hygiene helpers."""
+﻿"""Data hygiene helpers."""
 
 from datetime import datetime
 from typing import Iterable, cast
@@ -54,3 +54,5 @@ def deduplicate(table: str, key_fields: Iterable[str]) -> int:
 def detect_conflict(existing_ts: datetime, new_ts: datetime) -> bool:
     """Return True if incoming timestamp is older than existing."""
     return new_ts < existing_ts
+
+

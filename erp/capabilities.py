@@ -1,4 +1,4 @@
-def _has_eventlet() -> bool:
+﻿def _has_eventlet() -> bool:
     try:
         import eventlet  # noqa: F401
         return True
@@ -28,3 +28,5 @@ def maybe_init_sentry(settings):
     except Exception:
         # never block startup on telemetry
         pass
+
+

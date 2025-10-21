@@ -1,4 +1,4 @@
-# erp/routes/finance.py — fallback transactions UI compatible with templates
+﻿# erp/routes/finance.py â€” fallback transactions UI compatible with templates
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from sqlalchemy import text
 from ..extensions import db
@@ -37,3 +37,5 @@ def add_transaction():
         db.session.commit()
         return redirect(url_for("finance.index"))
     return render_template("finance/add.html")
+
+

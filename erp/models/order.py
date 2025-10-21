@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
-from erp.db import db
+from erp.models import db
 
 class Order(db.Model):
     __tablename__ = "orders"
@@ -55,3 +55,6 @@ class Order(db.Model):
 
     def __repr__(self) -> str:
         return f"<Order {self.id} {self.status} {self.total_amount} {self.currency}>"
+
+
+

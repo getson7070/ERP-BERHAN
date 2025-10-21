@@ -1,4 +1,4 @@
-
+﻿
 from flask import Blueprint, jsonify, abort
 from flask_login import login_required
 from erp.extensions import db
@@ -50,3 +50,5 @@ def reverse_delivery(doc_id):
     reverse_doc(d)
     db.session.commit()
     return jsonify({"id": str(d.id), "status": d.status})
+
+

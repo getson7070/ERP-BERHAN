@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from datetime import datetime
 from ..extensions import db
 
@@ -18,3 +18,5 @@ class PerformanceReview(db.Model):
     score = db.Column(db.Numeric(5,2), default=0)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+

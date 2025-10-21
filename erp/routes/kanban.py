@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+﻿from flask import Blueprint, render_template
 from erp.utils import login_required
 
 bp = Blueprint("kanban", __name__, url_prefix="/kanban")
@@ -13,3 +13,5 @@ def board():
         "done": ["Initial setup"],
     }
     return render_template("kanban_board.html", tasks=tasks)
+
+

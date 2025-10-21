@@ -1,4 +1,4 @@
-"""0001: initial core tables
+﻿"""0001: initial core tables
 
 Revision ID: 0001_initial_core
 Revises: 8de54ef00dfe
@@ -26,3 +26,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table('users')
+
+
+

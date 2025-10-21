@@ -31,3 +31,5 @@ def integrations_graphql():
     if request.headers.get("Authorization") != "Bearer secret":
         abort(401)
     return jsonify({"data": {"events": [{"name":"x"}]}})
+
+

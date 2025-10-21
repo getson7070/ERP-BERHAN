@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Rotate JWT secrets using KID playbook with audit logging."""
 
 import datetime
@@ -35,3 +35,5 @@ save_secrets(secrets_map)
 os.environ["JWT_SECRET_ID"] = new_id
 log_rotation(new_id)
 print(f"Rotated to {new_id}")
+
+

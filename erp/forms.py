@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, DecimalField
 from wtforms.validators import DataRequired, Email, Length, Optional
@@ -19,3 +19,5 @@ class ItemForm(FlaskForm):
     qty_on_hand = IntegerField("Qty On Hand", validators=[Optional()])
     price = DecimalField("Price", places=2, rounding=None, validators=[Optional()])
     submit = SubmitField("Save")
+
+

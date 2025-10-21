@@ -1,4 +1,4 @@
-"""Endpoints for recall simulations."""
+﻿"""Endpoints for recall simulations."""
 
 from __future__ import annotations
 
@@ -20,3 +20,5 @@ def recall_simulate():
     lot = Lot.query.filter_by(lot_number=lot_number).first_or_404()
     serials = [s.serial_number for s in Serial.query.filter_by(lot_id=lot.id)]
     return jsonify({"lot_number": lot.lot_number, "serials": serials})
+
+

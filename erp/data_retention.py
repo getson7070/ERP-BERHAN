@@ -1,24 +1,58 @@
 """Retention and anonymization tasks.
 
 Scheduled Celery jobs to purge expired data, anonymize PII and export
-quarterly access recertification reports."""
-
+quarterly access recertification reports.
+"""
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime, UTC
+from sqlalchemy import text
 
-from celery.schedules import crontab
+# ---- Optional Celery imports (safe when Celery isn't installed) ---------------
+try:
+    from celery.schedules import crontab  # type: ignore
+except Exception:  # pragma: no cover
+    def crontab(*_args, **_kwargs):
+        return None  # stub so tests can import this module without Celery
 
-from erp.routes.analytics import celery  # reuse analytics Celery instance
+try:
+    # Reuse analytics Celery app if available
+    from erp.routes.analytics import celery as _celery  # type: ignore
+except Exception:  # pragma: no cover
+    # Minimal shim so @celery.task is a no-op in tests
+    class _DummySignal:
+        def connect(self, f):  # type: ignore[no-untyped-def]
+            return f
+
+    class _DummyCelery:
+        on_after_finalize = _DummySignal()
+
+        def task(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            def _decorator(fn):
+                return fn
+            return _decorator
+
+    _celery = _DummyCelery()
+
+celery = _celery  # public name
+
 from erp.utils import task_idempotent
 from db import get_db
 from scripts.access_recert_export import export as export_recert
-from sqlalchemy import text
+# -----------------------------------------------------------------------------
+
+def _connect_signal_or_noop(app):
+    try:
+        return app.on_after_finalize.connect
+    except Exception:
+        def _noop(f):
+            return f
+        return _noop
 
 
-@celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
+@_connect_signal_or_noop(celery)  # <-- this decorator wires periodic tasks (no-op in tests)
+def setup_periodic_tasks(sender, **kwargs):  # pragma: no cover - schedule wiring
     """Register periodic jobs."""
     sender.add_periodic_task(
         crontab(hour=3, minute=0),
@@ -26,7 +60,9 @@ def setup_periodic_tasks(sender, **kwargs):
         name="purge-expired-records",
     )
     sender.add_periodic_task(
-        crontab(hour=2, minute=0), anonymize_users.s(), name="anonymize-old-users"
+        crontab(hour=2, minute=0),
+        anonymize_users.s(),
+        name="anonymize-old-users",
     )
     sender.add_periodic_task(
         crontab(month_of_year="1,4,7,10", day_of_month=1, hour=5, minute=0),
@@ -53,7 +89,7 @@ def purge_expired_records(idempotency_key: str | None = None) -> int:
     purged_users = cur.rowcount
     conn.commit()
     conn.close()
-    return purged_logs + purged_users
+    return (purged_logs or 0) + (purged_users or 0)
 
 
 @celery.task(name="data_retention.anonymize_users")

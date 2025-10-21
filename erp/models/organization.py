@@ -1,4 +1,4 @@
-﻿from erp.db import db
+﻿from erp.models import db
 
 class Organization(db.Model):
     __tablename__ = "organizations"
@@ -7,3 +7,6 @@ class Organization(db.Model):
 
     def __repr__(self) -> str:  # helpful in tests/logs
         return f"<Organization {self.id} {self.name!r}>"
+
+
+

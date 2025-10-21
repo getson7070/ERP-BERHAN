@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import datetime
-from erp.db import db
+from erp.models import db
 
 class User(db.Model):
     fs_uniquifier = db.Column(db.String(255), unique=True, index=True, nullable=True)
@@ -105,5 +105,8 @@ if not getattr(User, "__init_accepts_extras__", False):
     User.__init__ = _user_init_accept_extras
     User.__init_accepts_extras__ = True
 # --- /constructor shim ---
+
+
+
 
 

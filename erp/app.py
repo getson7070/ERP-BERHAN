@@ -1,4 +1,4 @@
-import eventlet
+﻿import eventlet
 eventlet.monkey_patch()
 
 from erp import create_app
@@ -34,3 +34,5 @@ try:
 except Exception as e:
     app.logger.warning(f"bots_bp not registered: {e}")
 # === /9.8 patch ===
+
+

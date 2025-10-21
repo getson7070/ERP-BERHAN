@@ -12,3 +12,5 @@ def assign_lot(sku: str, lot: str, days_valid: int = 30) -> Lot:
 
 def check_expiry(lot: Lot) -> bool:
     return lot.expiry < date.today()
+
+

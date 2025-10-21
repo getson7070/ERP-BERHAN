@@ -50,3 +50,5 @@ def index():
     """
     return render_template_string(html, items=items, high_risk_count=high_risk_count, open_dsr_count=open_dsr_count)
 
+
+

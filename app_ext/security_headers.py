@@ -1,4 +1,4 @@
-from flask import request
+﻿from flask import request
 
 def init_security_headers(app):
     @app.after_request
@@ -14,3 +14,5 @@ def init_security_headers(app):
         if request.is_secure:
             resp.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
         return resp
+
+
