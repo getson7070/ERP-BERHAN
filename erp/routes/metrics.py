@@ -7,11 +7,9 @@ bp = Blueprint("metrics", __name__)
 
 @bp.get("/metrics")
 def metrics():
-    # update queue lag for "celery" right before scraping
     try:
         depth = redis_client.llen("celery")
-        QUEUE_LAG.labels("celery").set(depth)
+        QUEUE_LAG.labels("celery").set(float(depth))
     except Exception:
         pass
-    data = generate_latest()
-    return Response(data, mimetype=CONTENT_TYPE_LATEST)
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)

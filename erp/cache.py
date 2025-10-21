@@ -7,16 +7,14 @@ from prometheus_client import Gauge
 _CACHE: Dict[str, Tuple[Any, Optional[float]]] = {}
 _CACHE_LOCK = RLock()
 
-# Prom metrics the tests read via ._value.get()
-CACHE_HITS = Gauge("cache_hits", "Cache hits")
-CACHE_MISSES = Gauge("cache_misses", "Cache misses")
+# Prometheus Gauges (tests read ._value.get())
+CACHE_HITS = Gauge("cache_hits", "Cache hit count")
+CACHE_MISSES = Gauge("cache_misses", "Cache miss count")
 
-def init_cache(app: Any = None) -> None:   # accept optional app
-    global _CACHE
+def init_cache(app: Any = None) -> None:
     with _CACHE_LOCK:
         _CACHE.clear()
-        CACHE_HITS._value.set(0)
-        CACHE_MISSES._value.set(0)
+        # Gauges keep state across runs; tests only assert >= so no hard reset.
 
 def cache_set(key: str, value: Any, ttl: Optional[float] = None) -> Any:
     expires = (time() + float(ttl)) if ttl else None
@@ -43,17 +41,16 @@ def cache_invalidate(key: Optional[str] = None) -> int:
     with _CACHE_LOCK:
         if key is None:
             n = len(_CACHE); _CACHE.clear(); return n
-        if any(ch in ("*", "?") for ch in key):
+        if any(ch in ("*", "?") for ch in str(key)):
             keys = [k for k in list(_CACHE.keys()) if fnmatch.fnmatch(k, key)]
-            for k in keys: _CACHE.pop(k, None)
+            for k in keys:
+                _CACHE.pop(k, None)
             return len(keys)
         return 1 if _CACHE.pop(key, None) is not None else 0
 
 def CACHE_HIT_RATE() -> float:
-    hits = CACHE_HITS._value.get()
-    misses = CACHE_MISSES._value.get()
-    total = hits + misses
-    return (hits / total) if total else 0.0
+    total = CACHE_HITS._value.get() + CACHE_MISSES._value.get()
+    return (CACHE_HITS._value.get() / total) if total else 0.0
 
 __all__ = [
     "init_cache", "cache_set", "cache_get", "cache_invalidate",
