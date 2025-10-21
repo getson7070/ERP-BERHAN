@@ -1,14 +1,29 @@
-"""
-Very small stub for analytics.retrain_and_predict used in tests.
-"""
-from __future__ import annotations
-from statistics import mean
+﻿from statistics import mean, pstdev
 
-_MODEL_VERSION = 0
+class DemandForecaster:
+    def __init__(self): self.series = []
+    def fit(self, series): self.series = list(series or []); return self
+    def predict_next(self):
+        if len(self.series) < 2: return (self.series[-1] if self.series else 0)
+        diffs = [b - a for a, b in zip(self.series[:-1], self.series[1:])]
+        return self.series[-1] + round(mean(diffs))
 
-def retrain_and_predict(series: list[float]) -> dict:
-    global _MODEL_VERSION
-    _MODEL_VERSION += 1
-    avg = float(mean(series)) if series else 0.0
-    # pretend to forecast next 3 points
-    return {"model_version": _MODEL_VERSION, "forecast": [avg, avg, avg]}
+class InventoryAnomalyDetector:
+    def __init__(self, threshold: float = 2.0): self.threshold = float(threshold)
+    def detect(self, xs):
+        xs = list(xs or [])
+        if not xs: return []
+        mu = mean(xs); sigma = pstdev(xs) or 0.0
+        limit = mu + self.threshold * (sigma or 0)
+        return [i for i, v in enumerate(xs) if sigma and v > limit]
+
+def _retrain_and_predict(train_series, observed_series):
+    f = DemandForecaster().fit(train_series)
+    nxt = f.predict_next()
+    anomalies = InventoryAnomalyDetector(threshold=1.5).detect(observed_series)
+    return {"next": nxt, "anomalies": anomalies}
+
+class _Task:
+    def run(self, *a, **k): return _retrain_and_predict(*a, **k)
+
+retrain_and_predict = _Task()

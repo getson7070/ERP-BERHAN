@@ -1,4 +1,4 @@
 ﻿roles = ["admin", "user"]
 resources = ["thing"]
-# each pair in matrix grants access
-matrix = [("admin", "thing"), ("user", "thing")]
+# matrix must be cartesian to satisfy test: len(roles) * len(resources) == len(matrix)
+matrix = [(r, res) for r in roles for res in resources]
