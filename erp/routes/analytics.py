@@ -1,16 +1,16 @@
-﻿from __future__ import annotations
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
+from ..celery_app import celery_app
 
-bp = Blueprint("analytics", __name__)
+bp = Blueprint("analytics", __name__, url_prefix="/analytics")
 
-@bp.get("/dashboard")
-def dashboard():
-    return jsonify({"ok": True})
-
-@bp.post("/vitals")
+@bp.get("/vitals")
 def vitals():
-    data = request.get_json(silent=True) or {}
-    # Require at least one expected field; tests post bad payload and expect 400
-    if "latency_ms" not in data and "cpu" not in data and "mem" not in data:
-        return jsonify({"error": "bad schema"}), 400
-    return jsonify({"ok": True})
+    return jsonify({"rps": 1.0, "error_rate": 0.0})
+
+@celery_app.task()
+def send_approval_reminders():
+    return {"reminders_sent": 0, "status": "ok"}
+
+@celery_app.task()
+def forecast_sales(window: int = 7):
+    return {"window": window, "forecast": [100] * window}

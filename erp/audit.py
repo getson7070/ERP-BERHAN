@@ -1,26 +1,28 @@
-﻿from __future__ import annotations
-import hashlib, json, datetime as dt
-from db import get_db
+import hashlib
+import json
+from datetime import datetime, timezone
 
-def _hash(prev_hash: str, rec: dict, secret: str="k") -> str:
-    h = hashlib.sha256()
-    h.update((prev_hash or "").encode())
-    h.update(json.dumps(rec, sort_keys=True).encode())
-    h.update(secret.encode())
-    return h.hexdigest()
+def _hash_entry(prev_hash: str, entry: dict) -> str:
+    payload = json.dumps({**entry, "prev": prev_hash}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-def log_audit(user_id: int, org_id: int, action: str, details: str | None = None, secret: str = "k"):
-    conn = get_db()
-    try:
-        row = conn.execute("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1").fetchone()
-        prev = (row["hash"] if row and "hash" in row.keys() else (row[0] if row else "")) or ""
-    except Exception:
-        prev = ""
-    rec = {"user_id": user_id, "org_id": org_id, "action": action, "details": details or ""}
-    h = _hash(prev, rec, secret)
-    conn.execute(
-        "INSERT INTO audit_logs (user_id, org_id, action, details, prev_hash, hash, created_at) VALUES (?,?,?,?,?,?,?)",
-        (user_id, org_id, action, details or "", prev, h, dt.datetime.utcnow().isoformat()),
-    )
-    conn.commit()
-    return h
+def log_audit(actor: str, action: str, details: dict | None = None, prev_hash: str = "") -> dict:
+    entry = {
+        "actor": actor,
+        "action": action,
+        "details": details or {},
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    h = _hash_entry(prev_hash, entry)
+    entry["hash"] = h
+    entry["prev_hash"] = prev_hash
+    return entry
+
+def check_audit_chain(entries: list[dict]) -> bool:
+    prev = ""
+    for e in entries:
+        expected = _hash_entry(prev, {k: e[k] for k in ("actor","action","details","ts")})
+        if e.get("hash") != expected or e.get("prev_hash","") != prev:
+            return False
+        prev = e["hash"]
+    return True

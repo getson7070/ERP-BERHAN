@@ -1,26 +1,36 @@
-﻿from flask import Blueprint, current_app, request, Response
-from ..metrics import QUEUE_LAG, Gauge, render_prometheus
-from ..cache import redis_client
-from ..analytics import kpi_staleness_seconds
+import os
+from flask import Blueprint, Response, request
+from ..metrics import snapshot
 
 bp = Blueprint("metrics", __name__)
 
+def _auth_ok() -> bool:
+    token = os.getenv("METRICS_AUTH_TOKEN", "")
+    if not token:
+        return True
+    auth = request.headers.get("Authorization", "")
+    return auth == f"Bearer {token}"
+
 @bp.get("/metrics")
 def metrics():
-    token = current_app.config.get("METRICS_AUTH_TOKEN")
-    if token:
-        auth = request.headers.get("Authorization","")
-        if not (auth.startswith("Bearer ") and auth.split(" ",1)[1]==token):
-            return Response("Unauthorized", status=401)
-
-    # queue lag
-    try:
-        n = redis_client.llen("celery")
-    except Exception:
-        n = 0
-    QUEUE_LAG.labels("celery").set(n)
-
-    # KPI freshness
-    Gauge("kpi_sales_mv_age_seconds").set(kpi_staleness_seconds())
-
-    return Response(render_prometheus(), mimetype="text/plain")
+    if not _auth_ok():
+        return Response("unauthorized\n", status=401, mimetype="text/plain; version=0.0.4")
+    s = snapshot()
+    body = (
+        "# HELP app_requests_total Total requests.\n"
+        "# TYPE app_requests_total counter\n"
+        f"app_requests_total {s.requests}\n"
+        "# HELP app_errors_total Total errors.\n"
+        "# TYPE app_errors_total counter\n"
+        f"app_errors_total {s.errors}\n"
+        "# HELP app_cache_hits_total Total cache hits.\n"
+        "# TYPE app_cache_hits_total counter\n"
+        f"app_cache_hits_total {s.cache_hits}\n"
+        "# HELP app_cache_misses_total Total cache misses.\n"
+        "# TYPE app_cache_misses_total counter\n"
+        f"app_cache_misses_total {s.cache_misses}\n"
+        "# HELP app_queue_lag Queue backlog size.\n"
+        "# TYPE app_queue_lag gauge\n"
+        f"app_queue_lag {s.queue_lag}\n"
+    )
+    return Response(body, mimetype="text/plain; version=0.0.4")
