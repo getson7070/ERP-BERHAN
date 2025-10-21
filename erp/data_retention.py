@@ -11,7 +11,6 @@ def _connect_signal_or_noop(app):
 Scheduled Celery jobs to purge expired data, anonymize PII and export
 quarterly access recertification reports."""
 
-from __future__ import annotations
 
 import hashlib
 from datetime import datetime, UTC
@@ -94,6 +93,5 @@ def run_access_recert_export(idempotency_key: str | None = None) -> str:
     """Generate and persist an immutable access recertification export."""
     output = export_recert()
     return str(output)
-
 
 

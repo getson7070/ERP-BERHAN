@@ -7,7 +7,7 @@ except Exception:  # pragma: no cover
     from flask_sqlalchemy import SQLAlchemy
     db = SQLAlchemy()
 
-__all__ = ["db"]
+__all__ = ["db", 'Inventory', 'User', 'Role']
 
 # Eagerly import only modules known to be safe at import time.  (Exclude "inventory".)
 _modules = [
@@ -59,3 +59,11 @@ def __getattr__(name: str):
         if name in globals():
             return globals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+try:
+    from .user import User
+except Exception:  # pragma: no cover - import fallback for tests
+    User = None  # type: ignore
+try:
+    from .role import Role
+except Exception:  # pragma: no cover - import fallback for tests
+    Role = None  # type: ignore

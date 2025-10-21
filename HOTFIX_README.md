@@ -1,27 +1,26 @@
-# ERP‑BERHAN — Critical Hotfix Pack
+# ERP Critical Hotfix v2
 
-This ZIP contains *surgical* fixes to unblock your test run and CI by:
-- repairing imports/constants the tests expect,
-- providing a Socket.IO instance at package root,
-- adding a safe dead‑letter handler,
-- fixing a `from __future__` placement issue,
-- adding minimal shims for `erp.db` and inventory blueprint exports,
-- giving you known‑good dependency pins and a clean venv rebuild script.
+## What changed from v1
+- Added missing dev/test dependencies (`redis`, `Flask-Login`, `Flask-WTF`, `WTForms`, `pyotp`, `boto3`, `requests`, `psycopg2-binary`).
+- Stronger `autofix_repo.py` that **forces** `from __future__ import annotations` to the top of `erp/data_retention.py` and re-exports `Inventory`, `User`, `Role` from `erp.db`.
+- Keeps blueprint export for `delete_item`, and package-root exports for `socketio` and metrics.
 
-## Quick apply (PowerShell)
-
+## Steps (PowerShell)
 ```powershell
-$zip = "C:\Users\Alienware\Downloads\erp_critical_hotfix.zip"
 $repo = "C:\Users\Alienware\Documents\ERP-BERHAN"
+$zip  = "C:\Users\Alienware\Downloads\erp_critical_hotfix_v2.zip"
+
 Expand-Archive -LiteralPath $zip -DestinationPath $repo -Force
-
 Set-Location $repo
-.\scripts\rebuild_venv.ps1
+.\scriptsebuild_venv.ps1
 .\.venv\Scripts\Activate.ps1
-python .\scripts\autofix_repo.py
-pytest -q
 
-git add -A
-git commit -m "Critical hotfix: pins + autopatched symbols and future-import placement"
-git push origin main
+python .\scriptsutofix_repo.py
+pytest -q
+```
+
+If `git push` is rejected:
+```powershell
+git pull --rebase origin main
+git push origin HEAD:main
 ```
