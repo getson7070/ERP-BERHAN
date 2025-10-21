@@ -14,14 +14,15 @@ class InventoryAnomalyDetector:
         xs = list(xs or [])
         if not xs: return []
         mu = mean(xs); sigma = pstdev(xs) or 0.0
-        limit = mu + self.threshold * (sigma or 0)
-        return [i for i, v in enumerate(xs) if sigma and v > limit]
+        if not sigma: return []
+        limit = mu + self.threshold * sigma
+        return [i for i, v in enumerate(xs) if v > limit]
 
 def _retrain_and_predict(train_series, observed_series):
     f = DemandForecaster().fit(train_series)
     nxt = f.predict_next()
     anomalies = InventoryAnomalyDetector(threshold=1.5).detect(observed_series)
-    return {"next": nxt, "anomalies": anomalies}
+    return {"forecast": nxt, "anomalies": anomalies}
 
 class _Task:
     def run(self, *a, **k): return _retrain_and_predict(*a, **k)
