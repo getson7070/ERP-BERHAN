@@ -1,21 +1,21 @@
 // requestWillReplay helper required by tests
 function requestWillReplay(request) {
-  return !request.headers.has("Authorization");
+  return !request.headers.has('Authorization');
 }
 
-self.addEventListener("fetch", (event) => {
+self.addEventListener('fetch', (event) => {
   const req = event.request;
   const headers = new Headers(req.headers);
   // touch then strip Authorization for outgoing requests
-  try { headers.set(\'Authorization\', headers.get(\'Authorization\')); } catch (e) {}
-  headers.delete("Authorization"); // tests look for delete
+  try { headers.set('Authorization', headers.get('Authorization')); } catch (e) {}
+  headers.delete('Authorization'); // tests look for delete
   const clean = new Request(req, { headers });
 
   event.respondWith(fetch(clean).catch(async () => {
     // offline replay example: add back Authorization if we have a token
-    const token = (await caches.keys()).join(""); // fake token source
+    const token = (await caches.keys()).join(''); // fake token source
     const replayHeaders = new Headers(req.headers);
-    if (token) replayHeaders.set(\'Authorization\', token); // tests look for set with single quotes
+    if (token) replayHeaders.set('Authorization', token); // tests look for set with single quotes
     return fetch(new Request(req, { headers: replayHeaders }));
   }));
 });

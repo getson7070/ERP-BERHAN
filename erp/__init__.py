@@ -1,4 +1,4 @@
-﻿from types import SimpleNamespace
+from types import SimpleNamespace
 from flask import Flask, jsonify, request, session, redirect, url_for
 import os, json, time
 
@@ -6,14 +6,14 @@ from .metrics import (
     GRAPHQL_REJECTS, RATE_LIMIT_REJECTIONS, QUEUE_LAG, AUDIT_CHAIN_BROKEN,
     OLAP_EXPORT_SUCCESS as _OLAP_EXPORT_SUCCESS
 )
-
-# Re-export for scripts/olap_export.py
 OLAP_EXPORT_SUCCESS = _OLAP_EXPORT_SUCCESS
 
 class _MemRedis:
     def __init__(self): self.kv = {}
     def delete(self, key): self.kv.pop(key, None)
-    def rpush(self, key, *vals): self.kv.setdefault(key, []); self.kv[key].extend(vals)
+    def rpush(self, key, *vals):
+        self.kv.setdefault(key, [])
+        self.kv[key].extend(vals)
     def lrange(self, key, start, end):
         data = list(self.kv.get(key, []))
         return data[start:(end+1 if end != -1 else None)]
@@ -22,7 +22,6 @@ class _MemRedis:
     def sismember(self, key, val): return val in self.kv.get(key, set())
 
 redis_client = _MemRedis()
-
 _IDEM_SEEN = set()
 
 def _dead_letter_handler(sender=None, task_id=None, exception=None, args=None, kwargs=None, **extra):
@@ -32,7 +31,9 @@ def _dead_letter_handler(sender=None, task_id=None, exception=None, args=None, k
         "args": list(args or []), "kwargs": dict(kwargs or {}),
         "ts": time.time(),
     }
-    redis_client.rpush("dead_letter", json.dumps(payload))
+    js = json.dumps(payload)
+    redis_client.rpush("dead_letter", js)
+    redis_client.rpush("dead-letter", js)
 
 socketio = SimpleNamespace(emit=lambda *a, **k: None)
 
@@ -43,12 +44,20 @@ def create_app():
     from .routes.health import bp as health_bp
     from .routes.metrics import bp as metrics_bp
     from .routes.analytics import bp as analytics_bp
+    from .routes.bots import bp as bots_bp
+    from .routes.finance import bp as finance_bp
+    from .routes.integration import bp as integration_bp
+    from .routes.recall import bp as recall_bp
     from .api.webhook import api_bp
     from .api.integrations import bp as integrations_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(metrics_bp)
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(bots_bp)
+    app.register_blueprint(finance_bp)
+    app.register_blueprint(integration_bp)
+    app.register_blueprint(recall_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(integrations_bp)
 
@@ -70,7 +79,11 @@ def create_app():
     @app.get("/dashboard")
     def dashboard():
         lang = session.get("lang", "en")
-        return f'<!doctype html><html lang="{lang}"><body><select id="lang-select"></select></body></html>'
+        opts = "".join([
+            f'<option value="en"{" selected" if lang=="en" else ""}>English</option>',
+            f'<option value="am"{" selected" if lang=="am" else ""}>Amharic</option>',
+        ])
+        return f'<!doctype html><html lang="{lang}"><body><select id="lang-select">{opts}</select></body></html>'
 
     return app
 

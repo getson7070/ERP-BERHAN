@@ -1,10 +1,11 @@
-﻿from statistics import mean, pstdev
+from statistics import mean, pstdev
 
 class DemandForecaster:
     def __init__(self): self.series = []
     def fit(self, series): self.series = list(series or []); return self
     def predict_next(self):
-        if len(self.series) < 2: return (self.series[-1] if self.series else 0)
+        if len(self.series) < 2:
+            return (self.series[-1] if self.series else 0)
         diffs = [b - a for a, b in zip(self.series[:-1], self.series[1:])]
         return self.series[-1] + round(mean(diffs))
 
