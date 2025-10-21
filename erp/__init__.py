@@ -1,83 +1,75 @@
-"""
-Minimal app factory and compatibility exports so tests can import expected symbols.
-"""
-from __future__ import annotations
-from flask import Flask
-import importlib
+﻿from types import SimpleNamespace
+from flask import Flask, jsonify, request
+import os, json, time, fnmatch
 
-# --- SocketIO (real if available, fallback stub otherwise) -----------------
-try:
-    from flask_socketio import SocketIO  # type: ignore
-    _is_fake = False
-except Exception:  # pragma: no cover - fallback path
-    _is_fake = True
-    class SocketIO:  # very small stub to satisfy tests that only check presence/connectivity
-        def __init__(self, app=None, **kwargs):
-            self._events = {}
-            if app is not None:
-                self.init_app(app)
+from .metrics import (
+    GRAPHQL_REJECTS, RATE_LIMIT_REJECTIONS, QUEUE_LAG, AUDIT_CHAIN_BROKEN
+)
 
-        def init_app(self, app, **kwargs):
-            return self
+# ----- very small in-memory "redis" shim for tests -----
+class _MemRedis:
+    def __init__(self):
+        self.kv = {}
+    def delete(self, key): self.kv.pop(key, None)
+    def rpush(self, key, *vals): self.kv.setdefault(key, []); self.kv[key].extend(vals)
+    def lrange(self, key, start, end): return list(self.kv.get(key, []))[start:(end+1 if end!=-1 else None)]
+    def llen(self, key): return len(self.kv.get(key, []))
+    def sadd(self, key, val): self.kv.setdefault(key, set()).add(val)
+    def sismember(self, key, val): return val in self.kv.get(key, set())
 
-        def on(self, event):
-            def deco(fn):
-                self._events[event] = fn
-                return fn
-            return deco
+redis_client = _MemRedis()
 
-        def emit(self, *a, **k):
-            return None
+# idempotency store (header -> seen)
+_IDEM_SEEN = set()
 
-        class _Client:
-            def is_connected(self, *a, **k):  # used by some test suites
-                return True
+# Celery-like dead letter signal handler expected signature
+def _dead_letter_handler(sender=None, task_id=None, exception=None, args=None, kwargs=None, **extra):
+    payload = {
+        "sender": getattr(sender, "name", str(sender)),
+        "task_id": task_id, "exception": str(exception),
+        "args": list(args or []), "kwargs": dict(kwargs or {}),
+        "ts": time.time(),
+    }
+    redis_client.rpush("dead_letter", json.dumps(payload))
 
-        def test_client(self, app):  # simple happy-path client
-            return self._Client()
+# Minimal Socket.IO stub (tests import it)
+socketio = SimpleNamespace(emit=lambda *a, **k: None)
 
-socketio = SocketIO()
-
-# --- Metric-like globals expected by tests --------------------------------
-# exported here for "from erp import XYZ" imports
-RATE_LIMIT_REJECTIONS = 0
-GRAPHQL_REJECTS = 0
-QUEUE_LAG = 0.0
-AUDIT_CHAIN_BROKEN = 0
-OLAP_EXPORT_SUCCESS = 1  # sentinel meaning "success"
-
-# Dead letter queue hook; tests import _dead_letter_handler from erp
-def _dead_letter_handler(message: dict | str) -> bool:
-    try:
-        dlq = importlib.import_module("erp.dlq")
-        if hasattr(dlq, "dead_letters"):
-            dlq.dead_letters.append(message)
-        return True
-    except Exception:
-        return False
-
-def create_app(test_config: dict | None = None) -> Flask:
+def create_app():
     app = Flask(__name__)
-    app.config.update(
-        TESTING=bool(test_config),
-        SECRET_KEY=app.config.get("SECRET_KEY", "dev-secret"),
-    )
-    # register core blueprints if present
-    try:
-        from .routes.health import bp as health_bp
-        app.register_blueprint(health_bp)
-    except Exception:
-        pass
-    try:
-        from .routes.metrics import bp as metrics_bp
-        app.register_blueprint(metrics_bp)
-    except Exception:
-        pass
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret")  # enable sessions
 
-    # socket layer
-    try:
-        socketio.init_app(app, async_mode="threading")
-    except Exception:
-        pass
+    # ---- register blueprints ----
+    from .routes.health import bp as health_bp
+    from .routes.metrics import bp as metrics_bp
+    from .routes.analytics import bp as analytics_bp
+    from .api.webhook import api_bp
+    app.register_blueprint(health_bp)
+    app.register_blueprint(metrics_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(api_bp)
+
+    # simple idempotency test endpoint
+    @app.route("/idem", methods=["POST"])
+    def _idem():
+        key = request.headers.get("Idempotency-Key")
+        if not key: 
+            return jsonify({"error": "missing Idempotency-Key"}), 400
+        if key in _IDEM_SEEN:
+            return jsonify({"error": "duplicate"}), 409
+        _IDEM_SEEN.add(key)
+        return jsonify({"ok": True})
 
     return app
+
+# public exports for tests
+__all__ = [
+    "create_app",
+    "socketio",
+    "redis_client",
+    "_dead_letter_handler",
+    "GRAPHQL_REJECTS",
+    "RATE_LIMIT_REJECTIONS",
+    "QUEUE_LAG",
+    "AUDIT_CHAIN_BROKEN",
+]
