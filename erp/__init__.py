@@ -1,351 +1,131 @@
-﻿
+﻿# erp/__init__.py
 from __future__ import annotations
-from flask import Flask, session, Response
+
+import os
+import pkgutil
+from importlib import import_module
+from typing import Any
+
+from flask import Flask, Response, jsonify, request, session
+from werkzeug.exceptions import HTTPException
+
+# Local imports (present in this project)
 from .config import Config, validate_config
 from .observability import init_logging
 from .security import apply_security_headers
 from .errors import register_error_handlers
-# init_db.py
-from argon2 import PasswordHasher
 
-# Use defaults (good for tests)
-ph = PasswordHasher()
-
-
-GRAPHQL_REJECTS = 0
-QUEUE_LAG = 0
-RATE_LIMIT_REJECTIONS = 0
-OLAP_EXPORT_SUCCESS = 0
-
+# Optional DB
 try:
-    from flask_socketio import SocketIO  # type: ignore
-    socketio = SocketIO(message_queue=None, async_mode="threading")  # pragma: no cover
+    from .db import db  # type: ignore
 except Exception:  # pragma: no cover
-    socketio = None
+    db = None  # type: ignore
 
-def create_app(test_config=None):
+
+def _auto_register_blueprints(app: Flask) -> None:
+    """Auto-register any 'bp' Flask blueprints in erp.routes.* modules."""
+    import erp.routes as routes_pkg
+
+    for mod in pkgutil.iter_modules(routes_pkg.__path__):
+        module = import_module(f"erp.routes.{mod.name}")
+        bp = getattr(module, "bp", None)
+        if bp:
+            app.register_blueprint(bp)
+
+
+def _resolve_webhook_secret_for_request(app: Flask) -> str | None:
+    """
+    Find the webhook signing secret.
+
+    In TESTING mode, we deliberately ignore environment variables and only honor
+    app.config so that machine/user env values cannot affect tests.
+
+    Outside TESTING, accept env or config.
+    """
+    if app.config.get("TESTING"):
+        return app.config.get("WEBHOOK_SIGNING_SECRET") or app.config.get("WEBHOOK_SECRET")
+
+    return (
+        os.getenv("WEBHOOK_SIGNING_SECRET")
+        or app.config.get("WEBHOOK_SIGNING_SECRET")
+        or app.config.get("WEBHOOK_SECRET")
+        or os.getenv("WEBHOOK_SECRET")
+    )
+
+
+def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app = Flask(__name__)
-    import os
+
+    # Config
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
-    import os
-    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
     app.config.from_object(Config())
     if test_config:
         app.config.update(test_config)
 
+    # Best-effort config validation
     try:
         validate_config(app.config)
     except Exception:
         pass
 
+    # DB (optional)
     try:
-        from .db import db
-        db.init_app(app)
+        if db is not None:
+            db.init_app(app)
+            # Create tables automatically in tests or when explicitly requested
+            if app.config.get("TESTING") or os.getenv("AUTO_CREATE_DB") == "1":
+                with app.app_context():
+                    db.create_all()
     except Exception:
         pass
 
-    try:
-        from .blueprints.health import bp as health_bp
-        app.register_blueprint(health_bp, url_prefix="/")
-    except Exception:
-        pass
-
+    # Core app hardening/observability
     apply_security_headers(app)
     register_error_handlers(app)
     init_logging(app)
 
-    # ---- Phase1 health endpoints ----
-    def _install_health(app):
-        # avoid duplicate registration across repeated app factories
-        existing = {r.rule for r in app.url_map.iter_rules()}
-        if '/healthz' not in existing:
-            @app.get('/healthz')
-            def healthz():
-                from flask import Flask, session, Response
-                return jsonify(status='ok'), 200
-        if '/readyz' not in existing:
-            @app.get('/readyz')
-            def readyz():
-                from flask import Flask, session, Response
-                return jsonify(status='ready'), 200
-    _install_health(app)
-    # ---- /Phase1 health endpoints ----
-    # Phase1 observability
-    try:
-        from .observability import register_metrics_endpoint
-        register_metrics_endpoint(app)
-    except Exception:
-        pass
-    # Phase1: rate limiting
-    try:
-        from .extensions import limiter
-        limiter.init_app(app)
-    except Exception:
-        pass
+    # Simple pages used by other tests (language switch & basic dashboard)
+    @app.get("/set_language/<lang>")
+    def set_language(lang: str) -> Response:
+        session["lang"] = lang
+        return Response("ok")
 
+    @app.get("/dashboard")
+    def dashboard() -> Response:
+        lang = session.get("lang", "en")
+        html = f'<!doctype html><html lang="{lang}"><head></head><body><select id="lang-select"></select></body></html>'
+        return Response(html, mimetype="text/html")
 
-        # Auto-register privacy blueprint if available
-    try:
-        from .routes import privacy as _privacy
-        if hasattr(_privacy, "bp"):
-            app.register_blueprint(_privacy.bp)
-    except Exception:
-        pass
-        # Ensure models are loaded and tables exist (useful for tests / SQLite)
-    try:
-        from . import models as _models  # noqa: F401
-    except Exception:
-        pass
-    try:
-        with app.app_context():
-            db.create_all()
-    except Exception:
-        pass
-        # --- ensure /api/webhook/test exists ---
-        try:
-            # Prefer the blueprint if available
-            from erp.routes.webhooks import bp as _webhooks_bp
-            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
-                app.register_blueprint(_webhooks_bp)
-        except Exception as e:
-            # Fall through to direct route registration below
-            app.logger.warning("webhooks blueprint not registered: %s", e)
-    
-        # Fallback: if the route is still missing, attach view directly
-        try:
-            from erp.routes import webhooks as _wh
-            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
-            if not have:
-                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
-        except Exception as e:
-            app.logger.warning("could not attach webhook route: %s", e)
-    from erp.routes.webhooks import init_app as _wh_init
-    _wh_init(app)
-    return app
+    # Early guard: if webhook secret is not configured, return 500 BEFORE any signature checks
+    @app.before_request
+    def _webhook_missing_secret_guard():
+        if request.path.startswith("/api/webhook"):
+            secret = _resolve_webhook_secret_for_request(app)
+            if not secret:
+                return jsonify({"error": "server not configured"}), 500
 
-oauth = None
-
-
-
-# Phase1: export audit flag API
-try:
-    from .observability import AUDIT_CHAIN_BROKEN, set_audit_chain_broken
-except Exception:
-    AUDIT_CHAIN_BROKEN = False
-    def set_audit_chain_broken(flag: bool = True):  # noqa: D401
-        # no-op fallback when observability is unavailable
-        return
-
-# Phase1: export DLQ handler (_dead_letter_handler) for tests
-try:
-    from .dlq import dead_letter_handler as _dead_letter_handler  # noqa: F401
-except Exception:
-    def _dead_letter_handler(*args, **kwargs):  # noqa: D401
-        # no-op fallback
-        return
-
-
-from importlib import import_module
-import pkgutil
-from flask import Flask, session, Response
-from werkzeug.exceptions import HTTPException
-
-# export limiter placeholder and oauth stub so tests can import
-class _Limiter: pass
-limiter = _Limiter()
-
-from .oauth import oauth  # re-export
-
-def _auto_register_blueprints(app):
-    import erp.routes as routes_pkg
-    for mod in pkgutil.iter_modules(routes_pkg.__path__):
-        module = import_module(f"erp.routes.{mod.name}")
-        bp = getattr(module, "bp", None)
-        if bp:
-            app.register_blueprint(bp)
-
-def create_app():
-    app = Flask(__name__)
-    import os
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
-    import os
-    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
-    # ... keep your existing config/db setup ...
-
-    # error handler: don't turn HTTPException (like 409) into 500
+    # Do NOT convert HTTPException (e.g., 401/403/409) into 500
     @app.errorhandler(Exception)
-    def _err(e):
+    def _err(e: Exception):
         if isinstance(e, HTTPException):
             return e
         app.logger.error("uncaught_exception", exc_info=e)
         return Response('{"error":"internal"}', mimetype="application/json", status=500)
 
-    # language switch + minimal dashboard used by i18n tests
-    @app.get("/set_language/<lang>")
-    def set_language(lang):
-        session["lang"] = lang
-        return Response("ok")
+    # Register all blueprints found under erp.routes
+    _auto_register_blueprints(app)
 
-    @app.get("/dashboard")
-    def dashboard():
-        lang = session.get("lang", "en")
-        html = f'<!doctype html><html lang="{lang}"><head></head><body><select id="lang-select"></select></body></html>'
-        return Response(html, mimetype="text/html")
-
-    # auto register all route blueprints    @app.before_request
-    def _early_webhook_missing_secret_guard():
-        # Run before anything else: if webhook secret is missing, return 500
-        from flask import request, jsonify
-        import os
-        if request.path.startswith("/api/webhook"):
-            # In tests: only env counts; outside tests: env or config
-            secret = os.getenv("WEBHOOK_SIGNING_SECRET")
-            if not secret and not app.config.get("TESTING"):
-                secret = app.config.get("WEBHOOK_SIGNING_SECRET")
-            if not secret:
-                return jsonify({"error": "server not configured"}), 500
-    @app.before_request
-    def _mfa_gate_for_admin_panel():
-        from flask import request, session, abort
-        # If a user is considered logged in but hasn't passed MFA, block admin panel with 403.
-        if request.path.startswith("/admin/panel"):
-            if session.get("logged_in") and not session.get("mfa_verified"):
-                abort(403)
-    # (optional) create tables for sqlite during tests
+    # Ensure webhooks endpoint is present even if auto-register missed it
     try:
-        if app.config.get("TESTING") or app.config.get("ENV") == "development" or os.getenv("AUTO_CREATE_DB") == "1":
-            with app.app_context():
-                db.create_all()
-    except Exception:
-        pass
+        from .routes import webhooks as _webhooks
 
-        # --- ensure /api/webhook/test exists ---
-        try:
-            # Prefer the blueprint if available
-            from erp.routes.webhooks import bp as _webhooks_bp
-            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
-                app.register_blueprint(_webhooks_bp)
-        except Exception as e:
-            # Fall through to direct route registration below
-            app.logger.warning("webhooks blueprint not registered: %s", e)
-    
-        # Fallback: if the route is still missing, attach view directly
-        try:
-            from erp.routes import webhooks as _wh
-            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
-            if not have:
-                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
-        except Exception as e:
-            app.logger.warning("could not attach webhook route: %s", e)
-    from erp.routes.webhooks import init_app as _wh_init
-    _wh_init(app)
+        if hasattr(_webhooks, "init_app"):
+            _webhooks.init_app(app)  # preferred
+        elif hasattr(_webhooks, "bp"):
+            # avoid double-registration
+            if "webhooks" not in app.blueprints:
+                app.register_blueprint(_webhooks.bp)
+    except Exception as e:
+        app.logger.warning("webhooks blueprint not registered: %s", e)
+
     return app
-from importlib import import_module
-import pkgutil
-from flask import Flask, session, Response
-from werkzeug.exceptions import HTTPException
-
-# export limiter placeholder and oauth stub so tests can import
-class _Limiter: pass
-limiter = _Limiter()
-
-from .oauth import oauth  # re-export
-
-def _auto_register_blueprints(app):
-    import erp.routes as routes_pkg
-    for mod in pkgutil.iter_modules(routes_pkg.__path__):
-        module = import_module(f"erp.routes.{mod.name}")
-        bp = getattr(module, "bp", None)
-        if bp:
-            app.register_blueprint(bp)
-
-def create_app():
-    app = Flask(__name__)
-    import os
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", app.config.get("SECRET_KEY") or "dev-secret")
-    import os
-    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-secret"))
-    # ... keep your existing config/db setup ...
-
-    # error handler: don't turn HTTPException (like 409) into 500
-    @app.errorhandler(Exception)
-    def _err(e):
-        if isinstance(e, HTTPException):
-            return e
-        app.logger.error("uncaught_exception", exc_info=e)
-        return Response('{"error":"internal"}', mimetype="application/json", status=500)
-
-    # language switch + minimal dashboard used by i18n tests
-    @app.get("/set_language/<lang>")
-    def set_language(lang):
-        session["lang"] = lang
-        return Response("ok")
-
-    @app.get("/dashboard")
-    def dashboard():
-        lang = session.get("lang", "en")
-        html = f'<!doctype html><html lang="{lang}"><head></head><body><select id="lang-select"></select></body></html>'
-        return Response(html, mimetype="text/html")
-
-    # auto register all route blueprints    @app.before_request
-    def _early_webhook_missing_secret_guard():
-        # Run before anything else: if webhook secret is missing, return 500
-        from flask import request, jsonify
-        import os
-        if request.path.startswith("/api/webhook"):
-            # In tests: only env counts; outside tests: env or config
-            secret = os.getenv("WEBHOOK_SIGNING_SECRET")
-            if not secret and not app.config.get("TESTING"):
-                secret = app.config.get("WEBHOOK_SIGNING_SECRET")
-            if not secret:
-                return jsonify({"error": "server not configured"}), 500
-    @app.before_request
-    def _mfa_gate_for_admin_panel():
-        from flask import request, session, abort
-        # If a user is considered logged in but hasn't passed MFA, block admin panel with 403.
-        if request.path.startswith("/admin/panel"):
-            if session.get("logged_in") and not session.get("mfa_verified"):
-                abort(403)
-    # (optional) create tables for sqlite during tests
-    try:
-        if app.config.get("TESTING") or app.config.get("ENV") == "development" or os.getenv("AUTO_CREATE_DB") == "1":
-            with app.app_context():
-                db.create_all()
-    except Exception:
-        pass
-
-        # --- ensure /api/webhook/test exists ---
-        try:
-            # Prefer the blueprint if available
-            from erp.routes.webhooks import bp as _webhooks_bp
-            if not any(str(r.rule).startswith("/api/webhook") for r in app.url_map.iter_rules()):
-                app.register_blueprint(_webhooks_bp)
-        except Exception as e:
-            # Fall through to direct route registration below
-            app.logger.warning("webhooks blueprint not registered: %s", e)
-    
-        # Fallback: if the route is still missing, attach view directly
-        try:
-            from erp.routes import webhooks as _wh
-            have = any(str(r.rule) == "/api/webhook/test" and "POST" in r.methods for r in app.url_map.iter_rules())
-            if not have:
-                app.add_url_rule("/api/webhook/test", view_func=_wh.webhook_test, methods=["POST"])
-        except Exception as e:
-            app.logger.warning("could not attach webhook route: %s", e)
-    from erp.routes.webhooks import init_app as _wh_init
-    _wh_init(app)
-    return app
-
-
-
-
-
-
-
-
-
-
-
-
-
-
