@@ -1,13 +1,7 @@
-<<<<<<< Updated upstream
-roles = ["admin", "user"]
-resources = ["thing"]
-matrix = [(r, res) for r in roles for res in resources]
-=======
-﻿# erp/authz.py
-import itertools
+from itertools import product
 
 roles = ["admin", "user"]
 resources = ["thing"]
-# Full cartesian product so len(matrix) == len(roles) * len(resources)
-matrix = list(itertools.product(roles, resources))
->>>>>>> Stashed changes
+
+# exact cartesian matrix the test asserts on
+matrix = [(r, res) for r, res in product(roles, resources)]
