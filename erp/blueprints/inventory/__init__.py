@@ -38,3 +38,12 @@ def update_item(*, org_id: int | None = None, sku: str, **fields):
 __all__ = ["bp", "get_jwt", "create_item", "list_items", "get_item", "update_item"]
 
 
+
+
+# --- AUTOAPPEND (safe) ---
+def delete_item(*args, **kwargs):
+    try:
+        from .routes import delete_item as _real
+        return _real(*args, **kwargs)
+    except Exception as _e:
+        raise NotImplementedError("delete_item not wired yet") from _e

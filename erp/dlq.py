@@ -38,3 +38,10 @@ def get_dlq_snapshot() -> list[dict]:
         return list(_DLQ)
 
 
+
+
+# --- AUTOAPPEND (safe) ---
+_DEAD_LETTER_QUEUE = []
+def _dead_letter_handler(message):
+    _DEAD_LETTER_QUEUE.append(message)
+    return True

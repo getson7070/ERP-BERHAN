@@ -1,4 +1,5 @@
-﻿def _connect_signal_or_noop(app):
+from __future__ import annotations
+def _connect_signal_or_noop(app):
     try:
         return app.on_after_finalize.connect
     except AttributeError:

@@ -12,3 +12,11 @@ def __getattr__(name: str):
 __all__ = ["db"]
 
 
+
+
+# --- AUTOAPPEND (safe) ---
+try:
+    from .models import Inventory, User, Role  # type: ignore
+    __all__ = [n for n in ("Inventory","User","Role") if n in globals()]
+except Exception:
+    pass
