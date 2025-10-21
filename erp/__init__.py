@@ -1,10 +1,13 @@
 ﻿from types import SimpleNamespace
 from flask import Flask, jsonify, request
-import os, json, time, fnmatch
+import os, json, time
 
 from .metrics import (
     GRAPHQL_REJECTS, RATE_LIMIT_REJECTIONS, QUEUE_LAG, AUDIT_CHAIN_BROKEN
 )
+
+# Success constant used by scripts/olap_export.py and tests
+OLAP_EXPORT_SUCCESS = "olap_export_success"
 
 # ----- very small in-memory "redis" shim for tests -----
 class _MemRedis:
@@ -53,7 +56,7 @@ def create_app():
     @app.route("/idem", methods=["POST"])
     def _idem():
         key = request.headers.get("Idempotency-Key")
-        if not key: 
+        if not key:
             return jsonify({"error": "missing Idempotency-Key"}), 400
         if key in _IDEM_SEEN:
             return jsonify({"error": "duplicate"}), 409
@@ -72,4 +75,5 @@ __all__ = [
     "RATE_LIMIT_REJECTIONS",
     "QUEUE_LAG",
     "AUDIT_CHAIN_BROKEN",
+    "OLAP_EXPORT_SUCCESS",
 ]
