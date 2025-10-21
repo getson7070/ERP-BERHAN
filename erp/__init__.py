@@ -11,15 +11,33 @@ OLAP_EXPORT_SUCCESS = _OLAP_EXPORT_SUCCESS
 class _MemRedis:
     def __init__(self): self.kv = {}
     def delete(self, key): self.kv.pop(key, None)
+    def _as_list(self, key):
+        v = self.kv.get(key)
+        if isinstance(v, list):
+            return v
+        # if it existed as a set or anything else, migrate to a list
+        lst = list(v) if isinstance(v, (set, tuple)) else ([] if v is None else [v])
+        self.kv[key] = lst
+        return lst
     def rpush(self, key, *vals):
-        self.kv.setdefault(key, [])
-        self.kv[key].extend(vals)
+        lst = self._as_list(key)
+        for v in vals:
+            lst.append(v)
+        return len(lst)
     def lrange(self, key, start, end):
-        data = list(self.kv.get(key, []))
+        data = list(self._as_list(key))
         return data[start:(end+1 if end != -1 else None)]
-    def llen(self, key): return len(self.kv.get(key, []))
-    def sadd(self, key, val): self.kv.setdefault(key, set()).add(val)
-    def sismember(self, key, val): return val in self.kv.get(key, set())
+    def llen(self, key):
+        return len(self._as_list(key))
+    def sadd(self, key, val):
+        s = self.kv.get(key)
+        if not isinstance(s, set):
+            s = set()
+            self.kv[key] = s
+        s.add(val)
+    def sismember(self, key, val):
+        s = self.kv.get(key)
+        return isinstance(s, set) and (val in s)
 
 redis_client = _MemRedis()
 _IDEM_SEEN = set()
@@ -32,6 +50,7 @@ def _dead_letter_handler(sender=None, task_id=None, exception=None, args=None, k
         "ts": time.time(),
     }
     js = json.dumps(payload)
+    # push to both names; tests read "dead_letter"
     redis_client.rpush("dead_letter", js)
     redis_client.rpush("dead-letter", js)
 
