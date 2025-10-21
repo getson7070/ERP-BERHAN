@@ -1,14 +1,9 @@
-from typing import Any
+"""
+In-process "dead letter" storage with a simple handler.
+"""
+from __future__ import annotations
 
-_DLQ: list[dict[str, Any]] = []
+dead_letters: list = []
 
-def push_dead_letter(item: dict[str, Any]) -> None:
-    _DLQ.append(item)
-
-def dlq_length() -> int:
-    return len(_DLQ)
-
-def drain() -> list[dict[str, Any]]:
-    out = list(_DLQ)
-    _DLQ.clear()
-    return out
+def send_to_dlq(message) -> None:
+    dead_letters.append(message)
