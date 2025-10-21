@@ -1,6 +1,6 @@
 ﻿import os, sqlite3, hashlib, datetime as dt
 from typing import Iterable, Optional
-from .metrics import AUDIT_CHAIN_BROKEN
+from .metrics import AUDIT_CHAIN_BROKEN, AUDIT_CHAIN_BROKEN_TOTAL
 
 def get_db():
     path = os.environ.get("DATABASE_PATH") or ":memory:"
@@ -9,7 +9,7 @@ def get_db():
     return conn
 
 def _hash_entry(prev_hash, user_id, org_id, action, details, created_at):
-    s = f"{prev_hash or ''}|{user_id}|{org_id}|{action}|{details or ''}|{created_at}"
+    s = f"{prev_hash or ""}|{user_id}|{org_id}|{action}|{details or ""}|{created_at}"
     return hashlib.sha256(s.encode()).hexdigest()
 
 def log_audit(user_id: int, org_id: int, action: str, details: Optional[str]=None):
@@ -47,4 +47,5 @@ def check_audit_chain(records: Optional[Iterable[sqlite3.Row]] = None) -> int:
     if conn: conn.close()
     if breaks:
         AUDIT_CHAIN_BROKEN.inc(breaks)
+        AUDIT_CHAIN_BROKEN_TOTAL.inc(breaks)
     return breaks

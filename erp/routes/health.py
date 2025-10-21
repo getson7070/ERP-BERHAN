@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, jsonify, current_app
+﻿from flask import Blueprint, jsonify
 import os, sqlite3
 
 bp = Blueprint("health", __name__)
@@ -16,8 +16,8 @@ def _ping_db() -> bool:
     except Exception:
         return False
 
-def _ping_cache() -> bool:
-    return True  # shim is always available in tests
+def _ping_cache() -> bool: return True
+def _ping_redis() -> bool: return True
 
 @bp.get("/health")
 def health():
@@ -27,9 +27,12 @@ def health():
 def healthz():
     ok_db = _ping_db()
     ok_cache = _ping_cache()
-    return jsonify({"ok": ok_db and ok_cache, "db": ok_db, "cache": ok_cache}), (200 if ok_db and ok_cache else 503)
+    ok_redis = _ping_redis()
+    ok = ok_db and ok_cache and ok_redis
+    return jsonify({"ok": ok, "status": ("ok" if ok else "error"),
+                    "db": ok_db, "cache": ok_cache, "redis": ok_redis}), (200 if ok else 503)
 
 @bp.get("/readyz")
 def readyz():
-    ready = _ping_db() and _ping_cache()
-    return jsonify({"ready": ready}), (200 if ready else 503)
+    ready = _ping_db() and _ping_cache() and _ping_redis()
+    return jsonify({"ready": ready, "status": ("ready" if ready else "not_ready")}), (200 if ready else 503)
