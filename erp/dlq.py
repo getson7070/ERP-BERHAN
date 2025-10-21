@@ -1,47 +1,22 @@
-﻿from __future__ import annotations
-from datetime import datetime
-from threading import RLock
-from typing import Any, Optional, Dict, List
+﻿import json, time
+from functools import wraps
+from flask import request
+from .cache import redis_client
 
-# Prometheus counter (safe fallback if lib missing)
-try:
-    from prometheus_client import Counter  # type: ignore
-except Exception:  # pragma: no cover
-    class _Noop:
-        def inc(self, *a, **k): pass
-    def Counter(*a, **k):  # type: ignore
-        return _Noop()
+def idempotent(fn):
+    @wraps(fn)
+    def wrapper(*a, **k):
+        key=request.headers.get("Idempotency-Key")
+        if not key:
+            return fn(*a, **k)
+        token=f"idem:{key}"
+        if redis_client.get(token):
+            return ("", 409)
+        redis_client.set(token, str(time.time()))
+        return fn(*a, **k)
+    return wrapper
 
-DEAD_LETTERS_TOTAL = Counter("dead_letters_total", "Total messages sent to DLQ")
-
-# In-memory DLQ storage (sufficient for tests)
-_DLQ: List[Dict[str, Any]] = []
-_DLQ_LOCK = RLock()
-
-def dead_letter_handler(message: Any, reason: Optional[str] = None) -> None:
-    """Append a failed message to the in-memory DLQ and increment a metric."""
-    entry = {
-        "ts": datetime.utcnow().isoformat() + "Z",
-        "message": message,
-        "reason": reason or "unknown",
-    }
-    with _DLQ_LOCK:
-        _DLQ.append(entry)
-        try:
-            DEAD_LETTERS_TOTAL.inc()
-        except Exception:
-            pass
-
-def get_dlq_snapshot() -> list[dict]:
-    """Return a shallow copy of the DLQ (testing aid)."""
-    with _DLQ_LOCK:
-        return list(_DLQ)
-
-
-
-
-# --- AUTOAPPEND (safe) ---
-_DEAD_LETTER_QUEUE = []
-def _dead_letter_handler(message):
-    _DEAD_LETTER_QUEUE.append(message)
-    return True
+def _dead_letter_handler(sender, task_id, exception, args, kwargs):
+    entry={"sender": getattr(sender, "name", str(sender)), "task_id": task_id,
+           "error": str(exception), "args": args, "kwargs": kwargs, "ts": time.time()}
+    redis_client.lpush("dead_letter", json.dumps(entry))

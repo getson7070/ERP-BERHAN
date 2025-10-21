@@ -1,35 +1,26 @@
-﻿from __future__ import annotations
-from flask import Blueprint, Response, request
-from db import redis_client
-from erp.metrics import GRAPHQL_REJECTS, QUEUE_LAG
+﻿from flask import Blueprint, current_app, request, Response
+from ..metrics import QUEUE_LAG, Gauge, render_prometheus
+from ..cache import redis_client
+from ..analytics import kpi_staleness_seconds
 
 bp = Blueprint("metrics", __name__)
 
 @bp.get("/metrics")
 def metrics():
-    token = request.headers.get("Authorization", "")
-    required = request.app.config.get("METRICS_AUTH_TOKEN") if hasattr(request, "app") else None
-    # Fallback: read from Flask global config
+    token = current_app.config.get("METRICS_AUTH_TOKEN")
+    if token:
+        auth = request.headers.get("Authorization","")
+        if not (auth.startswith("Bearer ") and auth.split(" ",1)[1]==token):
+            return Response("Unauthorized", status=401)
+
+    # queue lag
     try:
-        from flask import current_app
-        required = current_app.config.get("METRICS_AUTH_TOKEN")
+        n = redis_client.llen("celery")
     except Exception:
-        pass
-    if required:
-        if not token or token != f"Bearer {required}":
-            return Response(status=401)
+        n = 0
+    QUEUE_LAG.labels("celery").set(n)
 
-    # update queue lag gauge from Redis "celery" list
-    try:
-        q_len = len(redis_client.lrange("celery", 0, -1))
-    except Exception:
-        q_len = 0
-    QUEUE_LAG.labels("celery").set(q_len)
+    # KPI freshness
+    Gauge("kpi_sales_mv_age_seconds").set(kpi_staleness_seconds())
 
-    # Minimal text exposition (just enough for tests to 200/401)
-    body = "# minimal metrics\n"
-    body += f"graphql_rejects {GRAPHQL_REJECTS._value.get()}\n"
-    body += f"queue_lag {QUEUE_LAG._value.get()}\n"
-    return Response(body, mimetype="text/plain")
-
-
+    return Response(render_prometheus(), mimetype="text/plain")

@@ -1,14 +1,12 @@
-﻿from erp.extensions import db
+﻿from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Integer, String, Column
+
+db = SQLAlchemy()
 
 class Inventory(db.Model):
-    __tablename__ = "inventory"
-    id = db.Column(db.Integer, primary_key=True)
-    sku = db.Column(db.String(64), unique=True, nullable=False)
-    name = db.Column(db.String(255), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False, default=0)
-    location = db.Column(db.String(128))
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<Inventory {self.sku} x{self.quantity}>"
+    __tablename__ = "inventory_items"
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, nullable=False)           # NEW
+    name = Column(String, nullable=False)
+    sku = Column(String, unique=False, nullable=False) # uniqueness may be per-org in tests
+    quantity = Column(Integer, default=0)

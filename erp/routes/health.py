@@ -1,33 +1,30 @@
 ﻿from __future__ import annotations
-from flask import Blueprint, jsonify, current_app, request
-from sqlalchemy import text
-from db import get_engine, redis_client
+from flask import Blueprint, jsonify
+from db import get_db
+from .. import redis_client
 
 bp = Blueprint("health", __name__)
 
 def _ping_db() -> bool:
     try:
-        eng = get_engine()
-        with eng.connect() as c:
-            c.execute(text("SELECT 1"))
+        get_db().execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+def _ping_redis() -> bool:
+    try:
+        redis_client.set("__ping__", "1")
+        redis_client.delete("__ping__")
         return True
     except Exception:
         return False
 
 @bp.get("/health")
 def health():
-    return jsonify({"status":"ok"})
+    return jsonify(ok=True), 200
 
 @bp.get("/healthz")
 def healthz():
-    ok = _ping_db()
-    if not ok:
-        return jsonify({"status":"fail"}), 503
-    return jsonify({"status":"ok"})
-
-@bp.get("/readyz")
-def readyz():
-    ready = _ping_db()
-    return jsonify({"ready": bool(ready), "status": "ready" if ready else "not_ready"}), 200 if ready else 503
-
-
+    ok = _ping_db() and _ping_redis()
+    return jsonify(ok=ok), (200 if ok else 503)

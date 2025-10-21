@@ -1,69 +1,55 @@
-﻿from __future__ import annotations
+﻿"""Public model exports and shared SQLAlchemy handle."""
+from __future__ import annotations
 
-# Use the app-wide SQLAlchemy if available; otherwise fall back (eg. for isolated tests/CLI)
+# Provide a SQLAlchemy instance early so model modules can import it.
 try:
     from ..extensions import db  # type: ignore
 except Exception:  # pragma: no cover
     from flask_sqlalchemy import SQLAlchemy
     db = SQLAlchemy()
 
-__all__ = ["db", 'Inventory', 'User', 'Role']
+# Eager exports the tests expect
+from .user import User                  # noqa: F401
+from .role import Role                  # noqa: F401
+from .organization import Organization  # noqa: F401
+from .invoice import Invoice            # noqa: F401
+from .employee import Employee          # noqa: F401
+from .recruitment import Recruitment    # noqa: F401
+from .performance_review import PerformanceReview  # noqa: F401
+from .user_dashboard import UserDashboard          # noqa: F401
+from .order import Order                # noqa: F401
 
-# Eagerly import only modules known to be safe at import time.  (Exclude "inventory".)
-_modules = [
-    "user",
-    "employee",
-    "finance",
-    "idempotency",
-    "integration",
-    "recall",
-    "user_dashboard",
-    "organization",
-    "invoice",
-    "recruitment",
-    "performance_review",
-    "order",
-    "role",
-]
-
-for _m in _modules:
-    try:
-        _mod = __import__(f"{__name__}.{_m}", fromlist=["*"])
-    except Exception:
-        continue
-    for _k, _v in _mod.__dict__.items():
-        if _k.startswith("_"):
-            continue
-        globals()[_k] = _v
-        __all__.append(_k)
-
-# Lazy export for inventory classes to avoid import-time side-effects.
-# Back-compat: accept several possible class names.
+# Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
 
-def __getattr__(name: str):
-    if name in _BACKCOMPAT_ITEM_NAMES:
-        try:
-            from . import inventory as _inv  # import only when requested
-        except Exception as e:
-            raise AttributeError(
-                f"'erp.models' cannot provide {name!r}: inventory failed to import"
-            ) from e
-        # Cache whichever names exist so subsequent access is direct
-        for _cand in _BACKCOMPAT_ITEM_NAMES:
-            if hasattr(_inv, _cand):
-                _obj = getattr(_inv, _cand)
-                globals()[_cand] = _obj
-                if _cand not in __all__:
-                    __all__.append(_cand)
-        if name in globals():
+try:
+    from .inventory import Inventory    # noqa: F401
+    Item = Inventory           # noqa: F401
+    InventoryItem = Inventory  # noqa: F401
+    Product = Inventory        # noqa: F401
+    StockItem = Inventory      # noqa: F401
+except Exception:  # pragma: no cover
+    def __getattr__(name: str):
+        if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
+            from . import inventory as _inv
+            inv = getattr(_inv, "Inventory", None)
+            if inv is None:
+                for alias in _BACKCOMPAT_ITEM_NAMES:
+                    inv = getattr(_inv, alias, None)
+                    if inv is not None:
+                        break
+            if inv is None:
+                raise AttributeError(f"'erp.models' could not resolve {name!r}")
+            globals()["Inventory"] = inv
+            for alias in _BACKCOMPAT_ITEM_NAMES:
+                globals()[alias] = inv
             return globals()[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-try:
-    from .user import User
-except Exception:  # pragma: no cover - import fallback for tests
-    User = None  # type: ignore
-try:
-    from .role import Role
-except Exception:  # pragma: no cover - import fallback for tests
-    Role = None  # type: ignore
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+__all__ = [
+    "db",
+    "User", "Role", "Organization", "Invoice",
+    "Employee", "Recruitment", "PerformanceReview",
+    "UserDashboard", "Order",
+    "Inventory", "Item", "InventoryItem", "Product", "StockItem",
+]
