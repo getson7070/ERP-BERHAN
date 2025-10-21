@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from statistics import mean, pstdev
 
 def _predict(series):
@@ -16,10 +17,15 @@ def _detect(xs, threshold):
         return []
     limit = mu + float(threshold) * sigma
     return [i for i, v in enumerate(xs) if v > limit]
+=======
+﻿# erp/analytics/__init__.py
+from statistics import mean, pstdev
+>>>>>>> Stashed changes
 
 class DemandForecaster:
     def __init__(self):
         self.series = []
+<<<<<<< Updated upstream
     def fit(self, series):
         self.series = list(series or [])
         return self
@@ -30,10 +36,24 @@ class DemandForecaster:
         return object.__getattribute__(self, name)
     def _predict_next_impl(self):
         return _predict(self.series)
+=======
+
+    def fit(self, series):
+        self.series = list(series or [])
+        return self
+
+    def predict_next(self):
+        s = self.series
+        if len(s) < 2:
+            return (s[-1] if s else 0)
+        diffs = [b - a for a, b in zip(s[:-1], s[1:])]
+        return s[-1] + round(mean(diffs))
+>>>>>>> Stashed changes
 
 class InventoryAnomalyDetector:
     def __init__(self, threshold: float = 2.0):
         self.threshold = float(threshold)
+<<<<<<< Updated upstream
     def __getattribute__(self, name):
         if name == "detect":
             return object.__getattribute__(self, "_detect_impl")
@@ -52,4 +72,24 @@ class _Task:
         return _retrain_and_predict(*a, **k)
 
 retrain_and_predict = _Task()
+=======
+
+    def detect(self, xs):
+        xs = list(xs or [])
+        if not xs:
+            return []
+        mu = mean(xs)
+        sigma = pstdev(xs) or 0.0
+        if not sigma:
+            return []
+        limit = mu + self.threshold * sigma
+        return [i for i, v in enumerate(xs) if v > limit]
+
+def retrain_and_predict(train_series, observed_series):
+    f = DemandForecaster().fit(train_series)
+    nxt = f.predict_next()
+    anomalies = InventoryAnomalyDetector(threshold=1.5).detect(observed_series)
+    return {"forecast": nxt, "anomalies": anomalies}
+
+>>>>>>> Stashed changes
 __all__ = ["DemandForecaster", "InventoryAnomalyDetector", "retrain_and_predict"]
