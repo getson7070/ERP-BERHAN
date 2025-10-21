@@ -52,7 +52,7 @@ def tenders():
     if request.headers.get("Authorization") != f"Bearer {token}":
         RATE_LIMIT_REJECTIONS.inc()
         return jsonify({"error": "unauthorized"}), 401
-    return jsonify([{"id": 1, "title": "Office Supplies"}])
+    return jsonify([{"id": 1, "title": "Tender A", "description": "Tender A"}])
 
 @api_bp.post("/graphql")
 def graphql():
