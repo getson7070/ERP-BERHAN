@@ -1,83 +1,39 @@
-# ERP-BERHAN — Phase 1 Upgrade Pack
 
-This bundle is additive and safe to merge into your repository. It delivers:
-- `/healthz` and `/readyz` endpoints (deterministic boot + probes)
-- Environment validation on startup (fail-fast for missing secrets)
-- Security defaults (cookie flags, safe headers hook)
-- Sentry bootstrap (no-op unless `SENTRY_DSN` is set)
-- CI checks for single-head Alembic migrations (prevents drift)
-- Tests for health endpoints and readiness checks
-- GitHub Actions workflow with ephemeral Postgres + Redis services
+# ERP‑BERHAN — Phase 1 Critical Update (Safe Overlay)
+Date: 2025-10-22
 
-> ✅ **No breaking changes**: files are additive under `erp/`, `tools/`, `tests/`, `.github/`, and `deploy/snippets/`.
-> After merge, point your app factory to call `apply_security_defaults(app)`, `validate_required_env()`, and register the `health` blueprint.
+This overlay is **additive** and designed to avoid breaking existing flows. It introduces:
+- Security headers (+ transitional CSP via env)
+- Request‑ID correlation (added to response headers)
+- Health endpoints: `/healthz` and `/readyz`
+- Optional rate‑limiting via Flask‑Limiter (auto‑no‑op if not installed or REDIS not set)
+- CI guardrails: Alembic single‑head check, gitleaks scanning, basic security tooling hooks
 
-## How to integrate quickly
+## What changes
+- New code under `erp/bootstrap_phase1.py`, `erp/middleware/*`, `erp/ops/health.py`, `erp/ext/limiter.py`
+- CI workflow: `.github/workflows/ci-phase1.yml`
+- Safety checks: `scripts/alembic_check.py`
+- Optional requirements: `requirements-optional.txt`
+- Wiring helper (idempotent): `scripts/phase1_wire.ps1`
 
-1. **Register health blueprint** in your app factory (or `wsgi.py` after the Flask app is created):
+## Environment toggles
+- `CSP` — Set entire CSP header string (optional). Defaults to a safe transitional policy that allows inline styles/scripts to minimize breakage. Improve to nonced CSP in Phase 2.
+- `PHASE1_ENABLE_LIMITER=true|false` — Enable Flask‑Limiter if available (default: true).
+- `PHASE1_RATE_LIMITS="200 per minute; 1000 per hour"` — Default limits when limiter is active.
+- `REDIS_URL` — If present and Flask‑Limiter is installed, used for storage. Otherwise in‑memory fallback.
+
+## Wiring the bootstrap (automatic attempt)
+`./scripts/phase1_wire.ps1` will try to inject the following into `erp/__init__.py` **just before the first `return app`** inside `def create_app(...)`:
 
 ```python
 try:
-    from erp.blueprints.health import bp as health_bp
-    app.register_blueprint(health_bp)
+    from erp.bootstrap_phase1 import apply_phase1_hardening
+    apply_phase1_hardening(app)
 except Exception as e:
-    app.logger.warning("Health blueprint not registered: %s", e)
+    app.logger.warning(f"Phase1 bootstrap skipped: {e}")
 ```
 
-2. **Fail-fast on missing envs** early during boot (before serving requests):
+If the script cannot safely patch, it prints a clear message and exact manual steps without modifying files.
 
-```python
-from erp.config_ext.validate_env import validate_required_env, REQUIRED_ENV_DEFAULT
-validate_required_env(REQUIRED_ENV_DEFAULT)
-```
-
-3. **Apply security defaults** (cookies & headers) once at init time:
-
-```python
-from erp.config_ext.security import apply_security_defaults, register_secure_headers
-apply_security_defaults(app)
-register_secure_headers(app)
-```
-
-4. **(Optional) Sentry** — enable if `SENTRY_DSN` is set:
-
-```python
-from erp.observability.sentry import init_sentry
-init_sentry(app)
-```
-
-5. **CI** — commit this bundle and push. The workflow in `.github/workflows/ci-phase1.yml` will:
-   - Start Postgres + Redis
-   - Run tests
-   - Gate on single-head Alembic (if `alembic.ini` exists)
-
-6. **Render Health Checks** — copy `deploy/snippets/render.healthchecks.yaml` into your existing `render.yaml`
-   service and set `healthCheckPath: /healthz`. If you have a readiness probe, map it to `/readyz` via webhooks or startup script.
-
-## Environment variables
-
-Copy `.env.example` to your environment (Render, App Runner, Docker) and fill real values:
-
-- `SECRET_KEY` — Flask secret key
-- `DATABASE_URL` — e.g., `postgresql+psycopg2://user:pass@host:5432/dbname`
-- `REDIS_URL` — e.g., `redis://host:6379/0`
-- `SENTRY_DSN` — *(optional)*
-- `DEPLOY_HOOK_URL` — *(optional; read from env, never commit secrets)*
-
-## Notes on Alembic
-
-The CI job `tools/ci/check_alembic_single_head.sh` enforces a **single** Alembic head.
-- If you currently have multiple heads, squash them into a single head **before** enabling enforce mode in CI.
-- The script detects `alembic.ini`. If absent, the check is skipped.
-
-## Quick test locally
-
-```bash
-pip install -r requirements.txt || true
-pip install -r requirements-phase1.txt
-pytest -q
-```
-
-## Support
-
-If `/readyz` returns 503 in dev/CI, check that Postgres and Redis are reachable via `DATABASE_URL` and `REDIS_URL`.
+## Safe rollback
+All overlay files are additive. If you need to rollback, simply delete the added files and revert the commit.

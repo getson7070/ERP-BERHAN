@@ -1,0 +1,6 @@
+
+# Optional, safe to skip if unavailable
+flask-limiter==3.8.0
+redis==5.0.8
+pip-audit==2.7.3
+bandit==1.7.9

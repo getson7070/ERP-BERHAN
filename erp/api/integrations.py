@@ -12,11 +12,20 @@ class _Counter:
 
 GRAPHQL_REJECTS = _Counter()
 
+# Prometheus (use real client if present; otherwise no-op)
 try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Gauge
+    try:
+        GRAPHQL_REJECTS_GAUGE  # may already exist
+    except NameError:
+        try:
+            GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)")
+        except ValueError:
+            GRAPHQL_REJECTS_GAUGE = REGISTRY._names_to_collectors.get("graphql_rejects_total")  # type: ignore
 except Exception:
     def generate_latest(): return b""
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+    GRAPHQL_REJECTS_GAUGE = None  # type: ignore
 
 def _authorized(req) -> bool:
     expected = os.environ.get("API_TOKEN", "")
@@ -37,6 +46,7 @@ def _max_depth(query: str) -> int:
     return peak
 
 def _complexity(query: str) -> int:
+    # Count selections of 'orders {'
     return len(re.findall(r"\borders\s*{", query))
 
 bp = Blueprint("integrations_api", __name__, url_prefix="/api")
@@ -58,12 +68,17 @@ def list_orders():
 @bp.post("/graphql")
 def graphql():
     payload = request.get_json(silent=True) or {}
-    query = payload.get("query", "") or ""
+    query = (payload.get("query") or "").strip()
     md = current_app.config.get("GRAPHQL_MAX_DEPTH", None)
     mc = current_app.config.get("GRAPHQL_MAX_COMPLEXITY", None)
 
     def _reject(msg):
         GRAPHQL_REJECTS._value.set(GRAPHQL_REJECTS._value.val + 1)
+        if GRAPHQL_REJECTS_GAUGE is not None:
+            try:
+                GRAPHQL_REJECTS_GAUGE.set(float(GRAPHQL_REJECTS._value.val))
+            except Exception:
+                pass
         return jsonify({"errors": [msg]}), 400
 
     if md is not None and _max_depth(query) > md:
@@ -102,8 +117,7 @@ def create_app() -> Flask:
     @app.get("/metrics")
     def metrics():
         body = generate_latest()
-        extra = f"
-graphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}
-".encode("utf-8")
+        # Mirror our counter even if Gauge isn't available
+        extra = (f"\ngraphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}\n").encode("utf-8")
         return (body + extra, 200, {"Content-Type": CONTENT_TYPE_LATEST})
     return app
