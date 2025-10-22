@@ -13,16 +13,10 @@ class _Counter:
 GRAPHQL_REJECTS = _Counter()
 
 try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Gauge
-    try:
-        GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)", registry=REGISTRY)
-    except ValueError:
-        GRAPHQL_REJECTS_GAUGE = REGISTRY._names_to_collectors.get("graphql_rejects_total")  # fallback if re-imported
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 except Exception:
     def generate_latest(): return b""
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
-    REGISTRY = None
-    GRAPHQL_REJECTS_GAUGE = None
 
 def _authorized(req) -> bool:
     expected = os.environ.get("API_TOKEN", "")
@@ -70,9 +64,6 @@ def graphql():
 
     def _reject(msg):
         GRAPHQL_REJECTS._value.set(GRAPHQL_REJECTS._value.val + 1)
-        if GRAPHQL_REJECTS_GAUGE is not None:
-            try: GRAPHQL_REJECTS_GAUGE.set(float(GRAPHQL_REJECTS._value.val))
-            except Exception: pass
         return jsonify({"errors": [msg]}), 400
 
     if md is not None and _max_depth(query) > md:
@@ -111,6 +102,8 @@ def create_app() -> Flask:
     @app.get("/metrics")
     def metrics():
         body = generate_latest()
-        extra = f"\\ngraphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}\\n".encode("utf-8")
+        extra = f"
+graphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}
+".encode("utf-8")
         return (body + extra, 200, {"Content-Type": CONTENT_TYPE_LATEST})
     return app
