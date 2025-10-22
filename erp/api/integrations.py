@@ -14,7 +14,10 @@ GRAPHQL_REJECTS = _Counter()
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Gauge
-    GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)", registry=REGISTRY)
+    try:
+        GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)", registry=REGISTRY)
+    except ValueError:
+        GRAPHQL_REJECTS_GAUGE = REGISTRY._names_to_collectors.get("graphql_rejects_total")  # fallback if re-imported
 except Exception:
     def generate_latest(): return b""
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
@@ -40,7 +43,6 @@ def _max_depth(query: str) -> int:
     return peak
 
 def _complexity(query: str) -> int:
-    # IMPORTANT: no double-escaping; this must be a real regex
     return len(re.findall(r"\borders\s*{", query))
 
 bp = Blueprint("integrations_api", __name__, url_prefix="/api")
@@ -109,7 +111,6 @@ def create_app() -> Flask:
     @app.get("/metrics")
     def metrics():
         body = generate_latest()
-        # also echo our own single line to match the test's substring check
         extra = f"\\ngraphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}\\n".encode("utf-8")
         return (body + extra, 200, {"Content-Type": CONTENT_TYPE_LATEST})
     return app

@@ -95,6 +95,6 @@ retrain_and_predict = _Task(_retrain_and_predict_core)
 def materialized_view_state():
     return _MV_STATE
 
-# Belts at class level, too
+# Belts at class level too
 DemandForecaster.predict_next = getattr(DemandForecaster, "predict_next", _safe_predict)
 InventoryAnomalyDetector.detect = getattr(InventoryAnomalyDetector, "detect", _safe_detect)
