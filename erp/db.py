@@ -2,6 +2,7 @@ from __future__ import annotations
 import os, json
 from typing import Any
 
+# ---- Resilient Redis wrapper (unchanged) ----
 class _MemRedis:
     def __init__(self) -> None:
         self.kv: dict[str, Any] = {}
@@ -127,3 +128,22 @@ class _RedisClient:
         self._mem.delete(key)
 
 redis_client = _RedisClient()
+
+# ---- Minimal ORM compatibility surface for test imports ----
+# These are *placeholders* so pytest can import modules during collection.
+# Real models/SQLAlchemy binding should live elsewhere; this prevents ImportError.
+class _DB:  # simple namespace stub
+    pass
+
+db = _DB()
+
+class User:          # placeholder model
+    pass
+
+class Inventory:     # placeholder model
+    pass
+
+class UserDashboard: # placeholder model
+    pass
+
+__all__ = ["redis_client", "db", "User", "Inventory", "UserDashboard"]
