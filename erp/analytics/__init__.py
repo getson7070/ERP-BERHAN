@@ -34,8 +34,17 @@ class InventoryAnomalyDetector:
         limit = mu + self.threshold * sigma
         return [i for i, v in enumerate(xs) if v > limit]
 
-def retrain_and_predict(train_series: Iterable[float], observed_series: Iterable[float]) -> Dict[str, Any]:
+def _predict(train_series: Iterable[float], observed_series: Iterable[float]) -> Dict[str, Any]:
     f = DemandForecaster().fit(train_series)
     nxt = f.predict_next()
     anomalies = InventoryAnomalyDetector(threshold=1.5).detect(observed_series)
     return {"forecast": nxt, "anomalies": anomalies}
+
+class _Task:
+    def run(self, train_series: Iterable[float], observed_series: Iterable[float]) -> Dict[str, Any]:
+        return _predict(train_series, observed_series)
+
+def retrain_and_predict_func(train_series: Iterable[float], observed_series: Iterable[float]) -> Dict[str, Any]:
+    return _predict(train_series, observed_series)
+
+retrain_and_predict = _Task()
