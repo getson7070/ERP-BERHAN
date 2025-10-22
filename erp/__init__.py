@@ -4,54 +4,62 @@ import os, json, time
 
 from .metrics import (
     GRAPHQL_REJECTS, RATE_LIMIT_REJECTIONS, QUEUE_LAG, AUDIT_CHAIN_BROKEN,
-    OLAP_EXPORT_SUCCESS as _OLAP_EXPORT_SUCCESS,
+    OLAP_EXPORT_SUCCESS as _OLAP_EXPORT_SUCCESS
 )
 OLAP_EXPORT_SUCCESS = _OLAP_EXPORT_SUCCESS
 
-# Use the single shared redis client from erp.db if available
-try:
-    from .db import redis_client as _shared_redis
-except Exception:
-    _shared_redis = None
-
 class _MemRedis:
-    def __init__(self): self.kv = {}
-    def delete(self, key): self.kv.pop(key, None)
-    def rpush(self, key, *vals):
-        self.kv.setdefault(key, [])
-        for v in vals: self.kv[key].append(v)
-        return len(self.kv[key])
-    def lpush(self, key, *vals):
-        self.kv.setdefault(key, [])
-        for v in vals: self.kv[key].insert(0, v)
-        return len(self.kv[key])
-    def lrange(self, key, start, end):
-        data = list(self.kv.get(key, []))
-        return data[start:(end + 1 if end != -1 else None)]
-    def llen(self, key): return len(self.kv.get(key, []))
-    def sadd(self, key, val):
-        s = self.kv.setdefault(key, set()); s.add(val)
-    def sismember(self, key, val):
-        return val in self.kv.get(key, set())
+    def __init__(self):
+        self.kv = {}
 
-redis_client = _shared_redis if _shared_redis is not None else _MemRedis()
+    def delete(self, key):
+        self.kv.pop(key, None)
+
+    def _as_list(self, key):
+        v = self.kv.get(key)
+        if isinstance(v, list):
+            return v
+        lst = list(v) if isinstance(v, (set, tuple)) else ([] if v is None else [v])
+        self.kv[key] = lst
+        return lst
+
+    def rpush(self, key, *vals):
+        lst = self._as_list(key)
+        for v in vals:
+            lst.append(v)
+        return len(lst)
+
+    def lrange(self, key, start, end):
+        data = list(self._as_list(key))
+        return data[start:(end+1 if end != -1 else None)]
+
+    def llen(self, key):
+        return len(self._as_list(key))
+
+    def sadd(self, key, val):
+        s = self.kv.get(key)
+        if not isinstance(s, set):
+            s = set()
+            self.kv[key] = s
+        s.add(val)
+
+    def sismember(self, key, val):
+        s = self.kv.get(key)
+        return isinstance(s, set) and (val in s)
+
+redis_client = _MemRedis()
 _IDEM_SEEN = set()
 
 def _dead_letter_handler(sender=None, task_id=None, exception=None, args=None, kwargs=None, **extra):
     payload = {
         "sender": getattr(sender, "name", str(sender)),
-        "task_id": task_id,
-        "exception": (str(exception) if exception else None),
-        "args": list(args or []),
-        "kwargs": dict(kwargs or {}),
+        "task_id": task_id, "exception": str(exception),
+        "args": list(args or []), "kwargs": dict(kwargs or {}),
         "ts": time.time(),
     }
     js = json.dumps(payload)
-    # push to both keys; tests read "dead_letter"
-    try: redis_client.rpush("dead_letter", js)
-    except Exception: pass
-    try: redis_client.rpush("dead-letter", js)
-    except Exception: pass
+    redis_client.rpush("dead_letter", js)
+    redis_client.rpush("dead-letter", js)
 
 socketio = SimpleNamespace(emit=lambda *a, **k: None)
 
@@ -67,6 +75,7 @@ def create_app():
     from .routes.integration import bp as integration_bp
     from .routes.recall import bp as recall_bp
     from .api.webhook import api_bp
+    from .api.integrations import bp as integrations_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(metrics_bp)
@@ -76,6 +85,7 @@ def create_app():
     app.register_blueprint(integration_bp)
     app.register_blueprint(recall_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(integrations_bp)
 
     @app.route("/idem", methods=["POST"])
     def _idem():

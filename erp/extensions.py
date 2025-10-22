@@ -1,38 +1,43 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+from typing import Any, Callable
 
-# Reuse the single SQLAlchemy instance defined in erp.db
+# --- CSRF ---
 try:
-    from .db import db  # shared instance
+    from flask_wtf import CSRFProtect  # type: ignore
+    csrf: Any = CSRFProtect()
 except Exception:
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
+    class _CSRF:
+        def init_app(self, app: Any) -> None: ...
+        def exempt(self, f: Callable) -> Callable:  # used as @csrf.exempt
+            return f
+    csrf = _CSRF()
 
-from flask_login import LoginManager
-login_manager = LoginManager()
-login_manager.login_view = "auth.login"
-login_manager.session_protection = "strong"
-
-@login_manager.user_loader
-def _load_user(user_id: str):
+# --- Rate Limiter ---
+try:
+    from flask_limiter import Limiter  # type: ignore
     try:
-        from .models import User
-        return User.query.get(int(user_id))
+        # v2 API prefers a key_func
+        from flask_limiter.util import get_remote_address  # type: ignore
+        limiter: Any = Limiter(key_func=get_remote_address)
     except Exception:
-        return None
-
-# --- Rate limiting ---
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    limiter = Limiter(key_func=get_remote_address)  # init_app() called in create_app()
+        # older API
+        limiter = Limiter()
 except Exception:
-    # Fallback no-op so imports/decorators don't crash in minimal envs
-    class _NoopLimiter:
-        def limit(self, *a, **k):
-            def deco(f): return f
+    class _Limiter:
+        def __init__(self) -> None:
+            self._filters = []
+        def init_app(self, app: Any) -> None: ...
+        def limit(self, *args: Any, **kwargs: Any):
+            def deco(f: Callable) -> Callable:
+                return f
             return deco
-        def init_app(self, *a, **k): pass
-    limiter = _NoopLimiter()
-# --- /Rate limiting ---
+        def request_filter(self, fn: Callable) -> Callable:
+            self._filters.append(fn)
+            return fn
+    limiter = _Limiter()
 
-
+# --- Expose SQLAlchemy-like db shim for tests that import it here ---
+try:
+    from .db import db  # type: ignore
+except Exception:
+    db = None  # type: ignore
