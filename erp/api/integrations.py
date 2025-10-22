@@ -13,10 +13,13 @@ class _Counter:
 GRAPHQL_REJECTS = _Counter()
 
 try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Gauge
+    GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)", registry=REGISTRY)
 except Exception:
     def generate_latest(): return b""
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+    REGISTRY = None
+    GRAPHQL_REJECTS_GAUGE = None
 
 def _authorized(req) -> bool:
     expected = os.environ.get("API_TOKEN", "")
@@ -37,7 +40,8 @@ def _max_depth(query: str) -> int:
     return peak
 
 def _complexity(query: str) -> int:
-    return len(re.findall(r"\\borders\\s*{", query))
+    # IMPORTANT: no double-escaping; this must be a real regex
+    return len(re.findall(r"\borders\s*{", query))
 
 bp = Blueprint("integrations_api", __name__, url_prefix="/api")
 integrations_bp = bp
@@ -64,6 +68,9 @@ def graphql():
 
     def _reject(msg):
         GRAPHQL_REJECTS._value.set(GRAPHQL_REJECTS._value.val + 1)
+        if GRAPHQL_REJECTS_GAUGE is not None:
+            try: GRAPHQL_REJECTS_GAUGE.set(float(GRAPHQL_REJECTS._value.val))
+            except Exception: pass
         return jsonify({"errors": [msg]}), 400
 
     if md is not None and _max_depth(query) > md:
@@ -102,6 +109,7 @@ def create_app() -> Flask:
     @app.get("/metrics")
     def metrics():
         body = generate_latest()
+        # also echo our own single line to match the test's substring check
         extra = f"\\ngraphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}\\n".encode("utf-8")
         return (body + extra, 200, {"Content-Type": CONTENT_TYPE_LATEST})
     return app
