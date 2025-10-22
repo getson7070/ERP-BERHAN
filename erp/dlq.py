@@ -10,24 +10,25 @@ def _dead_letter_handler(sender: Any, task_id: str, exception: Exception, args: 
         "args": args,
         "kwargs": kwargs,
     }
-    payload = json.dumps(entry)
+    payload_b = json.dumps(entry).encode("utf-8")
 
-    clients = []
     try:
-        from erp.db import redis_client as c0
-        clients.append(c0)
+        from erp.db import redis_client
     except Exception:
-        pass
-    try:
-        from db import redis_client as c1
-        if 'c0' not in locals() or c1 is not c0:
-            clients.append(c1)
-    except Exception:
-        pass
-
-    for cli in clients:
         try:
-            cli.lpush("dead_letter", payload)
-            cli.lpush("dead_letter", payload.encode("utf-8", "ignore"))
+            from db import redis_client
         except Exception:
-            pass
+            redis_client = None
+
+    if not redis_client:
+        return
+
+    try:
+        redis_client.lpush("dead_letter", payload_b)
+        return
+    except Exception:
+        pass
+    try:
+        redis_client.lpush("dead_letter", payload_b.decode("utf-8", "ignore"))
+    except Exception:
+        pass

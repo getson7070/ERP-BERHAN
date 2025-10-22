@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, List
+from typing import Iterable, List, Iterable as _Iterable
 import statistics as stats
 from datetime import datetime, timezone
 import types
@@ -16,7 +16,8 @@ def _safe_detect(self, data):
         return []
     mu = stats.mean(xs)
     sigma = stats.pstdev(xs) or 1e-12
-    return [x for x in xs if abs((x - mu) / sigma) >= getattr(self, "threshold", 3.0)]
+    threshold = getattr(self, "threshold", 3.0)
+    return [x for x in xs if abs((x - mu) / sigma) >= threshold]
 
 class DemandForecaster:
     def __init__(self) -> None:
@@ -29,7 +30,7 @@ class DemandForecaster:
             try:
                 fn = DemandForecaster.__dict__.get("predict_next")
             except Exception:
-                pass
+                fn = None
             if not callable(fn):
                 fn = _safe_predict
             return types.MethodType(fn, self)
@@ -62,7 +63,7 @@ class InventoryAnomalyDetector:
             try:
                 fn = InventoryAnomalyDetector.__dict__.get("detect")
             except Exception:
-                pass
+                fn = None
             if not callable(fn):
                 fn = _safe_detect
             return types.MethodType(fn, self)
@@ -73,7 +74,7 @@ class InventoryAnomalyDetector:
             return types.MethodType(_safe_detect, self)
         raise AttributeError(name)
 
-    def detect(self, data: Iterable[float]) -> List[float]:
+    def detect(self, data: _Iterable[float]):
         return _safe_detect(self, data)
 
 def _retrain_and_predict_core(history: Iterable[float], inventory_series: Iterable[float], anomaly_threshold: float = 2.0):
@@ -95,6 +96,5 @@ retrain_and_predict = _Task(_retrain_and_predict_core)
 def materialized_view_state():
     return _MV_STATE
 
-# Belts at class level too
 DemandForecaster.predict_next = getattr(DemandForecaster, "predict_next", _safe_predict)
 InventoryAnomalyDetector.detect = getattr(InventoryAnomalyDetector, "detect", _safe_detect)
