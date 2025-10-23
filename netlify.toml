@@ -1,8 +1,7 @@
 [build]
-  # adjust these to your real frontend build if you have one
-  command = "npm run build"
-  publish = "dist"
+  command = "bash -lc 'echo No frontend build in Phase 1.1; exit 0'"
+  publish = "netlify-blank"
 
-  # Skip Netlify build when frontend files did NOT change.
-  # Netlify ?ignore? command: exit 0 => skip; non-zero => run.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- web/** ui/** frontend/** package.json package-lock.json pnpm-lock.yaml yarn.lock"
+  # Skip Netlify if FE didn?t change; also skip if there?s no cached commit yet.
+  # Netlify rule: ignore exits 0 => build is skipped; non-zero => build runs.
+  ignore = "bash -lc 'if [ -z \"$CACHED_COMMIT_REF\" ]; then echo no cached commit; exit 0; fi; git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- web/** ui/** frontend/** package.json package-lock.json pnpm-lock.yaml yarn.lock'"
