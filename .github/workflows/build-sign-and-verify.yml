@@ -1,0 +1,41 @@
+name: build-sign-and-verify
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write   # needed for keyless cosign
+  attestations: write
+jobs:
+  build-sign-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build deterministic artifact
+        run: |
+          mkdir -p dist
+          tar --sort=name --mtime='UTC 2020-01-01' --owner=0 --group=0               -czf dist/erp-source.tgz               erp/ requirements.txt gunicorn.conf.py || true
+          echo "Built dist/erp-source.tgz"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: cosign sign-blob (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign-blob --yes dist/erp-source.tgz --output-signature dist/erp-source.tgz.sig
+
+      - name: cosign verify-blob
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign verify-blob --certificate-identity-regexp '.*' --certificate-oidc-issuer-regexp '.*'             --signature dist/erp-source.tgz.sig dist/erp-source.tgz
+
+      - name: Upload artifact & signature
+        uses: actions/upload-artifact@v4
+        with:
+          name: erp-signed-artifact
+          path: dist/*

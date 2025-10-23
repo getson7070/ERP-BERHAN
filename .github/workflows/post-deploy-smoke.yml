@@ -1,0 +1,25 @@
+name: post-deploy-smoke
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL of deployed app (e.g., https://erp.example.com)"
+        required: true
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install requests
+      - name: Run smoke suite (auto-fail on errors)
+        env:
+          SMOKE_BASE_URL: ${{ github.event.inputs.base_url }}
+          SMOKE_ADMIN_USER: ${{ secrets.SMOKE_ADMIN_USER }}
+          SMOKE_ADMIN_PASS: ${{ secrets.SMOKE_ADMIN_PASS }}
+        run: python scripts/smoke/smoke_suite.py

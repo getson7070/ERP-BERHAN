@@ -1,0 +1,18 @@
+name: rbac-policy-check
+on:
+  pull_request:
+    branches: [ "main" ]
+permissions:
+  contents: read
+jobs:
+  rbac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install yaml
+        run: pip install pyyaml
+      - name: Validate RBAC policy
+        run: python scripts/ci/validate_rbac.py
