@@ -8,7 +8,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  perf:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "perf muted for Phase 1.1"
+      - run: echo "deploy muted for Phase 1.1"
