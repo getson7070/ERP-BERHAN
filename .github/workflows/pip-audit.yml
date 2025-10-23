@@ -1,0 +1,49 @@
+name: pip-audit (Python vulnerabilities)
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Start as non-blocking; flip to false later to enforce
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Resolve environment
+        run: |
+          if [ -f requirements.txt ]; then
+            echo "REQ=requirements.txt" >> $GITHUB_ENV
+          elif ls requirements*.txt >/dev/null 2>&1; then
+            echo "REQ=$(ls requirements*.txt | head -n 1)" >> $GITHUB_ENV
+          elif [ -f pyproject.toml ]; then
+            echo "REQ=pyproject.toml" >> $GITHUB_ENV
+          else
+            echo "REQ=" >> $GITHUB_ENV
+          fi
+      - name: Run pip-audit
+        run: |
+          if [ -n "$REQ" ] && [ "$REQ" != "pyproject.toml" ]; then
+            echo "Auditing with -r $REQ"
+            pip-audit -r "$REQ"
+          else
+            echo "Auditing current environment"
+            pip-audit
+          fi
