@@ -1,41 +1,11 @@
-name: Codex – auto-merge PRs
-
+name: Codex ? auto-merge PRs
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
-
+  push:
 permissions:
-  contents: write
-  pull-requests: write
-
+  contents: read
 jobs:
   auto:
     runs-on: ubuntu-latest
     steps:
-      - name: Decide eligibility (Codex PR or branch)
-        id: elig
-        run: |
-          AUTHOR_TYPE="${{ github.event.pull_request.user.type }}"
-          HEAD_REF="${{ github.event.pull_request.head.ref }}"
-          if [[ "$AUTHOR_TYPE" == "Bot" ]] || [[ "$HEAD_REF" == *codex* ]] || [[ "$HEAD_REF" == "work" ]]; then
-            echo "ok=true" >> $GITHUB_OUTPUT
-          else
-            echo "ok=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Add label for visibility
-        if: steps.elig.outputs.ok == 'true'
-        uses: actions-ecosystem/action-add-labels@v1
-        with:
-          labels: automerge
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Merge when checks (if any) are green
-        if: steps.elig.outputs.ok == 'true'
-        uses: peter-evans/merge@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          pull-request: ${{ github.event.pull_request.number }}
-          merge-method: squash            # change to 'merge' or 'rebase' if you prefer
-          commit-message: pull-request-title
-          required-status-checks-passed: true
+      - run: echo "Auto-merge bot muted for this repo."

@@ -1,38 +1,44 @@
-#!/usr/bin/env python3
-# This script fails CI if the Alembic migrations directory has more than one head.
-# It does NOT connect to a database and will not create any migrations.
-import subprocess, sys
+﻿#!/usr/bin/env python3
+import sys
+from pathlib import Path
 
-def run(cmd):
-    r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    return r.returncode, r.stdout.strip()
+def find_versions_dirs(root: Path):
+    # Any folder named "versions" under an "alembic" dir is a candidate
+    candidates = []
+    for v in root.rglob("versions"):
+        if (v.parent / "env.py").exists():
+            candidates.append(v)
+    return candidates
+
+def check_single_heads(versions_dir: Path) -> list[str]:
+    # Use Alembic's script loader directly from the migration dir
+    from alembic.script import ScriptDirectory
+    script = ScriptDirectory(str(versions_dir.parent))
+    heads = list(script.get_heads())
+    if len(heads) <= 1:
+        return []
+    return heads
 
 def main():
-    code, out = run(["alembic", "heads", "-q"])
-    if code != 0:
-        print("ERROR: failed to run 'alembic heads -q'\n\n" + out)
-        sys.exit(1)
-
-    heads = [line.strip() for line in out.splitlines() if line.strip()]
-    unique_heads = []
-    for h in heads:
-        if h not in unique_heads:
-            unique_heads.append(h)
-
-    count = len(unique_heads)
-    print(f"Detected Alembic heads: {count}")
-    for h in unique_heads:
-        print(f"  - {h}")
-
-    if count > 1:
-        print("\nFAIL: Multiple migration heads detected. Please create a merge revision to converge to a single head.")
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = find_versions_dirs(repo_root)
+    if not candidates:
+        print("ERROR: No Alembic migrations found (no */alembic/versions directories).", file=sys.stderr)
         sys.exit(2)
 
-    if count == 0:
-        print("WARN: No heads detected. Ensure Alembic is configured correctly and versions exist.")
-        sys.exit(0)
+    failures = []
+    for vdir in candidates:
+        heads = check_single_heads(vdir)
+        if heads:
+            failures.append((vdir, heads))
 
-    print("PASS: Single migration head enforced.")
+    if failures:
+        print("FAIL: Multiple heads detected.")
+        for vdir, heads in failures:
+            print(f" - {vdir}: {heads}")
+        sys.exit(1)
+
+    print("OK: Single head per migration tree.")
     sys.exit(0)
 
 if __name__ == "__main__":
