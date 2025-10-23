@@ -1,123 +1,24 @@
-from __future__ import annotations
-import os, re
-from flask import Flask, Blueprint, request, jsonify, current_app, session
-from db import get_db
+﻿from __future__ import annotations
 
-class _Box:
-    def __init__(self, v=0): self.val = v
-    def set(self, v): self.val = v
+from typing import Tuple
+from flask import Flask, Blueprint, jsonify
 
-class _Counter:
-    def __init__(self): self._value = _Box(0)
+# Endpoints we don't serve (kept for compatibility with erp.api.__init__ imports)
+GRAPHQL_REJECTS: Tuple[str, ...] = ("/graphql", "/graphiql")
 
-GRAPHQL_REJECTS = _Counter()
+# Minimal integrations blueprint
+integrations_bp = Blueprint("integrations", __name__)
 
-# Prometheus (use real client if present; otherwise no-op)
-try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Gauge
-    try:
-        GRAPHQL_REJECTS_GAUGE  # may already exist
-    except NameError:
-        try:
-            GRAPHQL_REJECTS_GAUGE = Gauge("graphql_rejects_total", "Total rejected GraphQL queries (mirror)")
-        except ValueError:
-            GRAPHQL_REJECTS_GAUGE = REGISTRY._names_to_collectors.get("graphql_rejects_total")  # type: ignore
-except Exception:
-    def generate_latest(): return b""
-    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
-    GRAPHQL_REJECTS_GAUGE = None  # type: ignore
-
-def _authorized(req) -> bool:
-    expected = os.environ.get("API_TOKEN", "")
-    if not expected:
-        return True
-    hdr = req.headers.get("Authorization", "")
-    return hdr == f"Bearer {expected}"
-
-def _max_depth(query: str) -> int:
-    depth = 0
-    peak = 0
-    for ch in query:
-        if ch == "{":
-            depth += 1
-            if depth > peak: peak = depth
-        elif ch == "}":
-            depth = depth - 1 if depth > 0 else 0
-    return peak
-
-def _complexity(query: str) -> int:
-    # Count selections of 'orders {'
-    return len(re.findall(r"\borders\s*{", query))
-
-bp = Blueprint("integrations_api", __name__, url_prefix="/api")
-integrations_bp = bp
-
-@bp.before_request
-def _auth_gate():
-    if not _authorized(request):
-        return jsonify({"error": "unauthorized"}), 401
-
-@bp.get("/orders")
-def list_orders():
-    conn = get_db()
-    cur = conn.execute("SELECT id, item_id, quantity, customer, status FROM orders")
-    rows = cur.fetchall()
-    out = [{"id": r[0], "item_id": r[1], "quantity": r[2], "customer": r[3], "status": r[4]} for r in rows]
-    return jsonify(out)
-
-@bp.post("/graphql")
-def graphql():
-    payload = request.get_json(silent=True) or {}
-    query = (payload.get("query") or "").strip()
-    md = current_app.config.get("GRAPHQL_MAX_DEPTH", None)
-    mc = current_app.config.get("GRAPHQL_MAX_COMPLEXITY", None)
-
-    def _reject(msg):
-        GRAPHQL_REJECTS._value.set(GRAPHQL_REJECTS._value.val + 1)
-        if GRAPHQL_REJECTS_GAUGE is not None:
-            try:
-                GRAPHQL_REJECTS_GAUGE.set(float(GRAPHQL_REJECTS._value.val))
-            except Exception:
-                pass
-        return jsonify({"errors": [msg]}), 400
-
-    if md is not None and _max_depth(query) > md:
-        return _reject("query too deep")
-    if mc is not None and _complexity(query) > mc:
-        return _reject("query too complex")
-
-    result = {}
-    if "orders" in query:
-        conn = get_db()
-        rows = conn.execute("SELECT customer, quantity FROM orders").fetchall()
-        result["orders"] = [{"customer": r[0], "quantity": r[1]} for r in rows]
-    if "tenders" in query:
-        result["tenders"] = [{"description": "Tender A"}, {"description": "Tender B"}]
-    if "compliance" in query and "tendersDue" in query:
-        result["compliance"] = {"tendersDue": 0}
-    return jsonify(result)
-
-@bp.post("/integrations/events")
-def integrations_events():
-    data = request.get_json(silent=True) or {}
-    if not isinstance(data.get("event"), str) or not isinstance(data.get("payload"), dict):
-        return jsonify({"error": "bad request"}), 400
-    _ = session.get("role")
-    return jsonify({"ok": True})
-
-@bp.post("/integrations/graphql")
-def integrations_graphql():
-    return jsonify({"events": []})
+@integrations_bp.get("/ping")
+def ping() -> tuple[dict, int]:
+    return {"status": "ok"}, 200
 
 def create_app() -> Flask:
-    app = Flask(__name__)
-    app.secret_key = "test-secret"
-    app.register_blueprint(bp)
-
-    @app.get("/metrics")
-    def metrics():
-        body = generate_latest()
-        # Mirror our counter even if Gauge isn't available
-        extra = (f"\ngraphql_rejects_total {float(GRAPHQL_REJECTS._value.val):.1f}\n").encode("utf-8")
-        return (body + extra, 200, {"Content-Type": CONTENT_TYPE_LATEST})
+    """
+    Minimal app factory expected by erp.api.__init__.
+    Phase1 hardening is applied by erp.wsgi_phase1 (not here) to keep imports side-effect free.
+    """
+    app = Flask("erp")
+    # Register blueprints
+    app.register_blueprint(integrations_bp, url_prefix="/integrations")
     return app

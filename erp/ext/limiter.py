@@ -1,40 +1,27 @@
+﻿from __future__ import annotations
 
 import os
+from typing import List
 
-def _noop(*args, **kwargs):
-    class Noop:
-        def init_app(self, app):
-            app.logger.warning("Limiter not installed; skipping.")
-    return Noop()
+def _parse_limits(raw: str) -> List[str]:
+    parts = [p.strip() for p in raw.split(";") if p.strip()]
+    return parts or ["200 per minute"]
 
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    _HAVE_LIMITER = True
-except Exception:
-    _HAVE_LIMITER = False
-    Limiter = None
-    get_remote_address = None
+def install_limiter(app):
+    try:
+        from flask_limiter import Limiter
+        from flask_limiter.util import get_remote_address
+    except Exception as e:  # pragma: no cover
+        raise RuntimeError("flask-limiter not installed") from e
 
-limiter = _noop()
+    limits = _parse_limits(os.environ.get("PHASE1_RATE_LIMITS", "200 per minute"))
+    storage_uri = os.environ.get("PHASE1_LIMITER_STORAGE_URI")  # optional (e.g., redis://...)
 
-def configure_rate_limits(app):
-    """Configure limiter if installed; otherwise keep no-op."""
-    global limiter
-    if not _HAVE_LIMITER:
-        limiter = _noop()
-        return
-
-    enabled = os.getenv("PHASE1_ENABLE_LIMITER", "true").lower() in {"1","true","yes","on"}
-    if not enabled:
-        limiter = _noop()
-        return
-
-    default_limits = os.getenv("PHASE1_RATE_LIMITS", "200 per minute")
-    limits = [s.strip() for s in default_limits.split(";") if s.strip()]
-    storage_uri = os.getenv("REDIS_URL", None)
-
+    kwargs = {"key_func": get_remote_address, "default_limits": limits}
     if storage_uri:
-        limiter = Limiter(key_func=get_remote_address, default_limits=limits, storage_uri=storage_uri)
-    else:
-        limiter = Limiter(key_func=get_remote_address, default_limits=limits)  # in-memory fallback
+        kwargs["storage_uri"] = storage_uri
+
+    limiter = Limiter(**kwargs)
+    limiter.init_app(app)
+    app.logger.info("Phase1: limiter enabled with %s", ", ".join(limits))
+    return limiter
