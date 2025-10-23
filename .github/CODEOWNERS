@@ -1,0 +1,23 @@
+# CODEOWNERS for ERP-BERHAN (Phase 1)
+# GitHub reads this file to require reviews from listed owners for matching paths.
+# Adjust handles/emails to your actual reviewers.
+# Format: <pattern> <owner1> <owner2>
+
+# Global owners for critical infra
+/.github/workflows/  @getson7070  @ethiosura
+
+# Core app
+/erp/**              @getson7070  @ethiosura
+/finance/**          @getson7070  @ethiosura
+
+# Migrations & DB
+/migrations/**       @getson7070  @ethiosura
+/scripts/migrations/** @getson7070  @ethiosura
+/alembic.ini         @getson7070  @ethiosura
+
+# Security & policies
+/policy/**           @getson7070  @ethiosura
+/.gitleaks.toml      @getson7070  @ethiosura
+
+# Default fallback
+*                    @getson7070

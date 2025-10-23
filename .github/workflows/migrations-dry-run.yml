@@ -1,0 +1,37 @@
+name: migrations-dry-run
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  alembic-dry-run:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: erp_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install alembic psycopg[binary]; fi
+      - name: Alembic heads & reversible check
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/erp_ci
+        run: |
+          python scripts/ci/alembic_guard.py
