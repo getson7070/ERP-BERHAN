@@ -1,4 +1,6 @@
-﻿from __future__ import annotations
+﻿from erp.auth.mfa_routes import bp as mfa_bp
+from erp.ops.doctor import bp as doctor_bp
+from __future__ import annotations
 import importlib, pkgutil, os
 from flask import Flask, Response
 from .extensions import csrf, limiter, login_manager, db
@@ -49,3 +51,27 @@ def create_app(config: dict | None = None) -> Flask:
     return app
 
 __all__ = ["create_app", "redis_client"]
+
+
+# --- [autogen] SocketIO export invariant (idempotent) ---
+try:
+    from flask_socketio import SocketIO  # type: ignore
+    if "socketio" not in globals():
+        _app_for_socket = None
+        try:
+            if "create_app" in globals():
+                _app_for_socket = create_app(testing=True) if "testing" in create_app.__code__.co_varnames else create_app()
+        except Exception:
+            _app_for_socket = None
+        socketio = SocketIO(_app_for_socket, cors_allowed_origins="*")  # noqa: F401
+        try:
+            __all__  # noqa
+        except NameError:
+            __all__ = []
+        if "socketio" not in __all__:
+            __all__.append("socketio")
+except Exception as _e:
+    pass
+# --- [/autogen] ---
+
+
