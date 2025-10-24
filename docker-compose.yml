@@ -1,23 +1,41 @@
 version: "3.9"
+
 services:
   web:
     build:
       context: .
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      # Inside the compose network, talk to Postgres at host "db" on 5432
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/erp
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
+
   db:
-    image: postgres:15
+    image: postgres:16
+    container_name: erp-pg
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: erp
       POSTGRES_DB: erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # (Optional but tidy) make host auth scram and local trust on first init
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=trust"
+    # Expose to the Windows host ONLY if you want to connect from your host tools
+    ports:
+      - "55432:5432"
     volumes:
-      - dbdata:/var/lib/postgresql/data
+      - erp-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "erp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: always
+
 volumes:
-  dbdata:
+  erp-pgdata:
