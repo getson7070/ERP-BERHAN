@@ -1,6 +1,8 @@
-﻿from erp.auth.mfa_routes import bp as mfa_bp
+﻿from __future__ import annotations
+from erp.ops.status import bp as status_bp
 from erp.ops.doctor import bp as doctor_bp
-from __future__ import annotations
+from erp.auth.mfa_routes import bp as mfa_bp
+
 import importlib, pkgutil, os
 from flask import Flask, Response
 from .extensions import csrf, limiter, login_manager, db
@@ -48,6 +50,9 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/healthz")
     def _healthz():
         return {"ok": True}
+    app.register_blueprint(status_bp)
+    app.register_blueprint(doctor_bp)
+    app.register_blueprint(mfa_bp)
     return app
 
 __all__ = ["create_app", "redis_client"]
@@ -73,5 +78,8 @@ try:
 except Exception as _e:
     pass
 # --- [/autogen] ---
+
+
+
 
 

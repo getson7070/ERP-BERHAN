@@ -1,4 +1,7 @@
-﻿import eventlet
+﻿from erp.ops.status import bp as status_bp
+from erp.ops.doctor import bp as doctor_bp
+from erp.auth.mfa_routes import bp as mfa_bp
+import eventlet
 eventlet.monkey_patch()
 
 from erp import create_app
@@ -34,5 +37,6 @@ try:
 except Exception as e:
     app.logger.warning(f"bots_bp not registered: {e}")
 # === /9.8 patch ===
+
 
 
