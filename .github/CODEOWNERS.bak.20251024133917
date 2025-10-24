@@ -1,9 +1,0 @@
-# CODEOWNERS — enforced reviewers for critical paths
-# NOTE: Branch protection must mark CODEOWNERS as required reviewers.
-# Adjust handles as needed.
-/erp/ @getson7070
-/finance/ @getson7070
-/migrations/ @getson7070
-/.github/workflows/ @getson7070
-/policy/ @getson7070
-* @getson7070
