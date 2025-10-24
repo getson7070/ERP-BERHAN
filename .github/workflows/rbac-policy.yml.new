@@ -1,0 +1,27 @@
+name: RBAC Policy Lint
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "policy/**"
+      - "tools/rbac_linter.py"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install linter deps
+        run: |
+          python -m pip install --upgrade pip pyyaml
+      - name: Lint RBAC policy
+        run: |
+          if [ ! -f policy/rbac.yml ]; then
+            echo "policy/rbac.yml missing"; exit 1;
+          fi
+          python tools/rbac_linter.py policy/rbac.yml || exit 1

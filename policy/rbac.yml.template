@@ -1,0 +1,24 @@
+# RBAC policy (Phase-1 template). Replace with your real roles/permissions.
+version: 1
+roles:
+  - name: admin
+    inherits: []
+    permissions:
+      - "*"  # full access
+  - name: manager
+    inherits: []
+    permissions:
+      - "read:*"
+      - "write:finance:*"
+      - "write:inventory:*"
+  - name: analyst
+    inherits: []
+    permissions:
+      - "read:*"
+  - name: user
+    inherits: []
+    permissions:
+      - "read:self"
+rules:
+  - action: "write:finance:*"
+    when: { mfa_required: true }
