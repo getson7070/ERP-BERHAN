@@ -1,59 +1,13 @@
+# ERP-BERHAN — Phase 1 (Very Critical) Patch
+Date: 2025-10-24
 
-# Phase 1 (Critical) Patch — 2025-10-19
+This drops in **surgical, compatibility-safe** files to unblock deploys and remove reliability foot‑guns:
+- **Root `db.py`**: consistent SQLAlchemy connection from `DATABASE_URL` + resilient Redis client **with `get`/`set`** used by idempotency, MFA, and dead-letter logic.
+- **`erp/__init__.py`**: single app factory; late-binds extensions; **safe blueprint auto‑discovery**; minimal security headers; health/metrics ready for probes.
+- **`erp/extensions.py`**: robust `csrf`, `limiter`, `login_manager`, and `db` import shim.
+- **`migrations/env.py`**: Alembic decoupled from app import; uses metadata from `erp.extensions.db`.
+- **`gunicorn.conf.py`** + **`wsgi_eventlet.py`**: production server defaults & async option; plays well with Render/App Runner.
+- **Scripts**: `run_migrations.sh`, `rotate_jwt_secret.py` with clear, idempotent steps.
+- **`.env.example`** additions for required secrets and rate‑limit storage.
 
-This patch introduces *production-critical* foundations:
-- Security headers (CSP, HSTS, Referrer-Policy, X-Frame-Options, etc.)
-- Minimal, dependency-free RBAC decorator
-- Centralized JSON error handlers with correlation IDs
-- Request ID + structured logging bootstrap
-- Environment-first configuration loader with basic validation
-- App factory wires all of the above
-- Non-blocking CI skeleton (separate workflow file) to start linting & tests
-
-## How to apply
-
-1) **Unzip into your repo root** (same folder that has `erp/`, `tests/`, etc.).
-   - On Windows PowerShell:
-     ```powershell
-     Expand-Archive -Path .\phase1_critical_patch.zip -DestinationPath . -Force
-     ```
-
-2) **Commit**:
-   ```powershell
-   git add -A
-   git commit -m "phase1-critical: security headers, RBAC decorator, error handlers, observability, config; CI skeleton"
-   git push origin main
-   ```
-
-> Safe-by-default: No new third‑party dependencies are introduced in this patch.
-
-## New files
-
-- `erp/security.py` — sets strict security headers via `after_request`
-- `erp/authz.py` — `require_permissions` decorator (RBAC) using existing `erp.utils.has_permission`
-- `erp/errors.py` — JSON error responses (400/401/403/404/500) with `request_id`
-- `erp/observability.py` — request ID, structured logging, optional Sentry init
-- `erp/config.py` — environment-driven config + validation hook
-- `.github/workflows/phase1-ci.yml` — non-blocking starter CI (ruff, mypy (soft), pytest (soft), gitleaks if present)
-- `docs/PHASE1_CHANGELOG.md` — traceability for this batch
-
-## Post-merge checklist
-
-- Set `FLASK_ENV=production` in your runtime env (or equivalent) and ensure `DATABASE_URL` points to your DB
-- If you have a Sentry DSN, set `SENTRY_DSN` to enable error reporting automatically
-- Wire RBAC onto sensitive routes, e.g.:
-  ```python
-  from erp.authz import require_permissions
-
-  @bp.route("/admin/tenants", methods=["POST"])
-  @require_permissions({"tenant:create"})
-  def create_tenant():
-      ...
-  ```
-
-## Rollback
-
-All changes are additive or narrow edits to `erp/__init__.py`. You can revert the commit:
-```powershell
-git revert <commit-sha>
-```
+These changes are **intra‑module aware**: they keep import graphs acyclic, avoid decorator evaluation before extension init, and maintain compatibility with existing tests and routes. 

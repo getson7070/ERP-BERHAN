@@ -1,5 +1,8 @@
-﻿import eventlet; eventlet.monkey_patch()
-from erp import create_app  # assumes app factory lives here
+# Optional async WSGI entrypoint
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except Exception:
+    pass
+from erp import create_app
 app = create_app()
-
-

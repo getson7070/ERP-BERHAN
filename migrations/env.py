@@ -1,17 +1,18 @@
-﻿from logging.config import fileConfig
+from logging.config import fileConfig
 from alembic import context
 import os, sys
-
-# Ensure project root is importable
 sys.path.append(os.getcwd())
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import Flask-SQLAlchemy metadata
-from erp.extensions import db
-target_metadata = db.metadata
+# Use SQLAlchemy metadata without importing the Flask app
+try:
+    from erp.extensions import db  # exposes SQLAlchemy-like metadata
+    target_metadata = db.metadata
+except Exception:
+    target_metadata = None
 
 def get_url():
     url = os.environ.get("DATABASE_URL")
@@ -48,5 +49,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
-

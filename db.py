@@ -1,152 +1,165 @@
 from __future__ import annotations
-import os, re, sqlite3
+import os, json
 from typing import Any, Optional
+from sqlalchemy import create_engine
 
-# Re-export redis client for tests that import from top-level db
-try:
-    from erp.db import redis_client  # type: ignore
-except Exception:
-    redis_client = None  # type: ignore
+# --- SQLAlchemy connection helper expected by routes.* ---
+_engine = None
 
-_engine: Any | None = None
-
-class _CompatConnection:
-    def __init__(self, conn: Any) -> None:
-        self._c = conn
-    def execute(self, statement: Any, *args: Any, **kwargs: Any):
-        # Accept raw SQL strings (SQLAlchemy 1.x style)
-        if isinstance(statement, str):
-            return self._c.exec_driver_sql(statement, *args, **kwargs)
-        return self._c.execute(statement, *args, **kwargs)
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._c, name)
-    def __enter__(self) -> "._CompatConnection":
-        self._c.__enter__()
-        return self
-    def __exit__(self, *exc: Any) -> Any:
-        return self._c.__exit__(*exc)
-
-class _CompatEngine:
-    def __init__(self, eng: Any) -> None:
-        self._e = eng
-    def connect(self, *a: Any, **k: Any) -> _CompatConnection:
-        return _CompatConnection(self._e.connect(*a, **k))
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._e, name)
-
-def get_engine(url: Optional[str] = None, **kwargs: Any) -> Any:
-    """
-    Returns a SQLAlchemy Engine wrapped so that Connection.execute()
-    accepts raw SQL strings (for legacy-style tests).
-    """
+def _ensure_engine():
     global _engine
-    if _engine is not None:
-        return _engine
-    url = url or os.environ.get("DATABASE_URL") or f"sqlite:///{os.environ.get('DATABASE_PATH','test.db')}"
-    try:
-        import sqlalchemy as sa  # type: ignore
-        eng = sa.create_engine(url)
-        _engine = _CompatEngine(eng)
-    except Exception:
-        _engine = url
+    if _engine is None:
+        url = os.environ.get("DATABASE_URL") or "sqlite+pysqlite:///:memory:"
+        _engine = create_engine(url, future=True)
     return _engine
 
-_ORDERS_CREATE_SQL = "CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER, quantity INTEGER, customer TEXT, status TEXT)"
+def get_db():
+    """Return a SQLAlchemy Connection (used by routes.* calling conn.execute(text(...)))."""
+    return _ensure_engine().connect()
 
-class _DBAPIWrapper:
-    """
-    Wrap a DBAPI connection:
-      - still supports .cursor()
-      - provides .execute(sql, ...) convenience
-      - heals the 'orders' table schema if needed.
-    """
-    def __init__(self, raw):
-        self._raw = raw
-    def cursor(self, *a, **k):
-        return self._raw.cursor(*a, **k)
-    def commit(self):
-        return self._raw.commit()
-    def close(self):
-        return self._raw.close()
-    def _ensure_orders_schema(self):
-        try:
-            cur = self._raw.execute("PRAGMA table_info(orders)")
-            cols = [row[1] for row in cur.fetchall()]
-        except Exception:
-            cols = []
-        needed = {"id","item_id","quantity","customer","status"}
-        if set(cols) != needed:
-            # drop & recreate
+# --- Resilient Redis client (idempotency, DLQ, etc.) ---
+class _MemRedis:
+    def __init__(self) -> None:
+        self.kv: dict[str, Any] = {}
+    def get(self, key: str) -> Optional[Any]:
+        return self.kv.get(key)
+    def set(self, key: str, val: Any, ex: Optional[int] = None) -> None:
+        self.kv[key] = val
+    def delete(self, key: str) -> None:
+        self.kv.pop(key, None)
+    def lpush(self, key: str, *vals: Any) -> int:
+        lst = self.kv.setdefault(key, [])
+        for v in vals:
+            lst.insert(0, v)
+        return len(lst)
+    def rpush(self, key: str, *vals: Any) -> int:
+        lst = self.kv.setdefault(key, [])
+        for v in vals:
+            lst.append(v)
+        return len(lst)
+    def lrange(self, key: str, start: int, end: int) -> list:
+        data = list(self.kv.get(key, []))
+        stop = (end + 1) if end != -1 else None
+        return data[start:stop]
+    def llen(self, key: str) -> int:
+        return len(self.kv.get(key, []))
+    def sadd(self, key: str, val: Any) -> None:
+        s = self.kv.setdefault(key, set())
+        if isinstance(s, set):
+            s.add(val)
+        else:
+            st = set(s)
+            st.add(val)
+            self.kv[key] = st
+    def sismember(self, key: str, val: Any) -> bool:
+        s = self.kv.get(key)
+        return isinstance(s, set) and (val in s)
+
+class _RedisClient:
+    def __init__(self) -> None:
+        self.is_real = False
+        self.client = None
+        self._mem = _MemRedis()
+        use_fake = os.environ.get("USE_FAKE_REDIS", "").strip() == "1"
+        if not use_fake:
             try:
-                self._raw.execute("DROP TABLE IF EXISTS orders")
+                import redis  # type: ignore
+                url = os.environ.get("RATELIMIT_STORAGE_URI") or os.environ.get("REDIS_URL") or "redis://localhost:6379/0"
+                cli = redis.Redis.from_url(url, decode_responses=False)
+                cli.ping()
+                self.client = cli
+                self.is_real = True
+            except Exception:
+                self.client = None
+                self.is_real = False
+
+    # Simple KV
+    def get(self, key: str) -> Optional[bytes]:
+        if self.client:
+            try:
+                return self.client.get(key)
             except Exception:
                 pass
-            self._raw.execute(_ORDERS_CREATE_SQL)
-    def execute(self, sql, *a):
-        if isinstance(sql, str):
-            s = sql
-            if re.match(r"^\s*CREATE\s+TABLE\s+orders\b", s, re.IGNORECASE):
-                # force correct schema (drop & recreate to avoid stale layout)
-                try:
-                    self._raw.execute(s)
-                except Exception:
-                    try:
-                        self._raw.execute("DROP TABLE IF EXISTS orders")
-                    except Exception:
-                        pass
-                    self._raw.execute(_ORDERS_CREATE_SQL)
-                return None
+        v = self._mem.get(key)
+        if v is None:
+            return None
+        return v if isinstance(v, (bytes, bytearray)) else str(v).encode()
+
+    def set(self, key: str, val: Any, ex: Optional[int] = None) -> None:
+        self._mem.set(key, val)
+        if self.client:
             try:
-                return self._raw.execute(s, *a)
-            except Exception as e:
-                msg = str(e).lower()
-                if ("no column named" in msg and "orders" in s.lower()) or ("table orders has no column" in msg):
-                    self._ensure_orders_schema()
-                    return self._raw.execute(s, *a)
-                if "already exists" in msg:
-                    # table exists; ensure schema is correct
-                    self._ensure_orders_schema()
-                    return None
-                raise
-        # if caller passed a compiled SQL object, let raw handle it
-        try:
-            return self._raw.execute(sql, *a)
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                self._ensure_orders_schema()
-                return None
-            raise
-    def __getattr__(self, name):
-        return getattr(self._raw, name)
+                enc = val if isinstance(val, (bytes, bytearray)) else json.dumps(val).encode()
+                self.client.set(key, enc, ex=ex)
+            except Exception:
+                pass
 
-def get_db(*args: Any, **kwargs: Any) -> Any:
-    """
-    Return a DBAPI connection (so tests can call .cursor()), wrapped to be forgiving.
-    """
-    try:
-        eng = get_engine(**kwargs)
-        base = getattr(eng, "_e", eng)
-        raw = getattr(base, "raw_connection", None)
-        if callable(raw):
-            return _DBAPIWrapper(raw())
-        # Fallback: try normal connect (may not expose .cursor())
-        connect = getattr(base, "connect", None)
-        c = connect() if callable(connect) else None
-        if c is not None:
-            return _DBAPIWrapper(c.connection) if hasattr(c, "connection") else c
-    except Exception:
-        pass
-    # Ultimate fallback: sqlite3 direct
-    path = os.environ.get("DATABASE_PATH", "test.db")
-    return _DBAPIWrapper(sqlite3.connect(path))
+    # List ops
+    def lpush(self, key: str, *vals: Any) -> int:
+        self._mem.lpush(key, *vals)
+        if self.client:
+            try:
+                enc = [v if isinstance(v, (bytes, bytearray)) else json.dumps(v).encode() for v in vals]
+                self.client.lpush(key, *enc)
+            except Exception:
+                pass
+        return self._mem.llen(key)
 
-def get_dialect() -> str:
-    try:
-        eng = get_engine()
-        base = getattr(eng, "_e", eng)
-        name = getattr(getattr(base, "dialect", None), "name", None)
-        if name:
-            return str(name)
-    except Exception:
-        pass
-    return "sqlite"
+    def rpush(self, key: str, *vals: Any) -> int:
+        self._mem.rpush(key, *vals)
+        if self.client:
+            try:
+                enc = [v if isinstance(v, (bytes, bytearray)) else json.dumps(v).encode() for v in vals]
+                self.client.rpush(key, *enc)
+            except Exception:
+                pass
+        return self._mem.llen(key)
+
+    def lrange(self, key: str, start: int, end: int) -> list:
+        if self.client:
+            try:
+                out = self.client.lrange(key, start, end)
+                if out:
+                    return out
+            except Exception:
+                pass
+        return self._mem.lrange(key, start, end)
+
+    def llen(self, key: str) -> int:
+        if self.client:
+            try:
+                v = int(self.client.llen(key))
+                if v:
+                    return v
+            except Exception:
+                pass
+        return self._mem.llen(key)
+
+    # Sets
+    def sadd(self, key: str, val: Any) -> None:
+        self._mem.sadd(key, val)
+        if self.client:
+            try:
+                enc = val if isinstance(val, (bytes, bytearray)) else json.dumps(val).encode()
+                self.client.sadd(key, enc)
+            except Exception:
+                pass
+
+    def sismember(self, key: str, val: Any) -> bool:
+        if self.client:
+            try:
+                enc = val if isinstance(val, (bytes, bytearray)) else json.dumps(val).encode()
+                return bool(self.client.sismember(key, enc))
+            except Exception:
+                pass
+        return self._mem.sismember(key, val)
+
+    def delete(self, key: str) -> None:
+        self._mem.delete(key)
+        if self.client:
+            try:
+                self.client.delete(key)
+            except Exception:
+                pass
+
+redis_client = _RedisClient()
