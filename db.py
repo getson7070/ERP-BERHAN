@@ -1,23 +1,28 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import os, json
 from typing import Any, Optional
 from sqlalchemy import create_engine
 
-# --- SQLAlchemy connection helper expected by routes.* ---
 _engine = None
-
 def _ensure_engine():
     global _engine
     if _engine is None:
-        url = os.environ.get("DATABASE_URL") or "sqlite+pysqlite:///:memory:"
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            db_path = os.environ.get("DATABASE_PATH")
+            url = f"sqlite+pysqlite:///{db_path}" if db_path else "sqlite+pysqlite:///:memory:"
         _engine = create_engine(url, future=True)
     return _engine
 
 def get_db():
-    """Return a SQLAlchemy Connection (used by routes.* calling conn.execute(text(...)))."""
     return _ensure_engine().connect()
 
-# --- Resilient Redis client (idempotency, DLQ, etc.) ---
+def get_engine():
+    return _ensure_engine()
+
+def get_dialect() -> str:
+    return str(_ensure_engine().dialect.name)
+
 class _MemRedis:
     def __init__(self) -> None:
         self.kv: dict[str, Any] = {}
@@ -48,9 +53,7 @@ class _MemRedis:
         if isinstance(s, set):
             s.add(val)
         else:
-            st = set(s)
-            st.add(val)
-            self.kv[key] = st
+            st = set(s); st.add(val); self.kv[key] = st
     def sismember(self, key: str, val: Any) -> bool:
         s = self.kv.get(key)
         return isinstance(s, set) and (val in s)
@@ -73,7 +76,6 @@ class _RedisClient:
                 self.client = None
                 self.is_real = False
 
-    # Simple KV
     def get(self, key: str) -> Optional[bytes]:
         if self.client:
             try:
@@ -94,7 +96,6 @@ class _RedisClient:
             except Exception:
                 pass
 
-    # List ops
     def lpush(self, key: str, *vals: Any) -> int:
         self._mem.lpush(key, *vals)
         if self.client:
@@ -135,7 +136,6 @@ class _RedisClient:
                 pass
         return self._mem.llen(key)
 
-    # Sets
     def sadd(self, key: str, val: Any) -> None:
         self._mem.sadd(key, val)
         if self.client:
