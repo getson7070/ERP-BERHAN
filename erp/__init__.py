@@ -55,7 +55,6 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(mfa_bp)
     return app
 
-__all__ = [,'QUEUE_LAG','RATE_LIMIT_REJECTIONS','GRAPHQL_REJECTS','AUDIT_CHAIN_BROKEN','OLAP_EXPORT_SUCCESS','_dead_letter_handler']
 
 
 # --- [autogen] SocketIO export invariant (idempotent) ---
@@ -72,7 +71,6 @@ try:
         try:
             __all__  # noqa
         except NameError:
-            __all__ = [,'QUEUE_LAG','RATE_LIMIT_REJECTIONS','GRAPHQL_REJECTS','AUDIT_CHAIN_BROKEN','OLAP_EXPORT_SUCCESS','_dead_letter_handler']
         if "socketio" not in __all__:
             __all__.append("socketio")
 except Exception as _e:
@@ -83,3 +81,6 @@ except Exception as _e:
 
 
 
+# Re-export test contracts from metrics
+from erp.metrics import (QUEUE_LAG, RATE_LIMIT_REJECTIONS, GRAPHQL_REJECTS, AUDIT_CHAIN_BROKEN, OLAP_EXPORT_SUCCESS, _dead_letter_handler)
+__all__ = ['create_app','socketio','QUEUE_LAG','RATE_LIMIT_REJECTIONS','GRAPHQL_REJECTS','AUDIT_CHAIN_BROKEN','OLAP_EXPORT_SUCCESS','_dead_letter_handler']
