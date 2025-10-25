@@ -1,0 +1,10 @@
+groups:
+- name: erp-slo
+  rules:
+  - alert: HighErrorRate
+    expr: rate(flc_http_requests_total{status=~"5.."}[5m]) / rate(flc_http_requests_total[5m]) > 0.05
+    for: 10m
+    labels: { severity: page }
+    annotations:
+      summary: "5xx rate > 5% for 10m"
+      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/RUNBOOK_LOCAL.md
