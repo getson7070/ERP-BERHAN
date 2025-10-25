@@ -22,3 +22,8 @@ build/
 
 # Docker: keep main compose, ignore local override
 deploy/docker-compose.override.yml
+.venv_phase1/
+*.db
+
+.venv_phase1/
+*.db
