@@ -1,0 +1,40 @@
+name: production-gates
+on:
+  push: { tags: ["v*.*.*"] }
+  pull_request:
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_DB: erp, POSTGRES_USER: erp, POSTGRES_PASSWORD: erp }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U erp -d erp" --health-interval=10s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=3s --health-retries=10
+    env:
+      DATABASE_URL: postgresql+psycopg2://erp:erp@localhost:5432/erp
+      REDIS_URL: redis://localhost:6379/0
+      PHASE1_LIMITER_STORAGE_URI: redis://localhost:6379/0
+      APP_ENV: test
+      APP_PORT: 8000
+      SECRET_KEY: ci-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Alembic single head
+        run: |
+          heads=$(alembic heads | wc -l)
+          if [ "$heads" -ne "1" ]; then echo "Multiple heads: $heads"; alembic heads; exit 1; fi
+      - name: Cold start check
+        run: bash -eux scripts/cold_start.sh
