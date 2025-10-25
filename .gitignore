@@ -20,5 +20,5 @@ build/
 .idea/
 .DS_Store
 
-# Docker: keep the main compose, ignore your local override
+# Docker: keep main compose, ignore local override
 deploy/docker-compose.override.yml
