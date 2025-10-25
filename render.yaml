@@ -1,13 +1,17 @@
+# Render blueprint generated 2025-10-24 19:14:06 UTC
 services:
-- type: web
-  name: erp-berhan
-  env: python
-  plan: starter
-  buildCommand: pip install -r requirements.txt
-  preDeployCommand: AUTO_MERGE_MIGRATIONS=1 python -m scripts.migrations.automerge_and_upgrade
-  startCommand: gunicorn -c gunicorn.conf.py 'erp.app:create_app()'
-  envVars:
-  - key: AUTO_MERGE_MIGRATIONS
-    value: "1"
-  - key: PYTHONUNBUFFERED
-    value: "1"
+  - type: web
+    name: erp-berhan-web
+    env: docker
+    plan: free
+    healthCheckPath: /status
+    autoDeploy: true
+    buildCommand: docker build -f deploy/Dockerfile -t erp-berhan .
+    startCommand: docker run -p 8000:8000 erp-berhan
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: FLASK_LIMITER_STORAGE_URI
+        sync: false
