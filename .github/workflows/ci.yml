@@ -11,14 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # free the port if some process on the runner grabbed it
       - name: Free 18000 if blocked
-        run: |
-          sudo fuser -k 18000/tcp || true
+        run: sudo fuser -k 18000/tcp || true
 
       - name: Compose up (db, redis, web)
-        run: |
-          docker compose -f deploy/docker-compose.yml up -d db redis web
+        run: docker compose -f deploy/docker-compose.yml up -d db redis web
 
       - name: Wait for /status
         run: |
@@ -26,13 +23,10 @@ jobs:
             curl -fsS http://localhost:18000/status && exit 0
             sleep 2
           done
-          echo "Web not healthy"
-          docker compose -f deploy/docker-compose.yml logs web
-          exit 1
+          echo "Web not healthy"; docker compose -f deploy/docker-compose.yml logs web; exit 1
 
       - name: E2E health tests
-        run: |
-          docker compose -f deploy/docker-compose.yml exec -T web pytest -q -p no:cov tests/e2e/test_health.py
+        run: docker compose -f deploy/docker-compose.yml exec -T web pytest -q -p no:cov tests/e2e/test_health.py
 
       - name: Compose logs (always)
         if: always()
