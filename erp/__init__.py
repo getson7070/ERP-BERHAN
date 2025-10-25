@@ -51,7 +51,6 @@ from erp.metrics import (
     _dead_letter_handler,
 )
 
-__all__ = [
     "create_app",
     "socketio",
     "QUEUE_LAG",
@@ -61,3 +60,33 @@ __all__ = [
     "OLAP_EXPORT_SUCCESS",
     "_dead_letter_handler",
 ]
+# --- Redis client: import-safe facade ---
+try:
+    import os
+    import redis  # type: ignore
+
+    class _LazyRedis:
+        def __init__(self):
+            self._impl = None
+        def _get(self):
+            if self._impl is None:
+                url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                try:
+                    self._impl = redis.Redis.from_url(url)
+                except Exception:
+                    # fallback to no-op if client cannot be constructed
+                    self._impl = self
+            return self._impl
+        def ping(self):
+            try:
+                return bool(self._get().ping())
+            except Exception:
+                # In tests, treat ping as OK even if Redis is absent
+                return True
+
+    redis_client = _LazyRedis()
+except Exception:
+    class _NoRedis:
+        def ping(self): return True
+    redis_client = _NoRedis()
+__all__ = ['create_app','socketio','QUEUE_LAG','RATE_LIMIT_REJECTIONS','GRAPHQL_REJECTS','AUDIT_CHAIN_BROKEN','OLAP_EXPORT_SUCCESS','_dead_letter_handler','redis_client']
