@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+﻿# syntax=docker/dockerfile:1
 FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --upgrade pip && \
     ( test -f requirements.txt && pip install -r requirements.txt || true ) && \
     ( test -f requirements-dev.txt && pip install -r requirements-dev.txt || true ) && \
-    pip install gunicorn eventlet gevent gevent-websocket pip-audit
+    pip install gunicorn eventlet gevent gevent-websocket pip-audit psycopg2-binary
 
 COPY . .
 
