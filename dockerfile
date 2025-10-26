@@ -15,3 +15,9 @@ HEALTHCHECK --interval=15s --timeout=5s --retries=10 CMD curl -fsS http://localh
 
 USER root
 CMD ["gunicorn","-w","4","-k","gthread","-b","0.0.0.0:8000","erp.app:create_app()"]
+
+ENV PIP_DEFAULT_TIMEOUT=180
+# (Optional) You can also set a fast mirror here if you have one
+# ENV PIP_INDEX_URL=https://pypi.org/simple
+
+RUN pip install --no-cache-dir --retries 5 --timeout 180 -r requirements.txt

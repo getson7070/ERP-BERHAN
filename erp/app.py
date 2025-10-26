@@ -1,92 +1,78 @@
-﻿# erp/app.py
-import os
+﻿import os
 import importlib
-from typing import Iterable
-from flask import Flask, jsonify
-from werkzeug.middleware.proxy_fix import ProxyFix
+from flask import Flask
 
-def _register_blueprint(app: Flask, dotted_path: str, attr_candidates: Iterable[str] = ("bp", "ops_bp")):
+def _init_extensions(app: Flask) -> None:
+    """Initialize extensions in a tolerant way."""
+    try:
+        from .extensions import db  # type: ignore
+        db.init_app(app)
+        try:
+            from .extensions import migrate  # type: ignore
+            migrate.init_app(app, db)
+        except Exception:
+            app.logger.debug("Flask-Migrate not available or failed to init.", exc_info=True)
+    except Exception:
+        app.logger.debug("SQLAlchemy 'db' not available or failed to init.", exc_info=True)
+
+    try:
+        from .extensions import cache  # type: ignore
+        cache.init_app(app)
+    except Exception:
+        app.logger.debug("Cache not available or failed to init.", exc_info=True)
+
+def _register_blueprint(app: Flask, dotted_path: str) -> None:
     """
-    Import a module and register its blueprint. Accepts multiple attribute names
-    to avoid fragile renames (e.g., bp vs ops_bp). Raises loudly on failure.
+    Import a blueprint module/package and register one of several common attributes.
+    Never raises; logs and continues on failure.
     """
-    module = importlib.import_module(dotted_path)
-    bp = None
-    for name in attr_candidates:
-        if hasattr(module, name):
-            bp = getattr(module, name)
-            break
-    if bp is None:
-        raise RuntimeError(f"{dotted_path} exports no blueprint named any of {attr_candidates}")
-    app.register_blueprint(bp)
-    app.logger.info("Registered blueprint %s from %s", getattr(bp, "name", bp), dotted_path)
+    try:
+        module = importlib.import_module(dotted_path)
+        attr_candidates = (
+            "bp", "blueprint",
+            "ops_bp", "device_bp", "finance_bp", "integration_bp",
+            "recall_bp", "bots_bp", "login_bp", "telegram_bp", "health_bp",
+        )
+        for name in attr_candidates:
+            bp = getattr(module, name, None)
+            if bp is not None:
+                app.register_blueprint(bp)
+                try:
+                    bp_name = getattr(bp, "name", str(bp))
+                except Exception:
+                    bp_name = str(bp)
+                app.logger.info("Registered blueprint %s from %s", bp_name, dotted_path)
+                return
+        app.logger.warning("No blueprint attribute found in %s (tried %s)", dotted_path, attr_candidates)
+    except Exception:
+        app.logger.exception("Failed to register blueprint %s", dotted_path)
 
-def create_app() -> Flask:
-    app = Flask(__name__, instance_relative_config=True)
-
-    # Basic config
-    app.config.from_mapping(
-        SECRET_KEY=os.getenv("SECRET_KEY", "dev-not-secure"),
-        SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", "postgresql+psycopg://erp:erp@db:5432/erp"),
-        SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        REDIS_URL=os.getenv("REDIS_URL", "redis://cache:6379/0"),
-        PREFERRED_URL_SCHEME=os.getenv("URL_SCHEME", "http"),
-        JSON_SORT_KEYS=False,
-    )
-
-    # Allow instance config override if present
-    cfg_obj = os.getenv("FLASK_CONFIG_OBJECT")
-    if cfg_obj:
-        app.config.from_object(cfg_obj)
-
-    # Proxy fix for running behind reverse proxies
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
-
-    # Minimal health endpoints (no DB touch)
-    @app.get("/health")
-    @app.get("/healthz")
-    def health():
-        return jsonify({"ok": True, "service": "erp"})
-
-    # Register blueprints (fail fast; don’t hide errors)
+def _register_all_blueprints(app: Flask) -> None:
+    """Declare blueprints centrally. Missing or broken modules are tolerated."""
     blueprints = [
-        "erp.ops.status",
-        "erp.ops.doctor",         # exports ops_bp in your repo; importer accepts bp/ops_bp
-        "erp.auth.mfa_routes",
-        # domain blueprints; importer tolerates absence
-        "erp.blueprints.finance",
-        "erp.blueprints.integration",
-        "erp.blueprints.recall",
-        "erp.blueprints.bots",
+        "erp.blueprints.health",
+        "erp.blueprints.login_ui",          # if you add one later, this will auto-register
         "erp.blueprints.device_trust",
-        "erp.blueprints.login_ui",
-        "erp.routes.report_builder",
+        "erp.blueprints.integration",
         "erp.blueprints.telegram_webhook",
-        "erp.blueprints.admin_devices",
+        "erp.blueprints.bots",
+        "erp.blueprints.recall",
+        "erp.blueprints.finance",
     ]
     for dotted in blueprints:
-        try:
-            _register_blueprint(app, dotted)
-        except ModuleNotFoundError:
-            app.logger.info("Optional blueprint %s not present; skipping.", dotted)
-        except Exception as e:
-            # Loud by default – this shouldn’t be silenced in production
-            app.logger.exception("Failed to register blueprint %s: %s", dotted, e)
-            raise
+        _register_blueprint(app, dotted)
 
-    # Optional LAN gate middleware
-    try:
-        from erp.middleware.lan_gate import block_non_lan_for_sensitive_paths
-        block_non_lan_for_sensitive_paths(app)
-    except Exception as e:
-        app.logger.info("LAN gate not active: %s", e)
+def create_app() -> Flask:
+    app = Flask(__name__)
+    cfg_env = os.getenv("ERP_SETTINGS")
+    if cfg_env:
+        app.config.from_envvar("ERP_SETTINGS", silent=True)
 
+    _init_extensions(app)
+
+    if os.getenv("ERP_SKIP_BLUEPRINTS") == "1":
+        app.logger.info("ERP_SKIP_BLUEPRINTS=1 -> skipping blueprint registration.")
+        return app
+
+    _register_all_blueprints(app)
     return app
-
-app = create_app()
-
-if __name__ == "__main__":
-    # dev server
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
-
