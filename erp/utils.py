@@ -141,3 +141,5 @@ def stream_export(rows, filename: str = "export.csv"):
 
 
 
+def utility_function():
+    return "Utility result"

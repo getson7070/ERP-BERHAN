@@ -1,13 +1,13 @@
 ﻿from flask import Blueprint, jsonify
 
-bp = Blueprint("health", __name__)
+health_bp = Blueprint("health", __name__)
 
-@bp.route("/healthz")
+@health_bp.route("/health", methods=["GET"])
+def health():
+    return jsonify({"ok": True})
+
+@health_bp.route("/healthz", methods=["GET"])
 def healthz():
-    return jsonify(status="ok"), 200
+    return jsonify({"ok": True})
 
-@bp.route("/readyz")
-def readyz():
-    return jsonify(status="ready"), 200
-
-
+bp = health_bp

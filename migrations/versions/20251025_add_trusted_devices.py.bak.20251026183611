@@ -1,10 +1,10 @@
-﻿# migrations/versions/20251025_add_trusted_devices.py
+# migrations/versions/20251025_add_trusted_devices.py
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
 
 revision = "20251025_trusted_devices"
-down_revision = "20251016"      # the idempotency_keys migration
+down_revision = "a1b2c3d4e5f6"      # the idempotency_keys migration
 branch_labels = None
 depends_on = None
 

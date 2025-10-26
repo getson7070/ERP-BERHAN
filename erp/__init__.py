@@ -1,13 +1,8 @@
 ﻿"""
 ERP package initializer with zero side-effects.
-
-- Does NOT construct the Flask app on import.
-- Exposes create_app lazily so importing `erp` during Alembic is safe.
 """
-
 __all__ = ["create_app"]
 
 def create_app():
-    # Import lazily to avoid side-effects at package import time.
     from .app import create_app as _create_app
     return _create_app()

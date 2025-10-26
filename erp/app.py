@@ -59,20 +59,7 @@ def _register_all_blueprints(app: Flask) -> None:
         "erp.blueprints.recall",
         "erp.blueprints.finance",
     ]
-    for dotted in blueprints:
-        _register_blueprint(app, dotted)
 
-def create_app() -> Flask:
-    app = Flask(__name__)
-    cfg_env = os.getenv("ERP_SETTINGS")
-    if cfg_env:
-        app.config.from_envvar("ERP_SETTINGS", silent=True)
+if os.getenv("ERP_ENABLE_HEALTH_COMPAT", "1") == "1":
+    blueprints.append("erp.blueprints.health_compat")
 
-    _init_extensions(app)
-
-    if os.getenv("ERP_SKIP_BLUEPRINTS") == "1":
-        app.logger.info("ERP_SKIP_BLUEPRINTS=1 -> skipping blueprint registration.")
-        return app
-
-    _register_all_blueprints(app)
-    return app

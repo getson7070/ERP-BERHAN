@@ -41,3 +41,4 @@ Flask-SocketIO==5.3.6
 python-socketio==5.11.4
 python-engineio==4.9.1
 argon2-cffi==23.1.0
+psycopg2-binary==2.9.9
