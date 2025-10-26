@@ -9,7 +9,7 @@
     </a>
 
     <div style="margin-left:auto; display:flex; gap:1rem;">
-      {% if current_user is defined and current_user.is_authenticated %}
+      {% if current_user.is_authenticated %}
         <a href="{{ url_for('login_ui.logout') if 'login_ui' in current_app.blueprints else '#' }}">Logout</a>
       {% else %}
         <a href="{{ url_for('login_ui.login') if 'login_ui' in current_app.blueprints else '#' }}">Login</a>
