@@ -52,4 +52,6 @@ def add_payment():
     db.session.commit()
     return jsonify(id=pay.id), 201
 
+# alias for dynamic importer
+bp = finance_bp
 

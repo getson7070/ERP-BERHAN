@@ -35,4 +35,6 @@ def create_recall():
     db.session.commit()
     return jsonify(id=r.id, ref=r.ref), 201
 
+# alias for dynamic importer
+bp = recall_bp
 

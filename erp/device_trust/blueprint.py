@@ -1,0 +1,51 @@
+from __future__ import annotations
+from flask import Blueprint, request, jsonify, current_app, abort
+try:
+    from flask_login import current_user, login_required
+except Exception:
+    def login_required(fn): return fn
+    class _U: is_authenticated=False; id=None
+    current_user = _U()
+
+bp = Blueprint("device_trust", __name__, url_prefix="/api/device")
+
+def _db():
+    try:
+        return current_app.extensions['sqlalchemy'].db
+    except Exception:
+        from erp.extensions import db  # type: ignore
+        return db
+
+@bp.post("/trust")
+def check_device_trust():
+    data = request.get_json(silent=True) or {}
+    fp = data.get("fingerprint")
+    if not fp:
+        return jsonify({"trusted": False, "role": "client"}), 400
+    db = _db()
+    conn = db.session.connection()
+    row = conn.execute(db.text("SELECT user_id, approved FROM trusted_devices WHERE fingerprint=:fp"), {"fp": fp}).mappings().first()
+    if row and row["approved"]:
+        conn.execute(db.text("UPDATE trusted_devices SET last_seen=now() WHERE fingerprint=:fp"), {"fp": fp})
+        db.session.commit()
+        role = conn.execute(db.text("SELECT r.name FROM users u JOIN roles r ON u.role_id=r.id WHERE u.id=:uid"), {"uid": row["user_id"]}).scalar() or "client"
+        return jsonify({"trusted": True, "role": role})
+    return jsonify({"trusted": False, "role": "client"})
+
+@bp.post("/register")
+@login_required
+def register_device():
+    data = request.get_json(silent=True) or {}
+    fp = data.get("fingerprint")
+    name = data.get("device_name", "Unnamed")
+    if not fp: abort(400, "missing fingerprint")
+    db = _db()
+    conn = db.session.connection()
+    exists = conn.execute(db.text("SELECT 1 FROM trusted_devices WHERE fingerprint=:fp"), {"fp": fp}).scalar()
+    if exists:
+        return jsonify({"ok": True, "msg": "already trusted"}), 200
+    uid = getattr(current_user, "id", None)
+    conn.execute(db.text("INSERT INTO trusted_devices(user_id,fingerprint,device_name,registered_at,last_seen,approved) VALUES(:u,:f,:n,now(),now(),true)"),
+                 {"u": uid, "f": fp, "n": name})
+    db.session.commit()
+    return jsonify({"ok": True})

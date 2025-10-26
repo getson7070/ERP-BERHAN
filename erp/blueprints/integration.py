@@ -31,4 +31,6 @@ def upsert_config():
     db.session.commit()
     return jsonify(id=row.id, name=row.name)
 
+# alias for dynamic importer
+bp = integration_bp
 

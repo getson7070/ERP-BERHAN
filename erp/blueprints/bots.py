@@ -13,4 +13,6 @@ def slack_echo():
     payload = request.get_json(silent=True) or {}
     return jsonify(received=payload)
 
+# alias for dynamic importer
+bp = bots_bp
 

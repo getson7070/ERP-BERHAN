@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from typing import Any, Callable
 
 # CSRF
@@ -16,7 +16,7 @@ try:
     from flask_limiter import Limiter  # type: ignore
     try:
         from flask_limiter.util import get_remote_address  # type: ignore
-        limiter: Any = Limiter(key_func=get_remote_address)
+        limiter: Any = Limiter(key_func=get_remote_address, storage_uri=os.getenv("REDIS_URL","redis://cache:6379/0"))
     except Exception:
         limiter = Limiter()
 except Exception:
@@ -44,3 +44,5 @@ try:
     from .db import db  # type: ignore
 except Exception:
     db = None  # type: ignore
+
+

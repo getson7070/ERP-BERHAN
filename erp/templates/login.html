@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width:420px;margin:6rem auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+  <h1 style="font-weight:700;margin-bottom:1rem;">Sign in</h1>
+  <p style="color:#666;margin-bottom:2rem;">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
+  <form method="post" action="/auth/login">
+    <label>Email</label>
+    <input name="email" type="email" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1rem;">
+    <label>Password</label>
+    <input name="password" type="password" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1.25rem;">
+    <button type="submit" style="width:100%;padding:.85rem;border-radius:.5rem;border:0;background:#2d6cdf;color:white;font-weight:600;">Sign in</button>
+  </form>
+  <div style="margin-top:1.5rem;color:#888;font-size:.9rem;">
+    <a href="/mfa/start">Use MFA</a> · <a href="/auth/forgot">Forgot password?</a>
+  </div>
+</div>
+{% endblock %}

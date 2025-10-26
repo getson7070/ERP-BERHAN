@@ -17,7 +17,7 @@ except Exception:
         def init_app(self, app): ...
 socketio = SocketIO(cors_allowed_origins="*")
 
-def create_app():
+def _legacy_create_app():
     app = Flask(__name__)
 
     # Register blueprints defensively (don't break on missing modules)
@@ -89,3 +89,6 @@ __all__ = [
     "_dead_letter_handler",
     "redis_client",
 ]
+from .app import create_app
+
+

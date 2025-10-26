@@ -1,39 +1,40 @@
+# scripts/seed_accounts.py
+import os
 from erp.app import create_app
-from erp.db import db
-from erp.models.user import User
-from erp.security import hash_password
+from erp.db_session import get_session
+from erp.models.user import User, Role
+from sqlalchemy import select
 
-USERS = [
-    ("admin@local.test", "Dev!23456", "admin"),
-    ("employee@local.test", "Emp!23456", "employee"),
-    ("client@local.test", "Cli!23456", "client"),
-]
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL","admin@local.test")
+EMP_EMAIL = os.getenv("EMP_EMAIL","employee@local.test")
+CLIENT_EMAIL = os.getenv("CLIENT_EMAIL","client@local.test")
+DEFAULT_PW = os.getenv("DEFAULT_PW","Dev!23456")
 
-def ensure_user(email, raw_password, role):
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        u = User(email=email, role=role, is_active=True)
-        u.password_hash = hash_password(raw_password)
-        db.session.add(u)
-        db.session.commit()
-        print(f"created: {email} ({role})")
-    else:
-        changed = False
-        if u.role != role:
-            u.role = role
-            changed = True
-        # Always reset password for deterministic testing
-        u.password_hash = hash_password(raw_password)
-        changed = True
-        if changed:
-            db.session.commit()
-            print(f"updated: {email} ({role})")
-        else:
-            print(f"exists: {email}")
+app = create_app()
+with app.app_context():
+    with get_session() as s:
+        def get_or_create_role(name):
+            r = s.scalars(select(Role).where(Role.name==name)).first()
+            if not r:
+                r = Role(name=name)
+                s.add(r); s.flush()
+            return r
+        admin_r = get_or_create_role("admin")
+        emp_r = get_or_create_role("employee")
+        client_r = get_or_create_role("client")
 
-if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
-        for args in USERS:
-            ensure_user(*args)
-        print("OK")
+        def upsert(email, role):
+            u = s.scalars(select(User).where(User.email==email)).first()
+            if not u:
+                u = User(email=email, role_id=role.id)
+                u.set_password(DEFAULT_PW)
+                s.add(u)
+            else:
+                u.role_id = role.id
+            return u
+
+        upsert(ADMIN_EMAIL, admin_r)
+        upsert(EMP_EMAIL, emp_r)
+        upsert(CLIENT_EMAIL, client_r)
+        s.commit()
+print("Seeded: admin/employee/client")

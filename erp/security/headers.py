@@ -1,0 +1,16 @@
+from flask import Flask
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "geolocation=(), camera=(), microphone=(), interest-cohort=()",
+}
+def init_security_headers(app: Flask):
+    csp = app.config.get("CONTENT_SECURITY_POLICY",
+                         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'")
+    @app.after_request
+    def _add_headers(resp):
+        for k, v in SECURITY_HEADERS.items():
+            resp.headers.setdefault(k, v)
+        resp.headers.setdefault("Content-Security-Policy", csp)
+        return resp

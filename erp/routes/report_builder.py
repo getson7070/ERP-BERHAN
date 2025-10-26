@@ -1,46 +1,27 @@
-﻿from flask import Blueprint, render_template, request, jsonify
-from erp.utils import login_required
-import os
+# erp/routes/report_builder.py
+from flask import Blueprint, request, jsonify, Response
+from sqlalchemy import text
+from ..db_session import get_session
 
-# Blueprint for report builder and reporting endpoints
-reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
-# Alias for app factory imports
-bp = reports_bp
+bp = Blueprint("report_builder", __name__, url_prefix="/reports")
 
-
-@bp.route("/builder", methods=["GET", "POST"])
-@login_required
-def builder():
-    """Render a simple report builder UI and handle saving report configurations.
-
-    GET: Render the report builder page where users can select fields and filters.
-    POST: Placeholder that simulates saving a report configuration. Real implementation
-    should persist the configuration to a database and return a success message.
-    """
-    if request.method == "POST":
-        # In a full implementation, parse the JSON payload and store the configuration
-        # For now, return a placeholder response
-        return jsonify(
-            {"status": "success", "message": "Report configuration saved (placeholder)"}
-        )
-
-    # Render a template that provides UI controls for building reports
-    return render_template("report_builder.html")
-
-
-@bp.route("/run", methods=["POST"])
-@login_required
-def run_report():
-    """Execute a report based on a saved configuration.
-
-    This placeholder implementation returns an empty dataset. A full implementation
-    would retrieve the saved configuration, build a SQL query dynamically and
-    return the resulting data in JSON or render it in a template.
-    """
-    if not os.getenv("REPORTS_ENABLED"):
-        return jsonify({"error": "reports feature disabled"}), 503
-
-    # Placeholder: return an empty result set and message
-    return jsonify({"data": [], "message": "Report execution placeholder"})
-
-
+@bp.get("/sql")
+def run_sql():
+    q = request.args.get("q")
+    fmt = request.args.get("format","json")
+    if not q:
+        return jsonify({"error":"missing q sql param"}), 400
+    # SAFETY: allow only SELECT statements
+    if not q.strip().lower().startswith("select"):
+        return jsonify({"error":"only SELECT allowed"}), 400
+    with get_session() as s:
+        rows = s.execute(text(q)).mappings().all()
+    if fmt=="csv":
+        if not rows:
+            return Response("", mimetype="text/csv")
+        cols = list(rows[0].keys())
+        lines = [",".join(cols)]
+        for r in rows:
+            lines.append(",".join(str(r[c]) if r[c] is not None else "" for c in cols))
+        return Response("\n".join(lines), mimetype="text/csv")
+    return jsonify([dict(r) for r in rows])

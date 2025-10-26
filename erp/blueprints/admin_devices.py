@@ -1,0 +1,36 @@
+# erp/blueprints/admin_devices.py
+import os
+from flask import Blueprint, request, render_template_string, redirect, url_for
+from sqlalchemy import select, delete
+from ..db_session import get_session
+from ..models.trusted_device import TrustedDevice
+from ..models.user import User
+
+bp = Blueprint("admin_devices", __name__, url_prefix="/admin/devices")
+
+TEMPLATE = '''
+<h1>Trusted Devices</h1>
+<table border="1" cellpadding="6">
+<tr><th>ID</th><th>User</th><th>Fingerprint</th><th>Label</th><th>Approved</th><th>Actions</th></tr>
+{% for d,u in rows %}
+<tr>
+  <td>{{d.id}}</td><td>{{u.email}}</td><td>{{d.fingerprint[:16]}}…</td><td>{{d.device_label}}</td>
+  <td>{{"yes" if d.approved else "no"}}</td>
+  <td><a href="{{ url_for('admin_devices.revoke', id=d.id) }}">revoke</a></td>
+</tr>
+{% endfor %}
+</table>
+'''
+
+@bp.get("/")
+def index():
+    with get_session() as s:
+        ds = s.execute(select(TrustedDevice, User).join(User, TrustedDevice.user_id==User.id)).all()
+    return render_template_string(TEMPLATE, rows=ds)
+
+@bp.get("/revoke/<int:id>")
+def revoke(id):
+    with get_session() as s:
+        s.execute(delete(TrustedDevice).where(TrustedDevice.id==id))
+        s.commit()
+    return redirect(url_for('admin_devices.index'))
