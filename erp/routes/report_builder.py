@@ -53,3 +53,6 @@ def run_sql():
             lines.append(",".join(str(r[c]) if r[c] is not None else "" for c in cols))
         return Response("\n".join(lines), mimetype="text/csv")
     return jsonify([dict(r) for r in rows])
+
+_reflect_md = sa.MetaData()
+

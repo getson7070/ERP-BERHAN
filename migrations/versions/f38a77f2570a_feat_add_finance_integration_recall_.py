@@ -15,3 +15,6 @@ def downgrade():
     # Irreversible stub.
     pass
 
+def downgrade():
+    # Irreversible stub.
+    pass

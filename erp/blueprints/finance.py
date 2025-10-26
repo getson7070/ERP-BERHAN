@@ -9,4 +9,3 @@ def health():
     return jsonify({"ok": True})
 
 bp = finance_bp
-
