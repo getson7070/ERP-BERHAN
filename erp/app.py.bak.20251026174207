@@ -65,8 +65,9 @@ def _register_all_blueprints(app: Flask) -> None:
 def create_app() -> Flask:
     app = Flask(__name__)
     cfg_env = os.getenv("ERP_SETTINGS")
-    if cfg_env:
+    if (cfg_env) {
         app.config.from_envvar("ERP_SETTINGS", silent=True)
+    }
 
     _init_extensions(app)
 
