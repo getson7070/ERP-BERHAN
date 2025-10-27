@@ -1,4 +1,12 @@
-﻿import os
+﻿try:
+    from prometheus_flask_exporter import PrometheusMetrics  # optional
+except Exception:
+    PrometheusMetrics = None
+try:
+    from flask_talisman import Talisman  # optional
+except Exception:
+    Talisman = None
+import os
 import importlib
 from flask import Flask
 
@@ -24,6 +32,17 @@ def _init_extensions(app: Flask) -> None:
 def _register_blueprint(app: Flask, dotted_path: str) -> None:
     """
     Import a blueprint module/package and register one of several common attributes.
+try:
+    blueprints  # noqa: F821
+except NameError:
+    blueprints = []
+
+if "erp.blueprints.health" not in blueprints:
+    blueprints.append("erp.blueprints.health")
+
+# Allow toggling the legacy /health and /healthz endpoints via env
+if os.getenv("ERP_ENABLE_HEALTH_COMPAT", "1") == "1" and "erp.blueprints.health_compat" not in blueprints:
+# --- end: health endpoints & compat guard ---
     Never raises; logs and continues on failure.
     """
     try:
@@ -61,5 +80,176 @@ def _register_all_blueprints(app: Flask) -> None:
     ]
 
 if os.getenv("ERP_ENABLE_HEALTH_COMPAT", "1") == "1":
-    blueprints.append("erp.blueprints.health_compat")
+    pass
+
+# === BEGIN: canonical app factory (added by script) ===
+def create_app() -> Flask:
+    """
+    Canonical application factory for ERP-BERHAN.
+    Initializes extensions, registers blueprints explicitly, and attaches minimal health endpoints.
+    """
+    # Lazy imports if top-level imports failed
+    try:
+        from flask import Flask  # type: ignore
+    except Exception:
+        pass
+
+    app = Flask("erp")
+
+    # Baseline config (safe defaults; override via env)
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-not-secure"))
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.environ.get("SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:"))
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+
+    # Optional hardening/metrics if installed
+    try:
+        if Talisman is not None:
+            # Minimal CSP; tighten later as needed for your assets
+            Talisman(app, content_security_policy={"default-src": "'self'"})
+    except Exception:
+        app.logger.debug("Talisman not applied.", exc_info=True)
+
+    try:
+        if PrometheusMetrics is not None:
+            PrometheusMetrics(app, defaults_prefix="erp")
+    except Exception:
+        app.logger.debug("Prometheus metrics not applied.", exc_info=True)
+
+    # Initialize extensions & blueprints
+    try:
+        _init_extensions(app)
+    except Exception:
+        app.logger.exception("Extension init failed")
+
+    try:
+        _register_all_blueprints(app)
+    except Exception:
+        app.logger.exception("Blueprint registration failed")
+
+    @app.get("/health")
+    def _health():
+        return "ok", 200
+
+    @app.get("/health/ready")
+    def _ready():
+        return "ok", 200
+
+    return app
+# === END: canonical app factory ===
+
+# === BEGIN: canonical app factory (added by script) ===
+def create_app() -> Flask:
+    """
+    Canonical application factory for ERP-BERHAN.
+    Initializes extensions, registers blueprints explicitly, and attaches minimal health endpoints.
+    """
+    # Lazy imports if top-level imports failed
+    try:
+        from flask import Flask  # type: ignore
+    except Exception:
+        pass
+
+    app = Flask("erp")
+
+    # Baseline config (safe defaults; override via env)
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-not-secure"))
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.environ.get("SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:"))
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+
+    # Optional hardening/metrics if installed
+    try:
+        if Talisman is not None:
+            Talisman(app, content_security_policy={"default-src": "'self'"})
+    except Exception:
+        app.logger.debug("Talisman not applied.", exc_info=True)
+
+    try:
+        if PrometheusMetrics is not None:
+            PrometheusMetrics(app, defaults_prefix="erp")
+    except Exception:
+        app.logger.debug("Prometheus metrics not applied.", exc_info=True)
+
+    # Initialize extensions & blueprints
+    try:
+        _init_extensions(app)
+    except Exception:
+        app.logger.exception("Extension init failed")
+
+    try:
+        _register_all_blueprints(app)
+    except Exception:
+        app.logger.exception("Blueprint registration failed")
+
+    @app.get("/health")
+    def _health():
+        return "ok", 200
+
+    @app.get("/health/ready")
+    def _ready():
+        return "ok", 200
+
+    return app
+# === END: canonical app factory ===
+
+# === BEGIN: canonical app factory (added by script) ===
+def create_app() -> Flask:
+    """
+    Canonical application factory for ERP-BERHAN.
+    Initializes extensions, registers blueprints explicitly, and attaches minimal health endpoints.
+    """
+    # Lazy imports if top-level imports failed
+    try:
+        from flask import Flask  # type: ignore
+    except Exception:
+        pass
+
+    app = Flask("erp")
+
+    # Baseline config (safe defaults; override via env)
+    app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "dev-not-secure"))
+    app.config.setdefault("SQLALCHEMY_DATABASE_URI", os.environ.get("SQLALCHEMY_DATABASE_URI", "sqlite:///:memory:"))
+    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+
+    # Optional hardening/metrics if installed
+    try:
+        if Talisman is not None:
+            Talisman(app, content_security_policy={"default-src": "'self'"})
+    except Exception:
+        app.logger.debug("Talisman not applied.", exc_info=True)
+
+    try:
+        if PrometheusMetrics is not None:
+            PrometheusMetrics(app, defaults_prefix="erp")
+    except Exception:
+        app.logger.debug("Prometheus metrics not applied.", exc_info=True)
+
+    # Initialize extensions & blueprints
+    try:
+        _init_extensions(app)
+    except Exception:
+        app.logger.exception("Extension init failed")
+
+    try:
+        _register_all_blueprints(app)
+    except Exception:
+        app.logger.exception("Blueprint registration failed")
+
+    @app.get("/health")
+    def _health():
+        return "ok", 200
+
+    @app.get("/health/ready")
+    def _ready():
+        return "ok", 200
+
+        from flask import request
+    @app.before_request
+    def _health_bypass():
+        if request.path in ("/health", "/health/ready"):
+            return None
+    return app
+# === END: canonical app factory ===
+
+
+
 
