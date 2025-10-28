@@ -1,4 +1,5 @@
-﻿from flask import session
+"""Module: tenant.py — audit-added docstring. Refine with precise purpose when convenient."""
+from flask import session
 
 
 class TenantMixin:
@@ -10,5 +11,6 @@ class TenantMixin:
         if org_id is None:
             org_id = session.get("org_id")
         return cls.query.filter_by(org_id=org_id)  # type: ignore[attr-defined]
+
 
 

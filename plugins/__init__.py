@@ -1,3 +1,3 @@
-﻿"""Plugins package."""
+"""Plugins package."""
 
 

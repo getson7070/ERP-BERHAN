@@ -1,4 +1,5 @@
-﻿# erp/utils/http_client.py
+"""Module: utils/http_client.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/utils/http_client.py
 from __future__ import annotations
 import httpx
 from erp.utils.retries import retry_external, ExternalError
@@ -26,5 +27,6 @@ def post_json(url: str, payload: dict, *, headers: dict | None = None) -> dict:
         return r.json()
     except Exception as e:
         raise ExternalError(str(e)) from e
+
 
 

@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify
 
 bp = Blueprint("chatbot_plugin", __name__, url_prefix="/plugins/chatbot")
 

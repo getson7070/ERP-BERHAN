@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify
 
 recall_bp = Blueprint("recall", __name__, url_prefix="/recall")
 

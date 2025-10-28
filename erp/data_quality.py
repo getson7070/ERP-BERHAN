@@ -1,4 +1,4 @@
-﻿"""Data hygiene helpers."""
+"""Data hygiene helpers."""
 
 from datetime import datetime
 from typing import Iterable, cast

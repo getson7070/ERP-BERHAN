@@ -1,4 +1,4 @@
-﻿from flask import request
+from flask import request
 
 def init_security_headers(app):
     @app.after_request

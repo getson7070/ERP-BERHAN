@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'f38a77f2570a'
-down_revision = '0001_initial_core'
+down_revision = '0001'
 branch_labels = None
 depends_on = None
 
@@ -14,3 +14,4 @@ def upgrade():
 def downgrade():
     # Irreversible stub.
     pass
+

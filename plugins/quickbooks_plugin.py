@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify
 
 bp = Blueprint("quickbooks", __name__, url_prefix="/quickbooks")
 

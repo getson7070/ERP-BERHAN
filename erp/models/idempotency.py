@@ -1,4 +1,5 @@
-﻿# erp/models/idempotency.py
+"""Module: models/idempotency.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/models/idempotency.py
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -28,6 +29,7 @@ class IdempotencyKey(db.Model):
         cutoff = datetime.utcnow() - timedelta(hours=hours)
         res = db.session.query(IdempotencyKey).filter(IdempotencyKey.created_at < cutoff).delete()
         return res
+
 
 
 

@@ -1,4 +1,4 @@
-﻿"""Telegram bot entry point.
+"""Telegram bot entry point.
 
 The bot is optional and only enabled when the ``python-telegram-bot``
 dependency is installed. Importing this module should not fail if the

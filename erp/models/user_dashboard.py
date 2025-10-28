@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+"""Module: models/user_dashboard.py — audit-added docstring. Refine with precise purpose when convenient."""
+from __future__ import annotations
 from datetime import datetime
 from erp.models import db
 
@@ -43,6 +44,7 @@ class UserDashboard(db.Model):
 
     def __repr__(self) -> str:
         return f"<UserDashboard id={self.id} user_id={self.user_id}>"
+
 
 
 

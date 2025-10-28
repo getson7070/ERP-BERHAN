@@ -1,4 +1,5 @@
-﻿from typing import Optional
+"""Module: auth/user_loader.py — audit-added docstring. Refine with precise purpose when convenient."""
+from typing import Optional
 from ..extensions import login_manager
 
 try:
@@ -15,5 +16,6 @@ def load_user(user_id: str) -> Optional[object]:
         return User.query.get(user_id)  # type: ignore[attr-defined]
     except Exception:
         return None
+
 
 

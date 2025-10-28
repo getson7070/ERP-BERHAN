@@ -1,4 +1,5 @@
-﻿from erp.models import db
+"""Module: models/organization.py — audit-added docstring. Refine with precise purpose when convenient."""
+from erp.models import db
 
 class Organization(db.Model):
     __tablename__ = "organizations"
@@ -7,6 +8,7 @@ class Organization(db.Model):
 
     def __repr__(self) -> str:  # helpful in tests/logs
         return f"<Organization {self.id} {self.name!r}>"
+
 
 
 

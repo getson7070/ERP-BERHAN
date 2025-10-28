@@ -1,0 +1,37 @@
+﻿version: "3.8"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+    healthcheck:
+      test: ["CMD","pg_isready","-U","erp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  cache:
+    image: redis:7
+    command: ["redis-server","--appendonly","no"]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["gunicorn","wsgi:app","-k","eventlet","-w","1","-b","0.0.0.0:8000","--log-level","debug"]
+    environment:
+      # IMPORTANT: match what your alembic/env.py reads (often DATABASE_URL)
+      DATABASE_URL: postgresql+psycopg2://erp:erp@db:5432/erp
+      ERP_SKIP_BLUEPRINTS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy

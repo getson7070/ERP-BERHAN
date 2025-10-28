@@ -1,4 +1,4 @@
-﻿
+
 """CI check: ensure single Alembic head and no placeholder down_revisions."""
 from __future__ import annotations
 import sys

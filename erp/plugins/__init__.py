@@ -1,4 +1,4 @@
-﻿"""
+"""
 Safe plugin loader (replaces any exec()/eval() usage).
 Allow-list based; configure allowed entrypoints via env ERP_ALLOWED_PLUGINS (comma-separated).
 Example values: "erp.plugins.foo:Plugin,erp.plugins.bar:init"

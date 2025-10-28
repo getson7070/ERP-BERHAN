@@ -1,3 +1,4 @@
+"""Module: dlq.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
 from typing import Any
 import json, sys

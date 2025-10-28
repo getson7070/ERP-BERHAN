@@ -1,4 +1,5 @@
-﻿# erp/security_shim.py
+"""Module: security_shim.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/security_shim.py
 from typing import Dict
 from flask import Request
 
@@ -9,5 +10,6 @@ def read_device_id(request: Request) -> str:
 def compute_activation_for_device(device_id: str) -> Dict[str, bool]:
     # Simple defaults; plug your real rules here.
     return {"client": True, "employee": False, "admin": False}
+
 
 

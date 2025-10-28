@@ -1,61 +1,69 @@
-﻿
+version: "3.9"
+
 services:
-  db:
-    image: postgres:16
+  erp-db:
+    image: postgres:15-alpine
     environment:
       POSTGRES_DB: erp
       POSTGRES_USER: erp
       POSTGRES_PASSWORD: erp
     volumes:
-      - erp-pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      test: ["CMD-SHELL","pg_isready -U erp -d erp || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 6
 
-  cache:
+  erp-cache:
     image: redis:7-alpine
-    command: ["redis-server","--save","","--appendonly","no"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD","redis-cli","ping"]
       interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
+      timeout: 5s
+      retries: 6
 
   web:
     build: .
-    depends_on:
-      db:
-        condition: service_healthy
-      cache:
-        condition: service_healthy
+    image: erp-berhan-app
     environment:
-      APP_PORT: "8000"
-      EXTERNAL_PORT: "18000"
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: "redis://cache:6379/0"
-      SECRET_KEY: ${SECRET_KEY}
-    # Use a plain threaded worker (no eventlet)
-    command: >
-      gunicorn erp:create_app()
-      --bind 0.0.0.0:8000
-      --workers 2
-      --threads 4
-      --timeout 60
+      FLASK_ENV: production
+      PYTHONUNBUFFERED: "1"
+      CELERY_BROKER_URL: redis://erp-cache:6379/0
+      CELERY_RESULT_BACKEND: redis://erp-cache:6379/0
+      DATABASE_URL: postgresql+psycopg2://erp:erp@erp-db:5432/erp
+    depends_on:
+      erp-db:
+        condition: service_healthy
+      erp-cache:
+        condition: service_healthy
     ports:
       - "18000:8000"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 25s
+    command: ["bash","-lc","docker/entrypoint.sh"]
+
+  worker:
+    image: erp-berhan-app
+    environment:
+      CELERY_BROKER_URL: redis://erp-cache:6379/0
+      CELERY_RESULT_BACKEND: redis://erp-cache:6379/0
+    depends_on:
+      erp-db:
+        condition: service_healthy
+      erp-cache:
+        condition: service_healthy
+    command: ["bash","-lc","celery -A erp.celery_app worker -l info"]
+
+  beat:
+    image: erp-berhan-app
+    environment:
+      CELERY_BROKER_URL: redis://erp-cache:6379/0
+      CELERY_RESULT_BACKEND: redis://erp-cache:6379/0
+    depends_on:
+      erp-db:
+        condition: service_healthy
+      erp-cache:
+        condition: service_healthy
+    command: ["bash","-lc","celery -A erp.celery_app beat -l info"]
 
 volumes:
-  erp-pgdata:
-
-
-
-
+  pgdata:

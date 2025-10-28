@@ -1,4 +1,4 @@
-﻿def init_perf_defaults(app):
+def init_perf_defaults(app):
     app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {
         "pool_pre_ping": True,
         "pool_recycle": 1800,

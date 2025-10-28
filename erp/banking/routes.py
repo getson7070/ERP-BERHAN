@@ -1,4 +1,5 @@
-﻿# erp/banking/routes.py
+"""Module: banking/routes.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/banking/routes.py
 from http import HTTPStatus
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
@@ -74,5 +75,6 @@ def create_statement():
 
     db.session.commit()
     return jsonify({"id": str(st.id)}), HTTPStatus.CREATED
+
 
 

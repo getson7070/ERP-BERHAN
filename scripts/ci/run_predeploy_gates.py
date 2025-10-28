@@ -1,4 +1,4 @@
-﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+from erp.security_hardening import safe_run, safe_call, safe_popen
 import os, sys, importlib, subprocess
 STRICT = os.getenv("PREDEPLOY_STRICT", "1") != "0"
 def run_py(path, hard=True):

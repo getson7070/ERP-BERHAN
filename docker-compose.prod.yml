@@ -30,7 +30,7 @@
       retries: 3
   worker:
     build: .
-    command: sh -c "celery -A erp.app.celery worker --loglevel=info"
+    command: sh -c "celery -A erp.celery_app.celery_app worker --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: ${DATABASE_URL}
@@ -53,7 +53,7 @@
       retries: 3
   beat:
     build: .
-    command: sh -c "celery -A erp.app.celery beat --loglevel=info"
+    command: sh -c "celery -A erp.celery_app.celery_app beat --loglevel=info"
     environment:
       ENV: production
       DATABASE_URL: ${DATABASE_URL}
@@ -136,5 +136,6 @@
 volumes:
   pgdata:
   redisdata:
+
 
 

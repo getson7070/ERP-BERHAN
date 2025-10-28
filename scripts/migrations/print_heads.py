@@ -1,4 +1,4 @@
-﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+from erp.security_hardening import safe_run, safe_call, safe_popen
 # scripts/migrations/print_heads.py
 import subprocess, sys
 def run(*args):

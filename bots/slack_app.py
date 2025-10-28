@@ -1,4 +1,4 @@
-﻿import os
+import os
 from slack_bolt import App
 
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")

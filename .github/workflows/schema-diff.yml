@@ -1,4 +1,4 @@
-﻿env:
+env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
 name: Schema Diff (Migrations)
 on:

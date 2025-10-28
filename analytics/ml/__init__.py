@@ -1,4 +1,4 @@
-﻿class DemandForecaster:
+class DemandForecaster:
     def fit(self, series):
         self.avg = (sum(series) / max(1, len(series))) if series else 0.0
         return self

@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+"""Module: models/performance_review.py — audit-added docstring. Refine with precise purpose when convenient."""
+from __future__ import annotations
 from datetime import datetime, date
 from erp.models import db
 
@@ -43,6 +44,7 @@ class PerformanceReview(db.Model):
 
     def __repr__(self) -> str:
         return f"<PerformanceReview {self.id} user={self.user_id} score={self.score}>"
+
 
 
 

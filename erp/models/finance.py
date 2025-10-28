@@ -1,4 +1,5 @@
-﻿from datetime import datetime
+"""Module: models/finance.py — audit-added docstring. Refine with precise purpose when convenient."""
+from datetime import datetime
 from erp.extensions import db
 
 class Invoice(db.Model):
@@ -20,6 +21,7 @@ class Payment(db.Model):
     received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     invoice = db.relationship("Invoice", backref=db.backref("payments", lazy="dynamic"))
+
 
 
 

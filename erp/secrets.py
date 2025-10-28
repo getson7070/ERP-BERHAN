@@ -1,4 +1,5 @@
-﻿import json
+"""Module: secrets.py — audit-added docstring. Refine with precise purpose when convenient."""
+import json
 import os
 from threading import RLock
 from typing import Any
@@ -55,5 +56,6 @@ def get_secret(key: str) -> str | None:
     with _lock:
         _cache[cache_key] = secret_val
     return secret_val
+
 
 

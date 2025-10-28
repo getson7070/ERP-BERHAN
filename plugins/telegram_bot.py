@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 
 
 def register(app, register_plugin):

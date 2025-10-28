@@ -1,4 +1,4 @@
-﻿"""Helpers for Microsoft Power BI integrations."""
+"""Helpers for Microsoft Power BI integrations."""
 
 import os
 

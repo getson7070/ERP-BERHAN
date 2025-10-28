@@ -1,49 +1,43 @@
-﻿# migrations/versions/20251025_add_trusted_devices.py
-from alembic import op
+﻿from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import inspect
 
 revision = "20251025_trusted_devices"
-down_revision = "20251016"      # the idempotency_keys migration
+down_revision = "a1b2c3d4e5f6"   # keep your existing branch point
 branch_labels = None
 depends_on = None
 
 def upgrade():
-    # ensure users exists (defensive assert)
     bind = op.get_bind()
-    insp = inspect(bind)
-    if "users" not in insp.get_table_names():
-        raise RuntimeError("Expected table 'users' to exist before trusted_devices.")
+    insp = sa.inspect(bind)
 
+    # Ensure minimal 'users' exists so FK won't fail
+    if "users" not in insp.get_table_names():
+        op.create_table(
+            "users",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("email", sa.String(length=255), nullable=False, unique=True),
+            sa.Column("password_hash", sa.String(length=255), nullable=False),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+        )
+
+    # Create trusted_devices once
     if "trusted_devices" not in insp.get_table_names():
         op.create_table(
             "trusted_devices",
-            sa.Column("id", sa.Integer, primary_key=True),
-            sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), nullable=False),
-            sa.Column("fingerprint", sa.String(64), nullable=False, unique=True),
-            sa.Column("device_name", sa.String(100)),
-            sa.Column("registered_at", sa.DateTime, server_default=sa.text("now()")),
-            sa.Column("last_seen", sa.DateTime, server_default=sa.text("now()")),
-            sa.Column("expires_at", sa.DateTime),
-            sa.Column("approved", sa.Boolean, nullable=False, server_default=sa.text("false")),
-            sa.UniqueConstraint("fingerprint", name="uq_trusted_devices_fingerprint"),
-        )
-
-    # index: create only if missing
-    existing = {ix["name"] for ix in insp.get_indexes("trusted_devices")}
-    if "ix_trusted_devices_user_id" not in existing:
-        op.create_index(
-            "ix_trusted_devices_user_id",
-            "trusted_devices",
-            ["user_id"],
-            unique=False,
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("device_fingerprint", sa.String(length=255), nullable=False),
+            sa.Column("ua", sa.String(length=512)),
+            sa.Column("ip", sa.String(length=64)),
+            sa.Column("issued_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP")),
+            sa.Column("expires_at", sa.DateTime(timezone=True)),
+            sa.UniqueConstraint("user_id", "device_fingerprint", name="uq_user_device"),
         )
 
 def downgrade():
     bind = op.get_bind()
-    insp = inspect(bind)
+    insp = sa.inspect(bind)
     if "trusted_devices" in insp.get_table_names():
-        existing = {ix["name"] for ix in insp.get_indexes("trusted_devices")}
-        if "ix_trusted_devices_user_id" in existing:
-            op.drop_index("ix_trusted_devices_user_id", table_name="trusted_devices")
         op.drop_table("trusted_devices")
+    # Intentionally do not drop 'users'

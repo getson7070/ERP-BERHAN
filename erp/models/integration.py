@@ -1,4 +1,5 @@
-﻿from datetime import datetime
+"""Module: models/integration.py — audit-added docstring. Refine with precise purpose when convenient."""
+from datetime import datetime
 from erp.extensions import db
 
 class IntegrationConfig(db.Model):
@@ -9,6 +10,7 @@ class IntegrationConfig(db.Model):
     enabled = db.Column(db.Boolean, default=True, nullable=False)
     config_json = db.Column(db.JSON, default=dict, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
 
 
 

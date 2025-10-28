@@ -1,4 +1,5 @@
-﻿
+"""Module: crm/models.py — audit-added docstring. Refine with precise purpose when convenient."""
+
 from erp.extensions import db
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -17,5 +18,6 @@ class Opportunity(db.Model):
     title = db.Column(db.String(128), nullable=False)
     stage = db.Column(db.String(32), default="Prospecting")  # Prospecting, Proposal, Negotiation, Won, Lost
     value = db.Column(db.Numeric(18,2), default=0)
+
 
 

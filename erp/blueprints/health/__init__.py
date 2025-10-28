@@ -1,4 +1,4 @@
-﻿# erp/blueprints/health/__init__.py
+# erp/blueprints/health/__init__.py
 from __future__ import annotations
 
 from flask import Blueprint, jsonify

@@ -1,4 +1,5 @@
-﻿try:
+"""Module: metrics.py — audit-added docstring. Refine with precise purpose when convenient."""
+try:
     from prometheus_client import Gauge, Counter  # type: ignore
 except Exception:  # fallback when prometheus_client is missing
     class _NoopMetric:
@@ -30,3 +31,4 @@ def _dead_letter_handler(payload, *, reason: str = "unknown"):
     except Exception:
         pass
     return {"ok": True, "reason": reason}
+

@@ -1,1 +1,1 @@
-﻿__all__ = ["mfa_routes"]
+__all__ = ["mfa_routes"]

@@ -1,4 +1,4 @@
-﻿"""Telegram bot interface for BERHAN ERP."""
+"""Telegram bot interface for BERHAN ERP."""
 
 # mypy: ignore-errors
 

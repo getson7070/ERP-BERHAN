@@ -1,3 +1,4 @@
+"""Module: models/trusted_device.py — audit-added docstring. Refine with precise purpose when convenient."""
 # erp/models/trusted_device.py
 from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, UniqueConstraint
@@ -21,3 +22,4 @@ class TrustedDevice(Base):
     __table_args__ = (
         UniqueConstraint("fingerprint", name="uq_trusted_devices_fingerprint"),
     )
+

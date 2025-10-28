@@ -1,4 +1,5 @@
-﻿*** Begin Patch
+"""Module: finance/routes_approval.py — audit-added docstring. Refine with precise purpose when convenient."""
+*** Begin Patch
 *** Update File: erp/finance/routes_approval.py
 +from __future__ import annotations
 +
@@ -34,5 +35,6 @@
 +    db.session.commit()
 +    return jsonify({"id": str(je.id), "status": je.status, "reversed_lines": len(je.lines)})
 *** End Patch
+
 
 

@@ -1,4 +1,4 @@
-﻿import multiprocessing, os
+import multiprocessing, os
 
 bind = os.getenv("GUNICORN_BIND", "0.0.0.0:10000")
 workers = int(os.getenv("WEB_CONCURRENCY", str(multiprocessing.cpu_count() * 2 + 1)))

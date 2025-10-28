@@ -1,4 +1,4 @@
-﻿"""In-memory plugin registry with optional chatbot/RPA hooks."""
+"""In-memory plugin registry with optional chatbot/RPA hooks."""
 
 from typing import Callable, Dict, List, Any
 

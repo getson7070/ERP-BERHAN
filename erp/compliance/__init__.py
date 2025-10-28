@@ -1,4 +1,4 @@
-﻿"""Compliance models for Part 11/GMP workflows."""
+"""Compliance models for Part 11/GMP workflows."""
 
 from __future__ import annotations
 

@@ -1,4 +1,5 @@
-﻿# erp/db.py
+"""Module: db.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/db.py
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 
@@ -12,3 +13,4 @@ convention = {
 }
 
 db = SQLAlchemy(metadata=MetaData(naming_convention=convention))
+

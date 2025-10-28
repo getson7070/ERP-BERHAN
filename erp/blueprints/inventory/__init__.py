@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from decimal import Decimal
 from flask import Blueprint, session
 from erp.models import db

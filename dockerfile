@@ -23,3 +23,7 @@ COPY . .
 # No CMD here; docker-compose.yml provides the gunicorn command
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=10 CMD curl -fsS http://localhost:8000/health/ready || exit 1
 
+
+# normalize line endings & executable bit for entrypoint
+RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh
+

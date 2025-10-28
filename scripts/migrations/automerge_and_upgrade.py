@@ -1,4 +1,4 @@
-﻿import os, subprocess, shlex
+import os, subprocess, shlex
 
 def normalize_database_url(url: str) -> str:
     return "postgresql+psycopg2://" + url[len("postgres://"):] if url and url.startswith("postgres://") else url
