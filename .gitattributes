@@ -1,5 +1,2 @@
-* text=auto eol=lf
-*.sh   text eol=lf
-Dockerfile text eol=lf
-dockerfile  text eol=lf
-*.ps1  text eol=crlf
+﻿* text=auto eol=lf
+*.ps1 text eol=crlf

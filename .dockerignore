@@ -1,25 +1,14 @@
-﻿# Python
-venv
+﻿venv
 __pycache__
 *.pyc
 *.pyo
 *.pytest_cache
-.coverage
 dist
 build
-
-# Node
 node_modules
 *.log
-
-# VCS/Artifacts
 .git
-.gitignore
-*.bak*
-*.tmp
-*.7z
-*.zip
-
-# Local
 .env
 .env.*
+*.7z
+*.zip
