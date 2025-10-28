@@ -1,7 +1,7 @@
 """Module: blueprints/health.py — audit-added docstring. Refine with precise purpose when convenient."""
 from flask import Blueprint, jsonify
 
-health_bp = Blueprint("health", __name__)
+bp = Blueprint("health", __name__)
 
 @bp.get("/health/ready")
 def ready():
