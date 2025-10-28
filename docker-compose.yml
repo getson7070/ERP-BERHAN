@@ -34,12 +34,12 @@ services:
     environment:
       APP_PORT: "8000"
       EXTERNAL_PORT: "18000"
-      DATABASE_URL: "postgresql+psycopg://erp:erp@db:5432/erp"
+      DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: "redis://cache:6379/0"
-      SECRET_KEY: "dev-secret"
+      SECRET_KEY: ${SECRET_KEY}
     # Use a plain threaded worker (no eventlet)
     command: >
-      gunicorn wsgi:app
+      gunicorn erp:create_app()
       --bind 0.0.0.0:8000
       --workers 2
       --threads 4
@@ -55,5 +55,7 @@ services:
 
 volumes:
   erp-pgdata:
+
+
 
 

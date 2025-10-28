@@ -1,9 +1,10 @@
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
 #!/usr/bin/env python3
 import sys, subprocess
 
 def run(cmd):
     print("+", " ".join(cmd))
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = safe_run(cmd, capture_output=True, text=True)
     print(p.stdout)
     if p.returncode != 0:
         print(p.stderr, file=sys.stderr)
@@ -20,3 +21,4 @@ if rc_audit != 0 or rc_leaks != 0:
     sys.exit(1)
 
 print("Alert budget OK")
+

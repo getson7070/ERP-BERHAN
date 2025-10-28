@@ -1,3 +1,5 @@
+﻿env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 name: Schema Diff (Migrations)
 on:
   pull_request:
@@ -28,18 +30,18 @@ jobs:
         run: pip install -r requirements.txt
       - name: Apply migrations to DB A (pre)
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/a
+          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
           alembic upgrade head
-          pg_dump --schema-only --no-owner --no-privileges             postgresql://postgres:postgres@localhost:5432/a > schema_a.sql
+          pg_dump --schema-only --no-owner --no-privileges             ${{ env.DATABASE_URL }} > schema_a.sql
       - name: Reset DB and re-apply (idempotency check)
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/a
+          DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
-          psql postgresql://postgres:postgres@localhost:5432/postgres -c "DROP DATABASE a WITH (FORCE);"
+          psql ${{ env.DATABASE_URL }} -c "DROP DATABASE a WITH (FORCE);"
           createdb -h localhost -U postgres a
           alembic upgrade head
-          pg_dump --schema-only --no-owner --no-privileges             postgresql://postgres:postgres@localhost:5432/a > schema_b.sql
+          pg_dump --schema-only --no-owner --no-privileges             ${{ env.DATABASE_URL }} > schema_b.sql
       - name: Generate unified diff
         run: |
           diff -u schema_a.sql schema_b.sql > schema.diff || true
@@ -48,3 +50,4 @@ jobs:
         with:
           name: schema-diff
           path: schema.diff
+

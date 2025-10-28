@@ -1,4 +1,5 @@
-﻿import json
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+import json
 import os
 import subprocess
 import sys
@@ -9,7 +10,7 @@ def test_rotate_jwt_secret(tmp_path):
     script = Path(__file__).resolve().parents[1] / "scripts" / "rotate_jwt_secret.py"
     env = os.environ.copy()
     env.pop("JWT_SECRETS", None)
-    result = subprocess.run(
+    result = safe_run(
         [sys.executable, str(script)],
         cwd=tmp_path,
         env=env,
@@ -22,5 +23,6 @@ def test_rotate_jwt_secret(tmp_path):
     log_file = tmp_path / "logs" / "jwt_rotation.log"
     assert log_file.exists()
     assert "Rotated to v1" in result.stdout
+
 
 

@@ -19,7 +19,7 @@ def _guess_url_from_pg_env():
     host = os.getenv("POSTGRES_HOST") or os.getenv("PGHOST") or "db"
     port = os.getenv("POSTGRES_PORT") or os.getenv("PGPORT") or "5432"
     name = os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE") or "erp"
-    return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{name}"
+    return fos.environ.get("DATABASE_URL", os.environ.get("DATABASE_URL", os.environ.get("DATABASE_URL","postgresql+psycopg://erp:erp@db:5432/erp")))
 
 def _get_url():
     url = (
@@ -68,3 +68,6 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+
+
+

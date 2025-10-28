@@ -1,0 +1,28 @@
+﻿ERP-BERHAN Audit Summary
+Root: C:\Users\Alienware\Documents\ERP-BERHAN
+Files: 13848  Folders: 3227
+Total Size: 230.78 MB
+
+Findings:
+  HIGH: 936
+  MED : 0
+  LOW : 2
+  INFO: 34
+
+Top extensions:
+  .py         5789 files
+  <none>      2429 files
+  .json       1751 files
+  .gz         1683 files
+  .pyc         372 files
+  .pyi         206 files
+  .txt         197 files
+  .md          128 files
+  .html         96 files
+  .typed        94 files
+  .h            90 files
+  .po           65 files
+  .mo           63 files
+  .exe          59 files
+  .c            55 files
+

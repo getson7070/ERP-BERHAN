@@ -1,3 +1,4 @@
+﻿from erp.security_hardening import safe_render_template_string
 # erp/blueprints/admin_devices.py
 import os
 from flask import Blueprint, request, render_template_string, redirect, url_for
@@ -26,7 +27,7 @@ TEMPLATE = '''
 def index():
     with get_session() as s:
         ds = s.execute(select(TrustedDevice, User).join(User, TrustedDevice.user_id==User.id)).all()
-    return render_template_string(TEMPLATE, rows=ds)
+    return safe_render_template_string(TEMPLATE, rows=ds)
 
 @bp.get("/revoke/<int:id>")
 def revoke(id):
@@ -34,3 +35,5 @@ def revoke(id):
         s.execute(delete(TrustedDevice).where(TrustedDevice.id==id))
         s.commit()
     return redirect(url_for('admin_devices.index'))
+
+

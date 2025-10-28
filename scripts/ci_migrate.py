@@ -1,3 +1,4 @@
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
 
 Utility to exercise Alembic migrations upgrade→head and downgrade→base
 using an ephemeral database (default: SQLite file).
@@ -9,7 +10,7 @@ DB_URI = os.environ.get("DATABASE_URI", "sqlite:///./ci_migrate.db")
 
 def run(cmd):
     print("+", " ".join(cmd), flush=True)
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    res = safe_run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     print(res.stdout)
     if res.returncode != 0:
         sys.exit(res.returncode)
@@ -26,3 +27,4 @@ if __name__ == "__main__":
     # Downgrade back to base (will fail if not reversible)
     run(["alembic", "downgrade", "base"])
     print("Alembic dry-run completed successfully.")
+

@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+﻿from erp.security_hardening import safe_render_template_string
+from __future__ import annotations
 from flask import Blueprint, render_template_string
 from sqlalchemy import select
 from erp.utils import login_required
@@ -48,7 +49,9 @@ def index():
     {% endfor %}
     </ul>
     """
-    return render_template_string(html, items=items, high_risk_count=high_risk_count, open_dsr_count=open_dsr_count)
+    return safe_render_template_string(html, items=items, high_risk_count=high_risk_count, open_dsr_count=open_dsr_count)
+
+
 
 
 

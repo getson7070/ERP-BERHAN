@@ -1,4 +1,4 @@
-name: production-gates
+﻿name: production-gates
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-      DATABASE_URL: postgresql+psycopg://erp:erp@localhost:5432/erp
+      DATABASE_URL: ${DATABASE_URL}  # moved from literal
       REDIS_URL: redis://localhost:6379/0
       APP_PORT: "8000"
       SECRET_KEY: ci-secret
@@ -116,3 +116,4 @@ jobs:
           context: .
           load: true
           tags: erp-berhan:test
+

@@ -104,8 +104,6 @@ def create_app() -> Flask:
     # Optional hardening/metrics if installed
     try:
         if Talisman is not None:
-            pass
-            pass
             # Minimal CSP; tighten later as needed for your assets
 #             Talisman(app, content_security_policy={"default-src": "'self'"}, force_https=False)
     except Exception:
@@ -161,8 +159,6 @@ def create_app() -> Flask:
     # Optional hardening/metrics if installed
     try:
         if Talisman is not None:
-            pass
-            pass
 #             Talisman(app, content_security_policy={"default-src": "'self'"}, force_https=False)
     except Exception:
         app.logger.debug("Talisman not applied.", exc_info=True)
@@ -217,8 +213,6 @@ def create_app() -> Flask:
     # Optional hardening/metrics if installed
     try:
         if Talisman is not None:
-            pass
-            pass
 #             Talisman(app, content_security_policy={"default-src": "'self'"}, force_https=False)
     except Exception:
         app.logger.debug("Talisman not applied.", exc_info=True)
@@ -261,10 +255,6 @@ def create_app() -> Flask:
         return resp
     return app
 # === END: canonical app factory ===
-
-
-
-
 
 
 

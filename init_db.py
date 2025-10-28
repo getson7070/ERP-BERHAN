@@ -1,4 +1,5 @@
-﻿"""Database bootstrap utility using SQLAlchemy.
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+"""Database bootstrap utility using SQLAlchemy.
 
 This script initialises the database schema and seed data for local
 or test environments. It replaces earlier raw SQL usage with
@@ -166,14 +167,14 @@ def init_db() -> None:
     """Bootstrap a fresh/local DB so the app can import without errors."""
 
     try:
-        subprocess.run(["alembic", "upgrade", "head"], check=True)
+        safe_run(["alembic", "upgrade", "head"], check=True)
         print("Alembic upgrade: OK")
     except FileNotFoundError:
         print("Alembic upgrade skipped or failed.")
     except subprocess.CalledProcessError:
         print("Alembic upgrade failed; resetting schema and retrying...")
         _reset_schema()
-        subprocess.run(["alembic", "upgrade", "head"], check=True)
+        safe_run(["alembic", "upgrade", "head"], check=True)
         print("Alembic upgrade: OK")
 
     engine = get_engine()
@@ -312,5 +313,6 @@ def verify_password(pw: str, hashed: str) -> bool:
     except Exception:
         return False
 # ---- /helper hashing API ----
+
 
 

@@ -1,4 +1,5 @@
-﻿"""Run Alembic migrations and verify schema before and after."""
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+"""Run Alembic migrations and verify schema before and after."""
 
 import os
 import subprocess
@@ -17,7 +18,7 @@ def main() -> None:
         raise RuntimeError("DATABASE_URL is not set")
 
     start = time.time()
-    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    safe_run(["alembic", "upgrade", "head"], check=True)
 
     engine = create_engine(db_url)
     insp = inspect(engine)
@@ -27,7 +28,7 @@ def main() -> None:
     else:
         print("migration_verify_up_success=1")
 
-    subprocess.run(["alembic", "downgrade", "base"], check=True)
+    safe_run(["alembic", "downgrade", "base"], check=True)
     insp = inspect(engine)
     residual = [t for t in EXPECTED_TABLES if insp.has_table(t)]
     if residual:
@@ -43,5 +44,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 

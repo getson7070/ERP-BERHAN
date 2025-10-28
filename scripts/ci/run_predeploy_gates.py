@@ -1,3 +1,4 @@
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
 import os, sys, importlib, subprocess
 STRICT = os.getenv("PREDEPLOY_STRICT", "1") != "0"
 def run_py(path, hard=True):
@@ -5,7 +6,7 @@ def run_py(path, hard=True):
         print(f"[gate] SKIP (missing): {path}")
         return True
     print(f"[gate] RUN {path}")
-    code = subprocess.call([sys.executable, path])
+    code = safe_call([sys.executable, path])
     if code != 0:
         print(f"[gate] FAIL: {path}", file=sys.stderr)
         if hard or STRICT: sys.exit(code)
@@ -27,3 +28,4 @@ def main():
     sys.exit(0)
 if __name__ == '__main__':
     main()
+
