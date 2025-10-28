@@ -1,4 +1,4 @@
-﻿name: production-gates
+name: production-gates
 
 on:
   push:
