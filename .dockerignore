@@ -1,14 +1,25 @@
-﻿venv
-__pycache__
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
 *.pyo
-*.pytest_cache
-dist
-build
-node_modules
-*.log
-.git
-.env
-.env.*
-*.7z
-*.zip
+*.pyd
+*.so
+
+# Virtualenvs / vendored envs
+.venv/
+.venv*/
+
+# Node / front-end caches
+node_modules/
+
+# Backup / temp / tools
+*_backup*/
+_backup*/
+*.bak_*
+*.bak
+*.tmp
+.DS_Store
+
+# Git & CI
+.git/
+.github/

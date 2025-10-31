@@ -9,7 +9,10 @@ from erp import create_app  # noqa
 from erp.extensions import db  # noqa
 
 # default SQLite for CLI tasks if nothing provided
-os.environ.setdefault("SQLALCHEMY_DATABASE_URI", os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///alembic_cli.db"))
+os.environ.setdefault(
+    "SQLALCHEMY_DATABASE_URI",
+    os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///alembic_cli.db"),
+)
 target_metadata = db.metadata
 
 def run_migrations_offline():

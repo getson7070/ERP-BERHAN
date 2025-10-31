@@ -1,0 +1,470 @@
+[
+  {
+    "module": "erp.health_checks",
+    "var": "health_bp",
+    "declared_name": "health_bp",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\health_checks.py"
+  },
+  {
+    "module": "erp.routes",
+    "var": "recall_bp",
+    "declared_name": "recall",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes.py"
+  },
+  {
+    "module": "erp.routes",
+    "var": "integration_bp",
+    "declared_name": "integration",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes.py"
+  },
+  {
+    "module": "erp.web",
+    "var": "web_bp",
+    "declared_name": "web",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\web.py"
+  },
+  {
+    "module": "erp.api.integrations",
+    "var": "integrations_bp",
+    "declared_name": "integrations",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\api\\integrations.py"
+  },
+  {
+    "module": "erp.api.webhook",
+    "var": "api_bp",
+    "declared_name": "api",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\api\\webhook.py"
+  },
+  {
+    "module": "erp.auth.mfa_routes",
+    "var": "bp",
+    "declared_name": "mfa",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\auth\\mfa_routes.py"
+  },
+  {
+    "module": "erp.banking.routes",
+    "var": "banking_bp",
+    "declared_name": "banking",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\banking\\routes.py"
+  },
+  {
+    "module": "erp.blueprints.admin_devices",
+    "var": "bp",
+    "declared_name": "admin_devices",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\admin_devices.py"
+  },
+  {
+    "module": "erp.blueprints.bots",
+    "var": "bots_bp",
+    "declared_name": "bots",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\bots.py"
+  },
+  {
+    "module": "erp.blueprints.device_trust",
+    "var": "device_bp",
+    "declared_name": "device",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\device_trust.py"
+  },
+  {
+    "module": "erp.blueprints.finance",
+    "var": "finance_bp",
+    "declared_name": "finance",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\finance.py"
+  },
+  {
+    "module": "erp.blueprints.health",
+    "var": "bp",
+    "declared_name": "health",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\health\\__init__.py"
+  },
+  {
+    "module": "erp.blueprints.health_compat",
+    "var": "bp",
+    "declared_name": "health_compat",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\health_compat.py"
+  },
+  {
+    "module": "erp.blueprints.integration",
+    "var": "integration_bp",
+    "declared_name": "integration",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\integration.py"
+  },
+  {
+    "module": "erp.blueprints.login_ui",
+    "var": "bp",
+    "declared_name": "login_ui",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\login_ui.py"
+  },
+  {
+    "module": "erp.blueprints.recall",
+    "var": "recall_bp",
+    "declared_name": "recall",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\recall\\__init__.py"
+  },
+  {
+    "module": "erp.blueprints.telegram_webhook",
+    "var": "bp",
+    "declared_name": "telegram_webhook",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\telegram_webhook.py"
+  },
+  {
+    "module": "erp.blueprints.compliance",
+    "var": "bp",
+    "declared_name": "compliance",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\compliance\\__init__.py"
+  },
+  {
+    "module": "erp.blueprints.integration",
+    "var": "bp",
+    "declared_name": "integration",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\integration\\__init__.py"
+  },
+  {
+    "module": "erp.blueprints.inventory",
+    "var": "bp",
+    "declared_name": "inventory_bp",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\blueprints\\inventory\\__init__.py"
+  },
+  {
+    "module": "erp.crm.pipeline",
+    "var": "crm_pipeline_bp",
+    "declared_name": "crm_pipeline",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\crm\\pipeline.py"
+  },
+  {
+    "module": "erp.crm.routes",
+    "var": "crm_bp",
+    "declared_name": "crm",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\crm\\routes.py"
+  },
+  {
+    "module": "erp.device_trust.blueprint",
+    "var": "bp",
+    "declared_name": "device_trust",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\device_trust\\blueprint.py"
+  },
+  {
+    "module": "erp.finance.banking",
+    "var": "banking_bp",
+    "declared_name": "banking",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\finance\\banking.py"
+  },
+  {
+    "module": "erp.finance",
+    "var": "bp",
+    "declared_name": "finance",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\finance\\__init__.py"
+  },
+  {
+    "module": "erp.finance_api",
+    "var": "bp",
+    "declared_name": "finance_api",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\finance_api\\__init__.py"
+  },
+  {
+    "module": "erp.inventory.auth",
+    "var": "auth_bp",
+    "declared_name": "auth",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\auth.py"
+  },
+  {
+    "module": "erp.inventory.inventory",
+    "var": "bp",
+    "declared_name": "inventory",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\inventory.py"
+  },
+  {
+    "module": "erp.inventory.marketing",
+    "var": "marketing_bp",
+    "declared_name": "marketing",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\marketing.py"
+  },
+  {
+    "module": "erp.inventory.orders",
+    "var": "orders_bp",
+    "declared_name": "orders",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\orders.py"
+  },
+  {
+    "module": "erp.inventory.routes",
+    "var": "inventory_bp",
+    "declared_name": "inventory",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\routes.py"
+  },
+  {
+    "module": "erp.inventory.routes_approval",
+    "var": "inventory_approval_bp",
+    "declared_name": "inventory_approval",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\routes_approval.py"
+  },
+  {
+    "module": "erp.inventory.routes_delivery",
+    "var": "inventory_delivery_bp",
+    "declared_name": "inventory_delivery",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\routes_delivery.py"
+  },
+  {
+    "module": "erp.inventory.valuation",
+    "var": "bp",
+    "declared_name": "inventory_valuation",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\inventory\\valuation.py"
+  },
+  {
+    "module": "erp.observability.diagnostics",
+    "var": "diagnostics_bp",
+    "declared_name": "diagnostics",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\observability\\diagnostics.py"
+  },
+  {
+    "module": "erp.ops.doctor",
+    "var": "ops_bp",
+    "declared_name": "ops",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\ops\\doctor.py"
+  },
+  {
+    "module": "erp.ops.health",
+    "var": "health_bp",
+    "declared_name": "health",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\ops\\health.py"
+  },
+  {
+    "module": "erp.ops.status",
+    "var": "bp",
+    "declared_name": "status",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\ops\\status.py"
+  },
+  {
+    "module": "erp.procurment.routes",
+    "var": "bp",
+    "declared_name": "procurment",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\procurment\\routes.py"
+  },
+  {
+    "module": "erp.routes.admin",
+    "var": "bp",
+    "declared_name": "admin",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\admin.py"
+  },
+  {
+    "module": "erp.routes.analytics",
+    "var": "bp",
+    "declared_name": "analytics",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\analytics.py"
+  },
+  {
+    "module": "erp.routes.api",
+    "var": "bp",
+    "declared_name": "api",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\api.py"
+  },
+  {
+    "module": "erp.routes.auth",
+    "var": "bp",
+    "declared_name": "auth",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\auth.py"
+  },
+  {
+    "module": "erp.routes.bots",
+    "var": "bp",
+    "declared_name": "bots",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\bots.py"
+  },
+  {
+    "module": "erp.routes.crm",
+    "var": "bp",
+    "declared_name": "crm",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\crm.py"
+  },
+  {
+    "module": "erp.routes.dashboard_customize",
+    "var": "dashboard_customize_bp",
+    "declared_name": "dashboard_customize",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\dashboard_customize.py"
+  },
+  {
+    "module": "erp.routes.feedback",
+    "var": "bp",
+    "declared_name": "feedback",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\feedback.py"
+  },
+  {
+    "module": "erp.routes.finance",
+    "var": "finance_api_bp",
+    "declared_name": "finance_api",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\finance.py"
+  },
+  {
+    "module": "erp.routes.health",
+    "var": "bp",
+    "declared_name": "health",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\health.py"
+  },
+  {
+    "module": "erp.routes.help",
+    "var": "bp",
+    "declared_name": "help",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\help.py"
+  },
+  {
+    "module": "erp.routes.hr",
+    "var": "bp",
+    "declared_name": "hr",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\hr.py"
+  },
+  {
+    "module": "erp.routes.hr_workflows",
+    "var": "hr_workflows_bp",
+    "declared_name": "hr_workflows",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\hr_workflows.py"
+  },
+  {
+    "module": "erp.routes.integration",
+    "var": "bp",
+    "declared_name": "integration",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\integration.py"
+  },
+  {
+    "module": "erp.routes.inventory",
+    "var": "inventory_bp",
+    "declared_name": "inventory",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\inventory.py"
+  },
+  {
+    "module": "erp.routes.kanban",
+    "var": "bp",
+    "declared_name": "kanban",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\kanban.py"
+  },
+  {
+    "module": "erp.routes.main",
+    "var": "main_bp",
+    "declared_name": "main",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\main.py"
+  },
+  {
+    "module": "erp.routes.manufacturing",
+    "var": "bp",
+    "declared_name": "manufacturing",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\manufacturing.py"
+  },
+  {
+    "module": "erp.routes.marketing",
+    "var": "marketing_bp",
+    "declared_name": "marketing",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\marketing.py"
+  },
+  {
+    "module": "erp.routes.metrics",
+    "var": "bp",
+    "declared_name": "metrics",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\metrics.py"
+  },
+  {
+    "module": "erp.routes.misc",
+    "var": "bp",
+    "declared_name": "misc",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\misc.py"
+  },
+  {
+    "module": "erp.routes.orders",
+    "var": "bp",
+    "declared_name": "orders",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\orders.py"
+  },
+  {
+    "module": "erp.routes.plugins",
+    "var": "bp",
+    "declared_name": "plugins",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\plugins.py"
+  },
+  {
+    "module": "erp.routes.plugins_sample",
+    "var": "bp",
+    "declared_name": "plugins_sample",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\plugins_sample.py"
+  },
+  {
+    "module": "erp.routes.privacy",
+    "var": "bp",
+    "declared_name": "privacy",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\privacy.py"
+  },
+  {
+    "module": "erp.routes.procurement",
+    "var": "bp",
+    "declared_name": "procurement",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\procurement.py"
+  },
+  {
+    "module": "erp.routes.projects",
+    "var": "bp",
+    "declared_name": "projects",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\projects.py"
+  },
+  {
+    "module": "erp.routes.recall",
+    "var": "bp",
+    "declared_name": "recall",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\recall.py"
+  },
+  {
+    "module": "erp.routes.receive_inventory",
+    "var": "bp",
+    "declared_name": "receive_inventory",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\receive_inventory.py"
+  },
+  {
+    "module": "erp.routes.report_builder",
+    "var": "bp",
+    "declared_name": "report_builder",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\report_builder.py"
+  },
+  {
+    "module": "erp.routes.tenders",
+    "var": "bp",
+    "declared_name": "tenders",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\tenders.py"
+  },
+  {
+    "module": "erp.routes.webhooks",
+    "var": "bp",
+    "declared_name": "webhooks",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\webhooks.py"
+  },
+  {
+    "module": "erp.routes._simple_bp",
+    "var": "bp",
+    "declared_name": "",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\routes\\_simple_bp.py"
+  },
+  {
+    "module": "erp.sales.routes",
+    "var": "bp",
+    "declared_name": "sales",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\sales\\routes.py"
+  },
+  {
+    "module": "erp.setup.opening_balances",
+    "var": "setup_bp",
+    "declared_name": "setup_opening",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\setup\\opening_balances.py"
+  },
+  {
+    "module": "erp.supplychain.routes",
+    "var": "supply_bp",
+    "declared_name": "supplychain",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\supplychain\\routes.py"
+  },
+  {
+    "module": "erp.views.main",
+    "var": "bp",
+    "declared_name": "main",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\views\\main.py"
+  },
+  {
+    "module": "erp.web",
+    "var": "bp",
+    "declared_name": "web",
+    "file": "C:\\Users\\Alienware\\Documents\\ERP-BERHAN\\erp\\web\\__init__.py"
+  }
+]

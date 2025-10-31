@@ -1,6 +1,19 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -euo pipefail
-export PYTHONPATH="/app/wsl-repo:${PYTHONPATH:-}"
-export FLASK_APP="${FLASK_APP:-erp.boot:create_app}"
-/app/docker/check_migrations.sh || true
-exec gunicorn wsgi:app -k eventlet -w 1 -b 0.0.0.0:8000 --log-level=debug
+
+ROLE="${1:-web}"
+: "${FLASK_APP:=erp:create_app}"
+
+echo "[entrypoint] Role: $ROLE  FLASK_APP=$FLASK_APP"
+
+if [ "$ROLE" = "web" ]; then
+  flask db upgrade || echo "[warn] migrations failed (continuing)"
+  exec gunicorn -c gunicorn.conf.py wsgi:app
+elif [ "$ROLE" = "worker" ]; then
+  flask db upgrade || true
+  exec celery -A erp.celery_app worker -l info
+elif [ "$ROLE" = "beat" ]; then
+  exec celery -A erp.celery_app beat -l info
+else
+  echo "Unknown role: $ROLE"; exit 2
+fi

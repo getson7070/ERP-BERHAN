@@ -1,11 +1,55 @@
 name: CI
+
 on:
-  pull_request:
   push:
-permissions:
-  contents: read
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
 jobs:
-  test-lint-security:
+  build-test:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "CI/test-lint-security muted (placeholder)."
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Pytests
+        env:
+          SQLALCHEMY_DATABASE_URI: sqlite:///ci.db
+          SECRET_KEY: ci-secret
+        run: pytest -q
+
+      - name: Alembic single-head check
+        env:
+          SQLALCHEMY_DATABASE_URI: sqlite:///ci.db
+          SECRET_KEY: ci-secret
+        run: |
+          python - <<'PY'
+          from erp import create_app, db
+          app = create_app()
+          with app.app_context():
+              from alembic.config import Config
+              from alembic.script import ScriptDirectory
+              from pathlib import Path
+              cfg = Config("migrations/alembic.ini") if (Path("migrations")/ "alembic.ini").exists() else Config()
+              cfg.set_main_option("script_location", "migrations")
+              script = ScriptDirectory.from_config(cfg)
+              heads = script.get_heads()
+              assert len(heads) == 1, f"Alembic must have exactly 1 head, found: {heads}"
+          print("Alembic heads OK: single head")
+          PY
+
+      - name: Compose syntax check
+        run: docker compose config

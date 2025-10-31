@@ -1,29 +1,28 @@
-﻿# syntax=docker/dockerfile:1.7
-FROM python:3.11-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_ROOT_USER_ACTION=ignore
-
+# Multi-stage build for ERP-BERHAN
+FROM python:3.11-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
-# Minimal OS deps (drop build-essential; keep curl for healthchecks)
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
- && rm -rf /var/lib/apt/lists/*
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends     build-essential libpq-dev curl &&     rm -rf /var/lib/apt/lists/*
 
-# Install runtime deps with cache (BuildKit)
-COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+# Copy requirement files if present, else fallback to pyproject
+COPY requirements.txt* /app/ 2>/dev/null || true
+RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-# Copy app source last to maximize cache hits
-COPY . .
+# Copy app
+COPY . /app
 
-# No CMD here; docker-compose.yml provides the gunicorn command
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=10 CMD curl -fsS http://localhost:8000/health/ready || exit 1
+# Default envs (override in compose/Render)
+ENV FLASK_APP=erp:create_app     FLASK_ENV=production     GUNICORN_CMD_ARGS="--workers=3 --threads=4 --timeout=120"
 
+# Create a non-root user
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+USER appuser
 
-# normalize line endings & executable bit for entrypoint
-RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh
+# Entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
+# Default launch
+CMD ["web"]

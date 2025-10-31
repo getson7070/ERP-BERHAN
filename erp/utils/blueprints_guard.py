@@ -1,19 +1,19 @@
-# erp/utils/blueprints_guard.py
-from __future__ import annotations
-from flask import Flask, Blueprint
+﻿from __future__ import annotations
+from flask import Blueprint
+from typing import Optional
+import logging
 
-def install_blueprint_guard(app: Flask) -> None:
-    """Prevent duplicate blueprint registration and log helpful messages."""
-    seen = set()
+log = logging.getLogger(__name__)
 
-    orig_register = app.register_blueprint
-
-    def safe_register(blueprint: Blueprint, **kwargs):
-        key = (blueprint.name, kwargs.get("url_prefix"))
-        if key in seen:
-            app.logger.warning("Skipping duplicate blueprint: %s (prefix=%s)", *key)
-            return
-        seen.add(key)
-        return orig_register(blueprint, **kwargs)
-
-    app.register_blueprint = safe_register  # type: ignore[attr-defined]
+def safe_register(app, blueprint: Blueprint, **kwargs) -> Optional[Blueprint]:
+    name = getattr(blueprint, "name", None)
+    prefix = kwargs.get("url_prefix")
+    if name in app.blueprints:
+        log.warning("Skipping duplicate blueprint: %s (prefix=%s)", name, prefix)
+        return app.blueprints.get(name)
+    try:
+        app.register_blueprint(blueprint, **kwargs)
+        return blueprint
+    except (ValueError, AssertionError) as e:
+        log.warning("Skipping blueprint '%s' due to route conflict; err=%s", name, e)
+        return app.blueprints.get(name)

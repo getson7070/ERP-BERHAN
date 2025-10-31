@@ -1,0 +1,618 @@
+[
+  {
+    "endpoint": "analytics.collect_vitals",
+    "rule": "/analytics/vitals",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "auth.choose_login",
+    "rule": "/auth/choose",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "auth.login",
+    "rule": "/auth/login",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "banking.accounts",
+    "rule": "/routes/accounts",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "banking.create_statement",
+    "rule": "/routes/statements",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "bots.slack_health",
+    "rule": "/bots/slack/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "compliance.create_signature",
+    "rule": "/compliance/signatures",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "compliance.get_batch_record",
+    "rule": "/compliance/batch-records/<int:record_id>",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "crm.index",
+    "rule": "/crm/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "dashboard_customize.get_layout",
+    "rule": "/dashboard_customize/layout",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "dashboard_customize.save_layout",
+    "rule": "/dashboard_customize/layout",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "device.check_trust",
+    "rule": "/device_trust/trust",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "device.register_device",
+    "rule": "/device_trust/register",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "device_trust.check_device_trust",
+    "rule": "/blueprint/trust",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "device_trust.register_device",
+    "rule": "/blueprint/register",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "feedback.form",
+    "rule": "/feedback/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "feedback.submit",
+    "rule": "/feedback/",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "finance.health",
+    "rule": "/finance/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "finance_api.health",
+    "rule": "/finance/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health.health",
+    "rule": "/health/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health_bp.health",
+    "rule": "/health_checks/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health_bp.healthz",
+    "rule": "/health_checks/healthz",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health_bp.readyz",
+    "rule": "/health_checks/readyz",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health_compat.health",
+    "rule": "/health_compat/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "health_compat.healthz",
+    "rule": "/health_compat/healthz",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "help.help",
+    "rule": "/help/help",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "help.offline",
+    "rule": "/help/offline",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "hr.add_employee",
+    "rule": "/hr/add",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "hr.index",
+    "rule": "/hr/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "integration.health",
+    "rule": "/integration/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "integrations.ping",
+    "rule": "/integrations/ping",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "inventory.index",
+    "rule": "/inventory/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "inventory.new_item",
+    "rule": "/inventory/new",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "inventory_delivery.create_delivery",
+    "rule": "/routes_delivery/delivery",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "inventory_valuation.health",
+    "rule": "/valuation/valuation/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "login_ui.login",
+    "rule": "/login_ui/login",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "login_ui.logout",
+    "rule": "/login_ui/logout",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "main.feedback_page",
+    "rule": "/main/feedback",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "main.help_page",
+    "rule": "/main/help",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "main.index",
+    "rule": "/main/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "main.privacy_page",
+    "rule": "/main/privacy",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "manufacturing.index",
+    "rule": "/manufacturing/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "marketing.index",
+    "rule": "/marketing/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "mfa.ping",
+    "rule": "/mfa_routes/ping",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "ops.doctor",
+    "rule": "/doctor/ops/doctor",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "orders.index",
+    "rule": "/orders/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "plugins.index",
+    "rule": "/plugins/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "plugins.marketplace",
+    "rule": "/plugins/marketplace",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "plugins_sample.index",
+    "rule": "/plugins_sample/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "procurement.index",
+    "rule": "/procurement/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "procurment.health",
+    "rule": "/routes/procurment/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "projects.index",
+    "rule": "/projects/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "recall.health",
+    "rule": "/recall/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "receive_inventory.receive_form",
+    "rule": "/receive_inventory/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "receive_inventory.verify_item",
+    "rule": "/receive_inventory/verify",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "receive_inventory.verify_qr",
+    "rule": "/receive_inventory/verify_qr",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "sales.health",
+    "rule": "/routes/sales/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "static",
+    "rule": "/static/<path:filename>",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "status.health",
+    "rule": "/status/health",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "status.healthz",
+    "rule": "/status/healthz",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "supplychain.policy",
+    "rule": "/routes/policy",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "telegram_webhook.webhook",
+    "rule": "/telegram_webhook/webhook",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "tenders.tenders_list",
+    "rule": "/tenders/",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  {
+    "endpoint": "user_management.approve_client",
+    "rule": "/user_management/approve",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "user_management.create_employee",
+    "rule": "/user_management/create",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "user_management.delete_user",
+    "rule": "/user_management/delete",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "user_management.edit_user",
+    "rule": "/user_management/edit",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "user_management.reject_client",
+    "rule": "/user_management/reject",
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "POST"
+    ]
+  },
+  {
+    "endpoint": "webhooks.webhook_test",
+    "rule": "/webhooks/api/webhook/test",
+    "methods": [
+      "OPTIONS",
+      "POST"
+    ]
+  }
+]
