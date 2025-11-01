@@ -1,4 +1,5 @@
-﻿from flask_sqlalchemy import SQLAlchemy
+"""Module: models/inventory.py — audit-added docstring. Refine with precise purpose when convenient."""
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Integer, String, Column
 
 db = SQLAlchemy()
@@ -10,3 +11,4 @@ class Inventory(db.Model):
     name = Column(String, nullable=False)
     sku = Column(String, unique=False, nullable=False) # uniqueness may be per-org in tests
     quantity = Column(Integer, default=0)
+

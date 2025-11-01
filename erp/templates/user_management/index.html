@@ -5,7 +5,7 @@
   <h1 class="text-2xl font-bold mb-4">User Management</h1>
   <!-- Form to create a new employee -->
   <h2 class="text-xl font-semibold mb-2">Create Employee</h2>
-  <form method="post" action="{{ url_for('user_management.create_employee') if url_for is defined else '' }}" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-6">
+  <form method="post" action="{{ url_for('hr.index') if url_for is defined else '' }}" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="name">Name</label>

@@ -1,4 +1,5 @@
-﻿import requests
+"""Module: connectors/ecommerce.py — audit-added docstring. Refine with precise purpose when convenient."""
+import requests
 
 
 def fetch_products(endpoint: str):
@@ -6,5 +7,6 @@ def fetch_products(endpoint: str):
     response = requests.get(endpoint, timeout=5)
     response.raise_for_status()
     return response.json()
+
 
 

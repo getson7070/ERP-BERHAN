@@ -1,49 +1,49 @@
-from logging.config import fileConfig
+﻿from __future__ import annotations
+import os
+from sqlalchemy import engine_from_config, pool
 from alembic import context
-import os, sys
-sys.path.append(os.getcwd())
 
-config = context.config
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+config = context.config  # do NOT call fileConfig; avoid logging dependency
 
-# Use SQLAlchemy metadata without importing the Flask app
-try:
-    from erp.extensions import db  # exposes SQLAlchemy-like metadata
-    target_metadata = db.metadata
-except Exception:
-    target_metadata = None
+from erp import create_app  # noqa
+from erp.extensions import db  # noqa
 
-def get_url():
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set for Alembic")
-    return url
+# default SQLite for CLI tasks if nothing provided
+os.environ.setdefault(
+    "SQLALCHEMY_DATABASE_URI",
+    os.getenv("SQLALCHEMY_DATABASE_URI", "sqlite:///alembic_cli.db"),
+)
+target_metadata = db.metadata
 
 def run_migrations_offline():
+    url = os.environ.get("SQLALCHEMY_DATABASE_URI")
     context.configure(
-        url=get_url(),
+        url=url,
         target_metadata=target_metadata,
-        literal_binds=True,
         compare_type=True,
         compare_server_default=True,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online():
-    from sqlalchemy import pool
-    from sqlalchemy.engine import create_engine
-    engine = create_engine(get_url(), poolclass=pool.NullPool)
-    with engine.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,
-            compare_server_default=True,
-        )
-        with context.begin_transaction():
-            context.run_migrations()
+    app = create_app()
+    with app.app_context():
+        conf = config.get_section(config.config_ini_section) or {}
+        url = os.environ.get("SQLALCHEMY_DATABASE_URI") or app.config["SQLALCHEMY_DATABASE_URI"]
+        conf["sqlalchemy.url"] = url
+        connectable = engine_from_config(conf, prefix="sqlalchemy.", poolclass=pool.NullPool)
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+                compare_server_default=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
 
 if context.is_offline_mode():
     run_migrations_offline()

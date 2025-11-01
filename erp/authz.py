@@ -1,3 +1,4 @@
+"""Module: authz.py — audit-added docstring. Refine with precise purpose when convenient."""
 from typing import List, Tuple
 
 roles: List[str] = ["admin", "user"]

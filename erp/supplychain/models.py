@@ -1,4 +1,5 @@
-﻿
+"""Module: supplychain/models.py — audit-added docstring. Refine with precise purpose when convenient."""
+
 from erp.extensions import db
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -11,5 +12,6 @@ class ReorderPolicy(db.Model):
     service_level = db.Column(db.Numeric(4,2), default=0.95)
     safety_stock = db.Column(db.Numeric(18,3), default=0)
     reorder_point = db.Column(db.Numeric(18,3), default=0)
+
 
 

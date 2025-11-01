@@ -1,4 +1,5 @@
-﻿import os, sys
+"""Module: config_ext/validate_env.py — audit-added docstring. Refine with precise purpose when convenient."""
+import os, sys
 from typing import Iterable
 
 REQUIRED_ENV_DEFAULT = [
@@ -12,5 +13,6 @@ def validate_required_env(required: Iterable[str]) -> None:
     if missing:
         sys.stderr.write(f"[ENV] Missing required variables: {', '.join(missing)}\n")
         sys.exit(1)
+
 
 

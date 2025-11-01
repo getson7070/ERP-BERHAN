@@ -1,4 +1,5 @@
-﻿# erp/models/employee.py
+"""Module: models/employee.py — audit-added docstring. Refine with precise purpose when convenient."""
+# erp/models/employee.py
 from datetime import datetime
 from erp.models import db  # re-exported from erp.models.__init__
 
@@ -18,6 +19,7 @@ class Employee(db.Model):
 
     def __repr__(self) -> str:
         return f"<Employee {self.id} {self.email}>"
+
 
 
 

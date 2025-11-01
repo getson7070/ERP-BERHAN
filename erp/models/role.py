@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+"""Module: models/role.py — audit-added docstring. Refine with precise purpose when convenient."""
+from __future__ import annotations
 from datetime import datetime
 from erp.models import db
 
@@ -14,6 +15,7 @@ class Role(db.Model):
 
     def __repr__(self) -> str:
         return f"<Role {self.id} {self.name!r}>"
+
 
 
 

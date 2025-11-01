@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+"""Module: api/integrations.py — audit-added docstring. Refine with precise purpose when convenient."""
+from __future__ import annotations
 
 from typing import Tuple
 from flask import Flask, Blueprint, jsonify
@@ -22,3 +23,4 @@ def create_app() -> Flask:
     # Register blueprints
     app.register_blueprint(integrations_bp, url_prefix="/integrations")
     return app
+

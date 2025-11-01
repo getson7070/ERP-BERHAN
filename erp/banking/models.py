@@ -1,4 +1,5 @@
-﻿
+"""Module: banking/models.py — audit-added docstring. Refine with precise purpose when convenient."""
+
 from erp.extensions import db
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -24,5 +25,6 @@ class StatementLine(db.Model):
     description = db.Column(db.String(255))
     matched_doc_type = db.Column(db.String(32))
     matched_doc_id = db.Column(UUID(as_uuid=True))
+
 
 

@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+"""Module: wsgi_phase1.py — audit-added docstring. Refine with precise purpose when convenient."""
+from __future__ import annotations
 import os
 from flask import Flask
 
@@ -18,3 +19,4 @@ def build_app() -> Flask:
     return app
 
 app = build_app()
+

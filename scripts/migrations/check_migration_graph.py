@@ -1,4 +1,4 @@
-﻿import os, re, sys, pathlib, ast
+import os, re, sys, pathlib, ast
 from collections import defaultdict
 
 ROOT = pathlib.Path(os.getcwd())

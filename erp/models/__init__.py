@@ -1,4 +1,4 @@
-﻿"""Public model exports and shared SQLAlchemy handle."""
+"""Public model exports and shared SQLAlchemy handle."""
 from __future__ import annotations
 
 # Provide a SQLAlchemy instance early so model modules can import it.

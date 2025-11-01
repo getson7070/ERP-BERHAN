@@ -1,4 +1,4 @@
-﻿"""Endpoints exposing integration hooks and tokens."""
+"""Endpoints exposing integration hooks and tokens."""
 
 from __future__ import annotations
 

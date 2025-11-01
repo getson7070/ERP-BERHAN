@@ -1,9 +1,10 @@
-﻿import os, subprocess, sys, re, datetime, pathlib, textwrap
+from erp.security_hardening import safe_run, safe_call, safe_popen
+import os, subprocess, sys, re, datetime, pathlib, textwrap
 
 ALEMBIC = ["alembic", "-c", "alembic.ini"]
 
 def run(*args):
-    p = subprocess.run(list(args), text=True, capture_output=True)
+    p = safe_run(list(args), text=True, capture_output=True)
     return p.returncode, (p.stdout or "") + (("\n"+p.stderr) if p.stderr else "")
 
 def a(*sub):
@@ -66,5 +67,6 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
 
 

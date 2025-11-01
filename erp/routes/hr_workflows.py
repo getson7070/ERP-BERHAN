@@ -1,4 +1,5 @@
-﻿from flask import (
+"""Module: routes/hr_workflows.py — audit-added docstring. Refine with precise purpose when convenient."""
+from flask import (
     Blueprint,
     render_template,
     request,
@@ -66,5 +67,6 @@ def performance():
         .all()
     )
     return render_template("hr/performance.html", reviews=reviews)
+
 
 

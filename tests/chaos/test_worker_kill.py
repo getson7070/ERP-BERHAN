@@ -1,4 +1,5 @@
-﻿import pytest
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+import pytest
 import subprocess  # nosec B404
 import time
 
@@ -6,7 +7,7 @@ import time
 @pytest.mark.skip(reason="requires running Celery worker and system signals")
 def test_kill_celery_worker():
     """Spawn a Celery worker and ensure it exits when killed."""
-    proc = subprocess.Popen(
+    proc = safe_popen(
         [  # nosec
             "celery",
             "-A",
@@ -20,5 +21,6 @@ def test_kill_celery_worker():
     proc.terminate()
     proc.wait(timeout=5)
     assert proc.poll() is not None  # nosec B101
+
 
 

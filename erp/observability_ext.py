@@ -1,4 +1,5 @@
-﻿# ensure these metric names exist
+"""Module: observability_ext.py — audit-added docstring. Refine with precise purpose when convenient."""
+# ensure these metric names exist
 try:
     from prometheus_client import Counter
     metrics = {
@@ -9,5 +10,6 @@ try:
     }
 except Exception:
     metrics = {}
+
 
 

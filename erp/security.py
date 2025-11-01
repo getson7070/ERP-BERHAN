@@ -1,31 +1,42 @@
-﻿
 from __future__ import annotations
-from flask import Response
+from typing import Optional
+import os
 
-CSP = (
-    "default-src 'self'; "
-    "script-src 'self'; "
-    "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
-    "font-src 'self' data:; "
-    "object-src 'none'; "
-    "base-uri 'self'; "
-    "frame-ancestors 'none'; "
-    "upgrade-insecure-requests"
-)
+def apply_security(app) -> None:
+    """Harden cookies, enable CSP/HSTS if Flask-Talisman is available."""
+    # Core cookies
+    app.config.setdefault("SESSION_COOKIE_SECURE", True)
+    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
+    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    app.config.setdefault("REMEMBER_COOKIE_SECURE", True)
+    app.config.setdefault("REMEMBER_COOKIE_HTTPONLY", True)
 
-def apply_security_headers(app):
-    @app.after_request
-    def _set_headers(resp: Response):
-        resp.headers.setdefault("Content-Security-Policy", CSP)
-        resp.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
-        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("X-Frame-Options", "DENY")
-        resp.headers.setdefault("Referrer-Policy", "no-referrer")
-        resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-        resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
-        resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
-        return resp
-    return app
+    # Basic CSP/HSTS via Talisman if installed
+    try:
+        from talisman import Talisman  # pip: flask-talisman or talisman (alias)
+    except Exception:
+        try:
+            from flask_talisman import Talisman  # legacy pkg name
+        except Exception:
+            Talisman = None
 
-
+    if Talisman:
+        csp = {
+            "default-src": ["'self'"],
+            "script-src": ["'self'"],
+            "style-src": ["'self'", "'unsafe-inline'"],
+            "img-src": ["'self'", "data:"],
+            "font-src": ["'self'", "data:"],
+            "connect-src": ["'self'"],
+            "object-src": ["'none'"],
+            "frame-ancestors": ["'self'"],
+            "base-uri": ["'self'"],
+            "form-action": ["'self'"],
+        }
+        Talisman(
+            app,
+            content_security_policy=csp,
+            force_https=False,  # behind proxies this should be True with proper proxy headers
+            strict_transport_security=True,
+            strict_transport_security_max_age=31536000,
+        )

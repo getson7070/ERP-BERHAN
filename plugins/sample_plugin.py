@@ -1,4 +1,4 @@
-﻿from flask import Blueprint
+from flask import Blueprint
 
 bp = Blueprint("sample_plugin", __name__, url_prefix="/plugins/sample")
 

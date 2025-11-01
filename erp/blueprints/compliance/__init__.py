@@ -1,4 +1,4 @@
-﻿"""API endpoints for compliance workflows."""
+"""API endpoints for compliance workflows."""
 
 from __future__ import annotations
 

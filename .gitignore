@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -133,3 +133,10 @@ Thumbs.db
 *.bak
 
 *.bak
+
+.env.local
+
+*.bak_*
+node_modules/
+frontend/dist/
+migrations/versions/*.bak*

@@ -1,4 +1,4 @@
-﻿"""Basic inventory formulas used in demand planning and optimization.
+"""Basic inventory formulas used in demand planning and optimization.
 
 These are pure functions so you can import them into views/services.
 All inputs are floats; all outputs are floats.

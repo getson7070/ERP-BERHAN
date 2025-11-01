@@ -1,4 +1,5 @@
-﻿from datetime import datetime
+"""Module: models/recall.py — audit-added docstring. Refine with precise purpose when convenient."""
+from datetime import datetime
 from erp.extensions import db
 
 class ProductRecall(db.Model):
@@ -12,6 +13,7 @@ class ProductRecall(db.Model):
     status = db.Column(db.String(16), nullable=False, default="open")  # open/closed
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     closed_at = db.Column(db.DateTime, nullable=True)
+
 
 
 

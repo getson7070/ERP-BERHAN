@@ -1,4 +1,4 @@
-﻿"""Stub for accounting system connector."""
+"""Stub for accounting system connector."""
 
 import requests
 import os

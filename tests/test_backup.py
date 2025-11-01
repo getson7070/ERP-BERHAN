@@ -8,7 +8,7 @@ from backup import create_backup, run_backup, BACKUP_LAST_SUCCESS
 
 
 def test_pg_dump_invoked(tmp_path):
-    db_url = "postgresql://user:pass@localhost/db?sslmode=require"
+    db_url = os.environ.get("DATABASE_URL", os.environ.get("DATABASE_URL", os.environ.get("DATABASE_URL","postgresql+psycopg://erp:erp@db:5432/erp")))
 
     def fake_run(cmd, check):
         Path(cmd[cmd.index("-f") + 1]).write_text("-- pg dump --")
@@ -37,5 +37,8 @@ def test_run_backup_sets_metric(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
     run_backup()
     assert BACKUP_LAST_SUCCESS._value.get() > 0
+
+
+
 
 

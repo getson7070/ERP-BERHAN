@@ -1,4 +1,4 @@
-﻿"""Privacy compliance utilities and models."""
+"""Privacy compliance utilities and models."""
 
 from __future__ import annotations
 

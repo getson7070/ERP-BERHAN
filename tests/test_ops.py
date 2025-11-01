@@ -1,4 +1,5 @@
-﻿import json
+﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -21,11 +22,12 @@ def test_rotate_secrets(tmp_path, monkeypatch):
 
 def test_dr_drill(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
-    subprocess.run(
+    safe_run(
         [sys.executable, str(repo_root / "scripts/dr_drill.py")],
         cwd=tmp_path,
         check=True,
     )
     assert (tmp_path / "dr-drill.csv").exists()
+
 
 

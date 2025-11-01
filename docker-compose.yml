@@ -1,41 +1,70 @@
-version: "3.9"
-
-services:
+﻿services:
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file: .env
+    command: ["gunicorn","wsgi:app","-k","gthread","-w","3","-b","0.0.0.0:18000","--log-level","info"]
     environment:
-      # Inside the compose network, talk to Postgres at host "db" on 5432
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/erp
-    ports:
-      - "8000:8000"
+      FLASK_APP: erp:create_app
+      FLASK_ENV: production
+      DATABASE_URL: postgresql+psycopg://erp:erp@db:5432/erp
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+      redis:
+        condition: service_healthy
+    ports:
+      - "18000:18000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python","-m","celery","-A","erp.celery_app.celery_app","worker","--loglevel=info"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://erp:erp@db:5432/erp
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   db:
     image: postgres:16
-    container_name: erp-pg
     environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
       POSTGRES_DB: erp
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      # (Optional but tidy) make host auth scram and local trust on first init
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=trust"
-    # Expose to the Windows host ONLY if you want to connect from your host tools
-    ports:
-      - "55432:5432"
-    volumes:
-      - erp-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "erp"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: always
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server","--appendonly","yes"]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis_data:/data
 
 volumes:
-  erp-pgdata:
+  db_data: {}
+  redis_data: {}
+

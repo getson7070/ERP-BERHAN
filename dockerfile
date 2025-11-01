@@ -1,20 +1,28 @@
-# syntax=docker/dockerfile:1.7
+# Multi-stage build for ERP-BERHAN
 FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-RUN apt-get update && apt-get install -y build-essential curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-FROM base AS deps
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends     build-essential libpq-dev curl &&     rm -rf /var/lib/apt/lists/*
 
-FROM base AS runtime
-RUN useradd -u 10001 -m appuser
-WORKDIR /app
-COPY --from=deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
-COPY --from=deps /usr/local/bin /usr/local/bin
-COPY . .
+# Copy requirement files if present, else fallback to pyproject
+COPY requirements.txt* /app/ 2>/dev/null || true
+RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+# Copy app
+COPY . /app
+
+# Default envs (override in compose/Render)
+ENV FLASK_APP=erp:create_app     FLASK_ENV=production     GUNICORN_CMD_ARGS="--workers=3 --threads=4 --timeout=120"
+
+# Create a non-root user
+RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=20s CMD curl -fsS http://localhost:8000/health || exit 1
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:create_app()"]
+
+# Entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default launch
+CMD ["web"]

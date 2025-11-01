@@ -1,4 +1,4 @@
-﻿"""Minimal Slack bot interface for notifications."""
+"""Minimal Slack bot interface for notifications."""
 
 import os
 import requests

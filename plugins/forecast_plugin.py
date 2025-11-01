@@ -1,4 +1,4 @@
-﻿from flask import Blueprint, render_template
+from flask import Blueprint, render_template
 
 bp = Blueprint("forecast_plugin", __name__, url_prefix="/plugins/forecast")
 
