@@ -1,54 +1,70 @@
-version: "3.9"
-services:
+﻿services:
   web:
-    build: .
-    command: web
-    env_file:
-      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["gunicorn","wsgi:app","-k","gthread","-w","3","-b","0.0.0.0:18000","--log-level","info"]
     environment:
-      - DATABASE_URL=postgresql+psycopg://erp:erp@db:5432/erp
-      - REDIS_URL=redis://redis:6379/0
-      - FLASK_APP=erp:create_app
-      - FLASK_ENV=production
+      FLASK_APP: erp:create_app
+      FLASK_ENV: production
+      DATABASE_URL: postgresql+psycopg://erp:erp@db:5432/erp
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
-      - "8000:8000"
+      - "18000:18000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   worker:
-    build: .
-    command: worker
-    env_file:
-      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python","-m","celery","-A","erp.celery_app.celery_app","worker","--loglevel=info"]
     environment:
-      - DATABASE_URL=postgresql+psycopg://erp:erp@db:5432/erp
-      - REDIS_URL=redis://redis:6379/0
-      - FLASK_APP=erp:create_app
+      DATABASE_URL: postgresql+psycopg://erp:erp@db:5432/erp
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
-      - db
-      - redis
-  beat:
-    build: .
-    command: beat
-    env_file:
-      - .env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - FLASK_APP=erp:create_app
-    depends_on:
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   db:
-    image: postgres:15
+    image: postgres:16
     environment:
-      - POSTGRES_DB=erp
-      - POSTGRES_USER=erp
-      - POSTGRES_PASSWORD=erp
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: erp
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    command: ["redis-server","--appendonly","yes"]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
-      - redisdata:/data
+      - redis_data:/data
+
 volumes:
-  pgdata:
-  redisdata:
+  db_data: {}
+  redis_data: {}
+
