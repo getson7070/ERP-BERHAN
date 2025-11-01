@@ -1,4 +1,4 @@
-﻿services:
+services:
   web:
     command: ["sh","-c","/app/docker/entrypoint.sh"]
     environment:

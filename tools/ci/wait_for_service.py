@@ -1,4 +1,4 @@
-﻿import socket, sys, time
+import socket, sys, time
 
 host, port = sys.argv[1], int(sys.argv[2])
 deadline = time.time() + 30

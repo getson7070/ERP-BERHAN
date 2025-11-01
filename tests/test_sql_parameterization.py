@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 TARGET_FILES = [
     "erp/audit.py",

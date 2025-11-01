@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from flask import Blueprint
 from typing import Optional
 import logging

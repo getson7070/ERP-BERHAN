@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import importlib.util
 import os
 from types import ModuleType

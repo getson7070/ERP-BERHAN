@@ -1,4 +1,4 @@
-﻿from erp import create_app, QUEUE_LAG
+from erp import create_app, QUEUE_LAG
 from db import redis_client
 from scripts import update_status
 

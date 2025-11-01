@@ -1,4 +1,4 @@
-﻿def scan() -> int:
+def scan() -> int:
     return 1 + 2
 
 

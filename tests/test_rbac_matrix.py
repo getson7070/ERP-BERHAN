@@ -1,4 +1,4 @@
-﻿roles = ["admin", "user"]
+roles = ["admin", "user"]
 resources = ["thing"]
 matrix = [("admin", "thing")]
 

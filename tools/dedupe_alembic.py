@@ -1,4 +1,4 @@
-﻿def do_dedupe() -> None:
+def do_dedupe() -> None:
     pass
 
 

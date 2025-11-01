@@ -1,4 +1,4 @@
-﻿import os
+import os
 from datetime import date
 import sqlite3
 import sys

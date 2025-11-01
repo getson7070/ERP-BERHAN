@@ -1,19 +1,29 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -euo pipefail
 
-ROLE="${1:-web}"
-: "${FLASK_APP:=erp:create_app}"
+# ---- Options / defaults ----
+DB_HOST="${DB_HOST:-db}"
+DB_PORT="${DB_PORT:-5432}"
+DB_USER="${DB_USER:-erp}"
+DB_NAME="${DB_NAME:-erp}"
+# DATABASE_URL may be set by your env; else our env.py already falls back
+export PYTHONPATH=/app
 
-echo "[entrypoint] Role: $ROLE  FLASK_APP=$FLASK_APP"
-
-if [ "$ROLE" = "web" ]; then
-  flask db upgrade || echo "[warn] migrations failed (continuing)"
-  exec gunicorn -c gunicorn.conf.py wsgi:app
-elif [ "$ROLE" = "worker" ]; then
-  flask db upgrade || true
-  exec celery -A erp.celery_app worker -l info
-elif [ "$ROLE" = "beat" ]; then
-  exec celery -A erp.celery_app beat -l info
+# ---- Wait for Postgres to accept connections ----
+if command -v pg_isready >/dev/null 2>&1; then
+  until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" >/dev/null 2>&1; do
+    echo "Waiting for Postgres at ${DB_HOST}:${DB_PORT}..." ; sleep 1
+  done
 else
-  echo "Unknown role: $ROLE"; exit 2
+  # Fallback if pg_isready is not present
+  until (echo >/dev/tcp/${DB_HOST}/${DB_PORT}) >/dev/null 2>&1; do
+    echo "Waiting for Postgres (tcp) at ${DB_HOST}:${DB_PORT}..." ; sleep 1
+  done
 fi
+
+# ---- Run migrations idempotently ----
+cd /app
+alembic upgrade head
+
+# ---- Hand off to the container command ----
+exec "$@"

@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 os.environ["USE_FAKE_REDIS"] = "1"
 

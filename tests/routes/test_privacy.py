@@ -1,4 +1,4 @@
-﻿from datetime import date, timedelta
+from datetime import date, timedelta
 
 from erp import create_app
 from erp.compliance.privacy import PrivacyImpactAssessment

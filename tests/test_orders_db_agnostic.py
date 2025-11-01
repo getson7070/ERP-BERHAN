@@ -1,4 +1,4 @@
-﻿from sqlalchemy import text
+from sqlalchemy import text
 from flask import session
 from erp import create_app
 from db import get_db

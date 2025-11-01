@@ -1,9 +1,9 @@
-﻿services:
+services:
   web:
     build: .
     command: sh -c "gunicorn --config gunicorn.conf.py erp:create_app()"
     ports:
-      - "8000:8000"
+      - "18000:18000"
     environment:
       ENV: production
       DATABASE_URL: ${DATABASE_URL}
@@ -24,7 +24,7 @@
       - no-new-privileges:true
       - seccomp:./deploy/seccomp.json
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:18000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -136,6 +136,7 @@
 volumes:
   pgdata:
   redisdata:
+
 
 
 

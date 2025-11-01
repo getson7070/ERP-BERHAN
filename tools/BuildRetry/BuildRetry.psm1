@@ -1,4 +1,4 @@
-﻿function Invoke-DockerBuildResilient {
+function Invoke-DockerBuildResilient {
   param([int]$Retries = 3)
   Write-Host "==> Resilient build: retries=$Retries" -ForegroundColor Cyan
 

@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 erp = importlib.import_module("erp")
 create_app = getattr(erp, "create_app")
 app = create_app(testing=True) if "testing" in create_app.__code__.co_varnames else create_app()

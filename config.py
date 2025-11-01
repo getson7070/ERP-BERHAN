@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 class Config:
     WTF_CSRF_ENABLED = True

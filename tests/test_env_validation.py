@@ -1,4 +1,4 @@
-﻿import os
+import os
 import pytest
 from erp.config_ext.validate_env import validate_required_env
 

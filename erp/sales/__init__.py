@@ -1,2 +1,2 @@
-﻿from .routes import bp
+from .routes import bp
 __all__=['bp']

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from flask import Blueprint, redirect, url_for, session
 
 COMPAT_BLUEPRINT = Blueprint("compat_shims", __name__)

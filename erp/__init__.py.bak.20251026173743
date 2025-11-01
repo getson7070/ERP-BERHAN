@@ -1,4 +1,4 @@
-﻿"""
+"""
 ERP package initializer with zero side-effects.
 
 - Does NOT construct the Flask app on import.

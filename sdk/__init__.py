@@ -1,3 +1,0 @@
-﻿"""ERP SDK package."""
-
-

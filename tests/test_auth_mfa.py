@@ -1,4 +1,4 @@
-﻿import pyotp
+import pyotp
 
 
 def test_totp_window_accepts_current_code():

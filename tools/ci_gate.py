@@ -1,4 +1,4 @@
-﻿import os, subprocess, sys
+import os, subprocess, sys
 from typing import Optional
 from alembic.config import Config
 from alembic.script import ScriptDirectory

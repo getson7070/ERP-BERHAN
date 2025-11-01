@@ -1,4 +1,4 @@
-﻿import importlib, pkgutil, os
+import importlib, pkgutil, os
 from flask import Blueprint
 
 def register_all(app):

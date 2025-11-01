@@ -1,4 +1,4 @@
-﻿# erp/tools/freeze_blueprints.py
+# erp/tools/freeze_blueprints.py
 from __future__ import annotations
 import importlib, pkgutil, sys, os, json
 from pathlib import Path

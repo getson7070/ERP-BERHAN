@@ -1,4 +1,4 @@
-﻿import pathlib
+import pathlib
 import sys
 from datetime import datetime, timedelta, UTC
 

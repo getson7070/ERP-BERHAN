@@ -1,4 +1,4 @@
-﻿import types
+import types
 import pytest
 from plugins import telegram_bot
 

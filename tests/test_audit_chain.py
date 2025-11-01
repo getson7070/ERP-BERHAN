@@ -1,4 +1,4 @@
-﻿import sqlite3
+import sqlite3
 
 from erp.audit import log_audit, check_audit_chain
 

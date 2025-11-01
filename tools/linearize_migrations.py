@@ -1,4 +1,4 @@
-﻿def linearize() -> None:
+def linearize() -> None:
     pass
 
 

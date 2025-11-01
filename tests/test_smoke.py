@@ -1,4 +1,4 @@
-﻿import re, pathlib
+import re, pathlib
 from erp import create_app
 
 def test_health_ok():

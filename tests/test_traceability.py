@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC
 
 from erp import create_app
 from erp.extensions import db

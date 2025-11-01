@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import pkgutil
 
 import erp.routes

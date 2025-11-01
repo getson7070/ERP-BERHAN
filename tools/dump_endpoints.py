@@ -1,4 +1,4 @@
-﻿from collections import defaultdict
+from collections import defaultdict
 import json
 from erp import create_app
 

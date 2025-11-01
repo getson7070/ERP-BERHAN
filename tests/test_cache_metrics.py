@@ -1,4 +1,4 @@
-﻿from erp import create_app
+from erp import create_app
 from erp.cache import (
     cache_set,
     cache_get,
