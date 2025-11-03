@@ -1,4 +1,4 @@
-﻿import types
+import types
 from sqlalchemy import select
 
 import init_db

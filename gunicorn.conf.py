@@ -1,8 +1,8 @@
-﻿bind = "0.0.0.0:18000"
-workers = 3
-threads = 4
-timeout = 120
-graceful_timeout = 30
-worker_class = "gthread"
-
+# gunicorn.conf.py
 bind = "0.0.0.0:18000"
+workers = 2
+threads = 4
+timeout = 60
+worker_class = "gthread"
+# accesslog = "-"       # optional: stdout
+# errorlog  = "-"       # optional: stdout

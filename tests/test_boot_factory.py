@@ -1,4 +1,4 @@
-﻿def test_factory_health():
+def test_factory_health():
     from erp import create_app
     app = create_app()
     client = app.test_client()

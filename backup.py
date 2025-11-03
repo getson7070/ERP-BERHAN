@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import time
 BACKUP_LAST_SUCCESS = 0
 

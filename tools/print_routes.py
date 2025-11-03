@@ -1,4 +1,4 @@
-﻿import os
+import os
 from flask.cli import ScriptInfo
 os.environ.setdefault("FLASK_APP","erp.boot:create_app")
 app = ScriptInfo(create_app=None).load_app()

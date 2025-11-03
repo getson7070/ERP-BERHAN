@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 pytest.importorskip("bs4")
 from erp import create_app  # noqa: E402

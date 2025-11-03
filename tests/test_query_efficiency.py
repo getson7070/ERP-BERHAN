@@ -1,4 +1,4 @@
-﻿from sqlalchemy import event
+from sqlalchemy import event
 from erp import create_app
 from erp.extensions import db
 from erp.models import Inventory, Role, User

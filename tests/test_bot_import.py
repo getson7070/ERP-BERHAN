@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 
 
 def test_import_without_token(monkeypatch):

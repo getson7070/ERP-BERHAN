@@ -1,4 +1,4 @@
-﻿import os, importlib, sys
+import os, importlib, sys
 from typing import Optional
 from flask.cli import ScriptInfo
 from flask import Flask

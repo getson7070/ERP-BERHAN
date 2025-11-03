@@ -31,4 +31,29 @@ def run_sql():
 
 _reflect_md = sa.MetaData()
 
+bp = Blueprint("report_builder", __name__, url_prefix="/reports")
+
+@bp.get("/sql")
+def run_sql():
+    q = request.args.get("q")
+    fmt = request.args.get("format","json")
+    if not q:
+        return jsonify({"error":"missing q sql param"}), 400
+    # SAFETY: allow only SELECT statements
+    if not q.strip().lower().startswith("select"):
+        return jsonify({"error":"only SELECT allowed"}), 400
+    with get_session() as s:
+        rows = s.execute(text(q)).mappings().all()
+    if fmt=="csv":
+        if not rows:
+            return Response("", mimetype="text/csv")
+        cols = list(rows[0].keys())
+        lines = [",".join(cols)]
+        for r in rows:
+            lines.append(",".join(str(r[c]) if r[c] is not None else "" for c in cols))
+        return Response("\n".join(lines), mimetype="text/csv")
+    return jsonify([dict(r) for r in rows])
+
+_reflect_md = sa.MetaData()
+
 

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import os, json
 from typing import Any, Optional
 from sqlalchemy import create_engine

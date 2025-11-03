@@ -1,4 +1,4 @@
-﻿# Migrations Consolidation — Read Me First
+# Migrations Consolidation — Read Me First
 
 Generated: 2025-10-28T19:36:02Z
 

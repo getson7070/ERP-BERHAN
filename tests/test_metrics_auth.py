@@ -1,4 +1,4 @@
-﻿from erp import create_app
+from erp import create_app
 
 
 def test_metrics_requires_token(monkeypatch):

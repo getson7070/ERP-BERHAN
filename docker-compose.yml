@@ -1,4 +1,4 @@
-﻿services:
+services:
   web:
     build:
       context: .
@@ -67,4 +67,6 @@
 volumes:
   db_data: {}
   redis_data: {}
+
+
 

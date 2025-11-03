@@ -23,7 +23,7 @@ jobs:
 - name: Start app with Gunicorn (gthread like prod)
   run: |
     pip install gunicorn
-    gunicorn 'erp.app:create_app()' -w 2 -k gthread -b 127.0.0.1:8000 --daemon
+    gunicorn 'erp.app:create_app()' -w 2 -k gthread -b 127.0.0.1:18000 --daemon
     python - <<'PY'
 import time, socket
 for _ in range(30):
@@ -39,3 +39,4 @@ PY
 
 - name: Run Auth E2E (both paths)
   run: pytest -q tests/test_auth_e2e.py tests/plugins/test_auth_e2e.py || pytest -q -k "auth and e2e"
+

@@ -1,4 +1,4 @@
-﻿def repair_heads() -> None:
+def repair_heads() -> None:
     pass
 
 

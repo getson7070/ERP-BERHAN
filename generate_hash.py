@@ -1,4 +1,4 @@
-﻿from argon2 import PasswordHasher
+from argon2 import PasswordHasher
 from getpass import getpass
 
 

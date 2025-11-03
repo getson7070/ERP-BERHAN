@@ -1,4 +1,4 @@
-﻿import threading
+import threading
 import time
 import os
 
@@ -23,7 +23,7 @@ def test_homepage_loads(tmp_path):
     app = create_app()
 
     def run():
-        app.run(port=5001)
+        if __name__ -eq "__main__": `r`n    app.run(port=5001)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
@@ -72,6 +72,7 @@ def test_homepage_loads(tmp_path):
         assert "BERHAN" in driver.title  # nosec B101
     finally:
         driver.quit()
+
 
 
 

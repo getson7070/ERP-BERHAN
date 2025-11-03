@@ -1,4 +1,4 @@
-﻿from erp import create_app
+from erp import create_app
 from erp.db import db, User
 
 

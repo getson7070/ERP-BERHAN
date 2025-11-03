@@ -1,4 +1,4 @@
-﻿import pkgutil, importlib, inspect
+import pkgutil, importlib, inspect
 import erp
 
 def test_single_factory_path():

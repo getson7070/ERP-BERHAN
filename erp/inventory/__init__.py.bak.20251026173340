@@ -1,4 +1,4 @@
-﻿"""
+"""
 inventory package facade:
 Ensures `from erp.inventory import Lot, Serial` never raises ImportError.
 If real models are present (in common locations), they are re-exported;

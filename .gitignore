@@ -1,4 +1,4 @@
-﻿# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -140,3 +140,21 @@ Thumbs.db
 node_modules/
 frontend/dist/
 migrations/versions/*.bak*
+# === hygiene rules ===
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.cache/
+dist/
+build/
+.eggs/
+.trash_*/
+*_backup*/
+*_bak_*/
+.idea/
+.vscode/
+.env
+.env.*
+/_archived_migrations_*/

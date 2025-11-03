@@ -1,4 +1,4 @@
-﻿import time
+import time
 from sqlalchemy import create_engine, text
 
 

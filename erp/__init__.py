@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from flask import Flask
 from .utils.blueprints_guard import safe_register
 from .blueprints_explicit import EXPLICIT_BLUEPRINTS

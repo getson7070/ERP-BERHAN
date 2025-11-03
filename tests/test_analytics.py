@@ -1,4 +1,4 @@
-﻿from analytics.ml import DemandForecaster, InventoryAnomalyDetector
+from analytics.ml import DemandForecaster, InventoryAnomalyDetector
 from erp.analytics import retrain_and_predict
 
 

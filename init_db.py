@@ -1,4 +1,4 @@
-﻿from erp.security_hardening import safe_run, safe_call, safe_popen
+from erp.security_hardening import safe_run, safe_call, safe_popen
 """Database bootstrap utility using SQLAlchemy.
 
 This script initialises the database schema and seed data for local

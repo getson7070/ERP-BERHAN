@@ -1,4 +1,4 @@
-﻿from erp import create_app
+from erp import create_app
 
 
 def test_feedback_routes(tmp_path, monkeypatch):

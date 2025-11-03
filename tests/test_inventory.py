@@ -1,4 +1,4 @@
-﻿from flask import json
+from flask import json
 import pytest
 
 from erp import create_app

@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 from erp.integrations import powerbi
 

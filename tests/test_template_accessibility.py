@@ -1,4 +1,4 @@
-﻿import pathlib
+import pathlib
 import pytest
 
 pytest.importorskip("bs4")

@@ -1,4 +1,4 @@
-﻿import erp.routes.health as health
+import erp.routes.health as health
 from erp import create_app
 
 

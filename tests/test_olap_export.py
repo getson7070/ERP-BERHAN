@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from db import get_db
 from scripts.olap_export import main, OLAP_EXPORT_SUCCESS

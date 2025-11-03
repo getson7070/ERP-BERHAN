@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 from db import get_dialect
 

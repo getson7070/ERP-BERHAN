@@ -1,4 +1,4 @@
-﻿services:
+services:
   web:
     volumes: [".:/app"]
     restart: unless-stopped

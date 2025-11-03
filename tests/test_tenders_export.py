@@ -1,4 +1,4 @@
-﻿from erp import create_app  # noqa: E402
+from erp import create_app  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from db import get_db  # noqa: E402
 

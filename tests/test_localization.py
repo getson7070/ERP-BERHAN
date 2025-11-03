@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from erp import create_app
 
 

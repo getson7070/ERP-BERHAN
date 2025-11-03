@@ -1,28 +1,31 @@
-# Multi-stage build for ERP-BERHAN
-FROM python:3.11-slim AS base
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# System deps
-RUN apt-get update && apt-get install -y --no-install-recommends     build-essential libpq-dev curl &&     rm -rf /var/lib/apt/lists/*
+# Build essentials for psycopg/cryptography and curl for healthchecks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy requirement files if present, else fallback to pyproject
-COPY requirements.txt* /app/ 2>/dev/null || true
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+# Install deps first to leverage Docker layer cache
+COPY requirements.lock /app/requirements.lock
+COPY requirements.txt  /app/requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    if [ -f requirements.lock ]; then \
+        pip install --no-cache-dir -r requirements.lock; \
+    elif [ -f requirements.txt ]; then \
+        pip install --no-cache-dir -r requirements.txt; \
+    else \
+        echo "No requirements file found" && exit 1; \
+    fi
+# inside your Dockerfile
+COPY dockerfile/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# Copy app
+# Bring in the app
 COPY . /app
 
-# Default envs (override in compose/Render)
-ENV FLASK_APP=erp:create_app     FLASK_ENV=production     GUNICORN_CMD_ARGS="--workers=3 --threads=4 --timeout=120"
-
-# Create a non-root user
-RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
-USER appuser
-
-# Entrypoint
-COPY docker/entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
-
-# Default launch
-CMD ["web"]
+EXPOSE 18000

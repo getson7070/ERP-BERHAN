@@ -1,4 +1,4 @@
-﻿from typing import Optional, Callable
+from typing import Optional, Callable
 from flask import Flask
 
 def _try_factories():

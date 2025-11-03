@@ -1,10 +1,10 @@
-﻿from flask import Flask, Blueprint, session
+from flask import Flask, Blueprint, session
 from erp.utils import roles_required
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.secret_key = "test"
+    app.SECRET_KEY = os.getenv("SECRET_KEY","change-me")
     main = Blueprint("main", __name__)
 
     @main.route("/dashboard")
@@ -36,5 +36,6 @@ def test_staff_denied_manager():
         session["role"] = "Staff"
         resp = manager_view()
         assert resp.status_code == 302
+
 
 

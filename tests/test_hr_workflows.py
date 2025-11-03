@@ -1,4 +1,4 @@
-﻿from erp import create_app
+from erp import create_app
 from erp.extensions import db
 from erp.models import Recruitment, PerformanceReview
 from sqlalchemy import text
