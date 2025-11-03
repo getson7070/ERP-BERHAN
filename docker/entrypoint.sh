@@ -28,3 +28,4 @@ alembic upgrade head
 # ---- Hand off to the container command ----
 exec "$@"
 
+
