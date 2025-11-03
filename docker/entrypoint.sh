@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
 # ---- Options / defaults ----
@@ -27,3 +27,4 @@ alembic upgrade head
 
 # ---- Hand off to the container command ----
 exec "$@"
+
