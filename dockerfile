@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+﻿FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -22,10 +22,12 @@ RUN python -m pip install --upgrade pip setuptools wheel && \
         echo "No requirements file found" && exit 1; \
     fi
 # inside your Dockerfile
-COPY dockerfile/entrypoint.sh /app/entrypoint.sh
+COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Bring in the app
 COPY . /app
 
 EXPOSE 18000
+
+
