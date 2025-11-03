@@ -1,3 +1,4 @@
+from .health import bp as health_bp
 from __future__ import annotations
 from flask import Flask
 from .utils.blueprints_guard import safe_register
@@ -19,4 +20,5 @@ def create_app(config: dict | None = None) -> Flask:
         app.config.update(config)
     pairs = EXPLICIT_BLUEPRINTS + extend_blueprints()
     _register_blueprints(app, pairs)
+        app.register_blueprint(health_bp)
     return app
