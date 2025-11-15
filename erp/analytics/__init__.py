@@ -40,3 +40,4 @@ def retrain_and_predict(history: Sequence[float] | Iterable[float]) -> float:
 
 
 __all__ = ["bp", "DemandForecaster", "retrain_and_predict", "health"]
+__all__ = ["bp", "DemandForecaster", "retrain_and_predict", "health"]

@@ -11,6 +11,20 @@ from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import redis_client  # type: ignore
+
+from .db import db as db
+from .dlq import _dead_letter_handler
+from .extensions import cache, init_extensions, limiter, login_manager, mail
+from .metrics import (
+    AUDIT_CHAIN_BROKEN,
+    DLQ_MESSAGES,
+    GRAPHQL_REJECTS,
+    QUEUE_LAG,
+    RATE_LIMIT_REJECTIONS,
+)
+from .socket import socketio
+from .security import apply_security
+
 from erp.extensions import init_extensions  # your existing extensions init
 
 from .db import db as db
@@ -142,6 +156,37 @@ def _iter_blueprint_modules() -> Iterable[str]:
         ALLOWLIST = []  # type: ignore
 
     seen.update(_DEFAULT_BLUEPRINT_MODULES)
+
+    allowlist_modules = [module for module, _ in ALLOWLIST]
+    for module in allowlist_modules:
+        yield module
+
+                continue
+            if line.startswith("CHOSEN") or line.startswith("SKIPPED"):
+                continue
+            if line.startswith("- "):
+                try:
+                    _, remainder = line.split(":", 1)
+                except ValueError:
+                    continue
+                module = remainder.strip().split()[0]
+                if "." in module:
+                    module = module.rsplit(".", 1)[0]
+                if module:
+                    seen.add(module)
+                    yield module
+        for module in _DEFAULT_BLUEPRINT_MODULES:
+            if module not in seen:
+                yield module
+        return
+
+    # Fallback: curated allow-list for minimal environments/tests.
+    try:
+        from .blueprints_explicit import ALLOWLIST
+    except Exception:  # pragma: no cover - defensive fallback
+        ALLOWLIST = []  # type: ignore
+
+    seen.update(_DEFAULT_BLUEPRINT_MODULES)
     """
     Yield dotted *module* paths for blueprints listed in
     `blueprints_dedup_manifest.txt`.
@@ -235,6 +280,20 @@ def _iter_blueprint_modules() -> Iterable[str]:
         if module not in allowlist_modules:
             yield module
 
+
+def _resolve_blueprint(module) -> "Blueprint":
+    from flask import Blueprint
+
+    candidate_attrs = ("bp", "blueprint", "app")
+    for attr in candidate_attrs:
+        obj = getattr(module, attr, None)
+        if isinstance(obj, Blueprint):
+            return obj
+
+    for obj in module.__dict__.values():
+        if isinstance(obj, Blueprint):
+            return obj
+
     Preference:
       1. module.bp (common pattern)
       2. any attribute that is a Blueprint instance
@@ -278,6 +337,15 @@ def register_blueprints(app: Flask) -> None:
         except Exception as exc:  # pragma: no cover - log and continue
             LOGGER.warning("Module %s does not expose a blueprint: %s", dotted_path, exc)
             continue
+
+        if blueprint.name in app.blueprints:
+            LOGGER.info(
+                "Skipping blueprint %s from %s because name already registered",
+                blueprint.name,
+                dotted_path,
+            )
+            continue
+
 
         if blueprint.name in app.blueprints:
             LOGGER.info(
@@ -331,6 +399,7 @@ def _register_core_routes(app: Flask) -> None:
 def create_app(config_object: str | None = None) -> Flask:
     """Application factory used by Flask, Celery, and CLI tooling."""
 
+    app = Flask(__name__, instance_relative_config=False)
     app = Flask(__name__, instance_relative_config=False)
     """
     Flask application factory used by Gunicorn/Celery and `FLASK_APP=erp:create_app`.

@@ -15,6 +15,7 @@ from erp.models.inventory import Inventory
 bp = Blueprint("inventory_bp", __name__, url_prefix="/inventory")
 
 
+@dataclass(slots=True)
 @dataclass
 class InventoryDTO:
     id: int
