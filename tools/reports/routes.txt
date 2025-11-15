@@ -1,0 +1,8 @@
+web.index                                 GET                        /
+analytics.health                          GET                        /analytics/health
+crm.home                                  GET                        /crm/
+health.healthz                            GET                        /healthz
+_healthz                                  GET                        /healthz
+inventory.index                           GET                        /inventory/
+health.readyz                             GET                        /readyz
+static                                    GET                        /static/<path:filename>

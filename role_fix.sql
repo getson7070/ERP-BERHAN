@@ -1,0 +1,8 @@
+DO $$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'erp_user') THEN
+      CREATE ROLE erp_user LOGIN PASSWORD 'ChangeMe_Strong_#2025!' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+   ELSE
+      ALTER ROLE erp_user WITH PASSWORD 'ChangeMe_Strong_#2025!';
+   END IF;
+END $$;
