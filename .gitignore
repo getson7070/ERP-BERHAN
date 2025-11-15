@@ -160,3 +160,5 @@ build/
 /_archived_migrations_*/
 
 .trash_*
+
+.tmp.driveupload/
