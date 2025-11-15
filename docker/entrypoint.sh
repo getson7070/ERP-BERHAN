@@ -1,31 +1,65 @@
-﻿#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -e
 
-# ---- Options / defaults ----
-DB_HOST="${DB_HOST:-db}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-erp}"
-DB_NAME="${DB_NAME:-erp}"
-# DATABASE_URL may be set by your env; else our env.py already falls back
-export PYTHONPATH=/app
+# First argument is the role/command (web, migrate, celery, etc.)
+cmd="$1"
+shift || true
 
-# ---- Wait for Postgres to accept connections ----
-if command -v pg_isready >/dev/null 2>&1; then
-  until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" >/dev/null 2>&1; do
-    echo "Waiting for Postgres at ${DB_HOST}:${DB_PORT}..." ; sleep 1
-  done
+echo "ENTRYPOINT: cmd=${cmd:-<none>} args=$*"
+
+wait_for_db() {
+  # Support both DATABASE_URL and SQLALCHEMY_DATABASE_URI
+  DB_URL="${DATABASE_URL:-$SQLALCHEMY_DATABASE_URI}"
+
+  if [ -z "$DB_URL" ]; then
+    echo "wait_for_db: no DATABASE_URL or SQLALCHEMY_DATABASE_URI set, skipping DB wait."
+    return 0
+  fi
+
+  echo "wait_for_db: waiting for DB at $DB_URL"
+
+  python - << 'PY'
+import os, time
+from sqlalchemy import create_engine
+
+db_url = os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
+if not db_url:
+    print("wait_for_db: no DB URL set in env, exiting early.")
+    raise SystemExit(0)
+
+for i in range(30):
+    try:
+        engine = create_engine(db_url, future=True)
+        with engine.connect() as conn:
+            # SQLAlchemy 2.x-safe ping
+            conn.exec_driver_sql("SELECT 1")
+        print("wait_for_db: DB is up.")
+        raise SystemExit(0)
+    except Exception as exc:
+        print(f"wait_for_db: DB not ready yet ({i+1}/30): {exc}")
+        time.sleep(1)
+
+print("wait_for_db: ERROR – DB did not become ready in time.")
+raise SystemExit(1)
+PY
+}
+
+if [ -z "$cmd" ] || [ "$cmd" = "web" ]; then
+  wait_for_db
+  echo "Starting Gunicorn web server..."
+  exec gunicorn -c gunicorn.conf.py wsgi:app
+
+elif [ "$cmd" = "migrate" ]; then
+  wait_for_db
+  echo "Running Alembic migrations (upgrade head)..."
+  exec alembic upgrade head
+
+elif [ "$cmd" = "celery" ]; then
+  wait_for_db
+  echo "Starting Celery worker with args: $*"
+  exec celery "$@"
+
 else
-  # Fallback if pg_isready is not present
-  until (echo >/dev/tcp/${DB_HOST}/${DB_PORT}) >/dev/null 2>&1; do
-    echo "Waiting for Postgres (tcp) at ${DB_HOST}:${DB_PORT}..." ; sleep 1
-  done
+  echo "ENTRYPOINT: executing custom command: $cmd $*"
+  exec "$cmd" "$@"
 fi
-
-# ---- Run migrations idempotently ----
-cd /app
-alembic upgrade head
-
-# ---- Hand off to the container command ----
-exec "$@"
-
-

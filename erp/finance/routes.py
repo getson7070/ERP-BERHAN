@@ -1,11 +1,8 @@
-"""Module: finance/routes.py — audit-added docstring. Refine with precise purpose when convenient."""
-*** Begin Patch
-*** Update File: erp/finance/routes.py
-@@
--from flask import Blueprint, jsonify, request
-+from flask import Blueprint, jsonify, request
-+from .models import Account, JournalEntry, JournalLine, Invoice, Bill
-*** End Patch
+"""Legacy finance routes module.
 
+Most finance-related views now live under :mod:`erp.finance` or
+:mod:`erp.blueprints.finance`. This module is kept as a lightweight
+placeholder so old imports don't break.
+"""
 
-
+from . import bp  # noqa: F401  (re-export blueprint for backwards compatibility)

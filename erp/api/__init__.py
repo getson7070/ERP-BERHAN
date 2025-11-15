@@ -1,2 +1,9 @@
-import erp.metrics_ext  # ensure graphql_rejects_total is registered
-from .integrations import create_app, GRAPHQL_REJECTS, integrations_bp
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+from flask import Blueprint, jsonify
+
+bp = Blueprint("api", __name__, url_prefix="/api")
+
+@bp.get("/health")
+def health():
+    return jsonify(ok=True, module="api")

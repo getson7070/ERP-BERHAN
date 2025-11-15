@@ -1,9 +1,37 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h1 class="h4 mb-3">{{ title or 'auth/login.html' }}</h1>
-    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
-  </div>
-</div>
-{% endblock %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>ERP-BERHAN Login</title>
+  </head>
+  <body>
+    <h1>ERP-BERHAN Login</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+          {% for category, msg in messages %}
+            <li style="color: red;">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post">
+      <label for="email">Email:</label>
+      <input
+        id="email"
+        type="text"
+        name="email"
+        value="{{ request.form.get('email', 'admin@berhanpharma.com') }}"
+      >
+      <br>
+
+      <label for="password">Password:</label>
+      <input id="password" type="password" name="password">
+      <br>
+
+      <button type="submit">Login</button>
+    </form>
+  </body>
+</html>

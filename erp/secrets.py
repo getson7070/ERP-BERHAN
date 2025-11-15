@@ -1,61 +1,47 @@
-"""Module: secrets.py — audit-added docstring. Refine with precise purpose when convenient."""
-import json
+# -*- coding: utf-8 -*-
+"""
+Centralized secret accessor. Sources:
+1) Environment variables
+2) AWS Secrets Manager (optional, if configured)
+No literal defaults here.
+"""
+from __future__ import annotations
 import os
 from threading import RLock
-from typing import Any
+from typing import Any, Optional
 
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+try:
+    import boto3
+    from botocore.exceptions import BotoCoreError, ClientError
+except Exception:
+    boto3 = None
+    BotoCoreError = ClientError = Exception
 
 _cache: dict[str, Any] = {}
 _lock = RLock()
+AWS_SECRET_PREFIX = os.getenv("AWS_SECRET_PREFIX", "").rstrip("/")  # e.g. "prod/erp"
 
-
-def get_secret(key: str) -> str | None:
-    """Return secret value from a vault file, env var, or AWS Secrets Manager.
-
-    The vault file path is supplied via the ``VAULT_FILE`` environment variable.
-    Secrets are reloaded automatically if the file changes to support rotation
-    without restarting the application.  If a secret is not found in the vault
-    or environment, ``AWS_SECRETS_PREFIX`` is used to look up the value from
-    AWS Secrets Manager.
-    """
-    path = os.environ.get("VAULT_FILE")
-    if not path:
-        env_val = os.environ.get(key)
-        if env_val:
-            return env_val
-    else:
-        with _lock:
-            mtime = os.path.getmtime(path)
-            if _cache.get("_mtime") != mtime:
-                with open(path) as fh:
-                    _cache.clear()
-                    _cache.update(json.load(fh))
-                    _cache["_mtime"] = mtime
-            if key in _cache:
-                return _cache[key]
-            env_val = os.environ.get(key)
-            if env_val:
-                return env_val
-
-    prefix = os.environ.get("AWS_SECRETS_PREFIX")
-    if not prefix:
+def _aws_get(name: str) -> Optional[str]:
+    if not boto3 or not AWS_SECRET_PREFIX:
         return None
-    secret_name = f"{prefix}{key}"
-    cache_key = f"aws:{secret_name}"
-    with _lock:
-        if cache_key in _cache:
-            return _cache[cache_key]
     try:
         client = boto3.client("secretsmanager")
-        response = client.get_secret_value(SecretId=secret_name)
-        secret_val = response.get("SecretString")
+        full = f"{AWS_SECRET_PREFIX}/{name}"
+        resp = client.get_secret_value(SecretId=full)
+        return resp.get("SecretString")
     except (BotoCoreError, ClientError):
         return None
+
+def get_secret(name: str) -> Optional[str]:
     with _lock:
-        _cache[cache_key] = secret_val
-    return secret_val
-
-
-
+        if name in _cache:
+            return _cache[name]
+        val = os.getenv(name)
+        if val:
+            _cache[name] = val
+            return val
+        val = _aws_get(name)
+        if val:
+            _cache[name] = val
+            return val
+        return None

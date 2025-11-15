@@ -5,6 +5,8 @@
   <h1 class="text-2xl font-bold mb-4">Leave Requests</h1>
   <!-- Leave request form -->
   <form method="post" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    {{ csrf_token() }}
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="employee">Employee</label>

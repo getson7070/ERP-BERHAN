@@ -1,33 +1,33 @@
-﻿FROM python:3.11-slim
+FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# 1) System deps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       libpq-dev \
+       curl \
+    && rm -rf /var/lib/apt/lists/*
 
+# 2) App base
 WORKDIR /app
 
-# Build essentials for psycopg/cryptography and curl for healthchecks
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev curl \
- && rm -rf /var/lib/apt/lists/*
-
-# Install deps first to leverage Docker layer cache
+# 3) Python deps from lock file + extras we know we need
 COPY requirements.lock /app/requirements.lock
-COPY requirements.txt  /app/requirements.txt
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    if [ -f requirements.lock ]; then \
-        pip install --no-cache-dir -r requirements.lock; \
-    elif [ -f requirements.txt ]; then \
-        pip install --no-cache-dir -r requirements.txt; \
-    else \
-        echo "No requirements file found" && exit 1; \
-    fi
-# inside your Dockerfile
-COPY docker/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+RUN pip install --no-cache-dir -r /app/requirements.lock \
+    && pip install --no-cache-dir flask-bcrypt psycopg[binary]
 
-# Bring in the app
+# 4) Copy project
 COPY . /app
+
+# 5) Normalize entrypoint line endings & make executable
+RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh
+
+# 6) Non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 18000
 
-
+# 7) Use our entrypoint; default command is "web"
+ENTRYPOINT ["docker/entrypoint.sh"]
+CMD ["web"]

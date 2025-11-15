@@ -4,6 +4,8 @@
   <h1 style="font-weight:700;margin-bottom:1rem;">Sign in</h1>
   <p style="color:#666;margin-bottom:2rem;">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
   <form method="post" action="/auth/login">
+    {{ csrf_token() }}
+
     <label>Email</label>
     <input name="email" type="email" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1rem;">
     <label>Password</label>

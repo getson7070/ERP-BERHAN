@@ -1,9 +1,15 @@
-{% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block card_class %} card--wide{% endblock %}
-{% block content %}
-  <header class="page-header">
-    <h1 class="page-title">Welcome, {{ user.email }}</h1>
-    <p class="page-subtitle">Role: <strong>{{ user.role }}</strong></p>
-  </header>
-{% endblock %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>ERP-BERHAN Dashboard</title>
+  </head>
+  <body>
+    <h1>ERP-BERHAN dashboard</h1>
+    <p>Welcome, {{ session.get('user_email') }}.</p>
+
+    <p>
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    </p>
+  </body>
+</html>

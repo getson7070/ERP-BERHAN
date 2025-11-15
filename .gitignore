@@ -158,3 +158,5 @@ build/
 .env
 .env.*
 /_archived_migrations_*/
+
+.trash_*
