@@ -16,7 +16,6 @@ bp = Blueprint("inventory_bp", __name__, url_prefix="/inventory")
 
 
 @dataclass(slots=True)
-@dataclass
 class InventoryDTO:
     id: int
     org_id: int
