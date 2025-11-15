@@ -1,16 +1,22 @@
-"""Module: db.py — audit-added docstring. Refine with precise purpose when convenient."""
-# erp/db.py
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData
+"""ORM compatibility layer for legacy imports.
 
-# Naming convention keeps Alembic happy on autogenerate/constraint diffs
-convention = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
+Historically the SQLAlchemy instance lived in ``erp.db``; newer code uses
+``erp.extensions`` to keep all Flask extensions together.  To remain
+backwards compatible we simply re-export the shared ``db`` instance here
+and lazily expose the ``User`` model so tests that import
+``from erp.db import db, User`` continue to work.
+"""
 
-db = SQLAlchemy(metadata=MetaData(naming_convention=convention))
+from __future__ import annotations
+
+from typing import Any
+
+from .extensions import db as db  # re-exported SQLAlchemy handle
+
+try:  # pragma: no cover - import may fail in minimal deployments
+    from erp.models.user import User  # type: ignore
+except Exception:  # pragma: no cover - fallback when models unavailable
+    User = Any  # type: ignore[misc,assignment]
+
+__all__ = ["db", "User"]
 
