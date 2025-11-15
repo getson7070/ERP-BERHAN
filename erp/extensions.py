@@ -1,25 +1,58 @@
-"""
-erp.extensions
-Central place for Flask extension instances and their initialization.
+"""Central registry for Flask extension singletons.
 
-This module is imported very early by erp.__init__, Alembic env.py, and
-other modules, so avoid heavy side effects at import time.
+The project imports this module in a variety of contexts (Flask app
+factory, Alembic, tests), so construction of the extension instances must
+remain lightweight and free of side effects.
 """
 
 from __future__ import annotations
 
+import importlib.util
+
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
 from flask_caching import Cache
-from flask_mail import Mail
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask_login import LoginManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import MetaData
+
+if importlib.util.find_spec("flask_limiter") is not None:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+else:  # pragma: no cover - fallback when Flask-Limiter is optional
+    class Limiter:  # type: ignore
+        def __init__(self, *_, **__):
+            self.enabled = False
+
+        def init_app(self, app: Flask) -> None:
+            app.logger.warning(
+                "Flask-Limiter is not installed; rate limiting is disabled"
+            )
+
+    def get_remote_address():  # type: ignore
+        return "127.0.0.1"
+
+if importlib.util.find_spec("flask_mail") is not None:
+    from flask_mail import Mail
+else:  # pragma: no cover - fallback when Flask-Mail is optional
+    class Mail:  # type: ignore
+        def init_app(self, app: Flask) -> None:  # noqa: D401
+            app.logger.warning(
+                "Flask-Mail is not installed; email delivery features are disabled"
+            )
+
+_NAMING_CONVENTION = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
 
 # --- Core extensions ---------------------------------------------------------
 
-db: SQLAlchemy = SQLAlchemy()
+db: SQLAlchemy = SQLAlchemy(metadata=MetaData(naming_convention=_NAMING_CONVENTION))
 migrate: Migrate = Migrate()
 
 cache: Cache = Cache()

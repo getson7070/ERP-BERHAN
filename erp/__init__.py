@@ -1,101 +1,8 @@
-import os
-from importlib import import_module
-
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-
-# ---- global extensions ----
-db = SQLAlchemy()
-migrate = Migrate()
-login_manager = LoginManager()
-
-
-def _load_config(app: Flask) -> None:
-    """
-    Load configuration for the app.
-
-    Priority:
-    1. erp.config.Config if present
-    2. Fallback minimal settings (Docker dev)
-    """
-    try:
-        from .config import Config  # type: ignore
-    except ImportError:
-        Config = None  # type: ignore
-
-    if Config is not None:
-        app.config.from_object(Config)
-    else:
-        app.config.from_mapping(
-            SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-CHANGE-ME"),
-            SQLALCHEMY_DATABASE_URI=(
-                os.environ.get("DATABASE_URL")
-                or "postgresql+psycopg://erp:erp@db:5432/erp"
-            ),
-            SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        )
-
-
-def _find_blueprint(module_name: str, *candidate_attrs: str):
-    """
-    Try a few common locations/attribute names to find a Blueprint.
-
-    Example:
-        _find_blueprint("erp.auth", "bp", "auth_bp")
-        _find_blueprint("erp.main", "bp", "main_bp")
-    """
-    last_err = None
-
-    # 1) module itself: erp.auth
-    try:
-        mod = import_module(module_name)
-        for name in candidate_attrs:
-            bp = getattr(mod, name, None)
-            if bp is not None:
-                return bp
-    except ImportError as e:
-        last_err = e
-
-    # 2) routes submodule: erp.auth.routes
-    try:
-        routes_mod = import_module(f"{module_name}.routes")
-        for name in candidate_attrs:
-            bp = getattr(routes_mod, name, None)
-            if bp is not None:
-                return bp
-    except ImportError as e:
-        last_err = e
-
-    msg = f"Could not find blueprint in {module_name} (tried attrs: {candidate_attrs})"
-    if last_err is not None:
-        msg += f" – last import error: {last_err}"
-    raise RuntimeError(msg)
-
-
-def create_app() -> Flask:
-    """
-    Application factory used by:
-    - FLASK_APP=erp:create_app
-    - Alembic migrations/env.py
-    - docker/entrypoint.sh via wsgi.py
-    """
-    app = Flask(__name__)
-
-    # config
-    _load_config(app)
-
-    # extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
-    login_manager.login_message_category = "info"
-# erp/__init__.py
+"""ERP-BERHAN application factory and blueprint registration helpers."""
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 from pathlib import Path
 from typing import Iterable
@@ -103,138 +10,216 @@ from typing import Iterable
 from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from erp.extensions import init_extensions  # must exist in erp/extensions.py
+from db import redis_client  # type: ignore
 
+from .db import db as db
+from .dlq import _dead_letter_handler
+from .extensions import cache, init_extensions, limiter, login_manager, mail
+from .metrics import (
+    AUDIT_CHAIN_BROKEN,
+    DLQ_MESSAGES,
+    GRAPHQL_REJECTS,
+    QUEUE_LAG,
+    RATE_LIMIT_REJECTIONS,
+)
+from .socket import socketio
+from .security import apply_security
+
+LOGGER = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Configuration helpers
+# ---------------------------------------------------------------------------
 
 def _load_config(app: Flask) -> None:
-    """
-    Load configuration for the Flask app.
+    """Populate ``app.config`` from the canonical Config object or env vars."""
 
-    Priority:
-      1) erp.config.Config if present
-      2) Fallback Config class that requires env vars:
-         - SECRET_KEY
-         - DATABASE_URL
-    """
     try:
-        from erp.config import Config  # type: ignore
-    except ImportError:
-        class Config:
-            SECRET_KEY = os.environ["SECRET_KEY"]
-            SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
-            SQLALCHEMY_TRACK_MODIFICATIONS = False
-            WTF_CSRF_ENABLED = True
+        from config import Config  # type: ignore
+    except ImportError:  # pragma: no cover - fallback only hit in minimal envs
+        Config = None  # type: ignore
 
-    app.config.from_object(Config)
+    if Config is not None:
+        app.config.from_object(Config)
+        return
+
+    # Fallback configuration mirrors the documented deployment defaults.
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        database_path = os.environ.get("DATABASE_PATH")
+        if database_path:
+            database_url = f"sqlite:///{database_path}"
+        else:
+            database_url = "sqlite:///local.db"
+
+    app.config.update(
+        SECRET_KEY=os.environ.get("SECRET_KEY", "change-me"),
+        SQLALCHEMY_DATABASE_URI=database_url,
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        REMEMBER_COOKIE_SECURE=True,
+        REMEMBER_COOKIE_HTTPONLY=True,
+        WTF_CSRF_TIME_LIMIT=None,
+    )
 
 
-# ---------- Blueprint discovery / registration ----------
+# ---------------------------------------------------------------------------
+# Blueprint discovery
+# ---------------------------------------------------------------------------
+
+_MANIFEST = Path(__file__).resolve().parent.parent / "blueprints_dedup_manifest.txt"
+_DEFAULT_BLUEPRINT_MODULES = [
+    "erp.main",
+    "erp.web",
+    "erp.views_ui",
+    "erp.routes.main",
+    "erp.routes.dashboard_customize",
+    "erp.routes.analytics",
+    "erp.blueprints.inventory",
+]
+
+_EXCLUDED_BLUEPRINT_MODULES = {
+    "erp.health_checks",
+    "erp.blueprints.health_compat",
+    "erp.ops.health",
+    "erp.ops.status",
+}
+
 
 def _iter_blueprint_modules() -> Iterable[str]:
-    """
-    Yield dotted module paths for blueprints listed in
-    `blueprints_dedup_manifest.txt`.
+    """Yield dotted module paths that are expected to expose a Blueprint."""
 
-    Lines starting with # or blank lines are ignored.
-    """
-    # erp/__init__.py -> erp/ -> project root
-    root = Path(__file__).resolve().parent.parent
-    manifest = root / "blueprints_dedup_manifest.txt"
-    if not manifest.exists():
-        return []
+    seen: set[str] = set()
 
-    modules: list[str] = []
-    with manifest.open() as fh:
-        for line in fh:
+    if _MANIFEST.exists():
+        for line in _MANIFEST.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith("#") or ":" not in line:
                 continue
-            modules.append(line)
-    return modules
+            if line.startswith("CHOSEN") or line.startswith("SKIPPED"):
+                continue
+            if line.startswith("- "):
+                try:
+                    _, remainder = line.split(":", 1)
+                except ValueError:
+                    continue
+                module = remainder.strip().split()[0]
+                if "." in module:
+                    module = module.rsplit(".", 1)[0]
+                if module:
+                    seen.add(module)
+                    yield module
+        for module in _DEFAULT_BLUEPRINT_MODULES:
+            if module not in seen:
+                yield module
+        return
+
+    # Fallback: curated allow-list for minimal environments/tests.
+    try:
+        from .blueprints_explicit import ALLOWLIST
+    except Exception:  # pragma: no cover - defensive fallback
+        ALLOWLIST = []  # type: ignore
+
+    seen.update(_DEFAULT_BLUEPRINT_MODULES)
+
+    allowlist_modules = [module for module, _ in ALLOWLIST]
+    for module in allowlist_modules:
+        yield module
+
+    for module in _DEFAULT_BLUEPRINT_MODULES:
+        if module not in allowlist_modules:
+            yield module
 
 
-def _find_blueprint(module):
-    """
-    Return a Flask Blueprint object from a module.
+def _resolve_blueprint(module) -> "Blueprint":
+    from flask import Blueprint
 
-    Preference:
-      1. module.bp (common pattern)
-      2. any attribute that looks like a Blueprint (has .name and .register)
-    """
-    from flask import Blueprint  # local import to avoid circular issues
+    candidate_attrs = ("bp", "blueprint", "app")
+    for attr in candidate_attrs:
+        obj = getattr(module, attr, None)
+        if isinstance(obj, Blueprint):
+            return obj
 
-    bp = getattr(module, "bp", None)
-    if isinstance(bp, Blueprint):
-        return bp
+    for obj in module.__dict__.values():
+        if isinstance(obj, Blueprint):
+            return obj
 
-    for attr in module.__dict__.values():
-        if isinstance(attr, Blueprint):
-            return attr
-
-    raise RuntimeError(f"No blueprint found in module {module.__name__!r}")
+    raise RuntimeError(f"No Flask Blueprint found in module {module.__name__!r}")
 
 
 def register_blueprints(app: Flask) -> None:
-    """
-    Register all blueprints, skipping duplicates by (name, url_prefix).
+    """Import and register each blueprint exactly once."""
 
-    This prevents confusing errors when multiple modules reuse the same
-    blueprint name or URL prefix. Duplicates are logged and skipped.
-    """
     seen: dict[tuple[str, str], str] = {}
 
     for dotted_path in _iter_blueprint_modules():
-        module = importlib.import_module(dotted_path)
-        bp = _find_blueprint(module)
+        if dotted_path in _EXCLUDED_BLUEPRINT_MODULES:
+            LOGGER.debug("Skipping blueprint module %s via exclusion list", dotted_path)
+            continue
+        try:
+            module = importlib.import_module(dotted_path)
+        except Exception as exc:  # pragma: no cover - log and continue
+            LOGGER.warning("Skipping blueprint module %s: %s", dotted_path, exc)
+            continue
 
-        name = bp.name
-        prefix = bp.url_prefix or ""
-        key = (name, prefix)
+        try:
+            blueprint = _resolve_blueprint(module)
+        except Exception as exc:  # pragma: no cover - log and continue
+            LOGGER.warning("Module %s does not expose a blueprint: %s", dotted_path, exc)
+            continue
 
+        if blueprint.name in app.blueprints:
+            LOGGER.info(
+                "Skipping blueprint %s from %s because name already registered",
+                blueprint.name,
+                dotted_path,
+            )
+            continue
+
+        key = (blueprint.name, blueprint.url_prefix or "")
         if key in seen:
-            app.logger.warning(
-                "Skipping duplicate blueprint: name=%r prefix=%r from %s "
-                "(already registered from %s)",
-                name,
-                prefix,
+            LOGGER.info(
+                "Duplicate blueprint name/prefix detected (name=%s, prefix=%s) from %s;"
+                " keeping first definition from %s",
+                blueprint.name,
+                blueprint.url_prefix or "",
                 dotted_path,
                 seen[key],
             )
             continue
 
-        app.register_blueprint(bp)
+        app.register_blueprint(blueprint)
         seen[key] = dotted_path
-        app.logger.info(
-            "Registered blueprint %r (prefix=%r) from %s",
-            name,
-            prefix,
+        LOGGER.debug(
+            "Registered blueprint %s from %s (prefix=%s)",
+            blueprint.name,
             dotted_path,
+            blueprint.url_prefix,
         )
 
 
-# ---------- Core routes / utilities ----------
+# ---------------------------------------------------------------------------
+# Application factory
+# ---------------------------------------------------------------------------
+
 
 def _register_core_routes(app: Flask) -> None:
-    """Register small core routes like /healthz."""
+    routes = {rule.rule for rule in app.url_map.iter_rules()}
 
-    @app.get("/healthz")
-    def healthz():
-        # Simple health check for Docker / LB probes
-        return jsonify(status="ok")
+    if "/healthz" not in routes:
 
+        @app.get("/healthz")
+        def healthz():
+            return jsonify(status="ok"), 200
 
-# ---------- Application factory ----------
 
 def create_app(config_object: str | None = None) -> Flask:
-    """
-    Flask application factory used by Gunicorn/Celery and `FLASK_APP=erp:create_app`.
+    """Application factory used by Flask, Celery, and CLI tooling."""
 
-    You can pass a dotted config path (e.g. "erp.config.DevConfig") in
-    `config_object`, or rely on _load_config() defaults which read from env.
-    """
     app = Flask(__name__, instance_relative_config=False)
-
-    # ProxyFix so `request.url_root`, scheme, etc. are correct behind Nginx/Render
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     if config_object:
@@ -242,37 +227,34 @@ def create_app(config_object: str | None = None) -> Flask:
     else:
         _load_config(app)
 
-    # Initialise db, migrate, login_manager, mail, cache, limiter, etc.
     init_extensions(app)
-
-    # Register blueprints from manifest (with duplicate protection)
+    apply_security(app)
     register_blueprints(app)
-
-    # Core routes such as /healthz
     _register_core_routes(app)
 
-    return app
-
-    # models (for Alembic)
-    from . import models  # noqa: F401
-
-    # blueprints (be tolerant to different names)
-    try:
-        auth_bp = _find_blueprint("erp.auth", "bp", "auth_bp", "auth")
-        app.register_blueprint(auth_bp, url_prefix="/auth")
-    except Exception as e:
-        # Fail fast with a clear message if auth BP truly missing
-        raise RuntimeError(f"Failed to register auth blueprint: {e}") from e
-
-    try:
-        main_bp = _find_blueprint("erp.main", "bp", "main_bp", "main")
-        app.register_blueprint(main_bp)
-    except Exception as e:
-        raise RuntimeError(f"Failed to register main blueprint: {e}") from e
-
-    # health check
-    @app.get("/healthz")
-    def healthz():
-        return "ok", 200
+    # Ensure models are imported for Alembic autogenerate & shell usage.
+    try:  # pragma: no cover - imports for side effects only
+        importlib.import_module("erp.models")
+    except Exception as exc:
+        LOGGER.debug("Model import failed during boot: %s", exc)
 
     return app
+
+
+__all__ = [
+    "create_app",
+    "register_blueprints",
+    "db",
+    "cache",
+    "mail",
+    "limiter",
+    "login_manager",
+    "redis_client",
+    "socketio",
+    "QUEUE_LAG",
+    "RATE_LIMIT_REJECTIONS",
+    "GRAPHQL_REJECTS",
+    "AUDIT_CHAIN_BROKEN",
+    "DLQ_MESSAGES",
+    "_dead_letter_handler",
+]
