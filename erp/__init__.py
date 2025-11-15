@@ -36,12 +36,21 @@ def _load_config(app: Flask) -> None:
     """Populate ``app.config`` from the canonical Config object or env vars."""
 
     try:
-        from config import Config  # type: ignore
-    except ImportError:  # pragma: no cover - fallback only hit in minimal envs
-        Config = None  # type: ignore
+        from erp.config import Config as ERPConfig  # type: ignore
+    except ImportError:  # pragma: no cover - optional module in deployments
+        ERPConfig = None  # type: ignore
 
-    if Config is not None:
-        app.config.from_object(Config)
+    if ERPConfig is not None:
+        app.config.from_object(ERPConfig)
+        return
+
+    try:
+        from config import Config as InstanceConfig  # type: ignore
+    except ImportError:  # pragma: no cover - fallback only hit in minimal envs
+        InstanceConfig = None  # type: ignore
+
+    if InstanceConfig is not None:
+        app.config.from_object(InstanceConfig)
         return
 
     # Fallback configuration mirrors the documented deployment defaults.
@@ -109,7 +118,7 @@ def _iter_blueprint_modules() -> Iterable[str]:
                 module = remainder.strip().split()[0]
                 if "." in module:
                     module = module.rsplit(".", 1)[0]
-                if module:
+                if module and module not in seen:
                     seen.add(module)
                     yield module
         for module in _DEFAULT_BLUEPRINT_MODULES:
