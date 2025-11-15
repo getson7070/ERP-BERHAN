@@ -14,7 +14,7 @@ WORKDIR /app
 # 3) Python deps from lock file + extras we know we need
 COPY requirements.lock /app/requirements.lock
 RUN pip install --no-cache-dir -r /app/requirements.lock \
-    && pip install --no-cache-dir flask-bcrypt psycopg[binary]
+    && pip install --no-cache-dir flask-bcrypt Flask-Limiter psycopg[binary]
 
 # 4) Copy project
 COPY . /app

@@ -1,37 +1,48 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>ERP-BERHAN Login</title>
-  </head>
-  <body>
-    <h1>ERP-BERHAN Login</h1>
+{% extends "base.html" %}
 
+{% block title %}Login – Berhan ERP{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h1 class="h4 mb-3">Sign in</h1>
+
+    {# Flash messages from view #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <ul>
+        <div class="flash-container">
           {% for category, msg in messages %}
-            <li style="color: red;">{{ msg }}</li>
+            <div class="flash flash-{{ category }}">{{ msg }}</div>
           {% endfor %}
-        </ul>
+        </div>
       {% endif %}
     {% endwith %}
 
-    <form method="post">
-      <label for="email">Email:</label>
-      <input
-        id="email"
-        type="text"
-        name="email"
-        value="{{ request.form.get('email', 'admin@berhanpharma.com') }}"
-      >
-      <br>
+    <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+      {{ form.hidden_tag() }} {# includes CSRF token #}
 
-      <label for="password">Password:</label>
-      <input id="password" type="password" name="password">
-      <br>
+      <div class="mb-3">
+        <label for="{{ form.email.id }}" class="form-label">Email</label>
+        {{ form.email(class="form-control", autocomplete="email") }}
+        {% if form.email.errors %}
+          <div class="text-danger small">
+            {{ form.email.errors[0] }}
+          </div>
+        {% endif %}
+      </div>
 
-      <button type="submit">Login</button>
+      <div class="mb-3">
+        <label for="{{ form.password.id }}" class="form-label">Password</label>
+        {{ form.password(class="form-control", autocomplete="current-password") }}
+        {% if form.password.errors %}
+          <div class="text-danger small">
+            {{ form.password.errors[0] }}
+          </div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Sign in</button>
     </form>
-  </body>
-</html>
+  </div>
+</div>
+{% endblock %}
