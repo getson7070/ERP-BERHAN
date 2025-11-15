@@ -1,4 +1,4 @@
-CHOSEN:
+# CHOSEN:
 - health_bp: erp.health_checks.health_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\health_checks.py)
 - recall: erp.routes.recall.bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\routes\recall.py)
 - integration: erp.routes.integration.bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\routes\integration.py)
@@ -58,7 +58,7 @@ CHOSEN:
 - setup_opening: erp.setup.opening_balances.setup_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\setup\opening_balances.py)
 - supplychain: erp.supplychain.routes.supply_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\supplychain\routes.py)
 
-SKIPPED (same name):
+# SKIPPED (same name):
 - recall: erp.blueprints.recall.recall_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\blueprints\recall\__init__.py)
 - recall: erp.routes.recall_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\routes.py)
 - integration: erp.blueprints.integration.integration_bp (C:\Users\Alienware\Documents\ERP-BERHAN\erp\blueprints\integration.py)
