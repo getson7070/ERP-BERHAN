@@ -1,109 +1,14 @@
-import os
-from importlib import import_module
-
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-
-# ---- global extensions ----
-db = SQLAlchemy()
-migrate = Migrate()
-login_manager = LoginManager()
-
-
-def _load_config(app: Flask) -> None:
-    """
-    Load configuration for the app.
-
-    Priority:
-    1. erp.config.Config if present
-    2. Fallback minimal settings (Docker dev)
-    """
-    try:
-        from .config import Config  # type: ignore
-    except ImportError:
-        Config = None  # type: ignore
-
-    if Config is not None:
-        app.config.from_object(Config)
-    else:
-        app.config.from_mapping(
-            SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-CHANGE-ME"),
-            SQLALCHEMY_DATABASE_URI=(
-                os.environ.get("DATABASE_URL")
-                or "postgresql+psycopg://erp:erp@db:5432/erp"
-            ),
-            SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        )
-
-
-def _find_blueprint(module_name: str, *candidate_attrs: str):
-    """
-    Try a few common locations/attribute names to find a Blueprint.
-
-    Example:
-        _find_blueprint("erp.auth", "bp", "auth_bp")
-        _find_blueprint("erp.main", "bp", "main_bp")
-    """
-    last_err = None
-
-    # 1) module itself: erp.auth
-    try:
-        mod = import_module(module_name)
-        for name in candidate_attrs:
-            bp = getattr(mod, name, None)
-            if bp is not None:
-                return bp
-    except ImportError as e:
-        last_err = e
-
-    # 2) routes submodule: erp.auth.routes
-    try:
-        routes_mod = import_module(f"{module_name}.routes")
-        for name in candidate_attrs:
-            bp = getattr(routes_mod, name, None)
-            if bp is not None:
-                return bp
-    except ImportError as e:
-        last_err = e
-
-    msg = f"Could not find blueprint in {module_name} (tried attrs: {candidate_attrs})"
-    if last_err is not None:
-        msg += f" – last import error: {last_err}"
-    raise RuntimeError(msg)
-
-
-def create_app() -> Flask:
-    """
-    Application factory used by:
-    - FLASK_APP=erp:create_app
-    - Alembic migrations/env.py
-    - docker/entrypoint.sh via wsgi.py
-    """
-    app = Flask(__name__)
-
-    # config
-    _load_config(app)
-
-    # extensions
-    db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
-    login_manager.login_message_category = "info"
-# erp/__init__.py
 from __future__ import annotations
 
 import importlib
 import os
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from erp.extensions import init_extensions  # must exist in erp/extensions.py
+from erp.extensions import init_extensions  # your existing extensions init
 
 
 def _load_config(app: Flask) -> None:
@@ -119,7 +24,7 @@ def _load_config(app: Flask) -> None:
     try:
         from erp.config import Config  # type: ignore
     except ImportError:
-        class Config:
+        class Config:  # type: ignore[no-redef]
             SECRET_KEY = os.environ["SECRET_KEY"]
             SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
             SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -132,25 +37,89 @@ def _load_config(app: Flask) -> None:
 
 def _iter_blueprint_modules() -> Iterable[str]:
     """
-    Yield dotted module paths for blueprints listed in
+    Yield dotted *module* paths for blueprints listed in
     `blueprints_dedup_manifest.txt`.
 
-    Lines starting with # or blank lines are ignored.
+    Your manifest currently looks like:
+
+        - health_bp: erp.health_checks.health_bp (C:\\...\\health_checks.py)
+        - web: erp.web.web_bp (C:\\...\\web.py)
+        ...
+        # SKIPPED (same name):
+        - recall: erp.blueprints.recall.recall_bp (C:\\...\\__init__.py)
+        ...
+
+    From each line we want to extract the **module path**, e.g.:
+
+        "erp.health_checks"
+        "erp.web"
+        "erp.routes.admin"
+        ...
+
+    We:
+      * ignore comments and blank lines,
+      * only consider lines starting with "- ",
+      * take the text after the colon (":") -> e.g. "erp.routes.admin.bp (C:...)",
+      * strip off the file path "(C:...)" part,
+      * strip off the trailing ".bp" / ".health_bp" / ".main_bp" so we end up with
+        just the module path.
     """
-    # erp/__init__.py -> erp/ -> project root
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parent.parent  # project root
     manifest = root / "blueprints_dedup_manifest.txt"
     if not manifest.exists():
         return []
 
-    modules: list[str] = []
+    modules: List[str] = []
+
     with manifest.open() as fh:
-        for line in fh:
-            line = line.strip()
+        for raw_line in fh:
+            line = raw_line.strip()
             if not line or line.startswith("#"):
+                # comments and blank lines
                 continue
-            modules.append(line)
-    return modules
+
+            if not line.startswith("- "):
+                # ignore anything not following "- name: module (path)" pattern
+                continue
+
+            # Strip "- " prefix
+            line = line[2:].strip()
+
+            # Expect "label: dotted.path.to.bp (C:\\...)" form
+            if ":" not in line:
+                continue
+
+            _, rest = line.split(":", 1)
+            rest = rest.strip()
+            if not rest:
+                continue
+
+            # cut off "(C:\\...)" part if present
+            if "(" in rest:
+                rest = rest.split("(", 1)[0].strip()
+
+            # rest should now look like "erp.routes.admin.bp"
+            if not rest.startswith("erp."):
+                continue
+
+            dotted = rest.split()[0]  # in case there are stray spaces
+            # turn "erp.routes.admin.bp" -> "erp.routes.admin"
+            if "." in dotted:
+                module_path = dotted.rsplit(".", 1)[0]
+            else:
+                module_path = dotted
+
+            modules.append(module_path)
+
+    # Deduplicate while preserving order
+    seen_mods = set()
+    ordered: List[str] = []
+    for m in modules:
+        if m not in seen_mods:
+            seen_mods.add(m)
+            ordered.append(m)
+
+    return ordered
 
 
 def _find_blueprint(module):
@@ -159,7 +128,8 @@ def _find_blueprint(module):
 
     Preference:
       1. module.bp (common pattern)
-      2. any attribute that looks like a Blueprint (has .name and .register)
+      2. any attribute that is a Blueprint instance
+         (so main_bp, health_bp, etc will be picked up).
     """
     from flask import Blueprint  # local import to avoid circular issues
 
@@ -206,8 +176,8 @@ def register_blueprints(app: Flask) -> None:
         seen[key] = dotted_path
         app.logger.info(
             "Registered blueprint %r (prefix=%r) from %s",
-            name,
-            prefix,
+            bp.name,
+            bp.url_prefix,
             dotted_path,
         )
 
@@ -228,13 +198,10 @@ def _register_core_routes(app: Flask) -> None:
 def create_app(config_object: str | None = None) -> Flask:
     """
     Flask application factory used by Gunicorn/Celery and `FLASK_APP=erp:create_app`.
-
-    You can pass a dotted config path (e.g. "erp.config.DevConfig") in
-    `config_object`, or rely on _load_config() defaults which read from env.
     """
     app = Flask(__name__, instance_relative_config=False)
 
-    # ProxyFix so `request.url_root`, scheme, etc. are correct behind Nginx/Render
+    # Ensure scheme/host are correct behind proxy/Render
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     if config_object:
@@ -250,29 +217,5 @@ def create_app(config_object: str | None = None) -> Flask:
 
     # Core routes such as /healthz
     _register_core_routes(app)
-
-    return app
-
-    # models (for Alembic)
-    from . import models  # noqa: F401
-
-    # blueprints (be tolerant to different names)
-    try:
-        auth_bp = _find_blueprint("erp.auth", "bp", "auth_bp", "auth")
-        app.register_blueprint(auth_bp, url_prefix="/auth")
-    except Exception as e:
-        # Fail fast with a clear message if auth BP truly missing
-        raise RuntimeError(f"Failed to register auth blueprint: {e}") from e
-
-    try:
-        main_bp = _find_blueprint("erp.main", "bp", "main_bp", "main")
-        app.register_blueprint(main_bp)
-    except Exception as e:
-        raise RuntimeError(f"Failed to register main blueprint: {e}") from e
-
-    # health check
-    @app.get("/healthz")
-    def healthz():
-        return "ok", 200
 
     return app
