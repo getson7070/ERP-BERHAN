@@ -5,8 +5,7 @@
   <h1 class="text-2xl font-bold mb-4">User Management</h1>
   <!-- Form to create a new employee -->
   <h2 class="text-xl font-semibold mb-2">Create Employee</h2>
-  <form method="post" action="{{ url_for('hr.index') if url_for is defined else '' }}" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-6">
-    {{ csrf_token() }}
+  <form method="post" action="{{ url_for('user_management.index') }}" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-6">
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
@@ -50,8 +49,12 @@
           <td class="px-6 py-4 whitespace-nowrap">{{ client.email }}</td>
           <td class="px-6 py-4 whitespace-nowrap">
             <!-- Approve button triggers an approval route; adapt URL if necessary -->
-            <a href="{{ url_for('user_management.approve_client', client_id=client.id) if url_for is defined else '#' }}" class="bg-green-500 hover:bg-green-700 text-white py-1 px-3 rounded mr-2">Approve</a>
-            <a href="{{ url_for('user_management.reject_client', client_id=client.id) if url_for is defined else '#' }}" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Reject</a>
+            <form method="post" action="{{ url_for('user_management.approve_client', client_id=client.id) }}" class="inline">
+              <button type="submit" class="bg-green-500 hover:bg-green-700 text-white py-1 px-3 rounded mr-2">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('user_management.reject_client', client_id=client.id) }}" class="inline">
+              <button type="submit" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Reject</button>
+            </form>
           </td>
         </tr>
         {% else %}
@@ -81,8 +84,9 @@
           <td class="px-6 py-4 whitespace-nowrap">{{ user.email }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ user.role }}</td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <a href="{{ url_for('user_management.edit_user', user_id=user.id) if url_for is defined else '#' }}" class="bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded mr-2">Edit</a>
-            <a href="{{ url_for('user_management.delete_user', user_id=user.id) if url_for is defined else '#' }}" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Delete</a>
+            <form method="post" action="{{ url_for('user_management.delete_user', user_id=user.id) }}" class="inline">
+              <button type="submit" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Delete</button>
+            </form>
           </td>
         </tr>
         {% else %}
