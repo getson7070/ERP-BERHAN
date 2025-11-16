@@ -8,7 +8,7 @@ from flask import (
     flash,
     session,
 )
-from erp.utils import login_required
+from erp.utils import login_required, resolve_org_id
 from erp.models import Recruitment, PerformanceReview
 from erp.extensions import db
 
@@ -21,6 +21,7 @@ bp = hr_workflows_bp
 @login_required
 def recruitment():
     """Create and list recruitment records."""
+    org_id = resolve_org_id()
     if request.method == "POST":
         candidate = request.form.get("candidate_name", "").strip()
         position = request.form.get("position", "").strip()
@@ -30,14 +31,19 @@ def recruitment():
             record = Recruitment(
                 candidate_name=candidate,
                 position=position,
-                org_id=session.get("org_id", 0),
+                organization_id=org_id,
             )
             db.session.add(record)
             db.session.commit()
             flash("Recruitment record saved", "success")
             return redirect(url_for("hr_workflows.recruitment"))
 
-    records = Recruitment.tenant_query().order_by(Recruitment.applied_on.desc()).all()
+    session["org_id"] = org_id
+    records = (
+        Recruitment.tenant_query(org_id)
+        .order_by(Recruitment.applied_on.desc())
+        .all()
+    )
     return render_template("hr/recruitment.html", records=records)
 
 
@@ -45,6 +51,7 @@ def recruitment():
 @login_required
 def performance():
     """Capture and list performance reviews."""
+    org_id = resolve_org_id()
     if request.method == "POST":
         employee = request.form.get("employee_name", "").strip()
         score = request.form.get("score", "").strip()
@@ -52,9 +59,9 @@ def performance():
             flash("Valid employee and score required", "danger")
         else:
             review = PerformanceReview(
+                organization_id=org_id,
                 employee_name=employee,
-                score=int(score),
-                org_id=session.get("org_id", 0),
+                score=float(score),
             )
             db.session.add(review)
             db.session.commit()
@@ -62,7 +69,7 @@ def performance():
             return redirect(url_for("hr_workflows.performance"))
 
     reviews = (
-        PerformanceReview.tenant_query()
+        PerformanceReview.tenant_query(org_id)
         .order_by(PerformanceReview.review_date.desc())
         .all()
     )
