@@ -1,7 +1,12 @@
-"""Legacy finance approval routes.
+"""Deprecated finance approval routes.
 
-The actual finance approval views are implemented elsewhere
-(e.g. :mod:`erp.finance`). This module is kept only to satisfy older imports.
+The approval functionality is integrated into the main finance blueprint.
+This module remains for backwards compatibility and re‑exports the finance
+blueprint from ``erp/routes/finance.py``.
 """
 
-from . import bp  # noqa: F401
+from __future__ import annotations
+
+from erp.routes.finance import bp  # noqa: F401
+
+__all__ = ["bp"]
