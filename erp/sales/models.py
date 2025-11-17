@@ -1,7 +1,7 @@
 """Sales order model linking CRM opportunities with fulfilment orders."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, Enum, Index
@@ -35,9 +35,9 @@ class SalesOrder(db.Model):
     )
     total_value: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
     expected_delivery: Mapped[date | None] = mapped_column(db.Date)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=False
     )
 
 

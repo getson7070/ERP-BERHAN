@@ -222,7 +222,7 @@ class FinanceEntry(TimestampMixin, OrgScopedMixin, db.Model):
     )
     memo: Mapped[Optional[str]] = mapped_column(db.String(255))
     posted_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False, index=True
+        default=lambda: datetime.now(UTC), nullable=False, index=True
     )
 
     account = relationship("FinanceAccount", backref="entries")

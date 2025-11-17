@@ -10,7 +10,7 @@ from flask_login import login_required
 from erp.audit import log_audit
 from erp.extensions import db
 from erp.models import MaintenanceTicket
-from erp.utils import resolve_org_id
+from erp.utils import resolve_org_id, utc_now
 
 bp = Blueprint("maintenance", __name__, url_prefix="/maintenance")
 
@@ -101,7 +101,7 @@ def update_ticket(ticket_id: int):
     if status:
         ticket.status = status
         if status == "closed":
-            ticket.closed_at = datetime.utcnow()
+            ticket.closed_at = utc_now()
     if assigned_to is not None:
         ticket.assigned_to = assigned_to
 
@@ -122,7 +122,7 @@ def geo_heartbeat(ticket_id: int):
     ticket.site_lat = payload.get("lat")
     ticket.site_lng = payload.get("lng")
     ticket.site_label = payload.get("label", ticket.site_label)
-    ticket.last_geo_heartbeat_at = datetime.utcnow()
+    ticket.last_geo_heartbeat_at = utc_now()
     db.session.commit()
     log_audit(None, org_id, "maintenance.geo_heartbeat", f"ticket={ticket.id};lat={ticket.site_lat};lng={ticket.site_lng}")
     return jsonify(_serialize(ticket))

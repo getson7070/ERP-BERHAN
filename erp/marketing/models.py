@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 
 from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,7 +23,7 @@ class MarketingVisit(TimestampMixin, OrgScopedMixin, db.Model):
     lat: Mapped[float] = mapped_column(db.Float, nullable=False)
     lng: Mapped[float] = mapped_column(db.Float, nullable=False)
     notes: Mapped[str | None] = mapped_column(db.Text)
-    visited_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    visited_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
 
 class MarketingEvent(TimestampMixin, OrgScopedMixin, db.Model):

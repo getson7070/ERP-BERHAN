@@ -1,5 +1,5 @@
 """Module: scripts/seed_accounts.py — audit-added docstring. Refine with precise purpose when convenient."""
-from datetime import datetime
+from datetime import UTC, datetime
 from werkzeug.security import generate_password_hash
 
 from flask import current_app
@@ -28,7 +28,7 @@ def ensure_user(db, email: str, password: str, role_name: str):
     u = db.session.query(User).filter_by(email=email).first()
     if not u:
         role = ensure_role(db, role_name)
-        u = User(email=email, password_hash=generate_password_hash(password), role_id=role.id, is_active=True, created_at=datetime.utcnow())
+        u = User(email=email, password_hash=generate_password_hash(password), role_id=role.id, is_active=True, created_at=datetime.now(UTC))
         db.session.add(u); db.session.commit()
     return u
 

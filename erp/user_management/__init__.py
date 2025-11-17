@@ -1,7 +1,7 @@
 """User management blueprint powering the admin console."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from secrets import token_urlsafe
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
@@ -100,7 +100,7 @@ def index():
 def approve_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
     client.status = "approved"
-    client.decided_at = datetime.utcnow()
+    client.decided_at = datetime.now(UTC)
     db.session.commit()
     flash("Client approved", "success")
     return redirect(url_for("user_management.index"))
@@ -111,7 +111,7 @@ def approve_client(client_id: int):
 def reject_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
     client.status = "rejected"
-    client.decided_at = datetime.utcnow()
+    client.decided_at = datetime.now(UTC)
     db.session.commit()
     flash("Client rejected", "warning")
     return redirect(url_for("user_management.index"))

@@ -1,6 +1,6 @@
 """Module: models/performance_review.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from erp.models import db
 
@@ -38,8 +38,13 @@ class PerformanceReview(db.Model):
     status = db.Column(db.String(20), nullable=False, default="pending")  # pending|final
     completed_at = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     user = db.relationship(
         "User",
@@ -63,7 +68,7 @@ class PerformanceReview(db.Model):
 
     def finalize(self) -> None:
         self.status = "final"
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(UTC)
 
     def __repr__(self) -> str:
         return f"<PerformanceReview {self.id} user={self.user_id} score={self.score}>"

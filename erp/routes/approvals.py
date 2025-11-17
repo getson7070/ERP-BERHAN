@@ -1,7 +1,7 @@
 """Approval workflow blueprint connecting orders with decision records."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
@@ -97,7 +97,7 @@ def decide(request_id: int):
 
     record.status = decision
     record.decided_by = getattr(current_user, "id", None)
-    record.decided_at = datetime.utcnow()
+    record.decided_at = datetime.now(UTC)
     record.notes = data.get("notes", record.notes)
 
     if record.order is not None:

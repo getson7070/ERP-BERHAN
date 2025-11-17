@@ -1,6 +1,6 @@
 """Module: models/recruitment.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import UTC, datetime
 
 from erp.models import db
 
@@ -27,12 +27,17 @@ class Recruitment(db.Model):
     status = db.Column(db.String(32), nullable=False, default="open")  # open|interviewing|hired|closed
     stage = db.Column(db.String(32), nullable=False, default="screening")  # screening|panel|offer
     recruiter_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
-    applied_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    opened_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    applied_on = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    opened_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     closed_at = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     organization = db.relationship(
         "Organization",
@@ -53,7 +58,7 @@ class Recruitment(db.Model):
 
     def close(self, as_status: str = "closed") -> None:
         self.status = as_status
-        self.closed_at = datetime.utcnow()
+        self.closed_at = datetime.now(UTC)
 
     def mark_hired(self) -> None:
         self.close(as_status="hired")

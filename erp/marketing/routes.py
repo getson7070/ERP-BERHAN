@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
@@ -63,7 +63,7 @@ def visits():
             lat=lat,
             lng=lng,
             rep_name=rep_name or None,
-            visited_at=payload.get("visited_at") or datetime.utcnow(),
+            visited_at=payload.get("visited_at") or datetime.now(UTC),
         )
         db.session.add(visit)
         db.session.commit()

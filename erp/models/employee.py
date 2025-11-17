@@ -1,6 +1,6 @@
 """Module: models/employee.py — audit-added docstring. Refine with precise purpose when convenient."""
 # erp/models/employee.py
-from datetime import datetime
+from datetime import UTC, datetime
 from erp.models import db  # re-exported from erp.models.__init__
 
 class Employee(db.Model):
@@ -20,8 +20,20 @@ class Employee(db.Model):
     role = db.Column(db.String(120), default="staff")
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    @classmethod
+    def tenant_query(cls, org_id: int | None = None):
+        query = cls.query
+        if org_id is not None:
+            query = query.filter_by(organization_id=org_id)
+        return query
 
     @classmethod
     def tenant_query(cls, org_id: int | None = None):

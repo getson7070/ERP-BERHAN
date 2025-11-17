@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
 from typing import Iterable, List
 
 from flask import Blueprint, jsonify, request
@@ -17,7 +16,7 @@ from erp.models import (
     Order,
 )
 from erp.models.core_entities import AnalyticsEvent, CrmLead
-from erp.utils import resolve_org_id
+from erp.utils import resolve_org_id, utc_now
 
 bp = Blueprint("analytics", __name__, url_prefix="/analytics")
 
@@ -95,7 +94,7 @@ def collect_vitals():
         return jsonify({"error": "bad schema"}), 400
 
     org_id = resolve_org_id()
-    timestamp = datetime.utcnow()
+    timestamp = utc_now()
 
     location_label = (data.get("location") or data.get("city") or "").strip() or None
     try:
