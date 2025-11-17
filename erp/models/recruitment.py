@@ -1,6 +1,7 @@
 """Module: models/recruitment.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime
+
 from erp.models import db
 
 class Recruitment(db.Model):
@@ -12,13 +13,21 @@ class Recruitment(db.Model):
         db.Integer,
         db.ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     position = db.Column(db.String(255), nullable=False)
-    candidate_name  = db.Column(db.String(255), nullable=True)
+    candidate_name = db.Column(db.String(255), nullable=True)
     candidate_email = db.Column(db.String(255), nullable=True)
+    candidate_phone = db.Column(db.String(50), nullable=True)
+    source = db.Column(db.String(64), nullable=True)  # referral|job_board|career_fair|internal
+    resume_url = db.Column(db.String(512), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     status = db.Column(db.String(32), nullable=False, default="open")  # open|interviewing|hired|closed
+    stage = db.Column(db.String(32), nullable=False, default="screening")  # screening|panel|offer
+    recruiter_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    applied_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     opened_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     closed_at = db.Column(db.DateTime, nullable=True)
 
@@ -30,6 +39,13 @@ class Recruitment(db.Model):
         backref=db.backref("recruitments", lazy=True, cascade="all, delete-orphan"),
         foreign_keys=[organization_id],
     )
+
+    @classmethod
+    def tenant_query(cls, org_id: int | None = None):
+        query = cls.query
+        if org_id is not None:
+            query = query.filter_by(organization_id=org_id)
+        return query
 
     @property
     def is_open(self) -> bool:
