@@ -49,6 +49,9 @@ class AnalyticsEvent(TimestampMixin, OrgScopedMixin, db.Model):
     captured_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(UTC), nullable=False, index=True
     )
+    location_label: Mapped[Optional[str]] = mapped_column(db.String(128), index=True)
+    location_lat: Mapped[Optional[float]] = mapped_column(db.Float)
+    location_lng: Mapped[Optional[float]] = mapped_column(db.Float)
 
 
 class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):

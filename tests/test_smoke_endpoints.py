@@ -98,3 +98,34 @@ def test_supplychain_reorder_policy_is_org_scoped(client):
     assert listing.status_code == HTTPStatus.OK
     payload = listing.get_json()
     assert all(policy["item_id"] is not None for policy in payload)
+
+
+def test_auth_register_and_login(client):
+    registration = client.post(
+        "/auth/register",
+        json={"email": "demo@example.com", "password": "example123", "username": "Demo", "role": "admin"},
+    )
+    assert registration.status_code == HTTPStatus.CREATED
+
+    login = client.post(
+        "/auth/login",
+        json={"email": "demo@example.com", "password": "example123"},
+    )
+    assert login.status_code == HTTPStatus.OK
+    payload = login.get_json()
+    assert payload["user_id"]
+
+
+def test_report_builder_returns_real_metrics(client):
+    # Seed a vitals event with location for geo coverage
+    client.post(
+        "/analytics/vitals",
+        json={"lcp": 1.1, "location": "Addis Ababa", "lat": 8.9806, "lng": 38.7578},
+    )
+
+    report = client.post("/reports/run", json={"period": "month"})
+    assert report.status_code == HTTPStatus.OK
+    payload = report.get_json()
+    assert "orders" in payload
+    assert "finance" in payload
+    assert "geo" in payload

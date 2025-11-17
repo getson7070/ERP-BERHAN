@@ -90,6 +90,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.main",
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
+    "erp.routes.auth",
     "erp.routes.approvals",
     "erp.routes.maintenance",
     "erp.routes.orders",
@@ -98,7 +99,8 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.finance",
     "erp.routes.hr",
     "erp.routes.crm",
-    "erp.routes.supplychain",
+    "erp.supplychain.routes",
+    "erp.routes.report_builder",
     "erp.blueprints.inventory",
 ]
 

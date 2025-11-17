@@ -33,9 +33,6 @@ This audit captures the current production-readiness posture across major ERP-BE
 1. **Completed:** Scope Supply Chain policy endpoints by organisation and add org-backed models for reorder policies; retain auth guards.
 2. **Completed:** Shift timekeeping to UTC-aware defaults across shared mixins, orders, and banking flows to satisfy audit logging requirements.
 3. Implement audit-chain logging and HITL approval paths for high-risk actions (payments, approvals, tender awards).
-1. Add authentication guards and org-scoped queries to Banking, Inventory, Supply Chain, and Orders routes.
-2. Implement audit-chain logging and HITL approval paths for high-risk actions (payments, approvals, tender awards).
-3. Replace naive datetime usage with timezone-aware `datetime.now(datetime.UTC)` across models and default factories.
 4. Reconcile legacy vs. modern blueprints (Inventory, CRM/Banking) to avoid duplicate model definitions and migrations.
 5. Expand smoke tests to include RBAC-protected endpoints once authentication is enabled in test fixtures.
 6. Align UI templates with Bootstrap 5 form patterns and ARIA labels, adding validation messaging for all user-facing flows.

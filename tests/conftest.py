@@ -1,5 +1,7 @@
 import os
 
+import os
+
 import pytest
 
 from erp import create_app, db

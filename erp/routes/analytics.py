@@ -11,13 +11,12 @@ from sqlalchemy import func
 from erp.analytics import DemandForecaster
 from erp.extensions import db
 from erp.models import (
-    AnalyticsEvent,
     FinanceEntry,
     Inventory,
     MaintenanceTicket,
     Order,
 )
-from erp.models.core_entities import CrmLead
+from erp.models.core_entities import AnalyticsEvent, CrmLead
 from erp.utils import resolve_org_id
 
 bp = Blueprint("analytics", __name__, url_prefix="/analytics")
@@ -62,12 +61,29 @@ def fetch_kpis(org_id: int) -> dict[str, object]:
         .scalar()
     )
 
+    geo_hotspots = (
+        db.session.query(AnalyticsEvent.location_label, func.count())
+        .filter(
+            AnalyticsEvent.org_id == org_id,
+            AnalyticsEvent.location_label.isnot(None),
+        )
+        .group_by(AnalyticsEvent.location_label)
+        .order_by(func.count().desc())
+        .limit(10)
+        .all()
+    )
+
     return {
         "pending_orders": pending_orders,
         "open_maintenance": open_tickets,
         "low_stock_items": low_stock,
         "qualified_pipeline_value": float(pipeline_value or 0),
         "monthly_sales": _monthly_sales(org_id),
+        "geo_hotspots": [
+            {"label": label, "count": count}
+            for label, count in geo_hotspots
+            if label
+        ],
     }
 
 
@@ -80,6 +96,14 @@ def collect_vitals():
 
     org_id = resolve_org_id()
     timestamp = datetime.utcnow()
+
+    location_label = (data.get("location") or data.get("city") or "").strip() or None
+    try:
+        location_lat = float(data.get("lat")) if data.get("lat") is not None else None
+        location_lng = float(data.get("lng")) if data.get("lng") is not None else None
+    except (TypeError, ValueError):
+        location_lat = None
+        location_lng = None
 
     for metric, value in data.items():
         if metric not in allowed:
@@ -94,6 +118,9 @@ def collect_vitals():
                 metric=metric,
                 value=numeric,
                 captured_at=timestamp,
+                location_label=location_label,
+                location_lat=location_lat,
+                location_lng=location_lng,
             )
         )
     db.session.commit()
