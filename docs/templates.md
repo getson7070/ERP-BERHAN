@@ -1,6 +1,6 @@
 # Templates
 
-All pages extend `templates/base.html` for a consistent layout and include the shared navbar from `partials/navbar.html`.
+All pages extend `erp/templates/base.html` for a consistent layout and include the shared navbar from `erp/templates/partials/navbar.html`.
 
 Use the `content` block for page-specific markup. Templates that still use the older `body` block remain compatible.
 

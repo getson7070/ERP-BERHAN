@@ -1,19 +1,75 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-<div class="container" style="max-width:420px;margin:6rem auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-  <h1 style="font-weight:700;margin-bottom:1rem;">Sign in</h1>
-  <p style="color:#666;margin-bottom:2rem;">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
-  <form method="post" action="/auth/login">
-    {{ csrf_token() }}
-
-    <label>Email</label>
-    <input name="email" type="email" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1rem;">
-    <label>Password</label>
-    <input name="password" type="password" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1.25rem;">
-    <button type="submit" style="width:100%;padding:.85rem;border-radius:.5rem;border:0;background:#2d6cdf;color:white;font-weight:600;">Sign in</button>
-  </form>
-  <div style="margin-top:1.5rem;color:#888;font-size:.9rem;">
-    <a href="/mfa/start">Use MFA</a> · <a href="/auth/forgot">Forgot password?</a>
+<main class="auth-shell" aria-labelledby="login-title">
+  <div class="content-wrapper">
+    <div class="row">
+      <div class="col">
+        <h1 id="login-title" class="display-5 mb-2">Welcome back</h1>
+        <p class="lead text-muted mb-4">Sign in to continue to Analytics, CRM, Sales, Banking, and more.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="stacked-alerts" role="status">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'warning' if category == 'danger' else category }}" role="alert">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <form method="post" action="{{ url_for('auth.login') }}" class="card shadow-sm mb-4" novalidate>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="email" class="form-label">Email address</label>
+              <input id="email" name="email" type="email" class="form-control" autocomplete="email" required placeholder="you@example.com" />
+            </div>
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required placeholder="Enter your password" />
+              <div class="form-text"><a href="/auth/reset">Forgot password?</a></div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign in</button>
+          </div>
+        </form>
+      </div>
+      <div class="col register" id="register">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5">Request access</h2>
+            <p class="text-muted">Invite a teammate or client to collaborate. Admins approve client access before activation.</p>
+            <form method="post" action="{{ url_for('auth.register') }}" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="username">Name</label>
+                <input id="username" name="username" type="text" class="form-control" placeholder="Jane Doe" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-email">Email</label>
+                <input id="register-email" name="email" type="email" class="form-control" required placeholder="user@company.com" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-role">Role</label>
+                <select id="register-role" name="role" class="form-select">
+                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                  <option value="client">Client</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-password">Password</label>
+                <input id="register-password" name="password" type="password" class="form-control" required minlength="8" placeholder="At least 8 characters" />
+              </div>
+              <button class="btn btn-outline-primary w-100" type="submit">Request account</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+</main>
+<style>
+  .auth-shell { padding: 2rem 1rem 3rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+  .card { border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1rem; }
+  @media (prefers-color-scheme: dark) {
+    .card { background: rgba(28,35,42,0.9); border-color: rgba(255,255,255,0.08); }
+  }
+</style>
 {% endblock %}

@@ -18,6 +18,22 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .core_entities import (            # noqa: F401
+    AnalyticsEvent,
+    ApprovalRequest,
+    BankTransaction,
+    ClientRegistration,
+    CrmInteraction,
+    CrmLead,
+    FinanceAccount,
+    FinanceEntry,
+    InventoryReservation,
+    MaintenanceTicket,
+    SalesOpportunity,
+    SupplyChainShipment,
+    UserRoleAssignment,
+)
+from erp.marketing.models import MarketingEvent, MarketingVisit
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
@@ -51,5 +67,11 @@ __all__ = [
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
     "UserDashboard", "Order",
+    "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
+    "ClientRegistration", "CrmInteraction", "CrmLead",
+    "FinanceAccount", "FinanceEntry", "InventoryReservation",
+    "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
+    "SalesOpportunity", "SupplyChainShipment",
+    "UserRoleAssignment",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
 ]

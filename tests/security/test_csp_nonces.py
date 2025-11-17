@@ -2,7 +2,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-TEMPLATE_DIR = Path("templates")
+TEMPLATE_DIR = Path("erp/templates")
 
 
 def test_inline_scripts_have_nonce():
