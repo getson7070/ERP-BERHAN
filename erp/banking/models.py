@@ -6,6 +6,7 @@ integer identifiers while keeping business semantics intact.
 """
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -82,7 +83,7 @@ class StatementLine(db.Model):
         nullable=False,
     )
     posted_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC), nullable=False
     )
     amount: Mapped[Decimal] = mapped_column(
         db.Numeric(14, 2), nullable=False

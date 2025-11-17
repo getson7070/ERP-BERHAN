@@ -3,7 +3,15 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from flask import Request, current_app, request, session
+
+
+def utc_now() -> datetime:
+    """Return an explicit UTC timestamp for database fields and events."""
+
+    return datetime.now(UTC)
 
 
 def resolve_org_id(default: int = 1, req: Request | None = None) -> int:
@@ -32,6 +40,6 @@ def resolve_org_id(default: int = 1, req: Request | None = None) -> int:
     return int(default)
 
 
-__all__ = ["resolve_org_id"]
+__all__ = ["resolve_org_id", "utc_now"]
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 from http import HTTPStatus
+import uuid
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
@@ -19,8 +20,8 @@ supply_bp = Blueprint("supplychain", __name__, url_prefix="/supply")
 def _serialize_policy(policy: ReorderPolicy) -> dict[str, object]:
     return {
         "id": policy.id,
-        "item_id": policy.item_id,
-        "warehouse_id": policy.warehouse_id,
+        "item_id": str(policy.item_id),
+        "warehouse_id": str(policy.warehouse_id),
         "service_level": float(policy.service_level or 0),
         "safety_stock": float(policy.safety_stock or 0),
         "reorder_point": float(policy.reorder_point or 0),
@@ -32,16 +33,23 @@ def _serialize_policy(policy: ReorderPolicy) -> dict[str, object]:
 def policy():
     """Manage dynamic reorder policies for inventory items."""
 
-    resolve_org_id()  # kept for symmetry and future filtering
+    org_id = resolve_org_id()
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         item_id = data.get("item_id")
         warehouse_id = data.get("warehouse_id")
         if not item_id or not warehouse_id:
             return jsonify({"error": "item_id and warehouse_id are required"}), HTTPStatus.BAD_REQUEST
+        try:
+            parsed_item_id = uuid.UUID(str(item_id))
+            parsed_warehouse_id = uuid.UUID(str(warehouse_id))
+        except (TypeError, ValueError):
+            return jsonify({"error": "item_id and warehouse_id must be valid UUIDs"}), HTTPStatus.BAD_REQUEST
+
         policy = ReorderPolicy(
-            item_id=item_id,
-            warehouse_id=warehouse_id,
+            org_id=org_id,
+            item_id=str(parsed_item_id),
+            warehouse_id=str(parsed_warehouse_id),
             service_level=data.get("service_level", 0.95),
             safety_stock=data.get("safety_stock", 0),
             reorder_point=data.get("reorder_point", 0),
@@ -50,7 +58,7 @@ def policy():
         db.session.commit()
         return jsonify(_serialize_policy(policy)), HTTPStatus.CREATED
 
-    rows = ReorderPolicy.query.all()
+    rows = ReorderPolicy.query.filter_by(org_id=org_id).all()
     return jsonify([_serialize_policy(row) for row in rows])
 
 

@@ -1,101 +1,125 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6">
-  <h1 class="text-2xl font-bold mb-4">User Management</h1>
+<div class="container py-5">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 gap-2">
+    <div>
+      <p class="text-muted mb-1">User &amp; Client Operations</p>
+      <h1 class="h3 mb-0">User Management</h1>
+    </div>
+    <div class="text-md-end text-muted small">All timestamps stored in UTC for auditability</div>
+  </div>
   <!-- Form to create a new employee -->
-  <h2 class="text-xl font-semibold mb-2">Create Employee</h2>
-  <form method="post" action="{{ url_for('user_management.index') }}" class="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 mb-6">
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="name">Name</label>
-        <input id="name" name="name" type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
-      </div>
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="email">Email</label>
-        <input id="email" name="email" type="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline" required>
-      </div>
-      <div>
-        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="role">Role</label>
-        <select id="role" name="role" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
-          <option value="admin">Admin</option>
-          <option value="employee">Employee</option>
-          <option value="client">Client</option>
-        </select>
-      </div>
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-0">Create Employee</h2>
     </div>
-    <div class="flex items-center justify-between mt-4">
-      <button class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
-        Create Employee
-      </button>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('user_management.index') }}" novalidate>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="name">Name</label>
+            <input id="name" name="name" type="text" class="form-control" required aria-describedby="nameHelp">
+            <div id="nameHelp" class="form-text">Full legal name as used in contracts.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="email">Email</label>
+            <input id="email" name="email" type="email" class="form-control" required aria-describedby="emailHelp">
+            <div id="emailHelp" class="form-text">A company or client contact address.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="role">Role</label>
+            <select id="role" name="role" class="form-select" aria-label="Role selector">
+              <option value="admin">Admin</option>
+              <option value="employee">Employee</option>
+              <option value="client">Client</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button class="btn btn-outline-secondary" type="reset">Reset</button>
+          <button class="btn btn-primary" type="submit">Create Employee</button>
+        </div>
+      </form>
     </div>
-  </form>
+  </div>
   <!-- Pending client registration approvals -->
   <h2 class="text-xl font-semibold mb-2">Pending Client Registrations</h2>
-  <div class="overflow-x-auto mb-6">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Action</th>
-        </tr>
-      </thead>
-      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-        {% for client in pending_clients %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-          <td class="px-6 py-4 whitespace-nowrap">{{ client.name }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ client.email }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">
-            <!-- Approve button triggers an approval route; adapt URL if necessary -->
-            <form method="post" action="{{ url_for('user_management.approve_client', client_id=client.id) }}" class="inline">
-              <button type="submit" class="bg-green-500 hover:bg-green-700 text-white py-1 px-3 rounded mr-2">Approve</button>
-            </form>
-            <form method="post" action="{{ url_for('user_management.reject_client', client_id=client.id) }}" class="inline">
-              <button type="submit" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Reject</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td class="px-6 py-4 whitespace-nowrap" colspan="3">No pending registrations.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <h2 class="h5 mb-0">Pending Client Registrations</h2>
+      <span class="badge bg-secondary">HITL Required</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col" class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for client in pending_clients %}
+          <tr>
+            <td>{{ client.name }}</td>
+            <td>{{ client.email }}</td>
+            <td class="text-end">
+              <div class="btn-group" role="group" aria-label="Client approval">
+                <form method="post" action="{{ url_for('user_management.approve_client', client_id=client.id) }}" class="d-inline">
+                  <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                </form>
+                <form method="post" action="{{ url_for('user_management.reject_client', client_id=client.id) }}" class="d-inline">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="text-muted">No pending registrations.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
   <!-- Existing users table -->
   <h2 class="text-xl font-semibold mb-2">All Users</h2>
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800">
-        <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-        {% for user in users_list %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-          <td class="px-6 py-4 whitespace-nowrap">{{ user.name }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ user.email }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ user.role }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">
-            <form method="post" action="{{ url_for('user_management.delete_user', user_id=user.id) }}" class="inline">
-              <button type="submit" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Delete</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td class="px-6 py-4 whitespace-nowrap" colspan="4">No users found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-0">All Users</h2>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Role</th>
+            <th scope="col" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users_list %}
+          <tr>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email }}</td>
+            <td><span class="badge rounded-pill bg-info text-dark">{{ user.role }}</span></td>
+            <td class="text-end">
+              <form method="post" action="{{ url_for('user_management.delete_user', user_id=user.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-muted">No users found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

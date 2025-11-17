@@ -7,7 +7,7 @@ shared entities required by the upgraded blueprints.
 """
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from decimal import Decimal
 from typing import Optional
 
@@ -21,10 +21,12 @@ class TimestampMixin:
     """Reusable columns for creation and update tracking."""
 
     created_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
 
@@ -45,7 +47,7 @@ class AnalyticsEvent(TimestampMixin, OrgScopedMixin, db.Model):
     metric: Mapped[str] = mapped_column(db.String(64), nullable=False, index=True)
     value: Mapped[float] = mapped_column(db.Float, nullable=False)
     captured_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False, index=True
+        default=lambda: datetime.now(UTC), nullable=False, index=True
     )
 
 
@@ -71,7 +73,7 @@ class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):
     decided_by: Mapped[Optional[int]] = mapped_column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
     notes: Mapped[Optional[str]] = mapped_column(db.Text)
 
     order = relationship("Order", backref="approval_requests")
@@ -147,7 +149,7 @@ class CrmInteraction(TimestampMixin, db.Model):
     )
     notes: Mapped[str] = mapped_column(db.Text, nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC), nullable=False
     )
 
     lead = relationship("CrmLead", back_populates="interactions")
@@ -234,7 +236,7 @@ class BankTransaction(TimestampMixin, OrgScopedMixin, db.Model):
     amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
     reference: Mapped[Optional[str]] = mapped_column(db.String(255))
     posted_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False
+        default=lambda: datetime.now(UTC), nullable=False
     )
 
 
@@ -292,7 +294,7 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     status: Mapped[str] = mapped_column(
         db.String(16), nullable=False, default="pending"
     )  # pending|approved|rejected
-    decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
 
 
 class UserRoleAssignment(TimestampMixin, db.Model):

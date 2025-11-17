@@ -85,3 +85,16 @@ def test_banking_account_and_transaction_flow(client):
     assert history.status_code == HTTPStatus.OK
     payload = history.get_json()
     assert any(entry["reference"] == "INV-123" for entry in payload)
+
+
+def test_supplychain_reorder_policy_is_org_scoped(client):
+    creation = client.post(
+        "/supply/policy",
+        json={"item_id": "00000000-0000-0000-0000-000000000001", "warehouse_id": "00000000-0000-0000-0000-0000000000aa"},
+    )
+    assert creation.status_code == HTTPStatus.CREATED
+
+    listing = client.get("/supply/policy")
+    assert listing.status_code == HTTPStatus.OK
+    payload = listing.get_json()
+    assert all(policy["item_id"] is not None for policy in payload)

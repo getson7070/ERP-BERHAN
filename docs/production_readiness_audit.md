@@ -30,6 +30,9 @@ This audit captures the current production-readiness posture across major ERP-BE
 - **UX**: Adopt consistent Bootstrap 5 components, form validation feedback, and accessibility labels. Guard unfinished navigation items behind feature flags to prevent broken links.
 
 ## Recommended Next Actions
+1. **Completed:** Scope Supply Chain policy endpoints by organisation and add org-backed models for reorder policies; retain auth guards.
+2. **Completed:** Shift timekeeping to UTC-aware defaults across shared mixins, orders, and banking flows to satisfy audit logging requirements.
+3. Implement audit-chain logging and HITL approval paths for high-risk actions (payments, approvals, tender awards).
 1. Add authentication guards and org-scoped queries to Banking, Inventory, Supply Chain, and Orders routes.
 2. Implement audit-chain logging and HITL approval paths for high-risk actions (payments, approvals, tender awards).
 3. Replace naive datetime usage with timezone-aware `datetime.now(datetime.UTC)` across models and default factories.
