@@ -6,7 +6,21 @@ from types import ModuleType
 
 from . import inventory as _inventory
 
-_exports = tuple(getattr(_inventory, "__all__", ("bp", "create_item", "list_items", "get_item", "update_item", "delete_item", "get_jwt"))))
+_exports = tuple(
+    getattr(
+        _inventory,
+        "__all__",
+        (
+            "bp",
+            "create_item",
+            "list_items",
+            "get_item",
+            "update_item",
+            "delete_item",
+            "get_jwt",
+        ),
+    )
+)
 for _name in _exports:
     globals()[_name] = getattr(_inventory, _name)
 

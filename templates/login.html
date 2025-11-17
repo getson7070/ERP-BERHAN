@@ -1,110 +1,75 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-  <section class="auth-shell" aria-labelledby="login-title">
-    <div class="auth-card">
-      <h1 id="login-title">Welcome back</h1>
-      <p class="subtitle">Sign in to continue to ERP Berhan.</p>
-      <form method="post" action="{{ url_for('auth.login') if 'auth.login' in current_app.view_functions else '#' }}" novalidate>
-        {% if csrf_token is defined %}
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-        {% endif %}
-        <div class="field">
-          <label for="email">Email address</label>
-          <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+<main class="auth-shell" aria-labelledby="login-title">
+  <div class="content-wrapper">
+    <div class="row">
+      <div class="col">
+        <h1 id="login-title" class="display-5 mb-2">Welcome back</h1>
+        <p class="lead text-muted mb-4">Sign in to continue to Analytics, CRM, Sales, Banking, and more.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="stacked-alerts" role="status">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'warning' if category == 'danger' else category }}" role="alert">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <form method="post" action="{{ url_for('auth.login') }}" class="card shadow-sm mb-4" novalidate>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="email" class="form-label">Email address</label>
+              <input id="email" name="email" type="email" class="form-control" autocomplete="email" required placeholder="you@example.com" />
+            </div>
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required placeholder="Enter your password" />
+              <div class="form-text"><a href="/auth/reset">Forgot password?</a></div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign in</button>
+          </div>
+        </form>
+      </div>
+      <div class="col register" id="register">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5">Request access</h2>
+            <p class="text-muted">Invite a teammate or client to collaborate. Admins approve client access before activation.</p>
+            <form method="post" action="{{ url_for('auth.register') }}" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="username">Name</label>
+                <input id="username" name="username" type="text" class="form-control" placeholder="Jane Doe" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-email">Email</label>
+                <input id="register-email" name="email" type="email" class="form-control" required placeholder="user@company.com" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-role">Role</label>
+                <select id="register-role" name="role" class="form-select">
+                  <option value="employee">Employee</option>
+                  <option value="admin">Admin</option>
+                  <option value="client">Client</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="register-password">Password</label>
+                <input id="register-password" name="password" type="password" class="form-control" required minlength="8" placeholder="At least 8 characters" />
+              </div>
+              <button class="btn btn-outline-primary w-100" type="submit">Request account</button>
+            </form>
+          </div>
         </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password" />
-          <a href="/auth/reset" class="hint">Forgot password?</a>
-        </div>
-        <button type="submit" class="primary">Sign in</button>
-      </form>
-      <p class="footnote">Need access? <a href="/auth/register">Request an account</a>.</p>
+      </div>
     </div>
-  </section>
-  <style>
-    .auth-shell {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-      align-items: stretch;
-    }
-    .auth-card {
-      background: rgba(255, 255, 255, 0.92);
-      border-radius: 1.25rem;
-      padding: 2.5rem;
-      box-shadow: 0 24px 48px rgba(10, 109, 146, 0.15);
-      backdrop-filter: blur(12px);
-    }
-    @media (prefers-color-scheme: dark) {
-      .auth-card {
-        background: rgba(28, 35, 42, 0.88);
-        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
-      }
-      .auth-card input {
-        background-color: rgba(12, 19, 24, 0.9);
-        color: #f5f8fa;
-        border-color: rgba(255, 255, 255, 0.2);
-      }
-    }
-    .auth-card h1 {
-      margin: 0 0 0.5rem;
-      font-size: 1.75rem;
-      color: var(--brand-dark);
-    }
-    .subtitle {
-      margin: 0 0 2rem;
-      color: rgba(0, 0, 0, 0.6);
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .field label {
-      font-weight: 600;
-    }
-    .field input {
-      border-radius: 0.75rem;
-      border: 1px solid rgba(0, 0, 0, 0.15);
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-    }
-    .field input:focus-visible {
-      outline: 3px solid rgba(10, 109, 146, 0.3);
-      border-color: rgba(10, 109, 146, 0.5);
-    }
-    .hint {
-      align-self: flex-end;
-      font-size: 0.85rem;
-    }
-    .primary {
-      width: 100%;
-      padding: 0.85rem 1rem;
-      border-radius: 0.85rem;
-      border: none;
-      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .primary:hover,
-    .primary:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(10, 109, 146, 0.25);
-    }
-    .footnote {
-      margin-top: 2rem;
-      font-size: 0.95rem;
-      color: rgba(0, 0, 0, 0.7);
-      text-align: center;
-    }
-    .footnote a {
-      color: var(--brand);
-      font-weight: 600;
-    }
-  </style>
+  </div>
+</main>
+<style>
+  .auth-shell { padding: 2rem 1rem 3rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+  .card { border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1rem; }
+  @media (prefers-color-scheme: dark) {
+    .card { background: rgba(28,35,42,0.9); border-color: rgba(255,255,255,0.08); }
+  }
+</style>
 {% endblock %}
