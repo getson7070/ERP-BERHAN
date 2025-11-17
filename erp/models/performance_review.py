@@ -1,6 +1,7 @@
 """Module: models/performance_review.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import date, datetime
+
 from erp.models import db
 
 class PerformanceReview(db.Model):
@@ -8,17 +9,26 @@ class PerformanceReview(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    user_id = db.Column(
+    organization_id = db.Column(
         db.Integer,
-        db.ForeignKey("users.id", ondelete="CASCADE"),
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
-    period_start = db.Column(db.Date, nullable=False)
-    period_end   = db.Column(db.Date, nullable=False)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
-    score   = db.Column(db.Float, nullable=False, default=0.0)  # 0..5 (typical)
+    employee_name = db.Column(db.String(255), nullable=True)
+    review_date = db.Column(db.Date, nullable=False, default=date.today)
+    period_start = db.Column(db.Date, nullable=True)
+    period_end = db.Column(db.Date, nullable=True)
+
+    score = db.Column(db.Float, nullable=False, default=0.0)  # 0..5 (typical)
     comments = db.Column(db.Text, nullable=True)
 
     status = db.Column(db.String(20), nullable=False, default="pending")  # pending|final
@@ -32,6 +42,13 @@ class PerformanceReview(db.Model):
         backref=db.backref("reviews", lazy=True, cascade="all, delete-orphan"),
         foreign_keys=[user_id],
     )
+
+    @classmethod
+    def tenant_query(cls, org_id: int | None = None):
+        query = cls.query
+        if org_id is not None:
+            query = query.filter_by(organization_id=org_id)
+        return query
 
     @property
     def is_active_period(self) -> bool:
