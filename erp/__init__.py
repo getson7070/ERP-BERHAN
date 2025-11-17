@@ -1,11 +1,10 @@
-"""ERP-BERHAN application factory and blueprint registration helpers."""
-from __future__ import annotations
+"""ERP package root.
 
-import importlib
-import logging
-import os
-from pathlib import Path
-from typing import Iterable
+This package bundles the various modules of the ERP‑BERHAN system, including
+finance, CRM, sales, user management and core data models.  The modules are
+organised into subpackages with clearly defined responsibilities.  See the
+documentation for details on each module’s functionality.
+"""
 
 from flask import Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -284,3 +283,4 @@ __all__ = [
     "DLQ_MESSAGES",
     "_dead_letter_handler",
 ]
+__all__ = []  # exported names are defined in subpackages
