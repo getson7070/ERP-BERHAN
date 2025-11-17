@@ -1,3 +1,4 @@
+"""User management blueprint powering the admin console."""
 """User management blueprint powering the admin console.
 
 This module consolidates the user management functionality into a single
@@ -15,6 +16,21 @@ from __future__ import annotations
 
 from datetime import datetime
 from secrets import token_urlsafe
+
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import login_required
+
+from erp.extensions import db
+from erp.models import (
+    ClientRegistration,
+    Employee,
+    Role,
+    User,
+    UserRoleAssignment,
+)
+from erp.utils import resolve_org_id
+
+bp = Blueprint("user_management", __name__, template_folder="../templates/user_management")
 from typing import Any, Dict
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
