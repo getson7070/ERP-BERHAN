@@ -66,6 +66,10 @@ def _load_config(app: Flask) -> None:
         SECRET_KEY=os.environ.get("SECRET_KEY", "change-me"),
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # Sensible defaults to avoid dev-time warnings while still keeping
+        # security-focused settings (short-lived, in-memory cache by default).
+        CACHE_TYPE=os.environ.get("CACHE_TYPE", "SimpleCache"),
+        CACHE_DEFAULT_TIMEOUT=int(os.environ.get("CACHE_DEFAULT_TIMEOUT", 300)),
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
@@ -87,6 +91,15 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.main",
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
+    "erp.routes.approvals",
+    "erp.routes.maintenance",
+    "erp.routes.orders",
+    "erp.sales.routes",
+    "erp.routes.inventory",
+    "erp.routes.finance",
+    "erp.routes.hr",
+    "erp.routes.crm",
+    "erp.routes.supplychain",
     "erp.blueprints.inventory",
 ]
 
@@ -95,6 +108,8 @@ _EXCLUDED_BLUEPRINT_MODULES = {
     "erp.blueprints.health_compat",
     "erp.ops.health",
     "erp.ops.status",
+    "erp.finance.banking",  # legacy banking blueprint defining duplicate models
+    "erp.crm.routes",  # legacy CRM blueprint colliding with the upgraded module
 }
 
 
