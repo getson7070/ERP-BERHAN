@@ -40,6 +40,26 @@ def _account_balance(account: FinanceAccount) -> float:
     return float(totals or 0)
 
 
+
+def _account_balance(account: FinanceAccount) -> float:
+    totals = (
+        db.session.query(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (FinanceEntry.direction == "debit", FinanceEntry.amount),
+                        else_=-FinanceEntry.amount,
+                    )
+                ),
+                0,
+            )
+        )
+        .filter(FinanceEntry.account_id == account.id)
+        .scalar()
+    )
+    return float(totals or 0)
+
+
 @finance_api_bp.get("/health")
 def health():
     return jsonify({"ok": True, "accounts": FinanceAccount.query.count()})

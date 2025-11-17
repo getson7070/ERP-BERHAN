@@ -87,6 +87,10 @@ def index() -> Any:
                 role=role,
             )
             db.session.add(employee)
+            username = email.split("@", 1)[0]
+            password = token_urlsafe(12)
+            user = User(username=username, email=email)
+            user.password = password  # hashed via setter
             # Create a corresponding user
             username = email.split("@", 1)[0]
             password = token_urlsafe(12)
@@ -109,12 +113,16 @@ def index() -> Any:
         .join(UserRoleAssignment, UserRoleAssignment.user_id == User.id, isouter=True)
         .join(Role, Role.id == UserRoleAssignment.role_id, isouter=True)
         .order_by(User.username)
+        .all()
     )
     users_list = [
         {
             "id": user.id,
             "name": user.username,
             "email": user.email,
+            "role": role or "--",
+        }
+        for user, role in users
             "role": role_name or "--",
         }
         for user, role_name in users_query
@@ -128,6 +136,7 @@ def index() -> Any:
 
 @bp.post("/clients/<int:client_id>/approve")
 @login_required
+def approve_client(client_id: int):
 def approve_client(client_id: int) -> Any:
     """Approve a pending client registration."""
     client = ClientRegistration.query.get_or_404(client_id)
@@ -140,6 +149,7 @@ def approve_client(client_id: int) -> Any:
 
 @bp.post("/clients/<int:client_id>/reject")
 @login_required
+def reject_client(client_id: int):
 def reject_client(client_id: int) -> Any:
     """Reject a pending client registration."""
     client = ClientRegistration.query.get_or_404(client_id)
@@ -152,6 +162,7 @@ def reject_client(client_id: int) -> Any:
 
 @bp.post("/users/<int:user_id>/delete")
 @login_required
+def delete_user(user_id: int):
 def delete_user(user_id: int) -> Any:
     """Remove a user account and associated role assignments."""
     user = User.query.get_or_404(user_id)
