@@ -1,110 +1,71 @@
-| Version | Supported |
-| ------- | --------- |
-| 0.1.x   | ✅ |
-| <0.1    | ❌ |
+# Security Program Overview
 
-## Reporting a Vulnerability
+## Supported Versions
 
-Please email security@getsonpharma.com or open a private security advisory on GitHub. We will acknowledge receipt within 48 hours and provide status updates at least every five business days. Our goal is to release fixes within 14 days of confirmation.
+ERP‑BERHAN is delivered as open‑source software.  The community provides best‑effort support on the most recent release branch and the current development branch.  Older versions do not receive regular updates.  Organisations running ERP‑BERHAN in production should maintain their own long‑term support policy and backport security fixes as needed.
 
-## Triage, Disclosure & Fix
+## Reporting Vulnerabilities
 
-1. Incoming reports are triaged for severity and scope.
-2. Valid issues receive a dedicated tracker with restricted access.
-3. Patches are developed and reviewed under embargo.
-4. Coordinated disclosure occurs after patches are released and, when applicable, a CVE is assigned.
+If you discover a vulnerability or suspect a security issue in this codebase, please report it privately.  Do **not** create public issues describing the flaw.  Instead, send an email to the security team at `security@example.com` with a detailed description of the problem, steps to reproduce, and any potential impact.  We aim to acknowledge reports within **two business days** and provide a remediation timeline.  Critical vulnerabilities may result in public security advisories.
 
-Thank you for helping keep BERHAN PHARMA secure.
+## Threat Model and Mitigations
 
-## Operational Security
+ERP‑BERHAN operates in a multi‑tenant, web‑accessible environment.  Our security controls focus on confidentiality, integrity and availability of tenant data.  The following mitigations are implemented across the stack:
 
-- **Threat model**: multi-tenant ERP exposed to the internet; each organization is isolated via PostgreSQL row-level security.
-- **RLS policy**: all tables carry an `org_id` column protected by an `org_rls` policy tied to `current_setting('erp.org_id')`.
-- **Rate limits**: Flask-Limiter enforces sane defaults to mitigate abuse and brute-force attacks.
-- **CSP/HSTS**: Flask-Talisman enforces a strict Content Security Policy with nonces on inline scripts and HTTP Strict Transport Security globally, with health checks opting out for probes.
-- **Security tests**: CI runs static analysis, secret scanning, and RLS regression tests to catch common vulnerabilities early. All scanners (gitleaks, Bandit, pip-audit, Trivy, ZAP) fail the build on critical findings.
-- **ASVS traceability**: run `python scripts/verify_asvs.py` locally before opening a pull request to ensure every OWASP ASVS requirement maps to code, tests, or runbooks. The CI pipeline runs the same check after blueprint validation.
-- **Secrets management**: all secrets are sourced from environment variables or the secret manager; no plaintext tokens are committed outside of explicitly approved exceptions.
-- **Temporary development exception**: while the product remains in active development and prior to the production launch sign-off, the security steering group may grant a time-boxed exception allowing ephemeral tokens (for example, Git personal access tokens) to reside in local tooling such as Git remote configurations. The following controls are mandatory:
-  - approval recorded in the security exception register with an explicit expiry date tied to the production go-live decision;
-  - tokens scoped to the minimum repository permissions and stored only in the local `.git/config` (never committed, shared, or pushed to remote state);
-  - tokens rotated or revoked immediately after the authorized automation workflow completes and at least daily during the exception window;
-  - audit trail documenting usage and confirming removal prior to production enablement.
-- **Dependency policy**: pinned requirements in `requirements.lock`; pip-audit and Trivy enforce zero high/medium vulnerabilities.
-- **Supply chain verification**: container images in GHCR are signed with Sigstore keyless identities and ship with SLSA Level 3 provenance. Follow `docs/security/supply_chain.md` to verify signatures and provenance before promoting a release artifact.
-- **CSRF**: Flask-WTF provides global CSRF protection for form submissions.
+* **Row‑Level Security (RLS)**: Each database query must scope results to the current organisation via `resolve_org_id()`.  ORM models include `OrgScopedMixin` to enforce this pattern.
+* **Rate Limiting**: A global rate‑limiting middleware protects against brute force and denial‑of‑service attacks.  Sensitive endpoints such as authentication and finance operations have stricter limits.
+* **Content Security Policy (CSP)** and **Strict Transport Security (HSTS)**: These HTTP headers are configured by default to mitigate cross‑site scripting (XSS), clickjacking and other injection attacks.  All production deployments must enforce TLS with modern cipher suites.
+* **Static Analysis and Dependency Scanning**: Continuous integration runs static code analysis and third‑party dependency checks.  Any high‑severity findings block merges.
+* **Secrets Management**: Environment variables and secret management tools (e.g. Vault) store database credentials, API keys and PATs.  Secrets must never be committed to source control.
 
-## Additional Security Policies
+## Automated Agent Access and Controls
 
-### Incident Response
+Codex/GPT assistants are authorised to create pull requests and propose changes.  These changes must be reviewed by a human maintainer before being merged.  To permit automated pushes during development:
 
-For detailed incident response procedures including roles, communication templates, severity levels and triage flowcharts, refer to the [Incident Response Playbooks](docs/incident_response/README.md).
+1. Generate a Personal Access Token (PAT) with the minimum necessary scopes for a dedicated machine account.
+2. Store this PAT as an encrypted secret (e.g. in GitHub Actions or a vault).  Do not embed it in code.
+3. Update CI configuration to use the machine account when running automated tasks such as code generation.  Always require a human review before merging.
+4. Document the scope and duration of any exception that allows direct pushes.  Remove these exceptions when releasing to production.
 
-### TLS/mTLS Policy
+## TLS/mTLS Requirements
 
-- **TLS version**: Only TLS 1.2 or higher is permitted. Legacy protocols (TLS 1.1/1.0, SSL) are disabled.
-- **Cipher suites**: Use modern cipher suites that provide forward secrecy (e.g., `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` and `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`).
-- **HSTS**: HTTP Strict Transport Security is enabled with a max-age of at least one year (`max-age=31536000; includeSubDomains; preload`).
-- **Mutual TLS (mTLS)**: Internal services and webhooks require mutual TLS authentication where feasible to ensure both client and server identity. Certificates are issued via the organization’s CA and rotated regularly.
+All client and server communications must be conducted over HTTPS.  Configure TLS with the following minimum recommendations:
 
-### Email Authentication
+| Control | Minimum Requirement |
+| ------ | ------------------ |
+| TLS version | 1.2 or higher |
+| Key exchange | ECDHE |
+| Certificate | Valid X.509 from a trusted CA |
+| Mutual TLS (mTLS) | Required for service‑to‑service calls in the cluster |
 
-To prevent email spoofing and improve deliverability, configure DNS records as follows:
+mTLS ensures that internal services (e.g. finance API, CRM API) authenticate each other using certificates.  Certificates should be rotated regularly and stored securely.
 
-- SPF (Sender Policy Framework)**: Publish a SPF record (`v=spf1 include:spf.protection.outlook.com -all`) authorizing your sending IPs and reject unauthenticated sources.
-- **DKIM (DomainKeys Identified Mail)**: Generate at least two 2048‑bit DKIM keys and add corresponding `TXT` records. Keys should be rotated annually.
-- **DMARC (Domain-based Message Authentication, Reporting & Conformance)**: Enforce a reject policy with aggregated and forensic reporting:
+## Email Authentication
 
-  
-  v=DMARC1; p=reject; rua=mailto:dmarc-aggregate@example.com; ruf=mailto:dmarc-forensics@example.com; pct=100
-  ```
+Organisations deploying ERP‑BERHAN are encouraged to configure email authentication records to protect against spoofing:
 
+* **SPF**: Publish an SPF record authorising your mail servers.
+* **DKIM**: Sign outgoing mail using DKIM keys.  Rotate keys on a regular schedule.
+* **DMARC**: Configure DMARC with a policy of at least `quarantine`.  Monitor aggregate reports to detect abuse.
 
+## Incident Response
 
+Upon receiving an incident report or detecting suspicious activity, follow the process documented in `docs/SRE_RUNBOOK.md`.  This includes validating the incident, containing the impact (revoking tokens or disabling endpoints), communicating with affected stakeholders, and conducting a post‑mortem.  Remediation steps must be tracked to completion.
 
+## Development Exception for Testing
 
-### Mapping to OWASP ASVS and NIST 800‑53
+The ERP‑BERHAN project may permit a temporary relaxation of branch protection rules during development, allowing Codex/GPT to push directly to a feature or staging branch.  This exception must:
 
-    
-The controls implemented in this repository trace to the OWASP Application Security Verification Standard (ASVS) and NIST SP 800‑53 families. A high‑level mapping is provided below:
+* Be limited in scope to non‑production data and infrastructure.
+* Have a clear expiration date or be removed when the feature reaches maturity.
+* Be disclosed in the pull request description and approved by at least one human maintainer.
 
-| Control Area | OWASP ASVS Section | NIST 800‑53 Control |
-| --- | --- | --- |
-| Access control / RBAC | V2 – Authentication and session management | AC‑2, AC‑3 |
-| Input validation & encoding | V5 – Validation, sanitization and encoding | SI‑10 |
-| Secrets management & encryption | V10 – Communications security | SC‑12, SC‑13 |
-| Logging & monitoring | V10 – Logging and monitoring | AU‑2, AU‑6 |
-| Software supply chain | V14 – Dependency management | SA‑12 |
-| Incident response | V1 – Security architecture requirements | IR‑4, IR‑5 |
+This exception does **not** apply to the main branch.  All changes destined for production must undergo the standard pull request review process.
 
-This mapping is maintained in `docs/security/system_security_updates.md` and will be refined as additional controls are implemented.
+## Mapping to Compliance Frameworks
 
-### Automated Agent (Codex) Access & Controls
+ERP‑BERHAN aligns its controls with recognised standards, including OWASP ASVS and NIST SP 800‑53.  The file `docs/security/asvs_traceability.md` contains a full matrix mapping controls to code, documentation and tests.  This matrix is generated automatically and verified in CI.  The project aims to achieve at least level 2 of ASVS for all components.
 
-To streamline code updates from our AI-based automated agent (Codex), the repository permits limited direct push access to the `main` branch under tightly controlled conditions. This policy complements the detailed guidelines in `docs/agents.md`.
+## Conclusion
 
-- -- **Dedicated machine account**: Codex uses a dedicated GitHub machine user (e.g., `codex-bot`) with the least-privilege Personal Access Token (PAT) scoped to repository write access. This token must be stored in a secure secrets manager and rotated every 90 days.
-- **Authentication and attribution**: The agent configures Git author and committer information (e.g., `Codex Bot <codex-bot@example.com>`) and uses a remote URL embedding both the automation username and PAT to authenticate pushes. Commits are signed and follow Conventional Commits.
-- **Safe commit and push process**: Before pushing, the agent runs all tests, lint/type checks, and security scans. Direct pushes to `main` are allowed only when these quality gates succeed; otherwise the push fails.
-- **Monitoring and revocation**: All automated actions are logged, and commit attestations and signatures provide tamper-evidence. Administrators regularly audit bot activity and can revoke or rotate tokens if suspicious behaviour is detected.
-- **Connection string example**: Configure the remote URL with both the automation account username and PAT (e.g., `https://$CODEX_USERNAME:$CODEX_TOKEN@github.com/getson7070/ERP-BERHAN.git`) to authenticate pushes securely.
-- **No secrets in code**: The agent must never output or commit secrets; credentials are injected via environment variables at runtime, and secrets are removed from logs.
-
-This section documents the additional security considerations required to allo
-
-### Sandbox Limitations & Safe Publishing Steps
-
-When using the Codex automation via the ChatGPT environment, note that these sessions run inside a network‑sandboxed environment. They do not have direct access to the internet or Git remotes, so the agent cannot push or merge commits on its own. Instead, Codex will produce patch files or repository updates for maintainers to review.
-
-To safely publish changes proposed by Codex:
-
-1. **Download the patch or file bundle** from the session and apply it to a local clone of the repository. Verify that the changes match the intended updates.
-2. **Run tests and scanners locally** (unit tests, linting, security scans) to ensure the changes do not introduce regressions or vulnerabilities.
-3. **Commit the changes using your credentials** or the dedicated `codex‑bot` machine account. Ensure the commit is signed and follows Conventional Commits.
-4. **Open a pull request** if branch protections require it, or push directly to `main` only if the automation exemption is still in effect.
-5. **Rotate any temporary tokens** used for publishing and verify that no secrets were embedded in the patches or commit history.
-
-By following these steps, maintainers can translate Codex’s suggestions into actual repository updates while respecting security policies and branch protections.
-
-
-- **Development exception**: For the active development period, the Codex automation account may bypass branch protections, status checks, and code review requirements for direct pushes, merges, and rebases. This allowance applies only to the temporary development window and must be removed once the ERP-BERHAN system is production-ready.
+By following the practices outlined above, developers and operators ensure that ERP‑BERHAN remains secure, resilient and compliant.  Security is a shared responsibility; all contributors must remain vigilant and proactive in identifying and mitigating risks.
