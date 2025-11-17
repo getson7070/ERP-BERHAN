@@ -1,4 +1,7 @@
-"""Module: crm/models.py — audit-added docstring. Refine with precise purpose when convenient."""
+"""Backwards‑compatible CRM models.
+
+from datetime import UTC, datetime
+import uuid
 
 from datetime import UTC, datetime
 import uuid
@@ -20,5 +23,9 @@ class Opportunity(db.Model):
     stage = db.Column(db.String(32), default="Prospecting")  # Prospecting, Proposal, Negotiation, Won, Lost
     value = db.Column(db.Numeric(18,2), default=0)
 
+from __future__ import annotations
 
+from erp.models import CrmLead as Lead, CrmInteraction as Interaction  # noqa: F401
+from erp.models import SalesOpportunity  # noqa: F401
 
+__all__ = ["Lead", "Interaction", "SalesOpportunity"]
