@@ -12,7 +12,6 @@ from erp.extensions import db
 from erp.models import FinanceAccount, FinanceEntry
 from erp.utils import resolve_org_id
 
-finance_api_bp = Blueprint("finance_api", __name__, url_prefix="/api/finance")
 
 
 def _account_balance(account: FinanceAccount) -> float:
@@ -144,5 +143,6 @@ def post_journal():
     return jsonify({"entries": created_ids}), HTTPStatus.CREATED
 
 
-bp = finance_api_bp
+bp = finance_bp
 
+__all__ = ["bp"]

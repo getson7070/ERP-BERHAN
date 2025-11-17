@@ -1,16 +1,18 @@
-﻿# -*- coding: utf-8 -*-
+"""Backwards‑compatible CRM package.
+
+Historically the CRM module exposed its own models and blueprint in
+``erp/crm/routes.py`` and ``erp/crm/models.py``.  Those modules are now
+deprecated in favour of the consolidated blueprint and models in
+``erp/routes/crm.py`` and ``erp/models/core_entities.py``.
+
+This package re‑exports the new blueprint as ``bp`` and the core models
+for code that still imports from ``erp.crm``.  Applications should
+eventually import from ``erp.routes.crm`` and ``erp.models`` directly.
+"""
+
 from __future__ import annotations
-from flask import Blueprint, jsonify
 
-bp = Blueprint("crm", __name__, url_prefix="/crm")
+from erp.routes.crm import bp  # noqa: F401
+from erp.models import CrmLead as Lead, CrmInteraction as Interaction  # noqa: F401
 
-@bp.get("/")
-def home():
-    return jsonify(module="crm", ok=True)
-
-# If you later add crm.security, it should define its OWN bp (e.g., bp_security)
-# and you can import/register it explicitly from app factory or here guardedly:
-# try:
-#     from .security import bp as bp_security  # noqa: F401
-# except Exception:
-#     bp_security = None
+__all__ = ["bp", "Lead", "Interaction"]
