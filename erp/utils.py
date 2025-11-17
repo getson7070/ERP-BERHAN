@@ -13,6 +13,13 @@ from flask_login import current_user, login_required as _fl_login_required
 from db import redis_client
 from erp.metrics import RATE_LIMIT_REJECTIONS
 
+# Structured audit logging with hash chaining
+try:
+    from erp.audit import log_audit  # pragma: no cover - optional dependency
+except Exception:  # pragma: no cover - fall back to no-op in minimal envs
+    def log_audit(*_, **__):
+        return None
+
 
 # ----- Auth helpers -----
 
@@ -88,6 +95,15 @@ def role_required(*roles):
     def deco(fn):
         @functools.wraps(fn)
         def wrapper(*a, **k):
+            # Honour testing mode where login is disabled
+            try:
+                from flask import current_app
+
+                if current_app.config.get("LOGIN_DISABLED"):
+                    return fn(*a, **k)
+            except Exception:
+                pass
+
             user_role = _current_role()
             needed = max((_RANKS.get(r, 0) for r in roles), default=0)
             if _RANKS.get(user_role, 0) < needed:

@@ -1,5 +1,5 @@
 """Module: models/finance.py — audit-added docstring. Refine with precise purpose when convenient."""
-from datetime import datetime
+from datetime import UTC, datetime
 from erp.extensions import db
 
 class Invoice(db.Model):
@@ -10,7 +10,7 @@ class Invoice(db.Model):
     currency = db.Column(db.String(8), nullable=False, default="ETB")
     total = db.Column(db.Numeric(14, 2), nullable=False, default=0)
     status = db.Column(db.String(32), nullable=False, default="draft")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
 class Payment(db.Model):
     __tablename__ = "payments"
@@ -18,7 +18,7 @@ class Payment(db.Model):
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False)
     method = db.Column(db.String(32), nullable=False, default="cash")
-    received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    received_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
     invoice = db.relationship("Invoice", backref=db.backref("payments", lazy="dynamic"))
 

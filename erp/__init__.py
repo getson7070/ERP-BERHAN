@@ -66,6 +66,10 @@ def _load_config(app: Flask) -> None:
         SECRET_KEY=os.environ.get("SECRET_KEY", "change-me"),
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # Sensible defaults to avoid dev-time warnings while still keeping
+        # security-focused settings (short-lived, in-memory cache by default).
+        CACHE_TYPE=os.environ.get("CACHE_TYPE", "SimpleCache"),
+        CACHE_DEFAULT_TIMEOUT=int(os.environ.get("CACHE_DEFAULT_TIMEOUT", 300)),
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
@@ -87,6 +91,18 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.main",
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
+    "erp.routes.auth",
+    "erp.routes.approvals",
+    "erp.routes.maintenance",
+    "erp.routes.orders",
+    "erp.sales.routes",
+    "erp.marketing.routes",
+    "erp.routes.inventory",
+    "erp.routes.finance",
+    "erp.routes.hr",
+    "erp.routes.crm",
+    "erp.supplychain.routes",
+    "erp.routes.report_builder",
     "erp.blueprints.inventory",
 ]
 
@@ -95,6 +111,8 @@ _EXCLUDED_BLUEPRINT_MODULES = {
     "erp.blueprints.health_compat",
     "erp.ops.health",
     "erp.ops.status",
+    "erp.finance.banking",  # legacy banking blueprint defining duplicate models
+    "erp.crm.routes",  # legacy CRM blueprint colliding with the upgraded module
 }
 
 
@@ -239,6 +257,29 @@ def create_app(config_object: str | None = None) -> Flask:
     init_extensions(app)
     apply_security(app)
     register_blueprints(app)
+    # Guarantee marketing endpoints are present even when manifest skips them
+    try:  # pragma: no cover - defensive registration
+        from erp.marketing import routes as marketing_routes
+        from erp.marketing.routes import bp as marketing_bp
+
+        if "marketing" not in app.blueprints:
+            app.register_blueprint(marketing_bp)
+        if "marketing.visits" not in app.view_functions:
+            app.add_url_rule(
+                "/marketing/visits",
+                endpoint="marketing.visits",
+                view_func=marketing_routes.visits,
+                methods=["GET", "POST"],
+            )
+        if "marketing.events" not in app.view_functions:
+            app.add_url_rule(
+                "/marketing/events",
+                endpoint="marketing.events",
+                view_func=marketing_routes.events,
+                methods=["GET", "POST"],
+            )
+    except Exception as exc:
+        LOGGER.warning("Marketing blueprint registration failed: %s", exc)
     _register_core_routes(app)
 
     # Ensure models are imported for Alembic autogenerate & shell usage.

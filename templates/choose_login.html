@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="auth-landing">
+  <div class="content-wrapper">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">ERP Berhan Access</p>
+        <h1>Sign in or request access</h1>
+        <p class="lead">Choose how you want to enter the workspace. Authentication is unified across CRM, Finance, Sales, Banking, and Operations.</p>
+      </div>
+      <div class="cta-actions">
+        <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Sign in</a>
+        <a class="btn btn-outline" href="{{ url_for('auth.login') }}#register">Request access</a>
+      </div>
+    </div>
+    <div class="card-grid">
+      <article class="card">
+        <h2>Employees &amp; Admins</h2>
+        <p>Use your company email and password to reach dashboards, approvals, and analytics.</p>
+        <a class="link" href="{{ url_for('auth.login') }}">Continue to secure login</a>
+      </article>
+      <article class="card">
+        <h2>Clients</h2>
+        <p>Invited clients can register with their invitation email; approvals are reviewed by admins.</p>
+        <a class="link" href="{{ url_for('auth.login') }}#register">Request client access</a>
+      </article>
+      <article class="card">
+        <h2>Support</h2>
+        <p>Need help? Visit the help center or contact support to verify your account.</p>
+        <a class="link" href="/help">Visit help center</a>
+      </article>
+    </div>
+  </div>
+</main>
+<style>
+  .auth-landing { padding: 3rem 1rem 4rem; }
+  .hero { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; padding: 2rem; background: var(--surface, #fff); border-radius: 1.25rem; box-shadow: 0 16px 40px rgba(0,0,0,0.08); }
+  .hero .lead { max-width: 720px; color: rgba(0,0,0,0.7); }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--brand, #0a6d92); }
+  .cta-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn { border-radius: 0.9rem; padding: 0.85rem 1.4rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; }
+  .btn-primary { background: linear-gradient(135deg, var(--brand, #0a6d92), var(--brand-dark, #06455d)); color: #fff; }
+  .btn-outline { border-color: rgba(0,0,0,0.1); color: inherit; background: #fff; }
+  .card-grid { margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+  .card { padding: 1.5rem; background: var(--surface, #fff); border-radius: 1rem; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+  .card h2 { margin-top: 0; }
+  .link { color: var(--brand, #0a6d92); font-weight: 600; text-decoration: none; }
+  @media (prefers-color-scheme: dark) {
+    .hero, .card { background: rgba(28,35,42,0.9); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    .btn-outline { background: transparent; color: var(--text-dark, #f5f8fa); border-color: rgba(255,255,255,0.2); }
+  }
+</style>
+{% endblock %}
