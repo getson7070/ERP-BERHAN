@@ -108,6 +108,14 @@ class MaintenanceTicket(TimestampMixin, OrgScopedMixin, db.Model):
     )
     due_date: Mapped[Optional[date]] = mapped_column(db.Date)
     closed_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
+    device_serial: Mapped[Optional[str]] = mapped_column(db.String(128), index=True)
+    installation_date: Mapped[Optional[date]] = mapped_column(db.Date)
+    warranty_expires_at: Mapped[Optional[date]] = mapped_column(db.Date)
+    last_maintenance_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
+    site_lat: Mapped[Optional[float]] = mapped_column(db.Float)
+    site_lng: Mapped[Optional[float]] = mapped_column(db.Float)
+    site_label: Mapped[Optional[str]] = mapped_column(db.String(128))
+    last_geo_heartbeat_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
 
     order = relationship("Order", backref="maintenance_tickets")
 

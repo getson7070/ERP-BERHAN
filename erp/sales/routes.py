@@ -7,8 +7,9 @@ from http import HTTPStatus
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 
+from erp.audit import log_audit
 from erp.extensions import db
-from erp.models import SalesOpportunity
+from erp.models import Inventory, InventoryReservation, SalesOpportunity
 from erp.utils import resolve_org_id
 
 from .models import SalesOrder
@@ -28,8 +29,10 @@ def _serialize(order: SalesOrder) -> dict[str, object]:
 
 
 @bp.get("/health")
+@login_required
 def health():
-    return jsonify({"ok": True, "sales_orders": SalesOrder.query.count()})
+    org_id = resolve_org_id()
+    return jsonify({"ok": True, "sales_orders": SalesOrder.query.filter_by(org_id=org_id).count()})
 
 
 @bp.route("/orders", methods=["GET", "POST"])
@@ -43,6 +46,8 @@ def manage_orders():
             return jsonify({"error": "customer_name is required"}), HTTPStatus.BAD_REQUEST
 
         total_value = Decimal(str(payload.get("total_value", "0")))
+        quantity = int(payload.get("quantity", 0))
+        inventory_item_id = payload.get("inventory_item_id")
         sales_order = SalesOrder(
             org_id=org_id,
             customer_name=customer,
@@ -51,6 +56,29 @@ def manage_orders():
             order_id=payload.get("order_id"),
         )
         db.session.add(sales_order)
+
+        if inventory_item_id:
+            inventory_item = Inventory.tenant_query(org_id).filter_by(id=inventory_item_id).first()
+            if inventory_item is None:
+                return jsonify({"error": "inventory_item_id invalid for tenant"}), HTTPStatus.BAD_REQUEST
+            if quantity <= 0:
+                return jsonify({"error": "quantity must be positive"}), HTTPStatus.BAD_REQUEST
+
+            existing_reservation = InventoryReservation.query.filter_by(
+                org_id=org_id, order_id=sales_order.id, inventory_item_id=inventory_item.id
+            ).first()
+            if existing_reservation is None:
+                reservation = InventoryReservation(
+                    org_id=org_id,
+                    order_id=sales_order.id,
+                    inventory_item_id=inventory_item.id,
+                    quantity=quantity,
+                )
+                db.session.add(reservation)
+            else:
+                existing_reservation.quantity = quantity
+
+            inventory_item.quantity = max(0, inventory_item.quantity - quantity)
 
         opportunity_id = payload.get("opportunity_id")
         if opportunity_id:
@@ -62,6 +90,12 @@ def manage_orders():
                 opportunity.order_id = payload.get("order_id")
 
         db.session.commit()
+        log_audit(
+            None,
+            org_id,
+            "sales.order_created",
+            f"customer={customer};order={sales_order.id};inventory={inventory_item_id};qty={quantity}",
+        )
         return jsonify(_serialize(sales_order)), HTTPStatus.CREATED
 
     orders = (

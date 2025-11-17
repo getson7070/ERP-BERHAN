@@ -6,9 +6,10 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
+from erp.audit import log_audit
 from erp.extensions import db
 from erp.models import ApprovalRequest, Order
-from erp.utils import resolve_org_id
+from erp.utils import resolve_org_id, role_required
 
 bp = Blueprint("approvals", __name__, url_prefix="/approvals")
 
@@ -28,6 +29,7 @@ def _serialize(record: ApprovalRequest) -> dict[str, object]:
 
 @bp.get("/requests")
 @login_required
+@role_required("Manager", "Admin")
 def list_requests():
     """List approval requests for the active organisation."""
 
@@ -60,18 +62,31 @@ def request_order_approval(order_id: int):
     )
     db.session.add(record)
     db.session.commit()
+    log_audit(
+        getattr(current_user, "id", None),
+        org_id,
+        "approval.requested",
+        f"order={order.id}",
+    )
     return jsonify(_serialize(record)), 201
 
 
 @bp.post("/requests/<int:request_id>/decision")
 @login_required
+@role_required("Manager", "Admin")
 def decide(request_id: int):
     """Approve or reject a pending request."""
 
     data = request.get_json(silent=True) or {}
     decision = data.get("decision", "").lower()
+    hitl_token = data.get("hitl_token")
     if decision not in {"approved", "rejected"}:
         return jsonify({"error": "decision must be 'approved' or 'rejected'"}), 400
+    if decision == "approved" and not hitl_token:
+        return (
+            jsonify({"error": "HITL confirmation token required for approvals"}),
+            403,
+        )
 
     record = ApprovalRequest.query.get_or_404(request_id)
     org_id = resolve_org_id()
@@ -92,6 +107,12 @@ def decide(request_id: int):
             record.order.status = "rejected"
 
     db.session.commit()
+    log_audit(
+        getattr(current_user, "id", None),
+        org_id,
+        f"approval.{decision}",
+        f"request={record.id};order={record.order_id};hitl={bool(hitl_token)}",
+    )
     return jsonify(_serialize(record))
 
 

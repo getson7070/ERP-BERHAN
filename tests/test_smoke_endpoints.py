@@ -129,3 +129,55 @@ def test_report_builder_returns_real_metrics(client):
     assert "orders" in payload
     assert "finance" in payload
     assert "geo" in payload
+
+
+def test_marketing_visits_and_events(client):
+    visit = client.post(
+        "/marketing/visits",
+        json={
+            "institution": "General Hospital",
+            "contact_person": "Ops",
+            "lat": 9.03,
+            "lng": 38.74,
+            "notes": "Follow-up on tender",
+        },
+    )
+    assert visit.status_code == HTTPStatus.CREATED
+
+    visit_list = client.get("/marketing/visits")
+    assert visit_list.status_code == HTTPStatus.OK
+    assert any(entry["institution"] == "General Hospital" for entry in visit_list.get_json())
+
+    event = client.post(
+        "/marketing/events",
+        json={"title": "Expo", "event_type": "exhibition", "venue": "Addis Hall"},
+    )
+    assert event.status_code == HTTPStatus.CREATED
+
+    events = client.get("/marketing/events")
+    assert events.status_code == HTTPStatus.OK
+    assert any(entry["title"] == "Expo" for entry in events.get_json())
+
+
+def test_maintenance_device_tracking(client):
+    creation = client.post(
+        "/maintenance/tickets",
+        json={
+            "asset_name": "Infusion Pump",
+            "description": "Calibrate",
+            "device_serial": "SN-123",
+            "installation_date": "2024-01-01",
+            "site_lat": 9.01,
+            "site_lng": 38.76,
+        },
+    )
+    assert creation.status_code == HTTPStatus.CREATED
+    ticket_id = creation.get_json()["id"]
+
+    heartbeat = client.post(
+        f"/maintenance/devices/{ticket_id}/heartbeat",
+        json={"lat": 9.02, "lng": 38.77, "label": "Ward 1"},
+    )
+    assert heartbeat.status_code == HTTPStatus.OK
+    payload = heartbeat.get_json()
+    assert payload["site"]["heartbeat_at"] is not None

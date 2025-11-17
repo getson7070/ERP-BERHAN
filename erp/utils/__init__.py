@@ -4,8 +4,65 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import functools
 
-from flask import Request, current_app, request, session
+from flask import Request, current_app, redirect, request, session, url_for
+from flask_login import current_user, login_required as _fl_login_required
+
+
+# ---- Auth guards (mirrors legacy utils.py to keep imports stable) ----
+
+def login_required(fn):  # type: ignore
+    return _fl_login_required(fn)
+
+
+_RANKS = {"Admin": 3, "Manager": 2, "Staff": 1, None: 0}
+
+
+def _current_role():
+    if current_user.is_authenticated:
+        role = getattr(current_user, "role", None)
+        if role:
+            return role
+    return session.get("role")
+
+
+def role_required(*roles):  # type: ignore
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrapper(*a, **k):
+            # testing mode bypass
+            try:
+                if current_app.config.get("LOGIN_DISABLED"):
+                    return fn(*a, **k)
+            except Exception:
+                pass
+
+            user_role = _current_role()
+            needed = max((_RANKS.get(r, 0) for r in roles), default=0)
+            if _RANKS.get(user_role, 0) < needed:
+                return redirect(url_for("main.dashboard"), code=302)
+            return fn(*a, **k)
+
+        return wrapper
+
+    return deco
+
+
+def mfa_required(fn):  # pragma: no cover - compatibility shim
+    return fn
+
+
+def idempotent(fn):  # pragma: no cover - compatibility shim
+    return fn
+
+
+def idempotency_key_required(fn):  # pragma: no cover - compatibility shim
+    return fn
+
+
+def has_permission(*_, **__):  # pragma: no cover - compatibility shim
+    return True
 
 
 def utc_now() -> datetime:

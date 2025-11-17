@@ -95,6 +95,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.maintenance",
     "erp.routes.orders",
     "erp.sales.routes",
+    "erp.marketing.routes",
     "erp.routes.inventory",
     "erp.routes.finance",
     "erp.routes.hr",
@@ -255,6 +256,29 @@ def create_app(config_object: str | None = None) -> Flask:
     init_extensions(app)
     apply_security(app)
     register_blueprints(app)
+    # Guarantee marketing endpoints are present even when manifest skips them
+    try:  # pragma: no cover - defensive registration
+        from erp.marketing import routes as marketing_routes
+        from erp.marketing.routes import bp as marketing_bp
+
+        if "marketing" not in app.blueprints:
+            app.register_blueprint(marketing_bp)
+        if "marketing.visits" not in app.view_functions:
+            app.add_url_rule(
+                "/marketing/visits",
+                endpoint="marketing.visits",
+                view_func=marketing_routes.visits,
+                methods=["GET", "POST"],
+            )
+        if "marketing.events" not in app.view_functions:
+            app.add_url_rule(
+                "/marketing/events",
+                endpoint="marketing.events",
+                view_func=marketing_routes.events,
+                methods=["GET", "POST"],
+            )
+    except Exception as exc:
+        LOGGER.warning("Marketing blueprint registration failed: %s", exc)
     _register_core_routes(app)
 
     # Ensure models are imported for Alembic autogenerate & shell usage.

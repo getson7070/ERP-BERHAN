@@ -19,8 +19,14 @@ class Recruitment(db.Model):
     position = db.Column(db.String(255), nullable=False)
     candidate_name = db.Column(db.String(255), nullable=True)
     candidate_email = db.Column(db.String(255), nullable=True)
+    candidate_phone = db.Column(db.String(50), nullable=True)
+    source = db.Column(db.String(64), nullable=True)  # referral|job_board|career_fair|internal
+    resume_url = db.Column(db.String(512), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     status = db.Column(db.String(32), nullable=False, default="open")  # open|interviewing|hired|closed
+    stage = db.Column(db.String(32), nullable=False, default="screening")  # screening|panel|offer
+    recruiter_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     applied_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     opened_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     closed_at = db.Column(db.DateTime, nullable=True)

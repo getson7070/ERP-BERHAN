@@ -28,6 +28,10 @@ class PerformanceReview(db.Model):
     period_start = db.Column(db.Date, nullable=True)
     period_end = db.Column(db.Date, nullable=True)
 
+    reviewer_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    goals = db.Column(db.Text, nullable=True)
+    competencies = db.Column(db.Text, nullable=True)
+
     score = db.Column(db.Float, nullable=False, default=0.0)  # 0..5 (typical)
     comments = db.Column(db.Text, nullable=True)
 
@@ -53,7 +57,9 @@ class PerformanceReview(db.Model):
     @property
     def is_active_period(self) -> bool:
         today = date.today()
-        return self.period_start <= today <= self.period_end
+        if self.period_start and self.period_end:
+            return self.period_start <= today <= self.period_end
+        return False
 
     def finalize(self) -> None:
         self.status = "final"
