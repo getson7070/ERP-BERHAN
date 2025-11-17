@@ -7,6 +7,12 @@ class Employee(db.Model):
     __tablename__ = "employees"
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     first_name = db.Column(db.String(120), nullable=False)
     last_name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, index=True, nullable=False)
@@ -16,6 +22,13 @@ class Employee(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    @classmethod
+    def tenant_query(cls, org_id: int | None = None):
+        query = cls.query
+        if org_id is not None:
+            query = query.filter_by(organization_id=org_id)
+        return query
 
     def __repr__(self) -> str:
         return f"<Employee {self.id} {self.email}>"
