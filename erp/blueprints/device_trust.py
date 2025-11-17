@@ -1,7 +1,7 @@
 """Module: blueprints/device_trust.py — audit-added docstring. Refine with precise purpose when convenient."""
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import create_engine, text
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 device_bp = Blueprint("device", __name__, url_prefix="/api/device")
 
@@ -31,7 +31,7 @@ def check_trust():
     if not row:
         return jsonify({"trusted": False, "role": "client"}), 200
 
-    if row["expires_at"] and row["expires_at"] < datetime.utcnow():
+    if row["expires_at"] and row["expires_at"] < datetime.now(UTC):
         return jsonify({"trusted": False, "role": "client"}), 200
 
     return jsonify({

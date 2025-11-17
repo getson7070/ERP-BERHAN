@@ -1,7 +1,7 @@
 """Module: inventory/models.py — audit-added docstring. Refine with precise purpose when convenient."""
 # erp/inventory/models.py â€” clean models (items, warehouses, lots, ledger)
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from ..extensions import db
@@ -28,7 +28,7 @@ class Lot(db.Model):
 class StockLedgerEntry(db.Model):
     __tablename__ = "stock_ledger_entries"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    posting_time = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    posting_time = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id"), nullable=False, index=True)
     warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=False, index=True)
     lot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("lots.id"), nullable=True, index=True)

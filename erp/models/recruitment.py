@@ -1,6 +1,7 @@
 """Module: models/recruitment.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import UTC, datetime
+
 from erp.models import db
 
 class Recruitment(db.Model):
@@ -12,18 +13,31 @@ class Recruitment(db.Model):
         db.Integer,
         db.ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     position = db.Column(db.String(255), nullable=False)
-    candidate_name  = db.Column(db.String(255), nullable=True)
+    candidate_name = db.Column(db.String(255), nullable=True)
     candidate_email = db.Column(db.String(255), nullable=True)
+    candidate_phone = db.Column(db.String(50), nullable=True)
+    source = db.Column(db.String(64), nullable=True)  # referral|job_board|career_fair|internal
+    resume_url = db.Column(db.String(512), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     status = db.Column(db.String(32), nullable=False, default="open")  # open|interviewing|hired|closed
-    opened_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    stage = db.Column(db.String(32), nullable=False, default="screening")  # screening|panel|offer
+    recruiter_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
+    applied_on = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    opened_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     closed_at = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     organization = db.relationship(
         "Organization",
@@ -31,13 +45,20 @@ class Recruitment(db.Model):
         foreign_keys=[organization_id],
     )
 
+    @classmethod
+    def tenant_query(cls, org_id: int | None = None):
+        query = cls.query
+        if org_id is not None:
+            query = query.filter_by(organization_id=org_id)
+        return query
+
     @property
     def is_open(self) -> bool:
         return self.status in {"open", "interviewing"}
 
     def close(self, as_status: str = "closed") -> None:
         self.status = as_status
-        self.closed_at = datetime.utcnow()
+        self.closed_at = datetime.now(UTC)
 
     def mark_hired(self) -> None:
         self.close(as_status="hired")

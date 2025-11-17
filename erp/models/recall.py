@@ -1,5 +1,5 @@
 """Module: models/recall.py — audit-added docstring. Refine with precise purpose when convenient."""
-from datetime import datetime
+from datetime import UTC, datetime
 from erp.extensions import db
 
 class ProductRecall(db.Model):
@@ -11,7 +11,7 @@ class ProductRecall(db.Model):
     reason = db.Column(db.Text, nullable=False)
     risk_level = db.Column(db.String(16), nullable=False, default="medium")  # low/medium/high
     status = db.Column(db.String(16), nullable=False, default="open")  # open/closed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     closed_at = db.Column(db.DateTime, nullable=True)
 
 

@@ -1,5 +1,6 @@
 """Module: audit.py — audit-added docstring. Refine with precise purpose when convenient."""
 import os, sqlite3, hashlib, datetime as dt
+from datetime import UTC
 from typing import Iterable, Optional
 from .metrics import AUDIT_CHAIN_BROKEN
 
@@ -28,7 +29,7 @@ def log_audit(user_id: int, org_id: int, action: str, details: Optional[str] = N
     cur = conn.execute("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1")
     prev = cur.fetchone()
     prev_hash = prev["hash"] if prev else None
-    created_at = dt.datetime.utcnow().isoformat()
+    created_at = dt.datetime.now(UTC).isoformat()
     new_hash = _hash_entry(prev_hash, user_id, org_id, action, details, created_at)
     conn.execute(
         "INSERT INTO audit_logs (user_id, org_id, action, details, prev_hash, hash, created_at) VALUES (?,?,?,?,?,?,?)",
