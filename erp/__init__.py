@@ -7,6 +7,7 @@ documentation for details on each module’s functionality.
 """
 
 from flask import Flask, jsonify
+import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import redis_client  # type: ignore
