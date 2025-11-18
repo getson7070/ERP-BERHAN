@@ -162,3 +162,4 @@ build/
 .trash_*
 
 .tmp.driveupload/
+erp_upgrade*.patch
