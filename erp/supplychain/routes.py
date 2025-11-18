@@ -6,11 +6,11 @@ from http import HTTPStatus
 import uuid
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
 
+from erp.security import require_roles
+from erp.utils import resolve_org_id
 from erp.extensions import db
 from erp.models import Inventory, InventoryReservation, SupplyChainShipment
-from erp.utils import resolve_org_id
 
 from .models import ReorderPolicy
 
@@ -29,7 +29,7 @@ def _serialize_policy(policy: ReorderPolicy) -> dict[str, object]:
 
 
 @supply_bp.route("/policy", methods=["GET", "POST"])
-@login_required
+@require_roles("supply_chain", "manager", "admin")
 def policy():
     """Manage dynamic reorder policies for inventory items."""
 
@@ -39,12 +39,20 @@ def policy():
         item_id = data.get("item_id")
         warehouse_id = data.get("warehouse_id")
         if not item_id or not warehouse_id:
-            return jsonify({"error": "item_id and warehouse_id are required"}), HTTPStatus.BAD_REQUEST
+            return (
+                jsonify({"error": "item_id and warehouse_id are required"}),
+                HTTPStatus.BAD_REQUEST,
+            )
         try:
             parsed_item_id = uuid.UUID(str(item_id))
             parsed_warehouse_id = uuid.UUID(str(warehouse_id))
         except (TypeError, ValueError):
-            return jsonify({"error": "item_id and warehouse_id must be valid UUIDs"}), HTTPStatus.BAD_REQUEST
+            return (
+                jsonify(
+                    {"error": "item_id and warehouse_id must be valid UUIDs"}
+                ),
+                HTTPStatus.BAD_REQUEST,
+            )
 
         policy = ReorderPolicy(
             org_id=org_id,
@@ -63,7 +71,7 @@ def policy():
 
 
 @supply_bp.route("/shipments", methods=["GET", "POST"])
-@login_required
+@require_roles("supply_chain", "manager", "admin")
 def shipments():
     """Create shipments that fulfil orders and update reservations."""
 
@@ -73,7 +81,10 @@ def shipments():
         vendor = (data.get("vendor_name") or "").strip()
         order_id = data.get("order_id")
         if not vendor or not order_id:
-            return jsonify({"error": "vendor_name and order_id required"}), HTTPStatus.BAD_REQUEST
+            return (
+                jsonify({"error": "vendor_name and order_id required"}),
+                HTTPStatus.BAD_REQUEST,
+            )
 
         shipment = SupplyChainShipment(
             org_id=org_id,
@@ -85,7 +96,9 @@ def shipments():
         db.session.add(shipment)
 
         if data.get("release_inventory"):
-            reservations = InventoryReservation.query.filter_by(org_id=org_id, order_id=order_id).all()
+            reservations = InventoryReservation.query.filter_by(
+                org_id=org_id, order_id=order_id
+            ).all()
             for reservation in reservations:
                 inventory = Inventory.query.get(reservation.inventory_item_id)
                 if inventory is not None:
@@ -93,10 +106,15 @@ def shipments():
                 db.session.delete(reservation)
 
         db.session.commit()
-        return jsonify({
-            "id": shipment.id,
-            "status": shipment.status,
-        }), HTTPStatus.CREATED
+        return (
+            jsonify(
+                {
+                    "id": shipment.id,
+                    "status": shipment.status,
+                }
+            ),
+            HTTPStatus.CREATED,
+        )
 
     shipments = (
         SupplyChainShipment.query.filter_by(org_id=org_id)
@@ -109,8 +127,12 @@ def shipments():
             "vendor_name": shipment.vendor_name,
             "order_id": shipment.order_id,
             "status": shipment.status,
-            "expected_date": shipment.expected_date.isoformat() if shipment.expected_date else None,
-            "received_date": shipment.received_date.isoformat() if shipment.received_date else None,
+            "expected_date": shipment.expected_date.isoformat()
+            if shipment.expected_date
+            else None,
+            "received_date": shipment.received_date.isoformat()
+            if shipment.received_date
+            else None,
         }
         for shipment in shipments
     ]
