@@ -35,13 +35,6 @@ class Employee(db.Model):
             query = query.filter_by(organization_id=org_id)
         return query
 
-    @classmethod
-    def tenant_query(cls, org_id: int | None = None):
-        query = cls.query
-        if org_id is not None:
-            query = query.filter_by(organization_id=org_id)
-        return query
-
     def __repr__(self) -> str:
         return f"<Employee {self.id} {self.email}>"
 
