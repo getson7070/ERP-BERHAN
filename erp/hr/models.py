@@ -1,6 +1,6 @@
 """Module: hr/models.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import UTC, datetime
 from ..extensions import db
 
 class Recruitment(db.Model):
@@ -9,7 +9,7 @@ class Recruitment(db.Model):
     position = db.Column(db.String(128), nullable=False)
     candidate = db.Column(db.String(128), nullable=False)
     status = db.Column(db.String(32), default="Applied", nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
 class PerformanceReview(db.Model):
     __tablename__ = "performance_reviews"
@@ -18,7 +18,7 @@ class PerformanceReview(db.Model):
     period = db.Column(db.String(32), nullable=False)  # e.g., 2025-Q4
     score = db.Column(db.Numeric(5,2), default=0)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
 
 

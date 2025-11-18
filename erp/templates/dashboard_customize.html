@@ -14,7 +14,7 @@
       <div class="hint">Need help? Review the widget documentation or restore the default layout.</div>
     </div>
   </section>
-  <script>
+  <script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
     const form = document.getElementById('customize-form');
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();

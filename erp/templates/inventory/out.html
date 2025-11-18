@@ -77,7 +77,7 @@
 </div>
 <!-- Script to toggle the other item input when 'other' is selected -->
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() if csp_nonce is defined else '' }}">
 document.addEventListener('DOMContentLoaded', function() {
   const itemSelect = document.getElementById('item');
   const otherWrapper = document.getElementById('other_item_name_wrapper');

@@ -4,8 +4,8 @@ import pytest
 pytest.importorskip("bs4")
 import bs4  # noqa: E402
 
-TEMPLATE = Path("templates/base.html").read_text(encoding="utf-8")
-NAVBAR = Path("templates/partials/navbar.html").read_text(encoding="utf-8")
+TEMPLATE = Path("erp/templates/base.html").read_text(encoding="utf-8")
+NAVBAR = Path("erp/templates/partials/navbar.html").read_text(encoding="utf-8")
 
 
 def test_base_has_viewport_meta():

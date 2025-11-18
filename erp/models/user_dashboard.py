@@ -1,6 +1,6 @@
 """Module: models/user_dashboard.py — audit-added docstring. Refine with precise purpose when convenient."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import UTC, datetime
 from erp.models import db
 
 class UserDashboard(db.Model):
@@ -21,8 +21,13 @@ class UserDashboard(db.Model):
     theme   = db.Column(db.String(32), nullable=True, default="light")
     widgets = db.Column(db.Text, nullable=True)          # optional JSON string of widgets
 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
     user = db.relationship(
         "User",
@@ -40,7 +45,7 @@ class UserDashboard(db.Model):
 
     def set_layout(self, layout_json: str) -> None:
         self.layout = layout_json
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def __repr__(self) -> str:
         return f"<UserDashboard id={self.id} user_id={self.user_id}>"
