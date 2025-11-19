@@ -11,6 +11,7 @@ except Exception:
 from ..forms import ItemForm
 
 inventory_bp = Blueprint("inventory", __name__, template_folder="../templates/inventory")
+bp = inventory_bp
 
 @inventory_bp.get("/")
 @login_required
@@ -36,6 +37,9 @@ def new_item():
         flash("Item created.", "success")
         return redirect(url_for("inventory.index"))
     return render_template("inventory/new.html", form=form)
+
+
+__all__ = ["bp", "index", "new_item"]
 
 
 

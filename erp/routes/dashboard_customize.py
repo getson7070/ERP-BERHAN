@@ -6,6 +6,7 @@ from erp.extensions import db
 from erp.models import UserDashboard
 
 dashboard_customize_bp = Blueprint("dashboard_customize", __name__, url_prefix="/api/dashboard")
+bp = dashboard_customize_bp
 
 @login_required
 @dashboard_customize_bp.get("/layout")
@@ -27,6 +28,9 @@ def save_layout():
         row.layout = payload
     db.session.commit()
     return jsonify({"ok": True}), 200
+
+
+__all__ = ["bp", "get_layout", "save_layout"]
 
 
 
