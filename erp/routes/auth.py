@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, datetime, timedelta
 from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
@@ -18,6 +19,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy import text
 
 from erp.audit import log_audit
 from erp.extensions import db, limiter
@@ -32,6 +34,36 @@ from erp.models import (
 from erp.utils import resolve_org_id
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+_FAILED_LOGINS: dict[str, tuple[int, datetime]] = {}
+
+
+def _check_backoff(email: str) -> tuple[str, int]:
+    """Return cooldown state for repeated login failures."""
+
+    email = (email or "").lower()
+    record = _FAILED_LOGINS.get(email)
+    if not record:
+        return "ok", 0
+
+    attempts, locked_until = record
+    now = datetime.now(UTC)
+    if locked_until and locked_until > now:
+        return "cooldown", int((locked_until - now).total_seconds())
+    return "ok", 0
+
+
+def _record_failure(email: str) -> None:
+    email = (email or "").lower()
+    attempts, locked_until = _FAILED_LOGINS.get(email, (0, datetime.now(UTC)))
+    attempts += 1
+    cooldown = min(300, max(5, attempts * 5))
+    _FAILED_LOGINS[email] = (attempts, datetime.now(UTC) + timedelta(seconds=cooldown))
+
+
+def _clear_failures(email: str) -> None:
+    _FAILED_LOGINS.pop((email or "").lower(), None)
 
 
 def _json_or_form(key: str, default: str = "") -> str:
@@ -175,6 +207,15 @@ def register():
         flash("An account already exists for that email.", "warning")
         return redirect(url_for("auth.login")), HTTPStatus.CONFLICT
 
+    pending_exists = bool(
+        db.session.execute(
+            text(
+                "SELECT 1 FROM client_registrations WHERE email = :email AND status = 'pending' LIMIT 1"
+            ),
+            {"email": email},
+        ).scalar()
+    )
+
     invite = None
     if invite_code:
         invite = _consume_invite(invite_code, email, role)
@@ -185,6 +226,14 @@ def register():
             return redirect(url_for("auth.login")), HTTPStatus.FORBIDDEN
 
     if mode in {"invite-only", "request-only"} and invite is None:
+        if pending_exists:
+            if expects_json:
+                return (
+                    jsonify({"status": "pending", "message": "Awaiting administrator approval."}),
+                    HTTPStatus.ACCEPTED,
+                )
+            flash("Your original request is still pending review.", "info")
+            return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
         _queue_registration_request(org_id, username, email, role)
         db.session.commit()
         if expects_json:
@@ -196,6 +245,17 @@ def register():
         return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
 
     if role in privileged_roles:
+        if pending_exists:
+            if expects_json:
+                return (
+                    jsonify({
+                        "status": "pending",
+                        "message": "Privileged roles require MFA + manual approval.",
+                    }),
+                    HTTPStatus.ACCEPTED,
+                )
+            flash("Privileged roles require MFA and a security review. Request submitted.", "warning")
+            return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
         _queue_registration_request(org_id, username, email, role)
         db.session.commit()
         if expects_json:
