@@ -18,6 +18,7 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
     AnalyticsEvent,
     ApprovalRequest,
@@ -32,6 +33,7 @@ from .core_entities import (            # noqa: F401
     SalesOpportunity,
     SupplyChainShipment,
     UserRoleAssignment,
+    RegistrationInvite,
 )
 from erp.marketing.models import MarketingEvent, MarketingVisit
 
@@ -72,6 +74,6 @@ __all__ = [
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
     "SalesOpportunity", "SupplyChainShipment",
-    "UserRoleAssignment",
+    "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
 ]

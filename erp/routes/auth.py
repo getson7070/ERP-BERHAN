@@ -1,15 +1,34 @@
 """Authentication blueprint providing login, logout, and self-service signup."""
 from __future__ import annotations
 
+import hashlib
+from datetime import UTC, datetime
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlparse
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 
-from erp.extensions import db
-from erp.models import Employee, Role, User, UserRoleAssignment
+from erp.audit import log_audit
+from erp.extensions import db, limiter
+from erp.models import (
+    ClientRegistration,
+    Employee,
+    RegistrationInvite,
+    Role,
+    User,
+    UserRoleAssignment,
+)
 from erp.utils import resolve_org_id
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -33,6 +52,44 @@ def _assign_role(user: User, role_name: str) -> None:
 
     if not UserRoleAssignment.query.filter_by(user_id=user.id, role_id=role.id).first():
         db.session.add(UserRoleAssignment(user_id=user.id, role_id=role.id))
+
+
+def _hash_invite(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _consume_invite(token: str, email: str, requested_role: str) -> RegistrationInvite | None:
+    if not token:
+        return None
+
+    invite = RegistrationInvite.query.filter_by(token_hash=_hash_invite(token)).first()
+    if invite is None:
+        return None
+
+    now = datetime.now(UTC)
+    if invite.expires_at and invite.expires_at < now:
+        return None
+    if invite.uses_remaining <= 0:
+        return None
+    if invite.email and invite.email.lower() != email.lower():
+        return None
+    if invite.role and invite.role.lower() != requested_role:
+        return None
+
+    invite.uses_remaining -= 1
+    db.session.add(invite)
+    return invite
+
+
+def _queue_registration_request(org_id: int, username: str, email: str, role: str) -> ClientRegistration:
+    pending = ClientRegistration(
+        org_id=org_id,
+        name=username,
+        email=email,
+        status="pending",
+    )
+    db.session.add(pending)
+    return pending
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -80,15 +137,27 @@ def logout():
 
 
 @bp.post("/register")
+@limiter.limit("5 per minute")
 def register():
     """Self-service signup used by the UI and tests to seed new users."""
 
     email = _json_or_form("email").lower()
     password = _json_or_form("password")
     username = _json_or_form("username") or email.split("@", 1)[0]
-    role = _json_or_form("role") or "employee"
+    role = (_json_or_form("role") or "employee").lower()
+    invite_code = _json_or_form("invite_code")
     org_id = resolve_org_id()
     expects_json = request.is_json
+    allowed_roles = set(current_app.config.get("SELF_REGISTRATION_ALLOWED_ROLES", ("employee",)))
+    privileged_roles = set(current_app.config.get("PRIVILEGED_ROLES", ("admin",)))
+    mode = current_app.config.get("SELF_REGISTRATION_MODE", "invite-only").lower()
+
+    if role not in allowed_roles:
+        message = "Requested role is not available for self-service onboarding."
+        if expects_json:
+            return jsonify({"error": "role_not_allowed"}), HTTPStatus.FORBIDDEN
+        flash(message, "danger")
+        return redirect(url_for("auth.login")), HTTPStatus.FORBIDDEN
 
     if not email or not password:
         if expects_json:
@@ -105,6 +174,40 @@ def register():
             return jsonify({"error": "user_exists"}), HTTPStatus.CONFLICT
         flash("An account already exists for that email.", "warning")
         return redirect(url_for("auth.login")), HTTPStatus.CONFLICT
+
+    invite = None
+    if invite_code:
+        invite = _consume_invite(invite_code, email, role)
+        if invite is None:
+            if expects_json:
+                return jsonify({"error": "invalid_invite"}), HTTPStatus.FORBIDDEN
+            flash("That invite link has expired or is invalid.", "danger")
+            return redirect(url_for("auth.login")), HTTPStatus.FORBIDDEN
+
+    if mode in {"invite-only", "request-only"} and invite is None:
+        _queue_registration_request(org_id, username, email, role)
+        db.session.commit()
+        if expects_json:
+            return (
+                jsonify({"status": "pending", "message": "Awaiting administrator approval."}),
+                HTTPStatus.ACCEPTED,
+            )
+        flash("Your request has been queued for administrator approval.", "info")
+        return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
+
+    if role in privileged_roles:
+        _queue_registration_request(org_id, username, email, role)
+        db.session.commit()
+        if expects_json:
+            return (
+                jsonify({
+                    "status": "pending",
+                    "message": "Privileged roles require MFA + manual approval.",
+                }),
+                HTTPStatus.ACCEPTED,
+            )
+        flash("Privileged roles require MFA and a security review. Request submitted.", "warning")
+        return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
 
     user = User(username=username, email=email)
     user.password = password
@@ -123,12 +226,14 @@ def register():
     _assign_role(user, role)
     db.session.commit()
 
+    log_audit(user.id, org_id, "user.registered", f"role={role}")
+
     login_user(user)
     if expects_json:
         return (
-            jsonify({"user_id": user.id, "role": role, "org_id": org_id}),
+            jsonify({"user_id": user.id, "role": role, "org_id": org_id, "status": "active"}),
             HTTPStatus.CREATED,
         )
 
-    flash("Account request submitted.", "success")
+    flash("Account activated via verified invite.", "success")
     return redirect(url_for("analytics.dashboard_snapshot")), HTTPStatus.CREATED
