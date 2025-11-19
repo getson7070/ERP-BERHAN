@@ -15,6 +15,7 @@ from erp.utils import resolve_org_id
 from .models import ReorderPolicy
 
 supply_bp = Blueprint("supplychain", __name__, url_prefix="/supply")
+bp = supply_bp
 
 
 def _serialize_policy(policy: ReorderPolicy) -> dict[str, object]:
@@ -117,4 +118,4 @@ def shipments():
     return jsonify(payload)
 
 
-__all__ = ["supply_bp", "policy", "shipments"]
+__all__ = ["bp", "policy", "shipments"]

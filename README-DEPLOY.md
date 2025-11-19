@@ -34,6 +34,10 @@ docker compose exec web python -m erp.tools.freeze_blueprints  # writes erp/blue
 docker compose up -d
 ```
 
+## Windows + Docker Desktop Walkthrough
+Need a detailed, Windows-specific flow (PowerShell, WSL 2 backend, explicit host paths, verification commands, and troubleshooting tips)?
+Follow [`docs/docker_desktop_guide.md`](docs/docker_desktop_guide.md) for the complete procedure tailored to a checkout at `C:\Users\Alienware\Documents\ERP-BERHAN\ERP-BERHAN`.
+
 ## DB Snapshot
 ```powershell
 PowerShell -ExecutionPolicy Bypass -File .\tools\db_snapshot.ps1

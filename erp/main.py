@@ -1,11 +1,9 @@
 # erp/main.py
 
-from flask import Blueprint
-
-main_bp = Blueprint("main", __name__)
+from erp.routes.main import main_bp as bp
 
 
-@main_bp.route("/dashboard")
+@bp.route("/dashboard")
 def dashboard():
     """
     Simple dashboard placeholder.
@@ -14,3 +12,6 @@ def dashboard():
     a quick way to verify that authenticated routes are wired.
     """
     return "ERP-BERHAN dashboard", 200
+
+
+__all__ = ["bp", "dashboard"]
