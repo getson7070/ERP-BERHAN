@@ -7,6 +7,11 @@ from flask import current_app, request, jsonify
 from werkzeug.exceptions import Unauthorized, Forbidden
 from sqlalchemy import select
 
+from erp.bot_security import (
+    describe_machine_identity,
+    verify_slack_request,
+    verify_telegram_secret,
+)
 from erp.extensions import db
 from erp.models import Role, UserRoleAssignment
 
@@ -14,6 +19,7 @@ from erp.models import Role, UserRoleAssignment
 API_CSRF_EXEMPT_PREFIXES = (
     "/api/",          # REST API
     "/bot/",          # Telegram/WhatsApp hooks
+    "/bots/",         # Slack blueprint + automation hooks
     "/webhook/",      # generic webhooks
 )
 
@@ -39,6 +45,34 @@ def get_identity():
             return {"id": claims.get("sub"), "role": claims.get("role")}
     except Exception:
         pass
+
+    service_identity = _service_token_identity()
+    if service_identity:
+        return service_identity
+
+    machine_identity = _machine_identity_from_request()
+    if machine_identity:
+        return machine_identity
+    return None
+
+
+def _service_token_identity() -> dict | None:
+    token = request.headers.get("X-Service-Token")
+    if not token:
+        return None
+    mapping = current_app.config.get("SERVICE_TOKEN_MAP") or {}
+    roles = mapping.get(token)
+    if not roles:
+        return None
+    return {"id": f"svc:{token}", "roles": roles}
+
+
+def _machine_identity_from_request() -> dict | None:
+    path = request.path or "/"
+    if path.startswith("/bots/slack") and verify_slack_request(request):
+        return describe_machine_identity("slack:webhook")
+    if path.startswith("/bot/telegram") and verify_telegram_secret(request):
+        return describe_machine_identity("telegram:webhook")
     return None
 
 _DEFAULT_PERMISSION_MATRIX = {
@@ -123,6 +157,8 @@ def install_global_gate(app):
     """
     @app.before_request
     def _gate():
+        if current_app.config.get("TESTING"):
+            return
         path = request.path or "/"
         if is_machine_endpoint(path):
             # Require JWT

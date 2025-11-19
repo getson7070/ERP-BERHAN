@@ -14,6 +14,7 @@ from flask import (
     Response,
     abort,
     current_app,
+    g,
     redirect,
     request,
     session,
@@ -250,6 +251,12 @@ def utc_now() -> datetime:
 def resolve_org_id(default: int = 1, req: Request | None = None) -> int:
     """Determine the active organisation id for the current request context."""
 
+    if hasattr(g, "org_id"):
+        try:
+            return int(getattr(g, "org_id"))
+        except (TypeError, ValueError):
+            current_app.logger.debug("g.org_id invalid; falling back to request context")
+
     req = req or request
     if req is not None:
         candidate = req.args.get("org_id") or req.headers.get("X-Org-Id")
@@ -266,6 +273,8 @@ def resolve_org_id(default: int = 1, req: Request | None = None) -> int:
     except (TypeError, ValueError):
         current_app.logger.debug("Session org_id invalid; defaulting")
 
+    fallback = current_app.config.get("DEFAULT_ORG_ID", default)
+    return int(fallback)
     return int(default)
 
 def utility_function():

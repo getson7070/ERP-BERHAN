@@ -25,6 +25,20 @@ This document records database maintenance practices.
 - The lightweight `python -m tools.backup_drill` wrapper is safe to run from laptops and CI runners
   so teams can verify credentials and binaries without invoking the heavier Bash pipeline.
 
+## Automated Resilience Suite
+- Run `python -m tools.run_resilience_suite --database-url=$DATABASE_URL` nightly. The helper chains the
+  backup drill and index audit, persists JSON evidence under `logs/resilience-suite/`, and fails the
+  job if either step returns a non-zero status.
+- Attach the resulting JSON artifact to change-management tickets so auditors can verify recovery
+  readiness without re-running the scripts.
+
+## Tenant Isolation Guardrails
+- Every Flask request now flows through `erp.middleware.tenant_guard.install_tenant_guard`, which
+  resolves `org_id` from headers, query parameters, or the authenticated user. Requests that omit an
+  organisation id are rejected with `400 org_id_required` whenever `STRICT_ORG_BOUNDARIES=1`.
+- Application code should continue calling `resolve_org_id()`—it now honours the pre-populated `g.org_id`
+  and falls back to the configured `DEFAULT_ORG_ID` only during local or automated tests.
+
 ## Normalization & Query Performance
 - Adhere to third normal form (3NF) for transactional tables.
 - Monitor query plans with `EXPLAIN ANALYZE` and review slow query logs.

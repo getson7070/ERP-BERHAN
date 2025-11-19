@@ -32,6 +32,8 @@ from .metrics import (
 )
 from .socket import socketio
 from .security import apply_security
+from .security_gate import install_global_gate
+from .middleware.tenant_guard import install_tenant_guard
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +41,30 @@ LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Configuration helpers
 # ---------------------------------------------------------------------------
+
+def _parse_service_tokens(raw: str) -> dict[str, tuple[str, ...]]:
+    tokens: dict[str, tuple[str, ...]] = {}
+    if not raw:
+        return tokens
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if not chunk or ":" not in chunk:
+            continue
+        token, roles_raw = chunk.split(":", 1)
+        token = token.strip()
+        roles = tuple(
+            sorted(
+                {
+                    role.strip().lower()
+                    for role in roles_raw.replace("|", ",").split(",")
+                    if role.strip()
+                }
+            )
+        )
+        if token and roles:
+            tokens[token] = roles
+    return tokens
+
 
 def _load_config(app: Flask) -> None:
     """Populate ``app.config`` from the canonical Config object or env vars."""
@@ -95,6 +121,20 @@ def _load_config(app: Flask) -> None:
         sorted({role.strip().lower() for role in raw_roles.split(",") if role.strip()})
     )
 
+    strict_org_boundaries = os.environ.get("STRICT_ORG_BOUNDARIES", "1") != "0"
+    default_org_id = int(os.environ.get("DEFAULT_ORG_ID", 1))
+    service_tokens = _parse_service_tokens(os.environ.get("SERVICE_TOKENS", ""))
+
+    automation_roles = tuple(
+        sorted(
+            {
+                role.strip().lower()
+                for role in os.environ.get("AUTOMATION_MACHINE_ROLES", "automation").split(",")
+                if role.strip()
+            }
+        )
+    ) or ("automation",)
+
     app.config.update(
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=database_url,
@@ -112,6 +152,10 @@ def _load_config(app: Flask) -> None:
         SELF_REGISTRATION_MODE=os.environ.get("SELF_REGISTRATION_MODE", "invite-only"),
         SELF_REGISTRATION_ALLOWED_ROLES=allowed_roles,
         PRIVILEGED_ROLES=("admin", "owner", "superuser"),
+        STRICT_ORG_BOUNDARIES=strict_org_boundaries,
+        DEFAULT_ORG_ID=default_org_id,
+        SERVICE_TOKEN_MAP=service_tokens,
+        AUTOMATION_MACHINE_ROLES=automation_roles,
     )
 
 
@@ -146,6 +190,8 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.supplychain.routes",
     "erp.routes.report_builder",
     "erp.blueprints.inventory",
+    "erp.blueprints.bots",
+    "erp.blueprints.telegram_webhook",
 ]
 
 _EXCLUDED_BLUEPRINT_MODULES = {
@@ -249,6 +295,8 @@ def create_app(config_object: str | None = None) -> Flask:
     init_extensions(app)
     apply_security(app)
     register_blueprints(app)
+    install_global_gate(app)
+    install_tenant_guard(app)
 
     # Guarantee marketing endpoints are present even when manifest skips them
     marketing_spec = importlib.util.find_spec("erp.marketing.routes")

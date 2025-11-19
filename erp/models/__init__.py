@@ -36,6 +36,7 @@ from .core_entities import (            # noqa: F401
     RegistrationInvite,
 )
 from erp.marketing.models import MarketingEvent, MarketingVisit
+from erp.banking.models import BankAccount, BankStatement, StatementLine
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
@@ -73,6 +74,7 @@ __all__ = [
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
+    "BankAccount", "BankStatement", "StatementLine",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="analytics" aria-labelledby="analytics-heading">
+  <header class="analytics__hero">
+    <div>
+      <p class="eyebrow">Operational Pulse</p>
+      <h1 id="analytics-heading">Realtime analytics &amp; approvals overview</h1>
+      <p class="subtitle">Track fulfilment, automation health, and tenant-specific KPIs in one accessible workspace.</p>
+    </div>
+    <button type="button" class="refresh" aria-label="Refresh metrics" id="refresh-btn">↻ Refresh</button>
+  </header>
+
+  <div class="analytics__grid" role="region" aria-live="polite">
+    <article class="kpi" aria-label="Pending orders">
+      <span>Pending orders</span>
+      <strong data-kpi="pending_orders">{{ data.pending_orders }}</strong>
+    </article>
+    <article class="kpi" aria-label="Open maintenance tickets">
+      <span>Open maintenance</span>
+      <strong data-kpi="open_maintenance">{{ data.open_maintenance }}</strong>
+    </article>
+    <article class="kpi" aria-label="Low stock items">
+      <span>Low-stock items</span>
+      <strong data-kpi="low_stock_items">{{ data.low_stock_items }}</strong>
+    </article>
+    <article class="kpi" aria-label="Automation events">
+      <span>Automation events (24h)</span>
+      <strong data-kpi="automation_events_today">{{ data.automation_events_today }}</strong>
+    </article>
+  </div>
+
+  <section class="cards">
+    <article class="card">
+      <h2>Customer pipeline</h2>
+      <p class="metric">{{ data.qualified_pipeline_value | round(2) }} ETB</p>
+      <p class="detail">Conversion rate <strong data-kpi="crm_conversion_rate">{{ data.crm_conversion_rate }}</strong></p>
+    </article>
+    <article class="card">
+      <h2>Maintenance SLA</h2>
+      <p class="metric"><span data-kpi="avg_resolution_hours">{{ data.avg_resolution_hours }}</span> hrs</p>
+      <p class="detail">SLA met <strong data-kpi="sla_met_ratio">{{ data.sla_met_ratio }}</strong></p>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div>
+      <h2>Monthly sales trend</h2>
+      <ul class="spark" id="sales-list">
+        {% for point in data.monthly_sales %}
+          <li><span>{{ point.month }}</span><strong>{{ point.total }}</strong></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h2>Geo hotspots</h2>
+      <ul class="geo" id="geo-list">
+        {% for hotspot in data.geo_hotspots %}
+          <li>
+            <span>{{ hotspot.label }}</span>
+            <strong>{{ hotspot.count }}</strong>
+          </li>
+        {% else %}
+          <li>No telemetry submitted yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+</section>
+
+<script>
+  async function refreshAnalytics() {
+    const response = await fetch('/analytics/dashboard?format=json', {headers: {'Accept': 'application/json'}});
+    if (!response.ok) return;
+    const payload = await response.json();
+    document.querySelectorAll('[data-kpi]').forEach((node) => {
+      const key = node.getAttribute('data-kpi');
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        node.textContent = payload[key];
+      }
+    });
+    const salesList = document.getElementById('sales-list');
+    if (salesList && payload.monthly_sales) {
+      salesList.innerHTML = payload.monthly_sales.map((point) => `<li><span>${point.month}</span><strong>${point.total}</strong></li>`).join('');
+    }
+    const geoList = document.getElementById('geo-list');
+    if (geoList && payload.geo_hotspots) {
+      if (payload.geo_hotspots.length === 0) {
+        geoList.innerHTML = '<li>No telemetry submitted yet.</li>';
+      } else {
+        geoList.innerHTML = payload.geo_hotspots.map((item) => `<li><span>${item.label}</span><strong>${item.count}</strong></li>`).join('');
+      }
+    }
+  }
+  document.getElementById('refresh-btn')?.addEventListener('click', refreshAnalytics);
+  setInterval(refreshAnalytics, 60000);
+</script>
+
+<style>
+  .analytics { display: flex; flex-direction: column; gap: 1.75rem; }
+  .analytics__hero { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+  .eyebrow { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.3em; color: rgba(0,0,0,.55); }
+  .analytics__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+  .kpi { padding: 1.25rem; border-radius: 1rem; background: rgba(255,255,255,0.9); box-shadow: 0 16px 32px rgba(10,109,146,0.08); display: flex; flex-direction: column; gap: 0.35rem; }
+  .kpi span { font-size: 0.9rem; color: rgba(0,0,0,0.65); }
+  .kpi strong { font-size: 2rem; font-weight: 700; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+  .card { padding: 1.5rem; border-radius: 1.25rem; background: linear-gradient(135deg, #0a6d92, #0e3b4f); color: #fff; box-shadow: 0 18px 36px rgba(10,109,146,0.2); }
+  .card .metric { font-size: 2rem; margin: 0.75rem 0; }
+  .card .detail { margin: 0; font-size: 0.95rem; color: rgba(255,255,255,0.9); }
+  .panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+  .panel > div { background: rgba(255,255,255,0.95); border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 18px 36px rgba(10,109,146,0.1); }
+  .spark, .geo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .spark li, .geo li { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  .refresh { border: none; background: var(--brand); color: #fff; border-radius: 999px; padding: 0.5rem 1.25rem; font-weight: 600; cursor: pointer; }
+  @media (max-width: 720px) { .analytics__hero { flex-direction: column; align-items: flex-start; } }
+</style>
+{% endblock %}
