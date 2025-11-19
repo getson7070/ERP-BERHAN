@@ -4,7 +4,7 @@ from __future__ import annotations
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from erp.security import require_roles
 
 from erp.extensions import db
 from erp.models import Employee
@@ -25,7 +25,7 @@ def _serialize(employee: Employee) -> dict[str, object]:
 
 
 @bp.route("/", methods=["GET", "POST"])
-@login_required
+@require_roles("hr", "admin")
 def index():
     """List employees or create a new record."""
 

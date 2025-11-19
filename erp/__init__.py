@@ -59,17 +59,44 @@ def _load_config(app: Flask) -> None:
         app.config.from_object(InstanceConfig)
         return
 
-    # Fallback configuration mirrors the documented deployment defaults.
-    database_url = os.environ.get("DATABASE_URL")
+    allow_insecure = os.environ.get("ALLOW_INSECURE_DEFAULTS") == "1"
+    if os.environ.get("FLASK_ENV") == "development":
+        allow_insecure = True
+
+    secret_key = os.environ.get("SECRET_KEY")
+    if not secret_key or secret_key == "change-me":
+        if allow_insecure:
+            secret_key = secret_key or "change-me"
+        else:  # Production/staging must explicitly configure a secret
+            raise RuntimeError(
+                "SECRET_KEY is not configured. Export SECRET_KEY or set "
+                "ALLOW_INSECURE_DEFAULTS=1 for ephemeral local testing."
+            )
+
+    database_url = (
+        os.environ.get("DATABASE_URL")
+        or os.environ.get("SQLALCHEMY_DATABASE_URI")
+        or ""
+    )
     if not database_url:
         database_path = os.environ.get("DATABASE_PATH")
         if database_path:
             database_url = f"sqlite:///{database_path}"
-        else:
+        elif allow_insecure:
             database_url = "sqlite:///local.db"
+        else:
+            raise RuntimeError(
+                "DATABASE_URL is not configured. Set DATABASE_URL/SQLALCHEMY_DATABASE_URI "
+                "or opt in to ALLOW_INSECURE_DEFAULTS=1 for disposable dev runs."
+            )
+
+    raw_roles = os.environ.get("SELF_REGISTRATION_ALLOWED_ROLES", "employee,client")
+    allowed_roles = tuple(
+        sorted({role.strip().lower() for role in raw_roles.split(",") if role.strip()})
+    )
 
     app.config.update(
-        SECRET_KEY=os.environ.get("SECRET_KEY", "change-me"),
+        SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         # Sensible defaults to avoid dev-time warnings while still keeping
@@ -82,6 +109,9 @@ def _load_config(app: Flask) -> None:
         REMEMBER_COOKIE_SECURE=True,
         REMEMBER_COOKIE_HTTPONLY=True,
         WTF_CSRF_TIME_LIMIT=None,
+        SELF_REGISTRATION_MODE=os.environ.get("SELF_REGISTRATION_MODE", "invite-only"),
+        SELF_REGISTRATION_ALLOWED_ROLES=allowed_roles,
+        PRIVILEGED_ROLES=("admin", "owner", "superuser"),
     )
 
 

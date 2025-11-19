@@ -5,17 +5,23 @@ from flask import Blueprint, render_template, request, session, flash
 from sqlalchemy import text
 
 from db import get_db
-from erp.utils import login_required, mfa_required, sanitize_sort, sanitize_direction
+from erp.security import require_roles, mfa_required
+from erp.utils import sanitize_sort, sanitize_direction
+sanitize_direction
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
 @bp.route("/workflows", methods=["GET", "POST"])
-@login_required
+@require_roles("admin")
 @mfa_required
 def workflows():
     """
     Manage per-org workflows using parameterised SQL.
+
+    Existing body of this function stays exactly as it is below.
+    """
+    # keep your existing function body here...
 
     Still uses raw SQL (no ORM model yet) but strictly with bound parameters,
     plus basic validation on user input.

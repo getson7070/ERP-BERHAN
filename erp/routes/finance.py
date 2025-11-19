@@ -13,13 +13,11 @@ from erp.utils import resolve_org_id
 from erp.security import require_login, require_roles
 
 
-# API blueprint: all finance endpoints are under /api/finance
-finance_api_bp = Blueprint("finance_api", __name__, url_prefix="/api/finance")
+# API blueprint mounted under /api/finance
+finance_bp = Blueprint("finance_api", __name__, url_prefix="/api/finance")
 
 
 def _account_balance(account: FinanceAccount) -> float:
-    """Compute net balance for a given account (debits minus credits)."""
-
     totals = (
         db.session.query(
             func.coalesce(
@@ -38,22 +36,17 @@ def _account_balance(account: FinanceAccount) -> float:
     return float(totals or 0)
 
 
-@finance_api_bp.get("/health")
-@require_login
-def health():
-    """
-    Lightweight health endpoint for the finance module.
-
-    Protected by authentication so that internal account counts are not
-    exposed to anonymous callers.
-    """
+@finance_bp.get("/health")
+@require_roles("finance", "admin")
+def health() -> Any:
+    """Simple health check with basic account count."""
     return jsonify({"ok": True, "accounts": FinanceAccount.query.count()})
 
 
-@finance_api_bp.get("/ledger")
+@finance_bp.get("/ledger")
 @require_roles("finance", "admin")
 def list_accounts():
-    """Return all active ledger accounts with current balances for the org."""
+    """Return all ledger accounts with current balances."""
 
     org_id = resolve_org_id()
     accounts = (
@@ -74,20 +67,18 @@ def list_accounts():
     return jsonify(payload)
 
 
-@finance_api_bp.post("/ledger")
+@finance_bp.post("/ledger")
 @require_roles("finance", "admin")
 def create_account():
-    """Create a new general ledger account for the current organisation."""
+    """Create a new general ledger account."""
 
     data = request.get_json(silent=True) or {}
     org_id = resolve_org_id()
     code = (data.get("code") or "").strip().upper()
     name = (data.get("name") or "").strip()
     category = (data.get("category") or "asset").lower()
-
     if not code or not name:
         return jsonify({"error": "code and name are required"}), HTTPStatus.BAD_REQUEST
-
     if category not in {"asset", "liability", "equity", "income", "expense"}:
         return jsonify({"error": "invalid category"}), HTTPStatus.BAD_REQUEST
 
@@ -97,7 +88,7 @@ def create_account():
     return jsonify({"id": account.id}), HTTPStatus.CREATED
 
 
-@finance_api_bp.post("/journal")
+@finance_bp.post("/journal")
 @require_roles("finance", "admin")
 def post_journal():
     """Create balancing debit and credit entries."""
@@ -129,12 +120,10 @@ def post_journal():
 
     total_debits = sum(amount for _, amount in normalised_debits)
     total_credits = sum(amount for _, amount in normalised_credits)
-
     if total_debits != total_credits:
         return jsonify({"error": "journal is not balanced"}), HTTPStatus.BAD_REQUEST
 
     created_ids: list[int] = []
-
     for account_id, amount in normalised_debits:
         entry = FinanceEntry(
             org_id=org_id,
@@ -163,7 +152,6 @@ def post_journal():
     return jsonify({"entries": created_ids}), HTTPStatus.CREATED
 
 
-# Exported blueprint for app registration
-bp = finance_api_bp
+bp = finance_bp
 
 __all__ = ["bp"]
