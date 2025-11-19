@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-from flask import Flask, jsonify
+from flask import Blueprint as FlaskBlueprint, Flask, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import redis_client  # type: ignore
@@ -95,15 +95,21 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.web",
     "erp.views_ui",
     "erp.routes.main",
+    "erp.routes.health",
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
     "erp.routes.auth",
     "erp.routes.approvals",
     "erp.routes.maintenance",
     "erp.routes.orders",
+    "erp.routes.projects",
+    "erp.routes.manufacturing",
     "erp.sales.routes",
     "erp.marketing.routes",
+    "erp.routes.plugins",
+    "erp.routes.plugins_sample",
     "erp.routes.inventory",
+    "erp.procurement.routes",
     "erp.routes.finance",
     "erp.routes.hr",
     "erp.routes.crm",
@@ -151,6 +157,18 @@ def _iter_blueprint_modules() -> Iterable[str]:
             yield module
 
 
+def _extract_blueprints(module_obj) -> list[FlaskBlueprint]:
+    """Return Blueprint objects exposed by *module_obj* (if any)."""
+
+    discovered: list[FlaskBlueprint] = []
+    seen: set[str] = set()
+    for attr_name, attr in vars(module_obj).items():
+        if isinstance(attr, FlaskBlueprint) and attr.name not in seen:
+            seen.add(attr.name)
+            discovered.append(attr)
+    return discovered
+
+
 def register_blueprints(app: Flask) -> None:
     """Register all configured blueprints while avoiding duplicates."""
 
@@ -165,14 +183,16 @@ def register_blueprints(app: Flask) -> None:
             continue
 
         module_obj = importlib.import_module(module)
-        blueprint = getattr(module_obj, "bp", None)
-        if blueprint is None:
-            LOGGER.debug("Blueprint %s missing 'bp' attribute; skipping", module)
+        blueprints = _extract_blueprints(module_obj)
+        if not blueprints:
+            LOGGER.debug("Module %s defines no Blueprint instances", module)
             continue
-        if blueprint.name in app.blueprints:
-            LOGGER.debug("Blueprint %s already registered", blueprint.name)
-            continue
-        app.register_blueprint(blueprint)
+
+        for blueprint in blueprints:
+            if blueprint.name in app.blueprints:
+                LOGGER.debug("Blueprint %s already registered", blueprint.name)
+                continue
+            app.register_blueprint(blueprint)
 
 
 def _register_core_routes(app: Flask) -> None:
