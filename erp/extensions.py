@@ -29,6 +29,12 @@ else:  # pragma: no cover - fallback when Flask-Limiter is optional
                 "Flask-Limiter is not installed; rate limiting is disabled"
             )
 
+        def limit(self, *_args, **_kwargs):  # noqa: D401 - mimic real decorator
+            def decorator(fn):
+                return fn
+
+            return decorator
+
     def get_remote_address():  # type: ignore
         return "127.0.0.1"
 

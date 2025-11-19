@@ -8,7 +8,7 @@
         <p class="lead text-muted mb-4">Sign in to continue to Analytics, CRM, Sales, Banking, and more.</p>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
-            <div class="stacked-alerts" role="status">
+            <div class="stacked-alerts" role="status" aria-live="assertive">
               {% for category, message in messages %}
                 <div class="alert alert-{{ 'warning' if category == 'danger' else category }}" role="alert">{{ message }}</div>
               {% endfor %}
@@ -17,6 +17,7 @@
         {% endwith %}
         <form method="post" action="{{ url_for('auth.login') }}" class="card shadow-sm mb-4" novalidate>
           <div class="card-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="mb-3">
               <label for="email" class="form-label">Email address</label>
               <input id="email" name="email" type="email" class="form-control" autocomplete="email" required placeholder="you@example.com" />
@@ -34,9 +35,10 @@
         <div class="card shadow-sm h-100">
           <div class="card-body">
             <h2 class="h5">Request access</h2>
-            <p class="text-muted">Invite a teammate or client to collaborate. Admins approve client access before activation.</p>
+            <p class="text-muted">Invite a teammate or client to collaborate. Admins approve every request and privileged roles require MFA.</p>
             <form method="post" action="{{ url_for('auth.register') }}" novalidate>
               <div class="mb-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <label class="form-label" for="username">Name</label>
                 <input id="username" name="username" type="text" class="form-control" placeholder="Jane Doe" />
               </div>
@@ -46,15 +48,21 @@
               </div>
               <div class="mb-3">
                 <label class="form-label" for="register-role">Role</label>
-                <select id="register-role" name="role" class="form-select">
-                  <option value="employee">Employee</option>
-                  <option value="admin">Admin</option>
+                <select id="register-role" name="role" class="form-select" aria-describedby="role-help">
+                  <option value="employee" selected>Employee</option>
                   <option value="client">Client</option>
+                  <option value="admin" disabled>Admin (invite & MFA only)</option>
                 </select>
+                <div id="role-help" class="form-text">Client + employee access may be approved. Admin requires a one-time invite and security review.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="register-password">Password</label>
                 <input id="register-password" name="password" type="password" class="form-control" required minlength="8" placeholder="At least 8 characters" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="invite-code">Invite code <span class="text-muted">(required for instant activation)</span></label>
+                <input id="invite-code" name="invite_code" type="text" class="form-control" autocomplete="one-time-code" placeholder="Paste the invite link or token" />
+                <div class="form-text">No invite? Submit without a code and we will notify an administrator for approval.</div>
               </div>
               <button class="btn btn-outline-primary w-100" type="submit">Request account</button>
             </form>
@@ -68,6 +76,7 @@
   .auth-shell { padding: 2rem 1rem 3rem; }
   .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
   .card { border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1rem; }
+  .stacked-alerts { margin-bottom: 1rem; }
   @media (prefers-color-scheme: dark) {
     .card { background: rgba(28,35,42,0.9); border-color: rgba(255,255,255,0.08); }
   }
