@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from secrets import token_urlsafe
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required
 
+from erp.security import require_roles
 from erp.extensions import db
 from erp.models import (
     ClientRegistration,
@@ -36,7 +36,7 @@ def _assign_role(user: User, role_name: str) -> None:
 
 
 @bp.route("/", methods=["GET", "POST"])
-@login_required
+@require_roles("admin")
 def index():
     org_id = resolve_org_id()
     if request.method == "POST":
@@ -56,6 +56,7 @@ def index():
                 role=role,
             )
             db.session.add(employee)
+
             username = email.split("@", 1)[0]
             password = token_urlsafe(12)
             user = User(username=username, email=email)
@@ -96,7 +97,7 @@ def index():
 
 
 @bp.post("/clients/<int:client_id>/approve")
-@login_required
+@require_roles("admin")
 def approve_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
     client.status = "approved"
@@ -107,7 +108,7 @@ def approve_client(client_id: int):
 
 
 @bp.post("/clients/<int:client_id>/reject")
-@login_required
+@require_roles("admin")
 def reject_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
     client.status = "rejected"
@@ -118,7 +119,7 @@ def reject_client(client_id: int):
 
 
 @bp.post("/users/<int:user_id>/delete")
-@login_required
+@require_roles("admin")
 def delete_user(user_id: int):
     user = User.query.get_or_404(user_id)
     UserRoleAssignment.query.filter_by(user_id=user.id).delete()

@@ -5,7 +5,7 @@ from decimal import Decimal
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from erp.security import require_roles
 
 from erp.extensions import db
 from erp.models import Inventory, InventoryReservation, Order
@@ -27,7 +27,7 @@ def _serialize(order: Order) -> dict[str, object]:
 
 
 @bp.route("/", methods=["GET", "POST"])
-@login_required
+@require_roles("sales", "admin")
 def index():
     org_id = resolve_org_id()
     if request.method == "POST":

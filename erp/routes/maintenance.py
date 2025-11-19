@@ -5,7 +5,7 @@ from datetime import datetime
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from erp.security import require_roles
 
 from erp.audit import log_audit
 from erp.extensions import db
@@ -54,8 +54,8 @@ def _serialize(ticket: MaintenanceTicket) -> dict[str, object]:
 
 
 @bp.route("/tickets", methods=["GET", "POST"])
-@login_required
-def tickets():
+@require_roles("maintenance", "admin")
+def list_tickets():
     org_id = resolve_org_id()
     if request.method == "POST":
         payload = request.get_json(silent=True) or {}
