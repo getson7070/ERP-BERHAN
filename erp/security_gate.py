@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import functools
-from typing import Callable
+from typing import Callable, Iterable
 from flask import current_app, request, jsonify
 from werkzeug.exceptions import Unauthorized, Forbidden
+from sqlalchemy import select
+
+from erp.extensions import db
+from erp.models import Role, UserRoleAssignment
 
 # Mark API endpoints that should be CSRF-exempt but JWT-required.
 API_CSRF_EXEMPT_PREFIXES = (
@@ -37,21 +41,78 @@ def get_identity():
         pass
     return None
 
+_DEFAULT_PERMISSION_MATRIX = {
+    "employee": {"view:dashboard", "order:view", "order:create"},
+    "client": {"view:dashboard", "order:view"},
+    "finance": {"view:dashboard", "finance:read", "finance:post"},
+    "admin": {"*"},
+}
+
+
+def _permission_matrix() -> dict[str, set[str]]:
+    config_matrix = current_app.config.get("ROLE_PERMISSION_MATRIX")
+    matrix = config_matrix or _DEFAULT_PERMISSION_MATRIX
+    return {role: set(perms) for role, perms in matrix.items()}
+
+
+def _roles_for_identity(identity: dict | None) -> set[str]:
+    if not identity:
+        return set()
+
+    if "roles" in identity:
+        roles = identity["roles"]
+        if isinstance(roles, str):
+            return {roles}
+        return {str(r) for r in roles}
+
+    if identity.get("role"):
+        return {str(identity["role"])}
+
+    user_id = identity.get("id")
+    if not user_id:
+        return set()
+
+    cache_key = f"erp_roles::{user_id}"
+    if cache_key in request.environ:
+        return request.environ[cache_key]
+
+    rows: Iterable[str] = db.session.execute(
+        select(Role.name)
+        .join(UserRoleAssignment, Role.id == UserRoleAssignment.role_id)
+        .where(UserRoleAssignment.user_id == user_id)
+    ).scalars().all()
+    resolved = {r for r in rows if r}
+    request.environ[cache_key] = resolved
+    return resolved
+
+
+def _is_allowed(role: str, permission: str, matrix: dict[str, set[str]]) -> bool:
+    perms = matrix.get(role, set())
+    return "*" in perms or permission in perms
+
+
 def require_permission(permission: str) -> Callable:
-    """
-    Decorator for fine-grained checks (fill out the matrix later).
-    """
+    """Decorator that enforces the configured RBAC matrix."""
+
     def wrapper(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def inner(*args, **kwargs):
             ident = get_identity()
             if not ident:
                 raise Unauthorized()
-            # TODO: implement your permission matrix
-            # if not permissions_service.allowed(ident["role"], permission):
-            #     raise Forbidden()
+
+            roles = _roles_for_identity(ident)
+            if not roles:
+                raise Forbidden()
+
+            matrix = _permission_matrix()
+            if not any(_is_allowed(role, permission, matrix) for role in roles):
+                raise Forbidden()
+
             return fn(*args, **kwargs)
+
         return inner
+
     return wrapper
 
 def install_global_gate(app):
