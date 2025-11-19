@@ -199,6 +199,7 @@ class FinanceEntry(TimestampMixin, OrgScopedMixin, db.Model):
     __table_args__ = (
         CheckConstraint("amount >= 0", name="ck_finance_entries_amount_positive"),
         Index("ix_finance_entries_account", "account_id"),
+        Index("ix_finance_entries_org_id", "org_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -306,6 +307,22 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
         db.String(16), nullable=False, default="pending"
     )  # pending|approved|rejected
     decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
+
+
+class RegistrationInvite(TimestampMixin, db.Model):
+    """Invite tokens that gate self-service registration."""
+
+    __tablename__ = "registration_invites"
+    __table_args__ = (
+        Index("ix_registration_invites_token", "token_hash"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(db.String(128), unique=True, nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(db.String(255), nullable=True)
+    role: Mapped[str] = mapped_column(db.String(64), nullable=False, default="employee")
+    uses_remaining: Mapped[int] = mapped_column(db.Integer, nullable=False, default=1)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
 
 
 class UserRoleAssignment(TimestampMixin, db.Model):

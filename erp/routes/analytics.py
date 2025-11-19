@@ -4,7 +4,12 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Iterable, List
 
-from flask import Blueprint, jsonify, request
+from collections import defaultdict
+from datetime import timedelta
+from statistics import fmean
+from typing import Iterable, List
+
+from flask import Blueprint, jsonify, render_template, request
 from sqlalchemy import func
 
 from erp.analytics import DemandForecaster
@@ -37,6 +42,31 @@ def _monthly_sales(org_id: int) -> list[dict[str, float | str]]:
         {"month": month, "total": total}
         for month, total in sorted(buckets.items())
     ]
+
+
+def _ticket_resolution_stats(org_id: int) -> tuple[float, float]:
+    closed = (
+        MaintenanceTicket.query.filter(
+            MaintenanceTicket.org_id == org_id,
+            MaintenanceTicket.closed_at.isnot(None),
+            MaintenanceTicket.created_at.isnot(None),
+        )
+        .order_by(MaintenanceTicket.closed_at.desc())
+        .limit(250)
+        .all()
+    )
+
+    durations: list[float] = []
+    sla_hits = 0
+    for ticket in closed:
+        elapsed = (ticket.closed_at - ticket.created_at).total_seconds() / 3600.0
+        durations.append(elapsed)
+        if elapsed <= 48:
+            sla_hits += 1
+
+    if not durations:
+        return 0.0, 1.0
+    return float(fmean(durations)), float(sla_hits / len(durations))
 
 
 def fetch_kpis(org_id: int) -> dict[str, object]:
@@ -72,6 +102,25 @@ def fetch_kpis(org_id: int) -> dict[str, object]:
         .all()
     )
 
+    avg_resolution_hours, sla_ratio = _ticket_resolution_stats(org_id)
+
+    total_leads = CrmLead.query.filter(CrmLead.org_id == org_id).count()
+    won_leads = (
+        CrmLead.query.filter(CrmLead.org_id == org_id, CrmLead.status == "won").count()
+    )
+    conversion_rate = float(won_leads / total_leads) if total_leads else 0.0
+
+    last_day = utc_now() - timedelta(hours=24)
+    automation_events = (
+        db.session.query(func.count(AnalyticsEvent.id))
+        .filter(
+            AnalyticsEvent.org_id == org_id,
+            AnalyticsEvent.metric.in_(["automation", "bot_trigger"]),
+            AnalyticsEvent.captured_at >= last_day,
+        )
+        .scalar()
+    ) or 0
+
     return {
         "pending_orders": pending_orders,
         "open_maintenance": open_tickets,
@@ -83,6 +132,10 @@ def fetch_kpis(org_id: int) -> dict[str, object]:
             for label, count in geo_hotspots
             if label
         ],
+        "avg_resolution_hours": round(avg_resolution_hours, 2),
+        "sla_met_ratio": round(sla_ratio, 2),
+        "crm_conversion_rate": round(conversion_rate, 2),
+        "automation_events_today": int(automation_events),
     }
 
 
@@ -126,10 +179,22 @@ def collect_vitals():
     return "", 204
 
 
+@bp.get("/")
+def analytics_index():
+    org_id = resolve_org_id()
+    data = fetch_kpis(org_id)
+    return render_template("analytics_dashboard.html", data=data)
+
+
 @bp.get("/dashboard")
 def dashboard_snapshot():
     org_id = resolve_org_id()
-    return jsonify(fetch_kpis(org_id))
+    data = fetch_kpis(org_id)
+    wants_json = request.args.get("format") == "json"
+    accepts_json = request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html
+    if wants_json or accepts_json:
+        return jsonify(data)
+    return render_template("analytics_dashboard.html", data=data)
 
 
 def _send_approval_reminders(users: Iterable[int] | None = None) -> int:

@@ -125,9 +125,25 @@
         background-color: inherit;
         color: inherit;
       }
+      .skip-link {
+        position: absolute;
+        left: 1rem;
+        top: -40px;
+        background: var(--brand);
+        color: #fff;
+        padding: 0.5rem 1rem;
+        border-radius: 0.75rem;
+        transition: top 0.2s ease;
+        z-index: 10;
+      }
+      .skip-link:focus-visible {
+        top: 1rem;
+        outline: none;
+      }
     </style>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header>
       <div class="brand">
         <span>EB</span>
@@ -144,7 +160,7 @@
         <option value="am" {% if session.get('lang') == 'am' %}selected{% endif %}>Amharic</option>
       </select>
     </header>
-    <main>
+    <main id="main-content">
       <div class="content-wrapper">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -159,5 +175,6 @@
     <footer>
       &copy; {{ config.get('BUSINESS_NAME', 'Berhan Pharma') }} {{ config.get('COPYRIGHT_YEAR', 2025) }} &bull; Secure. Reliable. Compliant.
     </footer>
+    <script src="{{ url_for('static', filename='register-sw.js') }}" defer></script>
   </body>
 </html>

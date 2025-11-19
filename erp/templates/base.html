@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta http-equiv="x-ua-compatible" content="ie=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}" />
 
   <title>{% block title %}Berhan ERP{% endblock %}</title>
 
@@ -16,12 +17,25 @@
     body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif; }
     .brand { color: var(--brand); }
     .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -40px;
+      background: var(--brand);
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      transition: top 0.2s ease;
+      z-index: 20;
+    }
+    .skip-link:focus-visible { top: 1rem; outline: none; }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
+  <a href="#main" class="skip-link">Skip to content</a>
   {% include 'partials/navbar.html' %}
-  <main class="container">
+  <main class="container" id="main">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flash-container">
@@ -33,6 +47,7 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+  <script src="{{ url_for('static', filename='register-sw.js') }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
