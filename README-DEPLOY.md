@@ -38,6 +38,16 @@ docker compose up -d
 Need a detailed, Windows-specific flow (PowerShell, WSL 2 backend, explicit host paths, verification commands, and troubleshooting tips)?
 Follow [`docs/docker_desktop_guide.md`](docs/docker_desktop_guide.md) for the complete procedure tailored to a checkout at `C:\Users\Alienware\Documents\ERP-BERHAN\ERP-BERHAN`.
 
+**Quick helper script:**
+
+```powershell
+Set-ExecutionPolicy -Scope Process RemoteSigned
+cd C:\Users\Alienware\Documents\ERP-BERHAN\ERP-BERHAN
+./deploy_windows_local.ps1 -Rebuild
+```
+
+If your checkout lives somewhere else, append `-RepoRoot "D:\sandbox\ERP-BERHAN"` to point the helper at the right folder.  The wrapper automatically falls back to `docker-compose.exe` when the Compose V2 plugin is unavailable.
+
 ## DB Snapshot
 ```powershell
 PowerShell -ExecutionPolicy Bypass -File .\tools\db_snapshot.ps1
