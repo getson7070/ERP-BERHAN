@@ -29,6 +29,12 @@ else:  # pragma: no cover - fallback when Flask-Limiter is optional
                 "Flask-Limiter is not installed; rate limiting is disabled"
             )
 
+        def limit(self, *_args, **_kwargs):  # noqa: D401 - mimic real decorator
+            def decorator(fn):
+                return fn
+
+            return decorator
+
     def get_remote_address():  # type: ignore
         return "127.0.0.1"
 
@@ -39,6 +45,15 @@ else:  # pragma: no cover - fallback when Flask-Mail is optional
         def init_app(self, app: Flask) -> None:  # noqa: D401
             app.logger.warning(
                 "Flask-Mail is not installed; email delivery features are disabled"
+            )
+
+if importlib.util.find_spec("flask_wtf") is not None:
+    from flask_wtf.csrf import CSRFProtect
+else:  # pragma: no cover - fallback when Flask-WTF is optional
+    class CSRFProtect:  # type: ignore
+        def init_app(self, app: Flask) -> None:  # noqa: D401
+            app.logger.warning(
+                "Flask-WTF is not installed; CSRF protection is disabled",
             )
 
 _NAMING_CONVENTION = {
@@ -57,6 +72,7 @@ migrate: Migrate = Migrate()
 
 cache: Cache = Cache()
 mail: Mail = Mail()
+csrf: CSRFProtect = CSRFProtect()
 
 limiter: Limiter = Limiter(
     key_func=get_remote_address,
@@ -104,6 +120,7 @@ def init_extensions(app: Flask) -> None:
     # Caching and mail (safe even if not heavily used yet)
     cache.init_app(app)
     mail.init_app(app)
+    csrf.init_app(app)
 
     # Rate limiting (backed by Redis via app.config or default)
     limiter.init_app(app)

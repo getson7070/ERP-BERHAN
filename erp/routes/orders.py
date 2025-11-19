@@ -5,6 +5,8 @@ from decimal import Decimal
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
+from flask_login import login_required
+
 from erp.security import require_roles
 
 from erp.extensions import db
