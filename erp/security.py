@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Any, Callable, Optional, TypeVar
 import os  # kept for future expansion / compatibility
 
-from flask import abort, redirect, request, url_for
+from flask import abort, current_app, redirect, request, url_for
 
 try:  # Flask-Login is the primary auth backend
     from flask_login import current_user  # type: ignore
@@ -77,6 +77,8 @@ def require_login(fn: F) -> F:
 
     @wraps(fn)
     def wrapper(*args: Any, **kwargs: Any):
+        if current_app and current_app.config.get("LOGIN_DISABLED"):
+            return fn(*args, **kwargs)
         user = _get_current_user()
         is_auth = bool(user and getattr(user, "is_authenticated", False))
 
@@ -108,6 +110,8 @@ def require_roles(*role_names: str) -> Callable[[F], F]:
     def decorator(fn: F) -> F:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any):
+            if current_app and current_app.config.get("LOGIN_DISABLED"):
+                return fn(*args, **kwargs)
             user = _get_current_user()
             is_auth = bool(user and getattr(user, "is_authenticated", False))
 
@@ -143,6 +147,8 @@ def mfa_required(fn: F) -> F:
 
     @wraps(fn)
     def wrapper(*args: Any, **kwargs: Any):
+        if current_app and current_app.config.get("LOGIN_DISABLED"):
+            return fn(*args, **kwargs)
         user = _get_current_user()
         is_auth = bool(user and getattr(user, "is_authenticated", False))
 
@@ -208,9 +214,19 @@ def apply_security(app) -> None:
         )
 
 
+def user_has_role(user: Any, role_name: str) -> bool:
+    """Return True if *user* has the given role (case-insensitive)."""
+
+    if not user:
+        return False
+    normalized = role_name.strip().lower()
+    return normalized in _get_user_role_names(user)
+
+
 __all__ = [
     "require_login",
     "require_roles",
     "mfa_required",
     "apply_security",
+    "user_has_role",
 ]

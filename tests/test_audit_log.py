@@ -13,7 +13,29 @@ def test_log_audit_writes_entry(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(db_file))
     conn = get_db()
     conn.execute(
-        "CREATE TABLE audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, org_id INTEGER, action TEXT, details TEXT, prev_hash TEXT, hash TEXT, created_at TIMESTAMP)"
+        """
+        CREATE TABLE audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            org_id INTEGER,
+            actor_type TEXT NOT NULL DEFAULT 'user',
+            actor_id INTEGER,
+            ip_address TEXT,
+            user_agent TEXT,
+            request_id TEXT,
+            module TEXT NOT NULL DEFAULT 'general',
+            action TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT 'info',
+            entity_type TEXT,
+            entity_id INTEGER,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            payload_encrypted TEXT,
+            details TEXT,
+            prev_hash TEXT,
+            hash TEXT,
+            created_at TIMESTAMP
+        )
+        """
     )
     conn.commit()
     log_audit(1, 1, "test", "details")
@@ -29,7 +51,29 @@ def test_audit_chain_checker(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_PATH", str(db_file))
     conn = get_db()
     conn.execute(
-        "CREATE TABLE audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, org_id INTEGER, action TEXT, details TEXT, prev_hash TEXT, hash TEXT, created_at TIMESTAMP)"
+        """
+        CREATE TABLE audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            org_id INTEGER,
+            actor_type TEXT NOT NULL DEFAULT 'user',
+            actor_id INTEGER,
+            ip_address TEXT,
+            user_agent TEXT,
+            request_id TEXT,
+            module TEXT NOT NULL DEFAULT 'general',
+            action TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT 'info',
+            entity_type TEXT,
+            entity_id INTEGER,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            payload_encrypted TEXT,
+            details TEXT,
+            prev_hash TEXT,
+            hash TEXT,
+            created_at TIMESTAMP
+        )
+        """
     )
     conn.commit()
     log_audit(1, 1, "a")
