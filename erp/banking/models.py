@@ -19,8 +19,8 @@ from erp.models.finance_gl import BankStatement, BankStatementLine
 class BankAccount(db.Model):
     """Bank account configured for an organisation."""
 
-    __tablename__ = "bank_accounts"
-    __table_args__ = (
+    __tablename__ = 'bank_accounts'
+    __table_args__ = {'extend_existing': True}
         Index("ix_bank_accounts_org", "org_id"),
         CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive"),
     )
