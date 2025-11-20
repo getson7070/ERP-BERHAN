@@ -88,15 +88,22 @@ login_manager: LoginManager = LoginManager()
 def load_user(user_id: str):
     """
     Flask-Login callback: given a user_id stored in the session, return
-    the corresponding User instance or None.
-
-    user_id is stored as a string in the session; our User.id is integer.
+    the corresponding principal instance (User or ClientAccount).
     """
     # Import inside function to avoid circular imports during app startup
     from erp.models.user import User
+    from erp.models.client_auth import ClientAccount
 
     if not user_id:
         return None
+
+    if isinstance(user_id, str) and user_id.startswith("client:"):
+        try:
+            client_id = int(user_id.split(":", 1)[1])
+        except (TypeError, ValueError, IndexError):
+            return None
+        return ClientAccount.query.get(client_id)
+
     try:
         return User.query.get(int(user_id))
     except (TypeError, ValueError):

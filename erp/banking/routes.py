@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from datetime import date
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
@@ -18,7 +19,7 @@ banking_bp = Blueprint("banking", __name__, url_prefix="/banking")
 
 
 def _ensure_cash_account(org_id: int, account: BankAccount) -> FinanceAccount:
-    code = f"BANK-{account.id}"
+    code = account.gl_account_code or account.account_number or f"BANK-{account.id}"
     ledger = FinanceAccount.query.filter_by(org_id=org_id, code=code).first()
     if ledger is None:
         ledger = FinanceAccount(org_id=org_id, code=code, name=f"Cash - {account.name}", category="asset")
@@ -55,15 +56,24 @@ def accounts():
 
         currency = (data.get("currency") or "ETB").upper()
         initial_balance = Decimal(str(data.get("initial_balance", "0")))
+        account_number = (data.get("account_number") or "").strip() or None
+        masked = data.get("account_number_masked") or (f"****{account_number[-4:]}" if account_number else "")
+        gl_code = (data.get("gl_account_code") or account_number or "").strip()
+
         account = BankAccount(
             org_id=org_id,
             name=name,
+            bank_name=(data.get("bank_name") or name),
             currency=currency,
-            account_number=data.get("account_number"),
+            account_number=account_number,
+            account_number_masked=masked,
+            gl_account_code=gl_code or "",
             initial_balance=initial_balance,
         )
         db.session.add(account)
         db.session.flush()
+        if not account.gl_account_code:
+            account.gl_account_code = f"BANK-{account.id}"
         _ensure_cash_account(org_id, account)
         db.session.commit()
         return jsonify({"id": account.id}), HTTPStatus.CREATED
@@ -138,9 +148,26 @@ def create_statement():
         return jsonify({"error": "bank_account_id is required"}), HTTPStatus.BAD_REQUEST
 
     account = BankAccount.query.filter_by(id=bank_account_id, org_id=org_id).first_or_404()
+    period_start_raw = data.get("period_start")
+    period_end_raw = data.get("period_end")
+    period_start = date.fromisoformat(period_start_raw) if period_start_raw else date.today()
+    period_end = date.fromisoformat(period_end_raw) if period_end_raw else period_start
+
+    opening_balance = Decimal(str(data.get("opening_balance", _account_balance(org_id, account))))
+    closing_balance = Decimal(str(data.get("closing_balance", opening_balance)))
+
     statement = BankStatement(
+        org_id=org_id,
         bank_account_id=account.id,
-        closing_balance=_account_balance(org_id, account),
+        bank_account_code=account.gl_account_code or account.account_number or f"BANK-{account.id}",
+        currency=account.currency,
+        period_start=period_start,
+        period_end=period_end,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        source=(data.get("source") or "UPLOAD").upper(),
+        statement_date=period_end,
+        created_by_id=getattr(request, "user_id", None),
     )
     db.session.add(statement)
     db.session.flush()
@@ -153,10 +180,13 @@ def create_statement():
 
         db.session.add(
             StatementLine(
+                org_id=org_id,
                 statement_id=statement.id,
+                tx_date=date.fromisoformat(line_item.get("tx_date")) if line_item.get("tx_date") else period_end,
                 amount=Decimal(str(amount)),
                 description=line_item.get("description"),
                 reference=line_item.get("reference"),
+                balance=Decimal(str(line_item.get("balance"))) if line_item.get("balance") is not None else None,
             )
         )
 
