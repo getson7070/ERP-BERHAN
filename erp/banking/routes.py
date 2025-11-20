@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from datetime import date
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
@@ -138,9 +139,26 @@ def create_statement():
         return jsonify({"error": "bank_account_id is required"}), HTTPStatus.BAD_REQUEST
 
     account = BankAccount.query.filter_by(id=bank_account_id, org_id=org_id).first_or_404()
+    period_start_raw = data.get("period_start")
+    period_end_raw = data.get("period_end")
+    period_start = date.fromisoformat(period_start_raw) if period_start_raw else date.today()
+    period_end = date.fromisoformat(period_end_raw) if period_end_raw else period_start
+
+    opening_balance = Decimal(str(data.get("opening_balance", _account_balance(org_id, account))))
+    closing_balance = Decimal(str(data.get("closing_balance", opening_balance)))
+
     statement = BankStatement(
+        org_id=org_id,
         bank_account_id=account.id,
-        closing_balance=_account_balance(org_id, account),
+        bank_account_code=account.account_number or f"BANK-{account.id}",
+        currency=account.currency,
+        period_start=period_start,
+        period_end=period_end,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        source=(data.get("source") or "UPLOAD").upper(),
+        statement_date=period_end,
+        created_by_id=getattr(request, "user_id", None),
     )
     db.session.add(statement)
     db.session.flush()
@@ -153,10 +171,13 @@ def create_statement():
 
         db.session.add(
             StatementLine(
+                org_id=org_id,
                 statement_id=statement.id,
+                tx_date=date.fromisoformat(line_item.get("tx_date")) if line_item.get("tx_date") else period_end,
                 amount=Decimal(str(amount)),
                 description=line_item.get("description"),
                 reference=line_item.get("reference"),
+                balance=Decimal(str(line_item.get("balance"))) if line_item.get("balance") is not None else None,
             )
         )
 

@@ -6,13 +6,14 @@ integer identifiers while keeping business semantics intact.
 """
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.models import db
+from erp.models.finance_gl import BankStatement, BankStatementLine
 
 
 class BankAccount(db.Model):
@@ -43,57 +44,37 @@ class BankAccount(db.Model):
     )
 
 
-class BankStatement(db.Model):
-    """Monthly or ad-hoc statement summarising account activity."""
+class BankTransaction(db.Model):
+    """Simple transaction log for inflows/outflows."""
 
-    __tablename__ = "bank_statements"
-    __table_args__ = (
-        Index("ix_bank_statements_account", "bank_account_id"),
-        Index("ix_bank_statements_period", "statement_date"),
-    )
+    __tablename__ = "bank_transactions"
+    __table_args__ = (Index("ix_bank_transactions_org", "org_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
     bank_account_id: Mapped[int] = mapped_column(
-        db.Integer,
-        db.ForeignKey("bank_accounts.id", ondelete="CASCADE"),
-        nullable=False,
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
     )
-    statement_date: Mapped[date] = mapped_column(default=date.today, nullable=False)
-    closing_balance: Mapped[Decimal] = mapped_column(
-        db.Numeric(14, 2), nullable=False, default=Decimal("0.00")
-    )
-
-    bank_account = relationship("BankAccount", back_populates="statements")
-    lines = relationship(
-        "StatementLine", back_populates="statement", cascade="all, delete-orphan"
-    )
+    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
+    reference: Mapped[str | None] = mapped_column(db.String(128))
+    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
 
-class StatementLine(db.Model):
-    """Individual debit/credit entries on a statement."""
-
-    __tablename__ = "bank_statement_lines"
-    __table_args__ = (Index("ix_statement_lines_statement", "statement_id"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    statement_id: Mapped[int] = mapped_column(
-        db.Integer,
-        db.ForeignKey("bank_statements.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    posted_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(UTC), nullable=False
-    )
-    amount: Mapped[Decimal] = mapped_column(
-        db.Numeric(14, 2), nullable=False
-    )
-    description: Mapped[str | None] = mapped_column(db.String(255))
-    reference: Mapped[str | None] = mapped_column(db.String(64))
-    finance_entry_id: Mapped[int | None] = mapped_column(
-        db.Integer, db.ForeignKey("finance_entries.id", ondelete="SET NULL"), nullable=True
-    )
-
-    statement = relationship("BankStatement", back_populates="lines")
+# Back-populate relationship now that BankStatement is imported
+BankStatement.bank_account = relationship(
+    "BankAccount",
+    primaryjoin="BankStatement.bank_account_id==BankAccount.id",
+    back_populates="statements",
+)
 
 
-__all__ = ["BankAccount", "BankStatement", "StatementLine"]
+StatementLine = BankStatementLine
+
+__all__ = [
+    "BankAccount",
+    "BankStatement",
+    "BankStatementLine",
+    "StatementLine",
+    "BankTransaction",
+]
