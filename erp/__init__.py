@@ -8,6 +8,8 @@ documentation for details on each module’s functionality.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import importlib
 import importlib.util
 import logging
@@ -135,6 +137,12 @@ def _load_config(app: Flask) -> None:
         )
     ) or ("automation",)
 
+    audit_key = os.environ.get("AUDIT_FERNET_KEY")
+    if not audit_key:
+        seed = secret_key or os.environ.get("AUDIT_FALLBACK_SEED", "")
+        digest = hashlib.sha256(str(seed).encode()).digest()
+        audit_key = base64.urlsafe_b64encode(digest).decode()
+
     app.config.update(
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=database_url,
@@ -156,6 +164,7 @@ def _load_config(app: Flask) -> None:
         DEFAULT_ORG_ID=default_org_id,
         SERVICE_TOKEN_MAP=service_tokens,
         AUTOMATION_MACHINE_ROLES=automation_roles,
+        AUDIT_FERNET_KEY=audit_key,
     )
 
 
@@ -198,6 +207,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.marketing_geofence",
     "erp.routes.geo_api",
     "erp.routes.client_portal",
+    "erp.routes.audit_api",
     "erp.routes.admin_console_api",
     "erp.routes.sso_oidc",
     "erp.routes.client_auth_api",
