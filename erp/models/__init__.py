@@ -23,6 +23,13 @@ from .hr_lifecycle import (  # noqa: F401
     HROffboarding,
     LeaveRequest,
 )
+from .crm import (  # noqa: F401
+    CRMAccount,
+    CRMContact,
+    CRMPipelineEvent,
+    SupportTicket,
+    ClientPortalLink,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -76,6 +83,8 @@ __all__ = [
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
     "HROnboarding", "HROffboarding", "LeaveRequest",
+    "CRMAccount", "CRMContact", "CRMPipelineEvent",
+    "SupportTicket", "ClientPortalLink",
     "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction",

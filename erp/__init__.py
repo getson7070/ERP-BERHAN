@@ -187,6 +187,8 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.finance",
     "erp.routes.hr",
     "erp.routes.crm",
+    "erp.routes.crm_api",
+    "erp.routes.client_portal",
     "erp.supplychain.routes",
     "erp.routes.report_builder",
     "erp.blueprints.inventory",
