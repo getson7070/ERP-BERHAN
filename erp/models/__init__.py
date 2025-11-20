@@ -18,6 +18,28 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .hr_lifecycle import (  # noqa: F401
+    HROnboarding,
+    HROffboarding,
+    LeaveRequest,
+)
+from .crm import (  # noqa: F401
+    CRMAccount,
+    CRMContact,
+    CRMPipelineEvent,
+    SupportTicket,
+    ClientPortalLink,
+)
+from .maintenance import (  # noqa: F401
+    MaintenanceAsset,
+    MaintenanceEscalationEvent,
+    MaintenanceEscalationRule,
+    MaintenanceEvent,
+    MaintenanceSchedule,
+    MaintenanceSensorReading,
+    MaintenanceWorkOrder,
+)
+from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
     AnalyticsEvent,
@@ -35,18 +57,53 @@ from .core_entities import (            # noqa: F401
     UserRoleAssignment,
     RegistrationInvite,
 )
-from erp.marketing.models import MarketingEvent, MarketingVisit
-from erp.banking.models import BankAccount, BankStatement, StatementLine
+from erp.marketing.models import (
+    MarketingABVariant,
+    MarketingCampaign,
+    MarketingConsent,
+    MarketingEvent,
+    MarketingGeofence,
+    MarketingSegment,
+    MarketingVisit,
+)
+from erp.banking.models import (
+    BankAccessToken,
+    BankAccount,
+    BankConnection,
+    BankSyncJob,
+    BankTwoFactorChallenge,
+)
+from .finance_gl import (
+    GLJournalEntry,
+    GLJournalLine,
+    FinanceAuditLog,
+    BankStatement,
+    BankStatementLine,
+)
+StatementLine = BankStatementLine
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
 
 try:
-    from .inventory import Inventory    # noqa: F401
-    Item = Inventory           # noqa: F401
+    from .inventory import Inventory  # noqa: F401
+    from erp.inventory.models import (  # noqa: F401
+        CycleCount,
+        CycleCountLine,
+        InventoryLocation,
+        InventorySerial,
+        Item,
+        Lot,
+        ReorderRule,
+        StockBalance,
+        StockLedgerEntry,
+        Warehouse,
+    )
+
+    Item = Inventory  # noqa: F401
     InventoryItem = Inventory  # noqa: F401
-    Product = Inventory        # noqa: F401
-    StockItem = Inventory      # noqa: F401
+    Product = Inventory  # noqa: F401
+    StockItem = Inventory  # noqa: F401
 except Exception:  # pragma: no cover
     def __getattr__(name: str):
         if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
@@ -69,13 +126,25 @@ __all__ = [
     "db",
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
+    "HROnboarding", "HROffboarding", "LeaveRequest",
+    "CRMAccount", "CRMContact", "CRMPipelineEvent",
+    "SupportTicket", "ClientPortalLink",
+    "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
+    "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
+    "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
-    "BankAccount", "BankStatement", "StatementLine",
+    "MarketingCampaign", "MarketingSegment", "MarketingConsent",
+    "MarketingABVariant", "MarketingGeofence",
+    "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
+    "BankStatement", "BankStatementLine", "StatementLine",
+    "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
+    "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
+    "CycleCount", "CycleCountLine", "ReorderRule",
 ]
