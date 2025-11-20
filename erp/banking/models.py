@@ -6,7 +6,7 @@ integer identifiers while keeping business semantics intact.
 """
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, Index, func

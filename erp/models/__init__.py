@@ -160,7 +160,7 @@ __all__ = [
     "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
     "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
-    "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
+    "AnalyticsEvent", "ApprovalRequest", "BankTransaction", 
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
