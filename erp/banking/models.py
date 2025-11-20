@@ -21,6 +21,8 @@ class BankAccount(db.Model):
 
     __tablename__ = 'bank_accounts'
     __table_args__ = {'extend_existing': True}
+
+    id = db.Column(db.Integer, primary_key=True)
         Index("ix_bank_accounts_org", "org_id"),
         CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive"),
     )
