@@ -39,6 +39,13 @@ from .maintenance import (  # noqa: F401
     MaintenanceSensorReading,
     MaintenanceWorkOrder,
 )
+from .analytics import (  # noqa: F401
+    AnalyticsDashboard,
+    AnalyticsFact,
+    AnalyticsMetric,
+    AnalyticsWidget,
+    DataLineage,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -139,6 +146,7 @@ __all__ = [
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
     "MarketingCampaign", "MarketingSegment", "MarketingConsent",
     "MarketingABVariant", "MarketingGeofence",
+    "AnalyticsMetric", "AnalyticsFact", "AnalyticsDashboard", "AnalyticsWidget", "DataLineage",
     "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
     "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
