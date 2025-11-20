@@ -1,7 +1,7 @@
 """Celery tasks for preventive maintenance generation and escalations."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from celery import shared_task
 
@@ -51,7 +51,7 @@ def generate_scheduled_work_orders() -> None:
             description=f"Preventive maintenance for {schedule.name}",
             status="open",
             priority="normal",
-            requested_at=datetime.utcnow(),
+            requested_at=datetime.now(UTC),
             due_date=schedule.next_due_date,
         )
         db.session.add(work_order)
@@ -81,7 +81,7 @@ def generate_scheduled_work_orders() -> None:
 def check_escalations() -> None:
     """Trigger escalation events for overdue downtime on critical assets."""
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     work_orders = MaintenanceWorkOrder.query.filter(
         MaintenanceWorkOrder.status.in_(["open", "in_progress"]),
         MaintenanceWorkOrder.downtime_start.isnot(None),

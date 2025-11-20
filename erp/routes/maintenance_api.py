@@ -1,7 +1,7 @@
 """Maintenance API covering assets, schedules, work orders, and KPIs."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from http import HTTPStatus
 from typing import Any
@@ -11,8 +11,10 @@ from flask_login import current_user
 from erp.extensions import db
 from erp.models import (
     MaintenanceAsset,
+    MaintenanceEscalationRule,
     MaintenanceEvent,
     MaintenanceSchedule,
+    MaintenanceSensorReading,
     MaintenanceWorkOrder,
 )
 from erp.security import require_roles
@@ -220,7 +222,7 @@ def start_work_order(work_order_id: int):
     if work_order.status not in {"open"}:
         return jsonify({"error": f"cannot start from status {work_order.status}"}), HTTPStatus.BAD_REQUEST
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     work_order.status = "in_progress"
     work_order.started_at = now
     if not work_order.downtime_start:
@@ -249,7 +251,7 @@ def complete_work_order(work_order_id: int):
     if work_order.status not in {"open", "in_progress"}:
         return jsonify({"error": f"cannot complete from status {work_order.status}"}), HTTPStatus.BAD_REQUEST
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     work_order.status = "completed"
     work_order.completed_at = now
 
@@ -279,6 +281,155 @@ def complete_work_order(work_order_id: int):
 
     db.session.commit()
     return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
+
+
+@bp.get("/work-orders")
+@require_roles("maintenance", "admin")
+def list_work_orders():
+    """Return recent work orders for the current organisation.
+
+    Optional query parameters:
+    - status: filter by status
+    - limit: number of rows (default 200)
+    """
+
+    org_id = resolve_org_id()
+    status_filter = request.args.get("status")
+    limit = int(request.args.get("limit", "200"))
+
+    query = MaintenanceWorkOrder.query.filter_by(org_id=org_id)
+    if status_filter:
+        query = query.filter(MaintenanceWorkOrder.status == status_filter)
+
+    query = query.order_by(MaintenanceWorkOrder.requested_at.desc()).limit(max(1, min(limit, 500)))
+    return jsonify([_serialize_work_order(wo) for wo in query.all()]), HTTPStatus.OK
+
+
+# ---------------------------------------------------------------------------
+# Escalation rules & events
+# ---------------------------------------------------------------------------
+
+
+def _serialize_escalation_rule(rule: MaintenanceEscalationRule) -> dict[str, Any]:
+    return {
+        "id": rule.id,
+        "name": rule.name,
+        "asset_category": rule.asset_category,
+        "asset_id": rule.asset_id,
+        "min_priority": rule.min_priority,
+        "downtime_threshold_minutes": rule.downtime_threshold_minutes,
+        "notify_role": rule.notify_role,
+        "notify_channel": rule.notify_channel,
+        "is_active": rule.is_active,
+        "created_at": rule.created_at.isoformat(),
+    }
+
+
+@bp.get("/escalation-rules")
+@require_roles("maintenance", "admin")
+def list_escalation_rules():
+    org_id = resolve_org_id()
+    rules = (
+        MaintenanceEscalationRule.query.filter_by(org_id=org_id)
+        .order_by(MaintenanceEscalationRule.name.asc())
+        .all()
+    )
+    return jsonify([_serialize_escalation_rule(rule) for rule in rules]), HTTPStatus.OK
+
+
+@bp.post("/escalation-rules")
+@require_roles("maintenance", "admin")
+def create_escalation_rule():
+    org_id = resolve_org_id()
+    payload = request.get_json(silent=True) or {}
+
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
+
+    try:
+        threshold = int(payload.get("downtime_threshold_minutes", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "downtime_threshold_minutes must be an integer"}), HTTPStatus.BAD_REQUEST
+    if threshold <= 0:
+        return jsonify({"error": "downtime_threshold_minutes must be greater than zero"}), HTTPStatus.BAD_REQUEST
+
+    rule = MaintenanceEscalationRule(
+        org_id=org_id,
+        name=name,
+        asset_category=(payload.get("asset_category") or "").strip() or None,
+        asset_id=payload.get("asset_id"),
+        min_priority=(payload.get("min_priority") or "normal").lower(),
+        downtime_threshold_minutes=threshold,
+        notify_role=(payload.get("notify_role") or "").strip() or None,
+        notify_channel=(payload.get("notify_channel") or "telegram").lower(),
+        is_active=bool(payload.get("is_active", True)),
+        created_by_id=getattr(current_user, "id", None),
+    )
+    db.session.add(rule)
+    db.session.commit()
+    return jsonify(_serialize_escalation_rule(rule)), HTTPStatus.CREATED
+
+
+@bp.get("/work-orders/<int:work_order_id>/events")
+@require_roles("maintenance", "admin")
+def list_work_order_events(work_order_id: int):
+    org_id = resolve_org_id()
+    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
+    events = [
+        {
+            "id": event.id,
+            "event_type": event.event_type,
+            "message": event.message,
+            "from_status": event.from_status,
+            "to_status": event.to_status,
+            "created_at": event.created_at.isoformat(),
+            "created_by_id": event.created_by_id,
+        }
+        for event in work_order.events
+    ]
+    return jsonify(events), HTTPStatus.OK
+
+
+# ---------------------------------------------------------------------------
+# Sensor readings
+# ---------------------------------------------------------------------------
+
+
+@bp.post("/assets/<int:asset_id>/sensor-readings")
+@require_roles("maintenance", "admin")
+def record_sensor_reading(asset_id: int):
+    org_id = resolve_org_id()
+    asset = MaintenanceAsset.query.filter_by(org_id=org_id, id=asset_id).first_or_404()
+
+    payload = request.get_json(silent=True) or {}
+    sensor_type = (payload.get("sensor_type") or "").strip()
+    if not sensor_type:
+        return jsonify({"error": "sensor_type is required"}), HTTPStatus.BAD_REQUEST
+
+    reading = MaintenanceSensorReading(
+        org_id=org_id,
+        asset_id=asset.id,
+        sensor_type=sensor_type,
+        value=_parse_decimal(payload.get("value"), default="0"),
+        unit=(payload.get("unit") or "").strip() or None,
+        raw_payload=payload.get("raw_payload") or None,
+    )
+    db.session.add(reading)
+    db.session.commit()
+
+    return (
+        jsonify(
+            {
+                "id": reading.id,
+                "sensor_type": reading.sensor_type,
+                "value": float(reading.value or 0),
+                "unit": reading.unit,
+                "recorded_at": reading.recorded_at.isoformat(),
+            }
+        ),
+        HTTPStatus.CREATED,
+    )
 
 
 # ---------------------------------------------------------------------------

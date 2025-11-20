@@ -5,6 +5,7 @@
 - Entity: `MaintenanceAsset`
 - Key fields: code, name, category, location, purchase cost, salvage value, useful life, depreciation_method, is_critical
 - Endpoints: `GET /api/maintenance/assets`, `POST /api/maintenance/assets`
+- Sensors: `POST /api/maintenance/assets/<asset_id>/sensor-readings` to capture telemetry
 
 ## 2. Preventive Schedules
 
@@ -19,11 +20,12 @@
 - Flow: `open` → `in_progress` → `completed` (or `cancelled`)
 - Tracks downtime (`downtime_start` → `downtime_end` → `downtime_minutes`) and costs (labor/material/other/total)
 - Timeline events: `MaintenanceEvent` records status changes and escalations
-- Endpoints: `POST /api/maintenance/work-orders`, `/api/maintenance/work-orders/<id>/start`, `/api/maintenance/work-orders/<id>/complete`
+- Endpoints: `POST /api/maintenance/work-orders`, `/api/maintenance/work-orders/<id>/start`, `/api/maintenance/work-orders/<id>/complete`, `GET /api/maintenance/work-orders` (filter by status)
 
 ## 4. Escalation
 
 - Rules: `MaintenanceEscalationRule` filter by asset or category with downtime thresholds
+- API: `GET/POST /api/maintenance/escalation-rules`
 - Events: `MaintenanceEscalationEvent` records triggered rules; `check_escalations` Celery task evaluates every cycle
 - Notification channel placeholder: `notify_channel` (telegram/email/SMS/dashboard)
 
