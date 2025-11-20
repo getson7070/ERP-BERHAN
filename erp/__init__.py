@@ -196,6 +196,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.analytics_api",
     "erp.routes.marketing_api",
     "erp.routes.marketing_geofence",
+    "erp.routes.geo_api",
     "erp.routes.client_portal",
     "erp.supplychain.routes",
     "erp.routes.report_builder",

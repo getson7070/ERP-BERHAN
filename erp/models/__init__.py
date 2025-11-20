@@ -30,6 +30,12 @@ from .crm import (  # noqa: F401
     SupportTicket,
     ClientPortalLink,
 )
+from .geolocation import (  # noqa: F401
+    GeoAssignment,
+    GeoLastLocation,
+    GeoPing,
+    GeoRouteCache,
+)
 from .maintenance import (  # noqa: F401
     MaintenanceAsset,
     MaintenanceEscalationEvent,
@@ -150,6 +156,7 @@ __all__ = [
     "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
     "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
+    "GeoPing", "GeoLastLocation", "GeoAssignment", "GeoRouteCache",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
