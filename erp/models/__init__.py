@@ -86,11 +86,24 @@ StatementLine = BankStatementLine
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
 
 try:
-    from .inventory import Inventory    # noqa: F401
-    Item = Inventory           # noqa: F401
+    from .inventory import Inventory  # noqa: F401
+    from erp.inventory.models import (  # noqa: F401
+        CycleCount,
+        CycleCountLine,
+        InventoryLocation,
+        InventorySerial,
+        Item,
+        Lot,
+        ReorderRule,
+        StockBalance,
+        StockLedgerEntry,
+        Warehouse,
+    )
+
+    Item = Inventory  # noqa: F401
     InventoryItem = Inventory  # noqa: F401
-    Product = Inventory        # noqa: F401
-    StockItem = Inventory      # noqa: F401
+    Product = Inventory  # noqa: F401
+    StockItem = Inventory  # noqa: F401
 except Exception:  # pragma: no cover
     def __getattr__(name: str):
         if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
@@ -132,4 +145,6 @@ __all__ = [
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
+    "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
+    "CycleCount", "CycleCountLine", "ReorderRule",
 ]
