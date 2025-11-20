@@ -30,6 +30,15 @@ from .crm import (  # noqa: F401
     SupportTicket,
     ClientPortalLink,
 )
+from .maintenance import (  # noqa: F401
+    MaintenanceAsset,
+    MaintenanceEscalationEvent,
+    MaintenanceEscalationRule,
+    MaintenanceEvent,
+    MaintenanceSchedule,
+    MaintenanceSensorReading,
+    MaintenanceWorkOrder,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -48,7 +57,15 @@ from .core_entities import (            # noqa: F401
     UserRoleAssignment,
     RegistrationInvite,
 )
-from erp.marketing.models import MarketingEvent, MarketingVisit
+from erp.marketing.models import (
+    MarketingABVariant,
+    MarketingCampaign,
+    MarketingConsent,
+    MarketingEvent,
+    MarketingGeofence,
+    MarketingSegment,
+    MarketingVisit,
+)
 from erp.banking.models import (
     BankAccessToken,
     BankAccount,
@@ -99,12 +116,16 @@ __all__ = [
     "HROnboarding", "HROffboarding", "LeaveRequest",
     "CRMAccount", "CRMContact", "CRMPipelineEvent",
     "SupportTicket", "ClientPortalLink",
+    "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
+    "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
     "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction", 
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
+    "MarketingCampaign", "MarketingSegment", "MarketingConsent",
+    "MarketingABVariant", "MarketingGeofence",
     "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
     "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
