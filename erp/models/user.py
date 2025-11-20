@@ -23,6 +23,14 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
+    roles = db.relationship(
+        "Role",
+        secondary="user_role_assignments",
+        backref="users",
+        lazy="select",
+    )
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     updated_at = db.Column(

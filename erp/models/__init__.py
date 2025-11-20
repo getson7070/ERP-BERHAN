@@ -37,6 +37,11 @@ from .client_auth import (  # noqa: F401
     ClientRoleAssignment,
     ClientVerification,
 )
+from .security_ext import (  # noqa: F401
+    UserMFA,
+    UserMFABackupCode,
+    UserSession,
+)
 from .geolocation import (  # noqa: F401
     GeoAssignment,
     GeoLastLocation,
@@ -150,6 +155,7 @@ __all__ = [
     "CRMAccount", "CRMContact", "CRMPipelineEvent",
     "SupportTicket", "ClientPortalLink",
     "ClientAccount", "ClientVerification", "ClientPasswordReset", "ClientOAuthAccount", "ClientRoleAssignment",
+    "UserMFA", "UserMFABackupCode", "UserSession",
     "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
     "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
     "PurchaseOrder", "PurchaseOrderLine",

@@ -198,6 +198,8 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.marketing_geofence",
     "erp.routes.geo_api",
     "erp.routes.client_portal",
+    "erp.routes.admin_console_api",
+    "erp.routes.sso_oidc",
     "erp.routes.client_auth_api",
     "erp.routes.client_oauth_api",
     "erp.supplychain.routes",
@@ -310,6 +312,9 @@ def create_app(config_object: str | None = None) -> Flask:
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)
+    from erp.routes.sso_oidc import init_sso
+
+    init_sso(app)
 
     # Guarantee marketing endpoints are present even when manifest skips them
     marketing_spec = importlib.util.find_spec("erp.marketing.routes")
