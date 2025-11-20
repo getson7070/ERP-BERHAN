@@ -18,6 +18,19 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .hr_lifecycle import (  # noqa: F401
+    HROnboarding,
+    HROffboarding,
+    LeaveRequest,
+)
+from .crm import (  # noqa: F401
+    CRMAccount,
+    CRMContact,
+    CRMPipelineEvent,
+    SupportTicket,
+    ClientPortalLink,
+)
+from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
     AnalyticsEvent,
@@ -69,6 +82,10 @@ __all__ = [
     "db",
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
+    "HROnboarding", "HROffboarding", "LeaveRequest",
+    "CRMAccount", "CRMContact", "CRMPipelineEvent",
+    "SupportTicket", "ClientPortalLink",
+    "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
     "ClientRegistration", "CrmInteraction", "CrmLead",
