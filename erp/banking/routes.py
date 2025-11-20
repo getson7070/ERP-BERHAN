@@ -19,7 +19,7 @@ banking_bp = Blueprint("banking", __name__, url_prefix="/banking")
 
 
 def _ensure_cash_account(org_id: int, account: BankAccount) -> FinanceAccount:
-    code = f"BANK-{account.id}"
+    code = account.gl_account_code or account.account_number or f"BANK-{account.id}"
     ledger = FinanceAccount.query.filter_by(org_id=org_id, code=code).first()
     if ledger is None:
         ledger = FinanceAccount(org_id=org_id, code=code, name=f"Cash - {account.name}", category="asset")
@@ -56,15 +56,24 @@ def accounts():
 
         currency = (data.get("currency") or "ETB").upper()
         initial_balance = Decimal(str(data.get("initial_balance", "0")))
+        account_number = (data.get("account_number") or "").strip() or None
+        masked = data.get("account_number_masked") or (f"****{account_number[-4:]}" if account_number else "")
+        gl_code = (data.get("gl_account_code") or account_number or "").strip()
+
         account = BankAccount(
             org_id=org_id,
             name=name,
+            bank_name=(data.get("bank_name") or name),
             currency=currency,
-            account_number=data.get("account_number"),
+            account_number=account_number,
+            account_number_masked=masked,
+            gl_account_code=gl_code or "",
             initial_balance=initial_balance,
         )
         db.session.add(account)
         db.session.flush()
+        if not account.gl_account_code:
+            account.gl_account_code = f"BANK-{account.id}"
         _ensure_cash_account(org_id, account)
         db.session.commit()
         return jsonify({"id": account.id}), HTTPStatus.CREATED
@@ -150,7 +159,7 @@ def create_statement():
     statement = BankStatement(
         org_id=org_id,
         bank_account_id=account.id,
-        bank_account_code=account.account_number or f"BANK-{account.id}",
+        bank_account_code=account.gl_account_code or account.account_number or f"BANK-{account.id}",
         currency=account.currency,
         period_start=period_start,
         period_end=period_end,

@@ -49,7 +49,13 @@ from .core_entities import (            # noqa: F401
     RegistrationInvite,
 )
 from erp.marketing.models import MarketingEvent, MarketingVisit
-from erp.banking.models import BankAccount
+from erp.banking.models import (
+    BankAccessToken,
+    BankAccount,
+    BankConnection,
+    BankSyncJob,
+    BankTwoFactorChallenge,
+)
 from .finance_gl import (
     GLJournalEntry,
     GLJournalLine,
@@ -99,7 +105,8 @@ __all__ = [
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
-    "BankAccount", "BankStatement", "BankStatementLine", "StatementLine",
+    "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
+    "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
