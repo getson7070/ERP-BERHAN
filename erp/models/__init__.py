@@ -18,6 +18,28 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .hr_lifecycle import (  # noqa: F401
+    HROnboarding,
+    HROffboarding,
+    LeaveRequest,
+)
+from .crm import (  # noqa: F401
+    CRMAccount,
+    CRMContact,
+    CRMPipelineEvent,
+    SupportTicket,
+    ClientPortalLink,
+)
+from .maintenance import (  # noqa: F401
+    MaintenanceAsset,
+    MaintenanceEscalationEvent,
+    MaintenanceEscalationRule,
+    MaintenanceEvent,
+    MaintenanceSchedule,
+    MaintenanceSensorReading,
+    MaintenanceWorkOrder,
+)
+from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
     AnalyticsEvent,
@@ -36,7 +58,21 @@ from .core_entities import (            # noqa: F401
     RegistrationInvite,
 )
 from erp.marketing.models import MarketingEvent, MarketingVisit
-from erp.banking.models import BankAccount, BankStatement, StatementLine
+from erp.banking.models import (
+    BankAccessToken,
+    BankAccount,
+    BankConnection,
+    BankSyncJob,
+    BankTwoFactorChallenge,
+)
+from .finance_gl import (
+    GLJournalEntry,
+    GLJournalLine,
+    FinanceAuditLog,
+    BankStatement,
+    BankStatementLine,
+)
+StatementLine = BankStatementLine
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
@@ -69,12 +105,20 @@ __all__ = [
     "db",
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
+    "HROnboarding", "HROffboarding", "LeaveRequest",
+    "CRMAccount", "CRMContact", "CRMPipelineEvent",
+    "SupportTicket", "ClientPortalLink",
+    "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
+    "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
+    "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
-    "BankAccount", "BankStatement", "StatementLine",
+    "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
+    "BankStatement", "BankStatementLine", "StatementLine",
+    "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
