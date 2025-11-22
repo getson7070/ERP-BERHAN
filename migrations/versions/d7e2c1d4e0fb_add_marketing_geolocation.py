@@ -114,6 +114,80 @@ def upgrade():
         ["id"],
         ondelete="CASCADE",
     )
+    # marketing_events was referenced as legacy in older chains but never created in the clean chain.
+    # For fresh installs, create it here; for existing DBs, extend it idempotently.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = set(inspector.get_table_names())
+
+    if "marketing_events" not in tables:
+        op.create_table(
+            "marketing_events",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("org_id", sa.Integer(), nullable=False),
+            sa.Column("campaign_id", sa.Integer(), nullable=True),
+            sa.Column("title", sa.String(length=255), nullable=True),
+            sa.Column("event_type", sa.String(length=64), nullable=False, server_default="workshop"),
+            sa.Column("venue", sa.String(length=255), nullable=True),
+            sa.Column("start_date", sa.Date(), nullable=True),
+            sa.Column("end_date", sa.Date(), nullable=True),
+            sa.Column("status", sa.String(length=32), nullable=True, server_default="planned"),
+            sa.Column("subject_type", sa.String(length=32), nullable=True),
+            sa.Column("subject_id", sa.Integer(), nullable=True),
+            sa.Column("metadata_json", sa.JSON(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        )
+
+        op.create_index("ix_marketing_events_campaign", "marketing_events", ["campaign_id"])
+        op.create_index("ix_marketing_events_type", "marketing_events", ["event_type"])
+        op.create_index("ix_marketing_events_org", "marketing_events", ["org_id"])
+        op.create_index("ix_marketing_events_subject", "marketing_events", ["subject_id"])
+
+        op.create_foreign_key(
+            "fk_marketing_events_campaign",
+            "marketing_events",
+            "marketing_campaigns",
+            ["campaign_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+    else:
+        cols = {c["name"] for c in inspector.get_columns("marketing_events")}
+        if "campaign_id" not in cols:
+            op.add_column("marketing_events", sa.Column("campaign_id", sa.Integer(), nullable=True))
+        if "subject_type" not in cols:
+            op.add_column("marketing_events", sa.Column("subject_type", sa.String(length=32), nullable=True))
+        if "subject_id" not in cols:
+            op.add_column("marketing_events", sa.Column("subject_id", sa.Integer(), nullable=True))
+        if "metadata_json" not in cols:
+            op.add_column(
+                "marketing_events",
+                sa.Column("metadata_json", sa.JSON(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+            )
+
+        # indexes + FK (create only if missing)
+        existing_idx = {ix["name"] for ix in inspector.get_indexes("marketing_events")}
+        if "ix_marketing_events_campaign" not in existing_idx:
+            op.create_index("ix_marketing_events_campaign", "marketing_events", ["campaign_id"])
+        if "ix_marketing_events_type" not in existing_idx:
+            op.create_index("ix_marketing_events_type", "marketing_events", ["event_type"])
+        if "ix_marketing_events_org" not in existing_idx:
+            op.create_index("ix_marketing_events_org", "marketing_events", ["org_id"])
+        if "ix_marketing_events_subject" not in existing_idx:
+            op.create_index("ix_marketing_events_subject", "marketing_events", ["subject_id"])
+
+        fk_names = {fk["name"] for fk in inspector.get_foreign_keys("marketing_events") if fk.get("name")}
+        if "fk_marketing_events_campaign" not in fk_names:
+            op.create_foreign_key(
+                "fk_marketing_events_campaign",
+                "marketing_events",
+                "marketing_campaigns",
+                ["campaign_id"],
+                ["id"],
+                ondelete="CASCADE",
+            )
+
 
 
 def downgrade():
