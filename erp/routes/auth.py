@@ -15,6 +15,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
@@ -28,7 +29,15 @@ from erp.models import (
     RegistrationInvite,
     Role,
     User,
+    UserMFA,
     UserRoleAssignment,
+)
+from erp.services.mfa_service import verify_backup_code, verify_totp
+from erp.services.session_service import (
+    make_session_identifier,
+    record_session,
+    revoke_all_sessions_for_user,
+    revoke_session,
 )
 from erp.utils import resolve_org_id
 
@@ -138,6 +147,7 @@ def login():
         flash("Email and password are required.", "danger")
         return render_template("login.html"), HTTPStatus.BAD_REQUEST
 
+    org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
     if user is None or not user.check_password(password):
         flash("Invalid credentials.", "danger")
@@ -145,7 +155,39 @@ def login():
             return jsonify({"error": "invalid_credentials"}), HTTPStatus.UNAUTHORIZED
         return render_template("login.html"), HTTPStatus.UNAUTHORIZED
 
+    if hasattr(user, "is_active") and not getattr(user, "is_active", True):
+        if request.is_json:
+            return jsonify({"error": "account_inactive"}), HTTPStatus.FORBIDDEN
+        flash("This account is deactivated.", "danger")
+        return render_template("login.html"), HTTPStatus.FORBIDDEN
+
+    mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
+    if mfa_row and mfa_row.is_enabled:
+        totp_code = _json_or_form("totp")
+        backup_code = _json_or_form("backup_code")
+        if totp_code:
+            if not verify_totp(mfa_row.totp_secret, totp_code):
+                if request.is_json:
+                    return jsonify({"error": "mfa_required_invalid_totp"}), HTTPStatus.UNAUTHORIZED
+                flash("Multi-factor code is invalid.", "danger")
+                return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+            mfa_row.last_used_at = datetime.now(UTC)
+        elif backup_code:
+            if not verify_backup_code(org_id, user.id, backup_code):
+                if request.is_json:
+                    return jsonify({"error": "mfa_required_invalid_backup"}), HTTPStatus.UNAUTHORIZED
+                flash("Backup code is invalid or already used.", "danger")
+                return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+        else:
+            if request.is_json:
+                return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
+            flash("Multi-factor authentication required.", "warning")
+            return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+
     login_user(user)
+    session_id = session.get("session_id") or make_session_identifier()
+    session["session_id"] = session_id
+    record_session(org_id, user.id, session_id)
     next_url = request.args.get("next")
     if not next_url or urlparse(next_url).netloc:
         next_url = url_for("analytics.dashboard_snapshot")
@@ -161,7 +203,11 @@ def login():
 @login_required
 def logout():
     """Terminate the active session."""
-
+    org_id = resolve_org_id()
+    session_id = session.get("session_id")
+    if session_id:
+        revoke_session(org_id, session_id, getattr(current_user, "id", None))
+        session.pop("session_id", None)
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))

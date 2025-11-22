@@ -17,6 +17,8 @@ RATE_LIMIT_REJECTIONS = Counter("erp_rate_limit_rejections_total", "Rate limit r
 GRAPHQL_REJECTS = Counter("erp_graphql_rejects_total", "GraphQL rejects")
 AUDIT_CHAIN_BROKEN = Counter("erp_audit_chain_broken_total", "Audit chain broken")
 DLQ_MESSAGES = Counter("erp_dead_letter_messages_total", "Dead-letter messages")
+BOT_JOBS_QUEUED = Gauge("erp_bot_jobs_queued", "Queued bot jobs", ["org_id", "bot_name"]) if callable(Gauge) else Gauge
+BOT_JOBS_FAILED = Gauge("erp_bot_jobs_failed", "Failed bot jobs", ["org_id", "bot_name"]) if callable(Gauge) else Gauge
 
 # Success sentinel expected by scripts/tests
 OLAP_EXPORT_SUCCESS = "OLAP_EXPORT_SUCCESS"
