@@ -64,6 +64,15 @@ from .analytics import (  # noqa: F401
     AnalyticsWidget,
     DataLineage,
 )
+from .performance import (  # noqa: F401
+    Feedback360,
+    KPIRegistry,
+    MLSuggestion,
+    PerformanceEvaluation,
+    ReviewCycle,
+    ScorecardItem,
+    ScorecardTemplate,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -167,6 +176,7 @@ __all__ = [
     "MarketingCampaign", "MarketingSegment", "MarketingConsent",
     "MarketingABVariant", "MarketingGeofence",
     "AnalyticsMetric", "AnalyticsFact", "AnalyticsDashboard", "AnalyticsWidget", "DataLineage",
+    "KPIRegistry", "ScorecardTemplate", "ScorecardItem", "ReviewCycle", "PerformanceEvaluation", "Feedback360", "MLSuggestion",
     "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
     "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",

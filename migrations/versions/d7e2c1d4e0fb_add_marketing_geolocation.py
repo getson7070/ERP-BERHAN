@@ -94,6 +94,26 @@ def upgrade():
     op.create_index("ix_marketing_geofences_org", "marketing_geofences", ["org_id"])
     op.create_index("ix_marketing_geofences_campaign", "marketing_geofences", ["campaign_id"])
 
+    op.add_column("marketing_events", sa.Column("campaign_id", sa.Integer(), nullable=True))
+    op.add_column("marketing_events", sa.Column("subject_type", sa.String(length=32), nullable=True))
+    op.add_column("marketing_events", sa.Column("subject_id", sa.Integer(), nullable=True))
+    op.add_column(
+        "marketing_events",
+        sa.Column("metadata_json", sa.JSON(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+    )
+    op.create_index("ix_marketing_events_campaign", "marketing_events", ["campaign_id"])
+    op.create_index("ix_marketing_events_type", "marketing_events", ["event_type"])
+    op.create_index("ix_marketing_events_org", "marketing_events", ["org_id"])
+    op.create_index("ix_marketing_events_subject", "marketing_events", ["subject_id"])
+
+    op.create_foreign_key(
+        "fk_marketing_events_campaign",
+        "marketing_events",
+        "marketing_campaigns",
+        ["campaign_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
     # marketing_events was referenced as legacy in older chains but never created in the clean chain.
     # For fresh installs, create it here; for existing DBs, extend it idempotently.
     bind = op.get_bind()

@@ -9,6 +9,7 @@ from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.extensions import db
+from erp.models.finance_gl import BankStatement, BankStatementLine
 
 # Prevent circular imports at runtime
 if TYPE_CHECKING:
@@ -34,9 +35,7 @@ class BankAccount(db.Model):
     initial_balance: Mapped[Decimal] = mapped_column(
         db.Numeric(14, 2), nullable=False, default=Decimal("0.00")
     )
-    created_at: Mapped[datetime] = mapped_column(
-        db.DateTime, nullable=False, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer, nullable=True)
 
     statements = relationship(
@@ -50,40 +49,63 @@ class BankAccount(db.Model):
     Index("ix_bank_accounts_org", "org_id")
     CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
 
+class BankTransaction(db.Model):
+    """Simple transaction log for inflows/outflows."""
+
+    __tablename__ = "bank_transactions"
+    __table_args__ = (Index("ix_bank_transactions_org", "org_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
+    bank_account_id: Mapped[int] = mapped_column(
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
+    reference: Mapped[str | None] = mapped_column(db.String(128))
+    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
 
 class BankConnection(db.Model):
+    """API connection config for a specific bank (or aggregator)."""
+
     __tablename__ = "bank_connections"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+
     name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     provider: Mapped[str] = mapped_column(db.String(64), nullable=False)
     environment: Mapped[str] = mapped_column(db.String(32), nullable=False, default="sandbox")
     api_base_url: Mapped[str | None] = mapped_column(db.String(255))
     credentials_json = mapped_column(db.JSON, nullable=True, default=dict)
+
     requires_two_factor: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
     two_factor_method: Mapped[str | None] = mapped_column(db.String(32))
+
     last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
 
 class BankAccessToken(db.Model):
+    """Access/refresh tokens for bank APIs (store encrypted in production)."""
+
     __tablename__ = "bank_access_tokens"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
     connection_id: Mapped[int] = mapped_column(
         db.Integer, db.ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False, index=True
     )
+
     access_token: Mapped[str] = mapped_column(db.String(4096), nullable=False)
     refresh_token: Mapped[str | None] = mapped_column(db.String(4096))
     token_type: Mapped[str | None] = mapped_column(db.String(64))
     scope: Mapped[str | None] = mapped_column(db.String(512))
     expires_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
@@ -91,13 +113,39 @@ class BankAccessToken(db.Model):
 
 
 class BankTwoFactorChallenge(db.Model):
+    """Represents a pending or completed 2FA challenge for a bank connection."""
+
     __tablename__ = "bank_two_factor_challenges"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
     connection_id: Mapped[int] = mapped_column(
         db.Integer, db.ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    challenge_type: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    challenge_id: Mapped[str | None] = mapped_column(db.String(128))
+    status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending")
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
+    resolved_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+    resolved_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
+
+class BankSyncJob(db.Model):
+    """Tracks each statement sync run (manual or scheduled)."""
+
+    __tablename__ = "bank_sync_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+
+    connection_id: Mapped[int | None] = mapped_column(
+        db.Integer, db.ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    bank_account_id: Mapped[int | None] = mapped_column(
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
     )
     challenge_type: Mapped[str] = mapped_column(db.String(32), nullable=False)
     challenge_id: Mapped[str | None] = mapped_column(db.String(128))
@@ -107,51 +155,42 @@ class BankTwoFactorChallenge(db.Model):
     resolved_at: Mapped[datetime | None] = mapped_column(db.DateTime)
     resolved_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
-
-class BankSyncJob(db.Model):
-    __tablename__ = "bank_sync_jobs"
-    __table_args__ = {"extend_existing": True}
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
-    connection_id: Mapped[int | None] = mapped_column(
-        db.Integer, db.ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    bank_account_id: Mapped[int | None] = mapped_column(
-        db.Integer  , db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending", index=True)
-    requested_from: Mapped[datetime | None] = mapped_column(db.Date)
-    requested_to: Mapped[datetime | None] = mapped_column(db.Date)
+    requested_from: Mapped[date | None] = mapped_column(db.Date)
+    requested_to: Mapped[date | None] = mapped_column(db.Date)
+
     started_at: Mapped[datetime | None] = mapped_column(db.DateTime)
     finished_at: Mapped[datetime | None] = mapped_column(db.DateTime)
     requested_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
     statements_created: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
     lines_created: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(db.Text)
+
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
 
     connection = relationship("BankConnection")
     bank_account = relationship("BankAccount")
 
 
-# Safe back-populates after all classes are defined
-from erp.models.finance_gl import BankStatement, BankStatementLine
-
+# Back-populate relationship now that BankStatement is imported
 BankStatement.bank_account = relationship(
     "BankAccount",
-    primaryjoin="BankStatement.bank_account_id == BankAccount.id",
+    primaryjoin="BankStatement.bank_account_id==BankAccount.id",
     back_populates="statements",
 )
+
 
 StatementLine = BankStatementLine
 
 __all__ = [
-    "BankAccount",    "BankConnection",
-    "BankAccessToken",
-    "BankTwoFactorChallenge",
-    "BankSyncJob",
+    "BankAccount",
     "BankStatement",
     "BankStatementLine",
     "StatementLine",
+    "BankConnection",
+    "BankAccessToken",
+    "BankTwoFactorChallenge",
+    "BankSyncJob",
+    "BankTransaction",
 ]
