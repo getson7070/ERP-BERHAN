@@ -137,6 +137,14 @@ def _load_config(app: Flask) -> None:
         )
     ) or ("automation",)
 
+    ldap_group_role_map = os.environ.get("LDAP_GROUP_ROLE_MAP_JSON", "{}")
+
+    ldap_enabled = os.environ.get("LDAP_ENABLED", "0") == "1"
+    ldap_url = os.environ.get("LDAP_URL")
+    ldap_base_dn = os.environ.get("LDAP_BASE_DN")
+    ldap_bind_dn = os.environ.get("LDAP_BIND_DN")
+    ldap_bind_password = os.environ.get("LDAP_BIND_PASSWORD")
+
     audit_key = os.environ.get("AUDIT_FERNET_KEY")
     if not audit_key:
         seed = secret_key or os.environ.get("AUDIT_FALLBACK_SEED", "")
@@ -165,6 +173,12 @@ def _load_config(app: Flask) -> None:
         SERVICE_TOKEN_MAP=service_tokens,
         AUTOMATION_MACHINE_ROLES=automation_roles,
         AUDIT_FERNET_KEY=audit_key,
+        LDAP_ENABLED=ldap_enabled,
+        LDAP_URL=ldap_url,
+        LDAP_BASE_DN=ldap_base_dn,
+        LDAP_BIND_DN=ldap_bind_dn,
+        LDAP_BIND_PASSWORD=ldap_bind_password,
+        LDAP_GROUP_ROLE_MAP_JSON=ldap_group_role_map,
     )
 
 
@@ -214,6 +228,8 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.sso_oidc",
     "erp.routes.client_auth_api",
     "erp.routes.client_oauth_api",
+    "erp.routes.rbac_policy_api",
+    "erp.routes.role_request_api",
     "erp.supplychain.routes",
     "erp.routes.report_builder",
     "erp.blueprints.inventory",

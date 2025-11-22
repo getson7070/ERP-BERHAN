@@ -80,6 +80,12 @@ from .bot import (  # noqa: F401
     BotJobOutbox,
     TelegramConversationState,
 )
+from .rbac import (  # noqa: F401
+    RBACPolicy,
+    RBACPolicyRule,
+    RoleAssignmentRequest,
+    RoleHierarchy,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -191,6 +197,7 @@ __all__ = [
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
     "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox", "TelegramConversationState",
+    "RBACPolicy", "RBACPolicyRule", "RoleAssignmentRequest", "RoleHierarchy",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
     "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
     "CycleCount", "CycleCountLine", "ReorderRule",

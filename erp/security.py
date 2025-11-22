@@ -5,6 +5,7 @@ from typing import Any, Callable, Optional, TypeVar
 import os  # kept for future expansion / compatibility
 
 from flask import abort, current_app, redirect, request, url_for
+from erp.security_decorators_phase2 import require_permission
 
 try:  # Flask-Login is the primary auth backend
     from flask_login import current_user  # type: ignore
@@ -226,6 +227,7 @@ def user_has_role(user: Any, role_name: str) -> bool:
 __all__ = [
     "require_login",
     "require_roles",
+    "require_permission",
     "mfa_required",
     "apply_security",
     "user_has_role",
