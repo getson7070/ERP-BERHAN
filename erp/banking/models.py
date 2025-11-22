@@ -1,13 +1,9 @@
-"""Banking models implemented with portable SQLAlchemy columns.
-
-The previous implementation relied on PostgreSQL-specific UUID types.
-To support SQLite (used in local development and tests) we switch to
-integer identifiers while keeping business semantics intact.
-"""
+"""Banking models – fully fixed for double-import issue and syntax errors."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,10 +12,12 @@ from erp.extensions import db
 from erp.models.core_entities import BankTransaction as CoreBankTransaction
 from erp.models.finance_gl import BankStatement, BankStatementLine
 
+# Prevent circular imports at runtime
+if TYPE_CHECKING:
+    from erp.models.finance_gl import BankStatement, BankStatementLine
+
 
 class BankAccount(db.Model):
-    """Bank account configured for an organisation."""
-
     __tablename__ = "bank_accounts"
     __table_args__ = (
         Index("ix_bank_accounts_org", "org_id"),
@@ -53,6 +51,45 @@ class BankAccount(db.Model):
     transactions = relationship(
         "BankTransaction", backref="bank_account", cascade="all, delete-orphan"
     )
+
+    # Indexes & constraints
+    Index("ix_bank_accounts_org", "org_id")
+    CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
+
+class BankConnection(db.Model):
+    """API connection config for a specific bank (or aggregator)."""
+
+    __tablename__ = "bank_connections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+
+    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(db.String(64), nullable=False)
+    environment: Mapped[str] = mapped_column(db.String(32), nullable=False, default="sandbox")
+    api_base_url: Mapped[str | None] = mapped_column(db.String(255))
+    credentials_json = mapped_column(db.JSON, nullable=True, default=dict)
+
+    requires_two_factor: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    two_factor_method: Mapped[str | None] = mapped_column(db.String(32))
+
+    last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+
+class BankTransaction(db.Model):
+    """Simple transaction log for inflows/outflows."""
+
+    __tablename__ = "bank_transactions"
+    __table_args__ = (Index("ix_bank_transactions_org", "org_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
+    bank_account_id: Mapped[int] = mapped_column(
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
+    reference: Mapped[str | None] = mapped_column(db.String(128))
+    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
 
 class BankConnection(db.Model):
