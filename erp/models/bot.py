@@ -58,6 +58,9 @@ class BotJobOutbox(db.Model):
 
     raw_text = db.Column(db.Text, nullable=True)
     parsed_intent = db.Column(db.String(64), nullable=True, index=True)
+    context_json = db.Column(
+        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
+    )
 
     status = db.Column(db.String(32), nullable=False, default="queued", index=True)
     retry_count = db.Column(db.Integer, nullable=False, default=0)
@@ -66,6 +69,31 @@ class BotJobOutbox(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class TelegramConversationState(db.Model):
+    """Lightweight conversation state for multi-step Telegram flows."""
+
+    __tablename__ = "telegram_conversation_state"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    org_id = db.Column(db.Integer, nullable=False, index=True)
+
+    bot_name = db.Column(db.String(64), nullable=False, index=True)
+    chat_id = db.Column(db.String(64), nullable=False, index=True)
+
+    state_key = db.Column(db.String(64), nullable=False, index=True)
+    data_json = db.Column(
+        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("org_id", "bot_name", "chat_id", name="uq_tg_state"),
     )
 
 

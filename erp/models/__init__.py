@@ -78,6 +78,7 @@ from .bot import (  # noqa: F401
     BotEvent,
     BotIdempotencyKey,
     BotJobOutbox,
+    TelegramConversationState,
 )
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
@@ -189,7 +190,7 @@ __all__ = [
     "GeoPing", "GeoLastLocation", "GeoAssignment", "GeoRouteCache",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
-    "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox",
+    "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox", "TelegramConversationState",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
     "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
     "CycleCount", "CycleCountLine", "ReorderRule",

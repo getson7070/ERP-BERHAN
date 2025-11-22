@@ -6,33 +6,6 @@ from sqlalchemy.dialects import postgresql
 
 revision = "e17e5f6c5f0b"
 down_revision = "ce91d3657d20"
-"""Inventory extensions for warehouses, ledger, cycle counts, and reorders.
-
-WHY THIS REVISION EXISTS
-------------------------
-Historically, this revision was written assuming an older inventory schema
-already existed (items, warehouses, ledger tables, etc.). In fresh installs
-that assumption is false, which caused clean Docker deployments to fail.
-
-This file is now **self-bootstrapping & idempotent**:
-- If a core inventory table is missing, it is created with a minimal but
-  compatible schema.
-- If a table exists, we only apply missing columns/constraints.
-
-This keeps old databases safe while letting new databases migrate cleanly.
-"""
-
-from __future__ import annotations
-
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy import inspect
-from sqlalchemy.dialects import postgresql
-
-# revision identifiers, used by Alembic.
-revision = "e17e5f6c5f0b"
-# If your local base inventory revision id differs, set this to that id.
-down_revision = "d0b1b1c4f7a0"
 branch_labels = None
 depends_on = None
 

@@ -4,7 +4,12 @@ from __future__ import annotations
 from celery import shared_task
 
 from erp.extensions import db
-from erp.models import BotEvent, BotIdempotencyKey, BotJobOutbox
+from erp.models import (
+    BotEvent,
+    BotIdempotencyKey,
+    BotJobOutbox,
+    TelegramConversationState,
+)
 from erp.bots.nlp_intents import parse_intent
 from erp.bots.dispatcher import dispatch
 from erp.services.notification_service import send_email_fallback, send_telegram_message
@@ -20,6 +25,27 @@ def _resolve_user(job: BotJobOutbox):
     if not hasattr(User, "telegram_chat_id"):
         return None
     return User.query.filter_by(org_id=job.org_id, telegram_chat_id=job.chat_id).first()
+
+
+def _load_state(job: BotJobOutbox):
+    return TelegramConversationState.query.filter_by(
+        org_id=job.org_id, bot_name=job.bot_name, chat_id=job.chat_id
+    ).first()
+
+
+def _persist_state(job: BotJobOutbox, next_state: str | None, state_data: dict | None = None):
+    state = _load_state(job)
+    if not next_state:
+        if state:
+            db.session.delete(state)
+        return
+    if state is None:
+        state = TelegramConversationState(
+            org_id=job.org_id, bot_name=job.bot_name, chat_id=job.chat_id
+        )
+    state.state_key = next_state
+    state.data_json = state_data or {}
+    db.session.add(state)
 
 
 @shared_task(bind=True, name="erp.tasks.bot.process_job")
@@ -41,7 +67,14 @@ def process_bot_job(self, job_id: int):
 
     try:
         intent = job.parsed_intent or parse_intent(job.raw_text or "")
-        ctx = {"user": _resolve_user(job), "raw_text": job.raw_text}
+        state = _load_state(job)
+        ctx = {
+            "user": _resolve_user(job),
+            "raw_text": job.raw_text,
+            "context": job.context_json or {},
+            "state": getattr(state, "state_key", None),
+            "state_data": getattr(state, "data_json", {}) if state else {},
+        }
         response = dispatch(
             bot_name=job.bot_name,
             actor_id=getattr(ctx["user"], "id", None),
@@ -53,6 +86,13 @@ def process_bot_job(self, job_id: int):
         )
 
         send_telegram_message(job.bot_name, job.chat_id, response)
+
+        if "next_state" in response or response.get("clear_state"):
+            _persist_state(
+                job,
+                None if response.get("clear_state") else response.get("next_state"),
+                response.get("state_data") or {},
+            )
 
         db.session.add(
             BotIdempotencyKey(
