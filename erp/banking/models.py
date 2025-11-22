@@ -51,22 +51,6 @@ class BankAccount(db.Model):
     CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
 
 
-class BankTransaction(db.Model):
-    __tablename__ = "bank_transactions"
-    __table_args__ = {"extend_existing": True}
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
-    bank_account_id: Mapped[int] = mapped_column(
-        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
-    )
-    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
-    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
-    reference: Mapped[str | None] = mapped_column(db.String(128))
-    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
-
-    Index("ix_bank_transactions_org", "org_id")
-
 
 class BankConnection(db.Model):
     __tablename__ = "bank_connections"
@@ -163,9 +147,7 @@ BankStatement.bank_account = relationship(
 StatementLine = BankStatementLine
 
 __all__ = [
-    "BankAccount",
-    "BankTransaction",
-    "BankConnection",
+    "BankAccount",    "BankConnection",
     "BankAccessToken",
     "BankTwoFactorChallenge",
     "BankSyncJob",

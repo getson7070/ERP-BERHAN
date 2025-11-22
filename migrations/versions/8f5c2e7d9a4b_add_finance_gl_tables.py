@@ -75,9 +75,7 @@ def upgrade():
         sa.Column("external_reference", sa.String(length=128), nullable=True),
         sa.Column("statement_date", sa.Date(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("created_by_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(["bank_account_id"], ["bank_accounts.id"], ondelete="SET NULL"),
-    )
+        sa.Column("created_by_id", sa.Integer(), nullable=True),    )
 
     op.create_table(
         "bank_statement_lines",
