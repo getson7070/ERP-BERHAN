@@ -209,6 +209,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.geo_api",
     "erp.routes.client_portal",
     "erp.routes.audit_api",
+    "erp.routes.bot_dashboard_api",
     "erp.routes.admin_console_api",
     "erp.routes.sso_oidc",
     "erp.routes.client_auth_api",

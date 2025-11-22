@@ -73,6 +73,12 @@ from .performance import (  # noqa: F401
     ScorecardItem,
     ScorecardTemplate,
 )
+from .bot import (  # noqa: F401
+    BotCommandRegistry,
+    BotEvent,
+    BotIdempotencyKey,
+    BotJobOutbox,
+)
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
@@ -183,6 +189,7 @@ __all__ = [
     "GeoPing", "GeoLastLocation", "GeoAssignment", "GeoRouteCache",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
+    "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
     "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
     "CycleCount", "CycleCountLine", "ReorderRule",

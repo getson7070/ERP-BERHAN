@@ -147,13 +147,6 @@ class BankSyncJob(db.Model):
     bank_account_id: Mapped[int | None] = mapped_column(
         db.Integer, db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    challenge_type: Mapped[str] = mapped_column(db.String(32), nullable=False)
-    challenge_id: Mapped[str | None] = mapped_column(db.String(128))
-    status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending")
-    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
-    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
-    resolved_at: Mapped[datetime | None] = mapped_column(db.DateTime)
-    resolved_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
     status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending", index=True)
     requested_from: Mapped[date | None] = mapped_column(db.Date)
