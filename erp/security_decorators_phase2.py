@@ -9,7 +9,6 @@ from flask import jsonify, request
 from flask_login import current_user
 
 from erp.security_rbac_phase2 import is_allowed
-from erp.utils import resolve_org_id
 
 
 def require_permission(resource: str, action: str) -> Callable:
@@ -24,6 +23,7 @@ def require_permission(resource: str, action: str) -> Callable:
         @wraps(fn)
         def wrapper(*args, **kwargs):
             from erp.security import _get_user_role_names  # local import to avoid cycle
+            from erp.utils import resolve_org_id
 
             org_id = resolve_org_id()
             roles = _get_user_role_names(current_user) if current_user else set()

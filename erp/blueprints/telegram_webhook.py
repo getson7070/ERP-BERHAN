@@ -8,7 +8,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from erp.bot_security import verify_telegram_secret
 from erp.bots.nlp_intents import parse_intent
-from erp.extensions import db, limiter
+from erp.extensions import csrf, db, limiter
 from erp.models import BotEvent, BotJobOutbox, User
 from erp.utils import resolve_org_id
 from erp.tasks.bot_worker import process_bot_job
@@ -56,6 +56,7 @@ def _resolve_user(org_id: int, chat_id: str):
 
 
 @bp.post("/<bot_name>/webhook")
+@csrf.exempt
 @limiter.limit("60/minute")
 def telegram_webhook(bot_name: str):
     org_id = resolve_org_id()

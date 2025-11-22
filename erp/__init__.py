@@ -33,6 +33,7 @@ from .metrics import (
     RATE_LIMIT_REJECTIONS,
 )
 from .socket import socketio
+from .middleware.security_headers import apply_security_headers
 from .security import apply_security
 from .security_gate import install_global_gate
 from .middleware.tenant_guard import install_tenant_guard
@@ -164,7 +165,10 @@ def _load_config(app: Flask) -> None:
         SESSION_COOKIE_SAMESITE="Lax",
         REMEMBER_COOKIE_SECURE=True,
         REMEMBER_COOKIE_HTTPONLY=True,
-        WTF_CSRF_TIME_LIMIT=None,
+        REMEMBER_COOKIE_SAMESITE="Lax",
+        WTF_CSRF_TIME_LIMIT=3600,
+        WTF_CSRF_CHECK_DEFAULT=True,
+        WTF_CSRF_HEADERS=("X-CSRFToken", "X-CSRF-Token"),
         SELF_REGISTRATION_MODE=os.environ.get("SELF_REGISTRATION_MODE", "invite-only"),
         SELF_REGISTRATION_ALLOWED_ROLES=allowed_roles,
         PRIVILEGED_ROLES=("admin", "owner", "superuser"),
@@ -218,6 +222,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.crm_api",
     "erp.routes.performance_api",
     "erp.routes.analytics_api",
+    "erp.routes.csrf_api",
     "erp.routes.marketing_api",
     "erp.routes.marketing_geofence",
     "erp.routes.geo_api",
@@ -337,6 +342,7 @@ def create_app(config_object: str | None = None) -> Flask:
 
     init_extensions(app)
     apply_security(app)
+    apply_security_headers(app)
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)

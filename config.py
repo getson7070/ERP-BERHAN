@@ -40,9 +40,14 @@ class Config:
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
     # CSRF
-    WTF_CSRF_TIME_LIMIT = None  # tokens do not expire during a session
+    WTF_CSRF_TIME_LIMIT = 3600  # 1 hour token validity
+    WTF_CSRF_CHECK_DEFAULT = True
+    WTF_CSRF_HEADERS = ("X-CSRFToken", "X-CSRF-Token")
 
     # CORS
     CORS_SUPPORTS_CREDENTIALS = True
