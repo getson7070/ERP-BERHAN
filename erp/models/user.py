@@ -9,6 +9,7 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from erp.extensions import db, login_manager
+from erp.models.client_auth import ClientAccount
 
 
 class User(UserMixin, db.Model):
@@ -22,6 +23,14 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(128), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
+    roles = db.relationship(
+        "Role",
+        secondary="user_role_assignments",
+        backref="users",
+        lazy="select",
+    )
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     updated_at = db.Column(
@@ -70,10 +79,20 @@ class User(UserMixin, db.Model):
 # ----------------------------------------------------------------------
 
 @login_manager.user_loader
-def load_user(user_id: str) -> Optional[User]:
-    """Load a user from the session-stored user_id."""
+def load_user(user_id: str) -> Optional[User | ClientAccount]:
+    """Load a user or client account from the session-stored identifier."""
+
     if not user_id:
         return None
+
+    # Distinguish client principals to avoid ID collisions with employees
+    if isinstance(user_id, str) and user_id.startswith("client:"):
+        try:
+            client_id = int(user_id.split(":", 1)[1])
+        except (IndexError, ValueError):
+            return None
+        return ClientAccount.query.get(client_id)
+
     try:
         return User.query.get(int(user_id))
     except Exception:
