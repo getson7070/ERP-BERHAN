@@ -3,6 +3,10 @@ from __future__ import annotations
 
 from flask import current_app
 
+from erp.reliability import apply_chaos_to_external_calls, close_incident, get_breaker, open_incident
+
+TG_BREAKER = get_breaker("telegram")
+
 
 def _logger():
     try:
@@ -11,8 +15,9 @@ def _logger():
         return None
 
 
-def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> None:
-    """Send a message through Telegram if the transport is available."""
+def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> dict:
+    """Send a message through Telegram with circuit breaker and chaos hooks."""
+
     logger = _logger()
     bots = (current_app.config.get("TELEGRAM_BOTS") if current_app else {}) or {}
     if not bots or bot_name not in bots:
@@ -21,18 +26,30 @@ def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> None:
                 "telegram_message_skipped",
                 extra={"bot": bot_name, "chat_id": chat_id, "payload": payload},
             )
-        return
+        return {"ok": False, "error": "telegram_not_configured"}
+
+    if not TG_BREAKER.allow():
+        open_incident(None, "telegram", {"reason": "open_circuit"})
+        return {"ok": False, "error": "telegram_open_circuit"}
+
+    apply_chaos_to_external_calls()
 
     try:
         from erp.bots.telegram_client import telegram_send
 
         telegram_send(bot_name, chat_id, payload)
+        TG_BREAKER.record_success()
+        close_incident(None, "telegram")
+        return {"ok": True}
     except Exception as exc:  # pragma: no cover - network/env specific
+        TG_BREAKER.record_failure()
+        open_incident(None, "telegram", {"error": str(exc)})
         if logger:
             logger.warning(
                 "telegram_send_failed",
                 extra={"bot": bot_name, "chat_id": chat_id, "error": str(exc)},
             )
+        return {"ok": False, "error": str(exc)}
 
 
 def send_email_fallback(job, error: str | None = None) -> None:

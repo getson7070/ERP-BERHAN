@@ -85,7 +85,13 @@ def process_bot_job(self, job_id: int):
             ctx=ctx,
         )
 
-        send_telegram_message(job.bot_name, job.chat_id, response)
+        delivery = send_telegram_message(job.bot_name, job.chat_id, response)
+
+        if isinstance(delivery, dict) and not delivery.get("ok", True):
+            job.last_error = delivery.get("error")
+            job.status = "failed"
+            db.session.commit()
+            return {"status": "delivery_failed", "error": delivery.get("error")}
 
         if "next_state" in response or response.get("clear_state"):
             _persist_state(

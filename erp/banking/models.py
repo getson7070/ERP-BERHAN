@@ -9,6 +9,7 @@ from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.extensions import db
+from erp.models.core_entities import BankTransaction as CoreBankTransaction
 from erp.models.finance_gl import BankStatement, BankStatementLine
 
 # Prevent circular imports at runtime
@@ -18,7 +19,13 @@ if TYPE_CHECKING:
 
 class BankAccount(db.Model):
     __tablename__ = "bank_accounts"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_bank_accounts_org", "org_id"),
+        CheckConstraint(
+            "initial_balance >= 0", name="ck_bank_accounts_balance_positive"
+        ),
+        {"extend_existing": True},
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(
@@ -48,6 +55,25 @@ class BankAccount(db.Model):
     # Indexes & constraints
     Index("ix_bank_accounts_org", "org_id")
     CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
+
+class BankConnection(db.Model):
+    """API connection config for a specific bank (or aggregator)."""
+
+    __tablename__ = "bank_connections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+
+    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(db.String(64), nullable=False)
+    environment: Mapped[str] = mapped_column(db.String(32), nullable=False, default="sandbox")
+    api_base_url: Mapped[str | None] = mapped_column(db.String(255))
+    credentials_json = mapped_column(db.JSON, nullable=True, default=dict)
+
+    requires_two_factor: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    two_factor_method: Mapped[str | None] = mapped_column(db.String(32))
+
+    last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
 
 class BankTransaction(db.Model):
     """Simple transaction log for inflows/outflows."""
@@ -175,6 +201,7 @@ BankStatement.bank_account = relationship(
 
 
 StatementLine = BankStatementLine
+BankTransaction = CoreBankTransaction
 
 __all__ = [
     "BankAccount",

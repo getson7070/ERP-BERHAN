@@ -233,6 +233,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.sso_oidc",
     "erp.routes.client_auth_api",
     "erp.routes.client_oauth_api",
+    "erp.routes.mttr_api",
     "erp.routes.rbac_policy_api",
     "erp.routes.role_request_api",
     "erp.supplychain.routes",

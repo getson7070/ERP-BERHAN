@@ -40,6 +40,7 @@ class BotEvent(db.Model):
     chat_id = db.Column(db.String(64), nullable=True, index=True)
     message_id = db.Column(db.String(64), nullable=True, index=True)
 
+    payload_json = db.Column(db.JSON, nullable=False, server_default=db.text("'{}'"))
     payload_json = db.Column(db.JSON, nullable=False, server_default=db.text("'{}'::jsonb"))
     severity = db.Column(db.String(16), nullable=False, default="info", index=True)
 
@@ -59,6 +60,7 @@ class BotJobOutbox(db.Model):
     raw_text = db.Column(db.Text, nullable=True)
     parsed_intent = db.Column(db.String(64), nullable=True, index=True)
     context_json = db.Column(
+        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'")
         db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
     )
 
@@ -85,6 +87,7 @@ class TelegramConversationState(db.Model):
 
     state_key = db.Column(db.String(64), nullable=False, index=True)
     data_json = db.Column(
+        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'")
         db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
     )
 

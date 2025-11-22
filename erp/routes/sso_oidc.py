@@ -11,7 +11,8 @@ from erp.services.role_service import grant_role_to_user
 from erp.utils import resolve_org_id
 
 oauth = None
-if importlib.util.find_spec("authlib.integrations.flask_client"):
+# authlib is optional; only wire OIDC if the base package is present
+if importlib.util.find_spec("authlib"):
     from authlib.integrations.flask_client import OAuth
 
     oauth = OAuth()

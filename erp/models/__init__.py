@@ -73,6 +73,7 @@ from .performance import (  # noqa: F401
     ScorecardItem,
     ScorecardTemplate,
 )
+from .incident import Incident  # noqa: F401
 from .bot import (  # noqa: F401
     BotCommandRegistry,
     BotEvent,
@@ -190,6 +191,7 @@ __all__ = [
     "MarketingABVariant", "MarketingGeofence",
     "AnalyticsMetric", "AnalyticsFact", "AnalyticsDashboard", "AnalyticsWidget", "DataLineage",
     "KPIRegistry", "ScorecardTemplate", "ScorecardItem", "ReviewCycle", "PerformanceEvaluation", "Feedback360", "MLSuggestion",
+    "Incident",
     "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
     "BankStatement", "BankStatementLine", "StatementLine",
     "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
