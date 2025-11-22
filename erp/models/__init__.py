@@ -18,6 +18,68 @@ from .recruitment import Recruitment    # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
 from .user_dashboard import UserDashboard          # noqa: F401
 from .order import Order                # noqa: F401
+from .hr_lifecycle import (  # noqa: F401
+    HROnboarding,
+    HROffboarding,
+    LeaveRequest,
+)
+from .crm import (  # noqa: F401
+    CRMAccount,
+    CRMContact,
+    CRMPipelineEvent,
+    SupportTicket,
+    ClientPortalLink,
+)
+from .client_auth import (  # noqa: F401
+    ClientAccount,
+    ClientOAuthAccount,
+    ClientPasswordReset,
+    ClientRoleAssignment,
+    ClientVerification,
+)
+from .security_ext import (  # noqa: F401
+    UserMFA,
+    UserMFABackupCode,
+    UserSession,
+)
+from .geolocation import (  # noqa: F401
+    GeoAssignment,
+    GeoLastLocation,
+    GeoPing,
+    GeoRouteCache,
+)
+from .maintenance import (  # noqa: F401
+    MaintenanceAsset,
+    MaintenanceEscalationEvent,
+    MaintenanceEscalationRule,
+    MaintenanceEvent,
+    MaintenanceSchedule,
+    MaintenanceSensorReading,
+    MaintenanceWorkOrder,
+)
+from .analytics import (  # noqa: F401
+    AnalyticsDashboard,
+    AnalyticsFact,
+    AnalyticsMetric,
+    AnalyticsWidget,
+    DataLineage,
+)
+from .performance import (  # noqa: F401
+    Feedback360,
+    KPIRegistry,
+    MLSuggestion,
+    PerformanceEvaluation,
+    ReviewCycle,
+    ScorecardItem,
+    ScorecardTemplate,
+)
+from .bot import (  # noqa: F401
+    BotCommandRegistry,
+    BotEvent,
+    BotIdempotencyKey,
+    BotJobOutbox,
+)
+from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
 from .audit_log import AuditLog         # noqa: F401
 from .core_entities import (            # noqa: F401
     AnalyticsEvent,
@@ -35,18 +97,53 @@ from .core_entities import (            # noqa: F401
     UserRoleAssignment,
     RegistrationInvite,
 )
-from erp.marketing.models import MarketingEvent, MarketingVisit
-from erp.banking.models import BankAccount, BankStatement, StatementLine
+from erp.marketing.models import (
+    MarketingABVariant,
+    MarketingCampaign,
+    MarketingConsent,
+    MarketingEvent,
+    MarketingGeofence,
+    MarketingSegment,
+    MarketingVisit,
+)
+from erp.banking.models import (
+    BankAccessToken,
+    BankAccount,
+    BankConnection,
+    BankSyncJob,
+    BankTwoFactorChallenge,
+)
+from .finance_gl import (
+    GLJournalEntry,
+    GLJournalLine,
+    FinanceAuditLog,
+    BankStatement,
+    BankStatementLine,
+)
+StatementLine = BankStatementLine
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
 
 try:
-    from .inventory import Inventory    # noqa: F401
-    Item = Inventory           # noqa: F401
+    from .inventory import Inventory  # noqa: F401
+    from erp.inventory.models import (  # noqa: F401
+        CycleCount,
+        CycleCountLine,
+        InventoryLocation,
+        InventorySerial,
+        Item,
+        Lot,
+        ReorderRule,
+        StockBalance,
+        StockLedgerEntry,
+        Warehouse,
+    )
+
+    Item = Inventory  # noqa: F401
     InventoryItem = Inventory  # noqa: F401
-    Product = Inventory        # noqa: F401
-    StockItem = Inventory      # noqa: F401
+    Product = Inventory  # noqa: F401
+    StockItem = Inventory  # noqa: F401
 except Exception:  # pragma: no cover
     def __getattr__(name: str):
         if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
@@ -69,13 +166,31 @@ __all__ = [
     "db",
     "User", "Role", "Organization", "Invoice",
     "Employee", "Recruitment", "PerformanceReview",
+    "HROnboarding", "HROffboarding", "LeaveRequest",
+    "CRMAccount", "CRMContact", "CRMPipelineEvent",
+    "SupportTicket", "ClientPortalLink",
+    "ClientAccount", "ClientVerification", "ClientPasswordReset", "ClientOAuthAccount", "ClientRoleAssignment",
+    "UserMFA", "UserMFABackupCode", "UserSession",
+    "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
+    "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
+    "PurchaseOrder", "PurchaseOrderLine",
     "UserDashboard", "Order",
     "AnalyticsEvent", "ApprovalRequest", "BankTransaction",
     "ClientRegistration", "CrmInteraction", "CrmLead",
     "FinanceAccount", "FinanceEntry", "InventoryReservation",
     "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
-    "BankAccount", "BankStatement", "StatementLine",
+    "MarketingCampaign", "MarketingSegment", "MarketingConsent",
+    "MarketingABVariant", "MarketingGeofence",
+    "AnalyticsMetric", "AnalyticsFact", "AnalyticsDashboard", "AnalyticsWidget", "DataLineage",
+    "KPIRegistry", "ScorecardTemplate", "ScorecardItem", "ReviewCycle", "PerformanceEvaluation", "Feedback360", "MLSuggestion",
+    "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
+    "BankStatement", "BankStatementLine", "StatementLine",
+    "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
+    "GeoPing", "GeoLastLocation", "GeoAssignment", "GeoRouteCache",
     "SalesOpportunity", "SupplyChainShipment",
     "UserRoleAssignment", "RegistrationInvite", "AuditLog",
+    "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox",
     "Inventory", "Item", "InventoryItem", "Product", "StockItem",
+    "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
+    "CycleCount", "CycleCountLine", "ReorderRule",
 ]

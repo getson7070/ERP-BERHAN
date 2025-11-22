@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from erp.extensions import db
 from erp.models import AuditLog
+from erp.services.audit_log_service import write_audit_log
 from .metrics import AUDIT_CHAIN_BROKEN
 
 
@@ -24,8 +25,16 @@ def log_audit(
     org_id: int | None,
     action: str,
     details: Optional[str] = None,
+    metadata: Optional[dict] = None,
+    entity_type: str | None = None,
+    entity_id: int | None = None,
 ) -> AuditLog:
-    """Persist an audit log entry inside the primary database."""
+    """Persist an audit log entry inside the primary database.
+
+    Compatibility wrapper: preserves the legacy hash-chain while emitting the
+    richer audit envelope used by the new audit API. The metadata dictionary is
+    merged with a "details" key so consumers can search on the free-form text.
+    """
 
     session = db.session
     prev_hash = session.execute(
@@ -34,16 +43,24 @@ def log_audit(
     created_at = datetime.now(UTC)
     entry_hash = _hash_entry(prev_hash, user_id, org_id, action, details, created_at.isoformat())
 
-    audit_row = AuditLog(
-        user_id=user_id,
-        org_id=org_id,
+    base_metadata = dict(metadata or {})
+    if details:
+        base_metadata.setdefault("details", details)
+
+    audit_row = write_audit_log(
+        org_id=org_id or 0,
+        module=action.split(".")[0] if "." in action else "general",
         action=action,
-        details=details,
-        prev_hash=prev_hash,
-        hash=entry_hash,
-        created_at=created_at,
+        actor_id=user_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        metadata=base_metadata,
     )
-    session.add(audit_row)
+
+    audit_row.prev_hash = prev_hash
+    audit_row.hash = entry_hash
+    audit_row.details = details
+    audit_row.created_at = created_at
     session.commit()
     return audit_row
 
