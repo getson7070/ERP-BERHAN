@@ -9,10 +9,11 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from erp.models import db
+from erp.extensions import db
+from erp.models.finance_gl import BankStatement, BankStatementLine
 
 
 class BankAccount(db.Model):
@@ -29,11 +30,18 @@ class BankAccount(db.Model):
         db.Integer, db.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(db.String(128), nullable=False)
+    bank_name: Mapped[str] = mapped_column(db.String(255), nullable=False, default="")
     currency: Mapped[str] = mapped_column(db.String(8), nullable=False, default="ETB")
-    account_number: Mapped[str] = mapped_column(db.String(64), nullable=True, unique=True)
+    account_number: Mapped[str | None] = mapped_column(db.String(64), nullable=True, unique=True)
+    account_number_masked: Mapped[str] = mapped_column(db.String(64), nullable=False, default="")
+    gl_account_code: Mapped[str] = mapped_column(db.String(64), nullable=False, default="", index=True)
+    is_default: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=True)
     initial_balance: Mapped[Decimal] = mapped_column(
         db.Numeric(14, 2), nullable=False, default=Decimal("0.00")
     )
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer, nullable=True)
 
     statements = relationship(
         "BankStatement", back_populates="bank_account", cascade="all, delete-orphan"
@@ -43,57 +51,141 @@ class BankAccount(db.Model):
     )
 
 
-class BankStatement(db.Model):
-    """Monthly or ad-hoc statement summarising account activity."""
+class BankTransaction(db.Model):
+    """Simple transaction log for inflows/outflows."""
 
-    __tablename__ = "bank_statements"
-    __table_args__ = (
-        Index("ix_bank_statements_account", "bank_account_id"),
-        Index("ix_bank_statements_period", "statement_date"),
-    )
+    __tablename__ = "bank_transactions"
+    __table_args__ = (Index("ix_bank_transactions_org", "org_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
     bank_account_id: Mapped[int] = mapped_column(
-        db.Integer,
-        db.ForeignKey("bank_accounts.id", ondelete="CASCADE"),
-        nullable=False,
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
     )
-    statement_date: Mapped[date] = mapped_column(default=date.today, nullable=False)
-    closing_balance: Mapped[Decimal] = mapped_column(
-        db.Numeric(14, 2), nullable=False, default=Decimal("0.00")
-    )
-
-    bank_account = relationship("BankAccount", back_populates="statements")
-    lines = relationship(
-        "StatementLine", back_populates="statement", cascade="all, delete-orphan"
-    )
+    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
+    reference: Mapped[str | None] = mapped_column(db.String(128))
+    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
 
-class StatementLine(db.Model):
-    """Individual debit/credit entries on a statement."""
+class BankConnection(db.Model):
+    """API connection config for a specific bank (or aggregator)."""
 
-    __tablename__ = "bank_statement_lines"
-    __table_args__ = (Index("ix_statement_lines_statement", "statement_id"),)
+    __tablename__ = "bank_connections"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    statement_id: Mapped[int] = mapped_column(
-        db.Integer,
-        db.ForeignKey("bank_statements.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    posted_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(UTC), nullable=False
-    )
-    amount: Mapped[Decimal] = mapped_column(
-        db.Numeric(14, 2), nullable=False
-    )
-    description: Mapped[str | None] = mapped_column(db.String(255))
-    reference: Mapped[str | None] = mapped_column(db.String(64))
-    finance_entry_id: Mapped[int | None] = mapped_column(
-        db.Integer, db.ForeignKey("finance_entries.id", ondelete="SET NULL"), nullable=True
-    )
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
 
-    statement = relationship("BankStatement", back_populates="lines")
+    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    provider: Mapped[str] = mapped_column(db.String(64), nullable=False)
+    environment: Mapped[str] = mapped_column(db.String(32), nullable=False, default="sandbox")
+    api_base_url: Mapped[str | None] = mapped_column(db.String(255))
+    credentials_json = mapped_column(db.JSON, nullable=True, default=dict)
+
+    requires_two_factor: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    two_factor_method: Mapped[str | None] = mapped_column(db.String(32))
+
+    last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
 
-__all__ = ["BankAccount", "BankStatement", "StatementLine"]
+class BankAccessToken(db.Model):
+    """Access/refresh tokens for bank APIs (store encrypted in production)."""
+
+    __tablename__ = "bank_access_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+    connection_id: Mapped[int] = mapped_column(
+        db.Integer, db.ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    access_token: Mapped[str] = mapped_column(db.String(4096), nullable=False)
+    refresh_token: Mapped[str | None] = mapped_column(db.String(4096))
+    token_type: Mapped[str | None] = mapped_column(db.String(64))
+    scope: Mapped[str | None] = mapped_column(db.String(512))
+    expires_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
+    connection = relationship("BankConnection", backref="tokens")
+
+
+class BankTwoFactorChallenge(db.Model):
+    """Represents a pending or completed 2FA challenge for a bank connection."""
+
+    __tablename__ = "bank_two_factor_challenges"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+    connection_id: Mapped[int] = mapped_column(
+        db.Integer, db.ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    challenge_type: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    challenge_id: Mapped[str | None] = mapped_column(db.String(128))
+    status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending")
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
+    resolved_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+    resolved_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
+
+class BankSyncJob(db.Model):
+    """Tracks each statement sync run (manual or scheduled)."""
+
+    __tablename__ = "bank_sync_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
+
+    connection_id: Mapped[int | None] = mapped_column(
+        db.Integer, db.ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    bank_account_id: Mapped[int | None] = mapped_column(
+        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending", index=True)
+    requested_from: Mapped[date | None] = mapped_column(db.Date)
+    requested_to: Mapped[date | None] = mapped_column(db.Date)
+
+    started_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+    requested_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
+    statements_created: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    lines_created: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(db.Text)
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+
+    connection = relationship("BankConnection")
+    bank_account = relationship("BankAccount")
+
+
+# Back-populate relationship now that BankStatement is imported
+BankStatement.bank_account = relationship(
+    "BankAccount",
+    primaryjoin="BankStatement.bank_account_id==BankAccount.id",
+    back_populates="statements",
+)
+
+
+StatementLine = BankStatementLine
+
+__all__ = [
+    "BankAccount",
+    "BankStatement",
+    "BankStatementLine",
+    "StatementLine",
+    "BankConnection",
+    "BankAccessToken",
+    "BankTwoFactorChallenge",
+    "BankSyncJob",
+    "BankTransaction",
+]
