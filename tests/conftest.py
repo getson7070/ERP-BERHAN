@@ -1,15 +1,19 @@
 import os
 
-import os
-
 import pytest
 
-from erp import create_app, db
-from erp.models import Organization
+LIGHTWEIGHT_TEST_MODE = os.getenv("LIGHTWEIGHT_TEST_MODE") == "1"
+
+if not LIGHTWEIGHT_TEST_MODE:
+    from erp import create_app, db
+    from erp.models import Organization
 
 
 @pytest.fixture
 def app():
+    if LIGHTWEIGHT_TEST_MODE:
+        pytest.skip("LIGHTWEIGHT_TEST_MODE enabled; app fixture unavailable")
+
     os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
     app = create_app()
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, LOGIN_DISABLED=True)
