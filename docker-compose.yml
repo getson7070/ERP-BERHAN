@@ -1,52 +1,32 @@
-version: "3.8"
+version: '3.9'
 
 services:
-  web:
-    build:
-      context: .
-      dockerfile: dockerfile
-    command: ["web"]  # aligns with docker/entrypoint.sh
-    ports:
-      - "18000:18000"
-    env_file:
-      - .env
-    environment:
-      - FLASK_APP=erp:create_app
-      # FLASK_ENV and DATABASE_URL, SECRET_KEY, REDIS_URL come from .env
-    depends_on:
-      - db
-      - redis
-
-  worker:
-    build:
-      context: .
-      dockerfile: dockerfile
-    command: ["celery", "-A", "erp.celery_app", "worker", "-l", "info"]
-    env_file:
-      - .env
-    environment:
-      - FLASK_APP=erp:create_app
-    depends_on:
-      - db
-      - redis
-
   db:
     image: postgres:16-alpine
+    container_name: erp-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: erp_berhan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    container_name: erp-berhan
+    restart: always
+    ports:
+      - "18000:5000"
     env_file:
       - .env
-    environment:
-      # These MUST be present in .env; no hard-coded secrets here
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      - db
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
+      - .:/app
+      - ./instance:/app/instance
 
 volumes:
-  pgdata:
-  redisdata:
+  postgres_data:

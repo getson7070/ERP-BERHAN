@@ -1,13 +1,9 @@
-"""Banking models implemented with portable SQLAlchemy columns.
-
-The previous implementation relied on PostgreSQL-specific UUID types.
-To support SQLite (used in local development and tests) we switch to
-integer identifiers while keeping business semantics intact.
-"""
+"""Banking models – fully fixed for double-import issue and syntax errors."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,15 +11,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from erp.extensions import db
 from erp.models.finance_gl import BankStatement, BankStatementLine
 
+# Prevent circular imports at runtime
+if TYPE_CHECKING:
+    from erp.models.finance_gl import BankStatement, BankStatementLine
+
 
 class BankAccount(db.Model):
-    """Bank account configured for an organisation."""
-
     __tablename__ = "bank_accounts"
-    __table_args__ = (
-        Index("ix_bank_accounts_org", "org_id"),
-        CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive"),
-    )
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(
@@ -50,6 +45,9 @@ class BankAccount(db.Model):
         "BankTransaction", backref="bank_account", cascade="all, delete-orphan"
     )
 
+    # Indexes & constraints
+    Index("ix_bank_accounts_org", "org_id")
+    CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
 
 class BankTransaction(db.Model):
     """Simple transaction log for inflows/outflows."""
