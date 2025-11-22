@@ -1,13 +1,18 @@
-"""Banking models – fixed for double-import, syntax errors, and registry collisions."""
+"""Banking models – fully fixed for double-import issue and syntax errors."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.extensions import db
+
+# Prevent circular imports at runtime
+if TYPE_CHECKING:
+    from erp.models.finance_gl import BankStatement, BankStatementLine
 
 
 class BankAccount(db.Model):
@@ -38,9 +43,10 @@ class BankAccount(db.Model):
         "BankStatement", back_populates="bank_account", cascade="all, delete-orphan"
     )
     transactions = relationship(
-        "BankTransaction", back_populates="bank_account", cascade="all, delete-orphan"
+        "BankTransaction", backref="bank_account", cascade="all, delete-orphan"
     )
 
+    # Indexes & constraints
     Index("ix_bank_accounts_org", "org_id")
     CheckConstraint("initial_balance >= 0", name="ck_bank_accounts_balance_positive")
 
@@ -58,8 +64,6 @@ class BankTransaction(db.Model):
     amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
     reference: Mapped[str | None] = mapped_column(db.String(128))
     posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
-
-    bank_account = relationship("BankAccount", back_populates="transactions")
 
     Index("ix_bank_transactions_org", "org_id")
 
@@ -130,7 +134,7 @@ class BankSyncJob(db.Model):
         db.Integer, db.ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True, index=True
     )
     bank_account_id: Mapped[int | None] = mapped_column(
-        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
+        db.Integer  , db.ForeignKey("bank_accounts.id", ondelete="SET NULL"), nullable=True, index=True
     )
     status: Mapped[str] = mapped_column(db.String(32), nullable=False, default="pending", index=True)
     requested_from: Mapped[datetime | None] = mapped_column(db.Date)
@@ -147,7 +151,7 @@ class BankSyncJob(db.Model):
     bank_account = relationship("BankAccount")
 
 
-# Safe back-populates
+# Safe back-populates after all classes are defined
 from erp.models.finance_gl import BankStatement, BankStatementLine
 
 BankStatement.bank_account = relationship(
