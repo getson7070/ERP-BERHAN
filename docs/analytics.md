@@ -1,14 +1,34 @@
-# Predictive Analytics
+# Reporting & Analytics
 
-BERHAN now ships with a lightweight predictive analytics service. Demand
-forecasts and inventory anomaly detection are executed via Celery tasks
-backed by scikit-learn models. Forecast metrics are exposed through
-Prometheus gauges for dashboard visualisation.
+## Unified Analytics Layer
+All KPIs are normalized into:
+- `AnalyticsMetric` (registry)
+- `AnalyticsFact` (daily facts table)
 
-## Workflow
-1. Sales and inventory history are passed to the
-   `analytics.retrain_and_predict` task.
-2. The task retrains models on the fly and emits a demand forecast and
-   anomaly indices.
-3. Prometheus collects the forecast gauge, allowing dashboards to render
-   near real-time insights.
+This allows cross-module dashboards and BI tools to read a single schema.
+
+## Dashboards
+- Role dashboards via `AnalyticsDashboard.for_role`
+- Widgets via `AnalyticsWidget`
+- Widgets reference `metric_key` from the registry
+
+Endpoints:
+- `GET /api/analytics/metrics`
+- `GET /api/analytics/fact`
+- `GET /api/analytics/dashboards`
+- `POST /api/analytics/dashboards`
+
+## BI Integration
+Stable views for Superset/Metabase:
+- `bi_daily_metrics`
+- `bi_metrics_registry`
+
+## Predictive Analytics
+Celery tasks write forecasts into:
+- `metric_key + ".forecast"`
+
+## Data Lineage & Privacy
+Lineage stored in `analytics_lineage`.
+Privacy enforced by `privacy_class`:
+- public, internal, sensitive, pii
+Sensitive/PII metrics require admin.
