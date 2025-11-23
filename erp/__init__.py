@@ -17,7 +17,9 @@ import os
 from pathlib import Path
 from typing import Iterable
 
+import sentry_sdk
 from flask import Blueprint as FlaskBlueprint, Flask, jsonify
+from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import redis_client  # type: ignore
@@ -25,6 +27,7 @@ from db import redis_client  # type: ignore
 from .db import db as db
 from .dlq import _dead_letter_handler
 from .extensions import cache, init_extensions, limiter, login_manager, mail
+from .logging_setup import setup_json_logging
 from .metrics import (
     AUDIT_CHAIN_BROKEN,
     DLQ_MESSAGES,
@@ -36,6 +39,7 @@ from .socket import socketio
 from .middleware.security_headers import apply_security_headers
 from .security import apply_security
 from .security_gate import install_global_gate
+from .socket import socketio
 from .middleware.tenant_guard import install_tenant_guard
 
 LOGGER = logging.getLogger(__name__)
@@ -340,6 +344,20 @@ def create_app(config_object: str | None = None) -> Flask:
         app.config.from_object(config_object)
     else:
         _load_config(app)
+
+    if app.config.get("JSON_LOGGING", True):
+        setup_json_logging()
+
+    sentry_dsn = app.config.get("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=float(app.config.get("SENTRY_TRACES_SAMPLE_RATE", 0)),
+            environment=app.config.get(
+                "SENTRY_ENVIRONMENT", app.config.get("FLASK_ENV", "production")
+            ),
+        )
 
     init_extensions(app)
     apply_security(app)

@@ -75,41 +75,8 @@ class BankConnection(db.Model):
 
     last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
 
-class BankTransaction(db.Model):
-    """Simple transaction log for inflows/outflows."""
-
-    __tablename__ = "bank_transactions"
-    __table_args__ = (Index("ix_bank_transactions_org", "org_id"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
-    bank_account_id: Mapped[int] = mapped_column(
-        db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False
-    )
-    direction: Mapped[str] = mapped_column(db.String(16), nullable=False)
-    amount: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False)
-    reference: Mapped[str | None] = mapped_column(db.String(128))
-    posted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
-
-
-class BankConnection(db.Model):
-    """API connection config for a specific bank (or aggregator)."""
-
-    __tablename__ = "bank_connections"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
-
-    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
-    provider: Mapped[str] = mapped_column(db.String(64), nullable=False)
-    environment: Mapped[str] = mapped_column(db.String(32), nullable=False, default="sandbox")
-    api_base_url: Mapped[str | None] = mapped_column(db.String(255))
-    credentials_json = mapped_column(db.JSON, nullable=True, default=dict)
-
-    requires_two_factor: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
-    two_factor_method: Mapped[str | None] = mapped_column(db.String(32))
-
-    last_connected_at: Mapped[datetime | None] = mapped_column(db.DateTime)
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer)
