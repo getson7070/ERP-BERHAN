@@ -1,0 +1,11 @@
+{
+  "flask_routes": [],
+  "celery_tasks": [],
+  "cli_commands": [],
+  "issues": {
+    "duplicate_endpoints": [],
+    "celery_unnamespaced": [],
+    "cli_missing_rbac_tag": []
+  },
+  "note": "REGISTRY_SCAN_SKIP_APP=1 set; populated minimal scan"
+}

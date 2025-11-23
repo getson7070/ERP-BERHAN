@@ -3,8 +3,13 @@ import os
 
 import pytest
 
-from erp import create_app, db
-from erp.models import Organization
+LIGHTWEIGHT_TEST_MODE = os.getenv("LIGHTWEIGHT_TEST_MODE") == "1"
+
+if not LIGHTWEIGHT_TEST_MODE:
+    import importlib
+
+    from erp import create_app, db
+    from erp.models import Organization
 
 
 def pytest_addoption(parser):
@@ -19,27 +24,40 @@ def pytest_addoption(parser):
     parser.addoption("--cov-fail-under", action="store", default=None)
 
 
-def _prepare_app():
-    os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
-    app = create_app()
-    app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, LOGIN_DISABLED=True)
-    with app.app_context():
-        db.create_all()
-        if not Organization.query.filter_by(id=1).first():
-            db.session.add(Organization(id=1, name="Test Org"))
-            db.session.commit()
-    return app
+if not LIGHTWEIGHT_TEST_MODE:
 
 
-@pytest.fixture(scope="session")
-def app():
-    app = _prepare_app()
-    yield app
-    with app.app_context():
-        db.drop_all()
+    def _prepare_app():
+        os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+        app = create_app()
+        app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, LOGIN_DISABLED=True)
+        with app.app_context():
+            db.create_all()
+            if not Organization.query.filter_by(id=1).first():
+                db.session.add(Organization(id=1, name="Test Org"))
+                db.session.commit()
+        return app
 
 
-@pytest.fixture()
-def client(app):
-    with app.test_client(use_cookies=True) as client:
-        yield client
+    @pytest.fixture(scope="session")
+    def app():
+        app = _prepare_app()
+        yield app
+        with app.app_context():
+            db.drop_all()
+
+
+    @pytest.fixture()
+    def client(app):
+        with app.test_client(use_cookies=True) as client:
+            yield client
+else:
+
+    @pytest.fixture(scope="session")
+    def app():
+        pytest.skip("LIGHTWEIGHT_TEST_MODE enabled; app fixture unavailable")
+
+
+    @pytest.fixture()
+    def client():
+        pytest.skip("LIGHTWEIGHT_TEST_MODE enabled; client fixture unavailable")

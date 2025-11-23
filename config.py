@@ -1,3 +1,4 @@
+import json
 import os
 
 
@@ -39,12 +40,41 @@ class Config:
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
     # CSRF
-    WTF_CSRF_TIME_LIMIT = None  # tokens do not expire during a session
+    WTF_CSRF_TIME_LIMIT = 3600  # 1 hour token validity
+    WTF_CSRF_CHECK_DEFAULT = True
+    WTF_CSRF_HEADERS = ("X-CSRFToken", "X-CSRF-Token")
 
     # CORS
     CORS_SUPPORTS_CREDENTIALS = True
+
+    # Telegram / bot integration
+    TELEGRAM_BOTS_JSON = os.getenv("TELEGRAM_BOTS_JSON", "")
+    TELEGRAM_DEFAULT_BOT = os.getenv("TELEGRAM_DEFAULT_BOT", "erpbot")
+    TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    TELEGRAM_BOT_SCOPES_JSON = os.getenv("TELEGRAM_BOT_SCOPES_JSON", "{}")
+    BOT_FALLBACK_EMAILS = tuple(
+        addr.strip()
+        for addr in os.getenv("BOT_FALLBACK_EMAILS", "").split(",")
+        if addr.strip()
+    )
+
+    # Resolved bot maps (class attribute so Flask picks it up during config load)
+    TELEGRAM_BOTS = (
+        json.loads(TELEGRAM_BOTS_JSON)
+        if TELEGRAM_BOTS_JSON
+        else ({TELEGRAM_DEFAULT_BOT: TELEGRAM_BOT_TOKEN} if TELEGRAM_BOT_TOKEN else {})
+    )
+    TELEGRAM_BOT_SCOPES = (
+        json.loads(TELEGRAM_BOT_SCOPES_JSON)
+        if TELEGRAM_BOT_SCOPES_JSON
+        else {}
+    )
 
 
 
