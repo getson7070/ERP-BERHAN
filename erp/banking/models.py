@@ -114,6 +114,9 @@ class BankConnection(db.Model):
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
+    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
+
 
 class BankAccessToken(db.Model):
     """Access/refresh tokens for bank APIs (store encrypted in production)."""

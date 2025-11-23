@@ -10,6 +10,7 @@ from db import redis_client
 from erp.extensions import db
 from erp.health.registry import HealthCheck, health_registry
 from erp.services.banking_client import banking_ping
+from erp.utils import resolve_org_id
 
 
 def db_check() -> dict[str, Any]:
@@ -36,7 +37,13 @@ def telegram_configured() -> dict[str, Any]:
 
 
 def banking_service() -> dict[str, Any]:
-    ok = banking_ping()
+    org_id = None
+    try:
+        org_id = resolve_org_id()
+    except Exception:
+        org_id = None
+
+    ok = banking_ping(org_id)
     return {"ok": ok}
 
 

@@ -15,7 +15,9 @@ def _logger():
         return None
 
 
-def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> dict:
+def send_telegram_message(
+    bot_name: str, chat_id: str, payload: dict, *, org_id: int | None = None
+) -> dict:
     """Send a message through Telegram with circuit breaker and chaos hooks."""
 
     logger = _logger()
@@ -29,7 +31,7 @@ def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> dict:
         return {"ok": False, "error": "telegram_not_configured"}
 
     if not TG_BREAKER.allow():
-        open_incident(None, "telegram", {"reason": "open_circuit"})
+        open_incident(org_id, "telegram", {"reason": "open_circuit"})
         return {"ok": False, "error": "telegram_open_circuit"}
 
     apply_chaos_to_external_calls()
@@ -39,11 +41,11 @@ def send_telegram_message(bot_name: str, chat_id: str, payload: dict) -> dict:
 
         telegram_send(bot_name, chat_id, payload)
         TG_BREAKER.record_success()
-        close_incident(None, "telegram")
+        close_incident(org_id, "telegram")
         return {"ok": True}
     except Exception as exc:  # pragma: no cover - network/env specific
         TG_BREAKER.record_failure()
-        open_incident(None, "telegram", {"error": str(exc)})
+        open_incident(org_id, "telegram", {"error": str(exc)})
         if logger:
             logger.warning(
                 "telegram_send_failed",

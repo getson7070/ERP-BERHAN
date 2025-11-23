@@ -85,7 +85,7 @@ def process_bot_job(self, job_id: int):
             ctx=ctx,
         )
 
-        delivery = send_telegram_message(job.bot_name, job.chat_id, response)
+        delivery = send_telegram_message(job.bot_name, job.chat_id, response, org_id=job.org_id)
 
         if isinstance(delivery, dict) and not delivery.get("ok", True):
             job.last_error = delivery.get("error")

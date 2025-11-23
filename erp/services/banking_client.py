@@ -11,11 +11,11 @@ from erp.reliability import apply_chaos_to_external_calls, close_incident, get_b
 BANK_BREAKER = get_breaker("banking")
 
 
-def banking_ping() -> bool:
+def banking_ping(org_id: int | None = None) -> bool:
     """Lightweight ping; returns False if the breaker is open or ping fails."""
 
     if not BANK_BREAKER.allow():
-        open_incident(None, "banking", {"reason": "open_circuit"})
+        open_incident(org_id, "banking", {"reason": "open_circuit"})
         return False
 
     url = os.getenv("BANKING_HEALTH_URL") or os.getenv("BANK_API_HEALTH")
@@ -28,17 +28,22 @@ def banking_ping() -> bool:
         resp = requests.get(url, timeout=3)
         resp.raise_for_status()
         BANK_BREAKER.record_success()
-        close_incident(None, "banking")
+        close_incident(org_id, "banking")
         return True
     except Exception:
         BANK_BREAKER.record_failure()
-        open_incident(None, "banking", {"url": url, "reason": "ping_failed"})
+        open_incident(org_id, "banking", {"url": url, "reason": "ping_failed"})
         return False
 
 
-def fetch_statement(account_id: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+def fetch_statement(
+    account_id: str,
+    *,
+    org_id: int | None = None,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if not BANK_BREAKER.allow():
-        open_incident(None, "banking", {"reason": "open_circuit"})
+        open_incident(org_id, "banking", {"reason": "open_circuit"})
         return {"ok": False, "error": "banking_unavailable"}
 
     base_url = os.getenv("BANK_API_BASE_URL")
@@ -55,9 +60,9 @@ def fetch_statement(account_id: str, *, params: dict[str, Any] | None = None) ->
         )
         resp.raise_for_status()
         BANK_BREAKER.record_success()
-        close_incident(None, "banking")
+        close_incident(org_id, "banking")
         return {"ok": True, "data": resp.json()}
     except Exception as exc:
         BANK_BREAKER.record_failure()
-        open_incident(None, "banking", {"reason": "fetch_failed", "error": str(exc)})
+        open_incident(org_id, "banking", {"reason": "fetch_failed", "error": str(exc)})
         return {"ok": False, "error": str(exc)}
