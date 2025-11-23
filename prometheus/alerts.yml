@@ -7,4 +7,30 @@ groups:
     labels: { severity: page }
     annotations:
       summary: "5xx rate > 5% for 10m"
-      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/RUNBOOK_LOCAL.md
+      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/runbooks/incident_response.md
+- name: erp-berhan-alerts
+  rules:
+  - alert: AppHighErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High 5xx error rate"
+      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/runbooks/incident_response.md
+  - alert: BotQueueBacklog
+    expr: bot_jobs_queued > 50
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Bot queue backlog growing"
+      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/runbooks/incident_response.md
+  - alert: BankingCircuitOpen
+    expr: incidents_open{service="banking"} > 0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Banking integration circuit open"
+      runbook_url: https://github.com/<org>/ERP-BERHAN/docs/runbooks/incident_response.md

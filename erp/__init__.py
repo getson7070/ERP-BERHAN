@@ -8,6 +8,8 @@ documentation for details on each module’s functionality.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import importlib
 import importlib.util
 import logging
@@ -15,7 +17,9 @@ import os
 from pathlib import Path
 from typing import Iterable
 
+import sentry_sdk
 from flask import Blueprint as FlaskBlueprint, Flask, jsonify
+from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from db import redis_client  # type: ignore
@@ -23,6 +27,7 @@ from db import redis_client  # type: ignore
 from .db import db as db
 from .dlq import _dead_letter_handler
 from .extensions import cache, init_extensions, limiter, login_manager, mail
+from .logging_setup import setup_json_logging
 from .metrics import (
     AUDIT_CHAIN_BROKEN,
     DLQ_MESSAGES,
@@ -30,9 +35,10 @@ from .metrics import (
     QUEUE_LAG,
     RATE_LIMIT_REJECTIONS,
 )
-from .socket import socketio
+from .middleware.security_headers import apply_security_headers
 from .security import apply_security
 from .security_gate import install_global_gate
+from .socket import socketio
 from .middleware.tenant_guard import install_tenant_guard
 
 LOGGER = logging.getLogger(__name__)
@@ -135,6 +141,20 @@ def _load_config(app: Flask) -> None:
         )
     ) or ("automation",)
 
+    ldap_group_role_map = os.environ.get("LDAP_GROUP_ROLE_MAP_JSON", "{}")
+
+    ldap_enabled = os.environ.get("LDAP_ENABLED", "0") == "1"
+    ldap_url = os.environ.get("LDAP_URL")
+    ldap_base_dn = os.environ.get("LDAP_BASE_DN")
+    ldap_bind_dn = os.environ.get("LDAP_BIND_DN")
+    ldap_bind_password = os.environ.get("LDAP_BIND_PASSWORD")
+
+    audit_key = os.environ.get("AUDIT_FERNET_KEY")
+    if not audit_key:
+        seed = secret_key or os.environ.get("AUDIT_FALLBACK_SEED", "")
+        digest = hashlib.sha256(str(seed).encode()).digest()
+        audit_key = base64.urlsafe_b64encode(digest).decode()
+
     app.config.update(
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=database_url,
@@ -148,7 +168,10 @@ def _load_config(app: Flask) -> None:
         SESSION_COOKIE_SAMESITE="Lax",
         REMEMBER_COOKIE_SECURE=True,
         REMEMBER_COOKIE_HTTPONLY=True,
-        WTF_CSRF_TIME_LIMIT=None,
+        REMEMBER_COOKIE_SAMESITE="Lax",
+        WTF_CSRF_TIME_LIMIT=3600,
+        WTF_CSRF_CHECK_DEFAULT=True,
+        WTF_CSRF_HEADERS=("X-CSRFToken", "X-CSRF-Token"),
         SELF_REGISTRATION_MODE=os.environ.get("SELF_REGISTRATION_MODE", "invite-only"),
         SELF_REGISTRATION_ALLOWED_ROLES=allowed_roles,
         PRIVILEGED_ROLES=("admin", "owner", "superuser"),
@@ -156,6 +179,13 @@ def _load_config(app: Flask) -> None:
         DEFAULT_ORG_ID=default_org_id,
         SERVICE_TOKEN_MAP=service_tokens,
         AUTOMATION_MACHINE_ROLES=automation_roles,
+        AUDIT_FERNET_KEY=audit_key,
+        LDAP_ENABLED=ldap_enabled,
+        LDAP_URL=ldap_url,
+        LDAP_BASE_DN=ldap_base_dn,
+        LDAP_BIND_DN=ldap_bind_dn,
+        LDAP_BIND_PASSWORD=ldap_bind_password,
+        LDAP_GROUP_ROLE_MAP_JSON=ldap_group_role_map,
     )
 
 
@@ -173,8 +203,10 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
     "erp.routes.auth",
+    "erp.routes.banking_api",
     "erp.routes.approvals",
     "erp.routes.maintenance",
+    "erp.routes.maintenance_api",
     "erp.routes.orders",
     "erp.routes.projects",
     "erp.routes.manufacturing",
@@ -185,8 +217,28 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.inventory",
     "erp.procurement.routes",
     "erp.routes.finance",
+    "erp.routes.finance_gl",
+    "erp.routes.finance_reconcile",
+    "erp.routes.finance_reports",
     "erp.routes.hr",
     "erp.routes.crm",
+    "erp.routes.crm_api",
+    "erp.routes.performance_api",
+    "erp.routes.analytics_api",
+    "erp.routes.csrf_api",
+    "erp.routes.marketing_api",
+    "erp.routes.marketing_geofence",
+    "erp.routes.geo_api",
+    "erp.routes.client_portal",
+    "erp.routes.audit_api",
+    "erp.routes.bot_dashboard_api",
+    "erp.routes.admin_console_api",
+    "erp.routes.sso_oidc",
+    "erp.routes.client_auth_api",
+    "erp.routes.client_oauth_api",
+    "erp.routes.mttr_api",
+    "erp.routes.rbac_policy_api",
+    "erp.routes.role_request_api",
     "erp.supplychain.routes",
     "erp.routes.report_builder",
     "erp.blueprints.inventory",
@@ -292,11 +344,29 @@ def create_app(config_object: str | None = None) -> Flask:
     else:
         _load_config(app)
 
+    if app.config.get("JSON_LOGGING", True):
+        setup_json_logging()
+
+    sentry_dsn = app.config.get("SENTRY_DSN")
+    if sentry_dsn:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=float(app.config.get("SENTRY_TRACES_SAMPLE_RATE", 0)),
+            environment=app.config.get(
+                "SENTRY_ENVIRONMENT", app.config.get("FLASK_ENV", "production")
+            ),
+        )
+
     init_extensions(app)
     apply_security(app)
+    apply_security_headers(app)
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)
+    from erp.routes.sso_oidc import init_sso
+
+    init_sso(app)
 
     # Guarantee marketing endpoints are present even when manifest skips them
     marketing_spec = importlib.util.find_spec("erp.marketing.routes")
