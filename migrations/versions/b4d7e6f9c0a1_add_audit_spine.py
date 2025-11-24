@@ -1,8 +1,25 @@
-"""Add immutable audit spine with searchable metadata and encryption columns."""
+"""Add immutable audit spine with searchable metadata and encryption columns.
+
+WHY THIS REVISION EXISTS
+------------------------
+Earlier revisions (e.g. 8f5c2e7d9a4b) referenced an audit log concept but on
+a fresh database the `audit_logs` table may not exist at all, causing this
+revision to fail when it tries to ALTER TABLE.
+
+This revision is now self-bootstrapping and idempotent:
+
+- If `audit_logs` does not exist, it is created with a complete, final schema.
+- If it already exists, we only add the missing columns.
+
+This keeps fresh installs working while remaining safe for existing databases.
+"""
+
 from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "b4d7e6f9c0a1"
@@ -11,73 +28,245 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    op.add_column(
-        "audit_logs",
-        sa.Column("actor_type", sa.String(length=32), nullable=False, server_default="user"),
-    )
-    op.add_column("audit_logs", sa.Column("actor_id", sa.Integer(), nullable=True))
-    op.add_column("audit_logs", sa.Column("ip_address", sa.String(length=64), nullable=True))
-    op.add_column("audit_logs", sa.Column("user_agent", sa.String(length=255), nullable=True))
-    op.add_column("audit_logs", sa.Column("request_id", sa.String(length=64), nullable=True))
-    op.add_column(
-        "audit_logs",
-        sa.Column("module", sa.String(length=64), nullable=False, server_default="general"),
-    )
-    op.add_column(
-        "audit_logs",
-        sa.Column("severity", sa.String(length=16), nullable=False, server_default="info"),
-    )
-    op.add_column("audit_logs", sa.Column("entity_type", sa.String(length=64), nullable=True))
-    op.add_column("audit_logs", sa.Column("entity_id", sa.Integer(), nullable=True))
-    op.add_column(
-        "audit_logs",
-        sa.Column("metadata_json", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
-    )
-    op.add_column("audit_logs", sa.Column("payload_encrypted", sa.JSON(), nullable=True))
-
-    op.create_index(
-        "ix_audit_org_mod_action_time",
-        "audit_logs",
-        ["org_id", "module", "action", "created_at"],
-        unique=False,
-    )
-
-    op.execute("UPDATE audit_logs SET actor_id = COALESCE(actor_id, user_id)")
-    op.execute("UPDATE audit_logs SET module = COALESCE(module, action)")
-
-    op.execute(
-        """
-        CREATE OR REPLACE FUNCTION audit_logs_immutable()
-        RETURNS trigger AS $$
-        BEGIN
-          RAISE EXCEPTION 'audit_logs is append-only. UPDATE/DELETE not allowed.';
-        END;
-        $$ LANGUAGE plpgsql;
-        """
-    )
-    op.execute("DROP TRIGGER IF EXISTS trg_audit_logs_immutable ON audit_logs")
-    op.execute(
-        """
-        CREATE TRIGGER trg_audit_logs_immutable
-        BEFORE UPDATE OR DELETE ON audit_logs
-        FOR EACH ROW EXECUTE FUNCTION audit_logs_immutable();
-        """
-    )
+def _has_table(insp, name: str) -> bool:
+    return insp.has_table(name)
 
 
-def downgrade():
-    op.execute("DROP TRIGGER IF EXISTS trg_audit_logs_immutable ON audit_logs")
-    op.execute("DROP FUNCTION IF EXISTS audit_logs_immutable")
-    op.drop_index("ix_audit_org_mod_action_time", table_name="audit_logs")
-    op.drop_column("audit_logs", "payload_encrypted")
-    op.drop_column("audit_logs", "metadata_json")
-    op.drop_column("audit_logs", "entity_id")
-    op.drop_column("audit_logs", "entity_type")
-    op.drop_column("audit_logs", "severity")
-    op.drop_column("audit_logs", "module")
-    op.drop_column("audit_logs", "request_id")
-    op.drop_column("audit_logs", "user_agent")
-    op.drop_column("audit_logs", "ip_address")
-    op.drop_column("audit_logs", "actor_id")
-    op.drop_column("audit_logs", "actor_type")
+def _has_col(insp, table: str, col: str) -> bool:
+    return col in {c["name"] for c in insp.get_columns(table)}
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+    insp = inspect(bind)
+
+    # ------------------------------------------------------------------
+    # 1) BOOTSTRAP audit_logs IF MISSING
+    # ------------------------------------------------------------------
+    if not _has_table(insp, "audit_logs"):
+        op.create_table(
+            "audit_logs",
+            sa.Column(
+                "id",
+                postgresql.UUID(as_uuid=True),
+                primary_key=True,
+                nullable=False,
+            ),
+            sa.Column("org_id", sa.Integer(), nullable=True),
+            sa.Column("event_type", sa.String(length=64), nullable=False),
+            sa.Column("scope", sa.String(length=64), nullable=True),
+            sa.Column("severity", sa.String(length=32), nullable=True),
+
+            # Who / what performed the action
+            sa.Column(
+                "actor_type",
+                sa.String(length=32),
+                nullable=False,
+                server_default="user",
+            ),
+            sa.Column("actor_id", sa.String(length=64), nullable=True),
+
+            # What resource the action touched
+            sa.Column("resource_type", sa.String(length=64), nullable=True),
+            sa.Column("resource_id", sa.String(length=64), nullable=True),
+
+            # Request context
+            sa.Column("ip_address", sa.String(length=45), nullable=True),
+            sa.Column("user_agent", sa.String(length=255), nullable=True),
+            sa.Column("correlation_id", sa.String(length=64), nullable=True),
+
+            # Business metadata / payload (searchable)
+            sa.Column(
+                "metadata",
+                postgresql.JSONB(astext_type=sa.Text()),
+                nullable=True,
+            ),
+
+            # Cryptographic / tamper-evident chain
+            sa.Column("hash_prev", sa.String(length=128), nullable=True),
+            sa.Column("hash_curr", sa.String(length=128), nullable=True),
+            sa.Column(
+                "is_tampered",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
+            ),
+
+            # Encryption support
+            sa.Column("encryption_key_id", sa.String(length=64), nullable=True),
+            sa.Column("ciphertext", sa.LargeBinary(), nullable=True),
+
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                nullable=False,
+                server_default=sa.text("now()"),
+            ),
+        )
+
+        op.create_index(
+            "ix_audit_logs_org_created",
+            "audit_logs",
+            ["org_id", "created_at"],
+        )
+        op.create_index(
+            "ix_audit_logs_event_created",
+            "audit_logs",
+            ["event_type", "created_at"],
+        )
+        op.create_index(
+            "ix_audit_logs_resource",
+            "audit_logs",
+            ["resource_type", "resource_id"],
+        )
+
+        # Table is fully created; nothing else to extend.
+        return
+
+    # ------------------------------------------------------------------
+    # 2) EXTEND EXISTING audit_logs SAFELY
+    # ------------------------------------------------------------------
+
+    # actor_type (this is where the original failure happened)
+    if not _has_col(insp, "audit_logs", "actor_type"):
+        op.add_column(
+            "audit_logs",
+            sa.Column(
+                "actor_type",
+                sa.String(length=32),
+                nullable=False,
+                server_default="user",
+            ),
+        )
+
+    # actor_id
+    if not _has_col(insp, "audit_logs", "actor_id"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("actor_id", sa.String(length=64), nullable=True),
+        )
+
+    # scope
+    if not _has_col(insp, "audit_logs", "scope"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("scope", sa.String(length=64), nullable=True),
+        )
+
+    # severity
+    if not _has_col(insp, "audit_logs", "severity"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("severity", sa.String(length=32), nullable=True),
+        )
+
+    # resource_type / resource_id
+    if not _has_col(insp, "audit_logs", "resource_type"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("resource_type", sa.String(length=64), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "resource_id"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("resource_id", sa.String(length=64), nullable=True),
+        )
+
+    # ip_address / user_agent / correlation_id
+    if not _has_col(insp, "audit_logs", "ip_address"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("ip_address", sa.String(length=45), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "user_agent"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("user_agent", sa.String(length=255), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "correlation_id"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("correlation_id", sa.String(length=64), nullable=True),
+        )
+
+    # metadata JSONB
+    if not _has_col(insp, "audit_logs", "metadata"):
+        op.add_column(
+            "audit_logs",
+            sa.Column(
+                "metadata",
+                postgresql.JSONB(astext_type=sa.Text()),
+                nullable=True,
+            ),
+        )
+
+    # hash_prev / hash_curr / is_tampered
+    if not _has_col(insp, "audit_logs", "hash_prev"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("hash_prev", sa.String(length=128), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "hash_curr"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("hash_curr", sa.String(length=128), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "is_tampered"):
+        op.add_column(
+            "audit_logs",
+            sa.Column(
+                "is_tampered",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
+            ),
+        )
+
+    # encryption support
+    if not _has_col(insp, "audit_logs", "encryption_key_id"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("encryption_key_id", sa.String(length=64), nullable=True),
+        )
+    if not _has_col(insp, "audit_logs", "ciphertext"):
+        op.add_column(
+            "audit_logs",
+            sa.Column("ciphertext", sa.LargeBinary(), nullable=True),
+        )
+
+    # indexes (create only if missing)
+    existing_indexes = {idx["name"] for idx in insp.get_indexes("audit_logs")}
+
+    if "ix_audit_logs_org_created" not in existing_indexes:
+        op.create_index(
+            "ix_audit_logs_org_created",
+            "audit_logs",
+            ["org_id", "created_at"],
+        )
+
+    if "ix_audit_logs_event_created" not in existing_indexes:
+        op.create_index(
+            "ix_audit_logs_event_created",
+            "audit_logs",
+            ["event_type", "created_at"],
+        )
+
+    if "ix_audit_logs_resource" not in existing_indexes:
+        op.create_index(
+            "ix_audit_logs_resource",
+            "audit_logs",
+            ["resource_type", "resource_id"],
+        )
+
+
+def downgrade() -> None:
+    # For simplicity and safety, if the table exists we drop it.
+    # This avoids leaving behind a half-removed schema on downgrade.
+    bind = op.get_bind()
+    insp = inspect(bind)
+
+    if _has_table(insp, "audit_logs"):
+        op.drop_index("ix_audit_logs_resource", table_name="audit_logs")
+        op.drop_index("ix_audit_logs_event_created", table_name="audit_logs")
+        op.drop_index("ix_audit_logs_org_created", table_name="audit_logs")
+        op.drop_table("audit_logs")

@@ -20,9 +20,15 @@ class BotCommandRegistry(db.Model):
 
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
 
-    __table_args__ = (UniqueConstraint("org_id", "command", name="uq_bot_command"),)
+    __table_args__ = (
+        UniqueConstraint("org_id", "command", name="uq_bot_command"),
+    )
 
 
 class BotEvent(db.Model):
@@ -40,11 +46,20 @@ class BotEvent(db.Model):
     chat_id = db.Column(db.String(64), nullable=True, index=True)
     message_id = db.Column(db.String(64), nullable=True, index=True)
 
-    payload_json = db.Column(db.JSON, nullable=False, server_default=db.text("'{}'"))
-    payload_json = db.Column(db.JSON, nullable=False, server_default=db.text("'{}'::jsonb"))
+    payload_json = db.Column(
+        db.JSON,
+        nullable=False,
+        default=dict,
+        server_default=db.text("'{}'"),
+    )
     severity = db.Column(db.String(16), nullable=False, default="info", index=True)
 
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True,
+    )
 
 
 class BotJobOutbox(db.Model):
@@ -60,17 +75,26 @@ class BotJobOutbox(db.Model):
     raw_text = db.Column(db.Text, nullable=True)
     parsed_intent = db.Column(db.String(64), nullable=True, index=True)
     context_json = db.Column(
-        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'")
-        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
+        db.JSON,
+        nullable=False,
+        default=dict,
+        server_default=db.text("'{}'"),
     )
 
     status = db.Column(db.String(32), nullable=False, default="queued", index=True)
     retry_count = db.Column(db.Integer, nullable=False, default=0)
     last_error = db.Column(db.Text, nullable=True)
 
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
     updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
 
@@ -87,12 +111,17 @@ class TelegramConversationState(db.Model):
 
     state_key = db.Column(db.String(64), nullable=False, index=True)
     data_json = db.Column(
-        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'")
-        db.JSON, nullable=False, default=dict, server_default=db.text("'{}'::jsonb")
+        db.JSON,
+        nullable=False,
+        default=dict,
+        server_default=db.text("'{}'"),
     )
 
     updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     __table_args__ = (
@@ -110,7 +139,11 @@ class BotIdempotencyKey(db.Model):
     chat_id = db.Column(db.String(64), nullable=False, index=True)
     message_id = db.Column(db.String(64), nullable=False, index=True)
 
-    consumed_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    consumed_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
 
     __table_args__ = (
         UniqueConstraint("org_id", "bot_name", "chat_id", "message_id", name="uq_bot_idem"),
