@@ -27,6 +27,46 @@ This blueprint adds reliability controls for automation channels (e.g., Telegram
    - Prometheus metrics: `bot_jobs_queued`, `bot_jobs_processing`, `bot_jobs_failed`, `bot_job_latency_seconds`, `bot_command_count{command=...}`, `bot_failed_command{command=...}`.
    - Sentry traces per job (`op="bot.command"`), enriched `BotEvent` entries with `duration_ms` and success/failure markers.
 
+## Automation middleware (guard layer)
+- Wrap every automation entrypoint (bots, web/min-app actions, scheduled jobs) with a guard that enforces: RBAC policy, idempotency, per-user/org rate limits, circuit breaker checks, structured audit logging, and retry/backoff.
+- The guard sits around existing handlers—no business logic rewrite—so legacy commands gain consistent protection without breaking signatures.
+
+## Multi-channel orchestration
+- Expose the same automation actions across Telegram, email fallback, web UI buttons, and mobile mini-app flows through a central dispatcher (`AutomationService.execute(action, channel, context)`).
+- Keeps behavior consistent across channels while honoring the same permissions, approval flows, and validation rules defined in F1–F4.
+
+## Stuck job recovery and DLQ hygiene
+- Add a periodic recovery worker that scans `BotJobOutbox` for stale `queued`/`processing` jobs; requeue safe tasks or move expired ones to the DLQ with a `BotEvent` explaining the decision.
+- Publish clear DLQ ownership/SLA so human operators triage and reprocess failures instead of silent backlog growth.
+
+## Conversation engine improvements
+- Enrich `TelegramConversationState` (or equivalent) with `step`, `timeout`, and restart/cancel semantics to avoid drifting or orphaned flows.
+- Guard each step with validation hooks and provide resumable paths so users can recover from errors without rerunning the entire flow.
+
+## Automation policies by module
+- Centralize rules in `automation_policies.yaml` (or config) for Orders, Inventory, Finance, CRM, Reports, Maintenance, and Banking.
+- Examples: require reason codes for adjustments, enforce dual verification for payments, cap concurrent report jobs per user, and auto-release stale reservations.
+
+## Validation order before execution
+1. RBAC/permission check.
+2. Policy evaluation (org/business rules).
+3. Context validation (existence and state of orders/clients/stock).
+4. Consistency guards (e.g., inventory invariants from F1/F2).
+5. Predictive guardrails (e.g., pending action would deplete stock inside 48 hours).
+6. User confirmation for high-risk actions.
+
+## Bot observability & SLOs
+- Add `/metrics/bot` (or extend existing metrics) to expose throughput, retry counts, stuck jobs, per-command latency/error rates, and conversation timeouts for Prometheus dashboards.
+- Define bot SLOs aligned with F18 (e.g., <2s response for simple queries, <10s for critical actions, <0.5% automation failure) and tie error budgets to feature-flag rollbacks if exceeded.
+
+## Bot separation and parallelism
+- Classify commands in `BotCommandRegistry` by bot type and module (e.g., admin, reporting, ops, sales) to scope permissions and limit blast radius.
+- Run parallel workers/queues per bot class where needed, leveraging F17’s priority queues to keep critical automations ahead of background chatter.
+
+## Autonomous fallbacks
+- For failures, provide deterministic fallbacks: explain RBAC denials, request missing context, offer repair flows (e.g., generate missing invoice), use alternate channels (email/UI) when Telegram or external APIs fail, and surface Sentry IDs for support.
+- Keep human-in-the-loop for high-risk or ambiguous cases to avoid silent data corruption.
+
 ## Governance and safety checks
 - Enforce RBAC from F4 in the dispatcher; require permissions for each command.
 - Validate inputs before dispatch; reject malformed or untrusted payloads.
