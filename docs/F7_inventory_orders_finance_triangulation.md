@@ -1,7 +1,13 @@
 # F7 — Inventory / Orders / Finance Triangulation & Leakage Prevention
 
 ## Purpose
-Add a non-disruptive control layer that continuously cross-checks Inventory, Orders, and Finance so they cannot drift apart without detection. This blueprint is fully additive to Tasks 1–21 and F1–F6: it wraps existing flows, avoids schema rewrites, and keeps RBAC/CSRF/CI/CD, queue priorities, and circuit breakers intact.
+Add a **non-disruptive control layer** that continuously cross-checks Inventory, Orders, and Finance so they cannot drift apart without detection. This blueprint is fully additive to Tasks 1–21 and F1–F6: it wraps existing flows, avoids schema rewrites, and keeps RBAC/CSRF/CI/CD, queue priorities, and circuit breakers intact. The intent is to bring operational confidence from “we think numbers line up” to “we can prove they line up” without slowing users down.
+
+## Design principles
+* **Read-only first, no hidden mutations** — validation and reporting jobs do not alter transactional data; fixes are always human-approved.
+* **Org-scoped by default** — every query uses org_id filters to avoid cross-tenant leakage.
+* **Industry-standard UX** — dashboards show severity badges, filters, drill-downs, and aging to keep operators productive and aligned with modern UI/UX expectations.
+* **Secure by construction** — inherits the centralized policy engine, audit logging, and period-close rules; never posts into closed periods.
 
 ## Core capabilities
 1. **Triangulation engine (hourly/daily background job)**
@@ -20,8 +26,8 @@ Add a non-disruptive control layer that continuously cross-checks Inventory, Ord
    * Stores reconciliation proposals (e.g., link movements to delivery notes, map invoices to POs) in a dedicated suggestions record for review/approval; never auto-applies fixes.
 6. **Timeline verification and fraud/backdating alerts**
    * Checks chronological consistency of created/approved/posted timestamps and raises alerts for backdating or edits after close.
-7. **Alerts and dashboards (UI/UX-ready)**
-   * Telegram commands (e.g., `/triangulation_today`, `/inventory_leaks`) plus a web dashboard that groups issues by severity and shows aging; aligns with industry-standard UX (clear severity badges, filters, and drill-downs).
+7. **Alerts and dashboards (multi-channel)**
+   * Telegram commands (e.g., `/triangulation_today`, `/inventory_leaks`) plus a web dashboard that groups issues by severity and shows aging; provides download/export paths for auditors.
 8. **Predictive early-warning signals**
    * Highlights abnormal adjustment rates, after-hours activity, margin anomalies, payment delays, or warehouse-specific spikes as leading indicators of leakage or fraud.
 
@@ -33,7 +39,7 @@ Add a non-disruptive control layer that continuously cross-checks Inventory, Ord
 * **Security & observability**: emits metrics for mismatch counts, aging, and suggestion backlog; routes anomalies to Prometheus/Sentry without logging sensitive payloads.
 
 ## Rollout steps (safe and incremental)
-1. Implement read-only triangulation jobs and leakage analytics; surface results via reports/Telegram/dashboard.
+1. Implement read-only triangulation jobs and leakage analytics; surface results via reports/Telegram/dashboard with clear UI cues.
 2. Add suggestion capture for mismatches with approval routing; no auto-fix.
 3. Tie alerts into existing incident runbooks; define SLOs for mismatch resolution (e.g., 95% critical issues triaged <24h).
 4. Gradually expand rule coverage (lots/serials/expiry, multi-bin) based on answers to warehouse/stock detail questions.
