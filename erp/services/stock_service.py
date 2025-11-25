@@ -51,10 +51,6 @@ from decimal import Decimal
 from typing import Optional, Tuple
 
 from sqlalchemy import select
-from datetime import datetime, timezone
-
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from erp.extensions import db
@@ -75,9 +71,6 @@ class StockMovementResult:
     balance: StockBalance
     ledger: StockLedgerEntry
 
-@dataclass
-class StockDelta:
-    """Intent to change stock for a specific org/warehouse/item(+lot/serial).
 
 def _to_decimal(value) -> Decimal:
     if isinstance(value, Decimal):
@@ -87,15 +80,6 @@ def _to_decimal(value) -> Decimal:
 
 def _lock_or_create_balance(
     session: Session,
-    Two numbers drive everything:
-
-    * delta_on_hand   – physical stock change (+ inbound, - outbound, 0 no change)
-    * delta_reserved  – reservation change (+ reserve, - unreserve, 0 no change)
-
-    Derived:
-
-    * qty_available is always recomputed as on_hand - reserved.
-def adjust_stock(
     *,
     org_id: int,
     item_id,
@@ -109,100 +93,6 @@ def adjust_stock(
             StockBalance.org_id == org_id,
             StockBalance.item_id == item_id,
             StockBalance.warehouse_id == warehouse_id,
-    qty_delta: Decimal,
-    location_id=None,
-    lot_id=None,
-    serial_id=None,
-    tx_type: str,
-    reference_type: str | None = None,
-    reference_id=None,
-    idempotency_key: str | None = None,
-    unit_cost: Decimal | None = None,
-    created_by_id: int | None = None,
-    allow_negative: bool = False,
-) -> StockLedgerEntry:
-    """Apply a stock movement with row locks and ledger recording.
-
-    - Guarded by idempotency_key when provided
-    - Uses SELECT ... FOR UPDATE on StockBalance to prevent races
-    - Blocks negative inventory unless explicitly handled by the caller
-    """
-
-    org_id: int
-    warehouse_id: int
-    item_id: int
-
-    # Optional granularity
-    location_id: Optional[int] = None
-    lot_id: Optional[int] = None
-    serial_id: Optional[int] = None
-
-    # Quantities
-    uom_name: str = "unit"
-    delta_on_hand: float = 0.0
-    delta_reserved: float = 0.0
-
-    # Classification / provenance
-    movement_type: str = "adjustment"  # inbound | outbound | reserve | unreserve | correction | adjustment
-    document_type: Optional[str] = None
-    document_id: Optional[str] = None
-    reason: Optional[str] = None
-    source: Optional[str] = None  # e.g. "orders", "returns", "manual_adjustment"
-
-    # Actor / audit
-    actor_id: Optional[int] = None
-    note: Optional[str] = None
-
-    def classify_movement_type(self) -> str:
-        """If caller didn't set movement_type explicitly, infer a sane label."""
-        if self.movement_type and self.movement_type != "adjustment":
-            return self.movement_type
-
-        if self.delta_on_hand > 0 and self.delta_reserved == 0:
-            return "inbound"
-        if self.delta_on_hand < 0 and self.delta_reserved == 0:
-            return "outbound"
-        if self.delta_on_hand == 0 and self.delta_reserved > 0:
-            return "reserve"
-        if self.delta_on_hand == 0 and self.delta_reserved < 0:
-            return "unreserve"
-
-        # Mixed or unusual case – keep as generic adjustment
-        return "adjustment"
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _lock_or_create_balance(session: Session, delta: StockDelta) -> StockBalance:
-    """Get the StockBalance row for this key, locking it for update.
-
-    If it does not exist yet, create a zeroed row.
-
-    This function must always be called inside a transaction.
-    """
-    stmt = (
-        select(StockBalance)
-        .where(
-            StockBalance.org_id == delta.org_id,
-            StockBalance.warehouse_id == delta.warehouse_id,
-            StockBalance.item_id == delta.item_id,
-            StockBalance.location_id.is_(delta.location_id)
-            if delta.location_id is None
-            else StockBalance.location_id == delta.location_id,
-            StockBalance.lot_id.is_(delta.lot_id)
-            if delta.lot_id is None
-            else StockBalance.lot_id == delta.lot_id,
-            StockBalance.serial_id.is_(delta.serial_id)
-            if delta.serial_id is None
-            else StockBalance.serial_id == delta.serial_id,
-            StockBalance.uom_name == delta.uom_name,
         )
         .with_for_update()
     )
@@ -381,49 +271,6 @@ def outbound(
     """Convenience helper for outbound movements (picking, shipping, write-offs)."""
     if qty <= 0:
         raise ValueError("Outbound qty must be positive")
-
-    delta = StockDelta(
-        org_id=org_id,
-        warehouse_id=warehouse_id,
-        item_id=item_id,
-        location_id=location_id,
-        lot_id=lot_id,
-        serial_id=serial_id,
-        uom_name=uom_name,
-        delta_on_hand=-qty,
-        delta_reserved=0.0,
-        movement_type="outbound",
-        document_type=document_type,
-        document_id=document_id,
-        actor_id=actor_id,
-        reason=reason,
-        source=source,
-        note=note,
-    )
-    return apply_stock_delta(delta, commit=commit)
-
-
-def reserve(
-    *,
-    org_id: int,
-    warehouse_id: int,
-    item_id: int,
-    qty: float,
-    uom_name: str = "unit",
-    location_id: Optional[int] = None,
-    lot_id: Optional[int] = None,
-    serial_id: Optional[int] = None,
-    document_type: Optional[str] = None,
-    document_id: Optional[str] = None,
-    actor_id: Optional[int] = None,
-    reason: Optional[str] = None,
-    source: Optional[str] = None,
-    note: Optional[str] = None,
-    commit: bool = False,
-) -> Tuple[StockBalance, StockLedgerEntry]:
-    """Reserve stock (e.g. against a sales order)."""
-    if qty <= 0:
-        raise ValueError("Reserve qty must be positive")
 
     delta = StockDelta(
         org_id=org_id,
