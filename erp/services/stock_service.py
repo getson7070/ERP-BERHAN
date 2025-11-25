@@ -35,6 +35,7 @@ def adjust_stock(
     idempotency_key: str | None = None,
     unit_cost: Decimal | None = None,
     created_by_id: int | None = None,
+    allow_negative: bool = False,
 ) -> StockLedgerEntry:
     """Apply a stock movement with row locks and ledger recording.
 
@@ -73,7 +74,7 @@ def adjust_stock(
         db.session.flush()
 
     new_qty = Decimal(bal.qty_on_hand or 0) + Decimal(qty_delta)
-    if new_qty < 0:
+    if new_qty < 0 and not allow_negative:
         raise ValueError("Negative stock not allowed")
 
     bal.qty_on_hand = new_qty
@@ -96,3 +97,44 @@ def adjust_stock(
     )
     db.session.add(ledger)
     return ledger
+
+
+def create_stock_movement(
+    *,
+    org_id: int,
+    item_id,
+    warehouse_id,
+    delta_qty: Decimal,
+    tx_type: str,
+    reference_type: str | None = None,
+    reference_id=None,
+    allow_negative: bool = False,
+    location_id=None,
+    lot_id=None,
+    serial_id=None,
+    idempotency_key: str | None = None,
+    unit_cost: Decimal | None = None,
+    created_by_id: int | None = None,
+) -> StockLedgerEntry:
+    """Compatibility wrapper around ``adjust_stock`` for stock movements.
+
+    Exposes a friendlier ``delta_qty`` parameter and a clear ``allow_negative``
+    flag to make call sites explicit when bypassing negative-stock guards.
+    """
+
+    return adjust_stock(
+        org_id=org_id,
+        item_id=item_id,
+        warehouse_id=warehouse_id,
+        qty_delta=Decimal(delta_qty),
+        location_id=location_id,
+        lot_id=lot_id,
+        serial_id=serial_id,
+        tx_type=tx_type,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        idempotency_key=idempotency_key,
+        unit_cost=unit_cost,
+        created_by_id=created_by_id,
+        allow_negative=allow_negative,
+    )
