@@ -76,6 +76,28 @@ class StockDelta:
     Derived:
 
     * qty_available is always recomputed as on_hand - reserved.
+def adjust_stock(
+    *,
+    org_id: int,
+    item_id,
+    warehouse_id,
+    qty_delta: Decimal,
+    location_id=None,
+    lot_id=None,
+    serial_id=None,
+    tx_type: str,
+    reference_type: str | None = None,
+    reference_id=None,
+    idempotency_key: str | None = None,
+    unit_cost: Decimal | None = None,
+    created_by_id: int | None = None,
+    allow_negative: bool = False,
+) -> StockLedgerEntry:
+    """Apply a stock movement with row locks and ledger recording.
+
+    - Guarded by idempotency_key when provided
+    - Uses SELECT ... FOR UPDATE on StockBalance to prevent races
+    - Blocks negative inventory unless explicitly handled by the caller
     """
 
     org_id: int
@@ -469,3 +491,46 @@ def unreserve(
         note=note,
     )
     return apply_stock_delta(delta, commit=commit)
+    db.session.add(ledger)
+    return ledger
+
+
+def create_stock_movement(
+    *,
+    org_id: int,
+    item_id,
+    warehouse_id,
+    delta_qty: Decimal,
+    tx_type: str,
+    reference_type: str | None = None,
+    reference_id=None,
+    allow_negative: bool = False,
+    location_id=None,
+    lot_id=None,
+    serial_id=None,
+    idempotency_key: str | None = None,
+    unit_cost: Decimal | None = None,
+    created_by_id: int | None = None,
+) -> StockLedgerEntry:
+    """Compatibility wrapper around ``adjust_stock`` for stock movements.
+
+    Exposes a friendlier ``delta_qty`` parameter and a clear ``allow_negative``
+    flag to make call sites explicit when bypassing negative-stock guards.
+    """
+
+    return adjust_stock(
+        org_id=org_id,
+        item_id=item_id,
+        warehouse_id=warehouse_id,
+        qty_delta=Decimal(delta_qty),
+        location_id=location_id,
+        lot_id=lot_id,
+        serial_id=serial_id,
+        tx_type=tx_type,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        idempotency_key=idempotency_key,
+        unit_cost=unit_cost,
+        created_by_id=created_by_id,
+        allow_negative=allow_negative,
+    )
