@@ -79,6 +79,11 @@ def _to_decimal(value) -> Decimal:
         return value
     return Decimal(str(value))
 
+def _to_decimal(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
 
 def _lock_or_create_balance(
     session: Session,
@@ -110,6 +115,40 @@ def _lock_or_create_balance(
         )
         session.add(balance)
         session.flush()
+
+    return balance
+
+
+def _apply_movement(
+    session: Session,
+    *,
+    org_id: int,
+    item_id,
+    warehouse_id,
+    delta_qty: Decimal,
+    tx_type: str,
+    reference_type: Optional[str] = None,
+    reference_id: Optional[str] = None,
+    allow_negative: bool = False,
+) -> StockMovementResult:
+    """Apply a single stock movement inside an active transaction."""
+
+    balance = _lock_or_create_balance(
+        session,
+        org_id=org_id,
+        item_id=item_id,
+        warehouse_id=warehouse_id,
+    )
+
+    current_qty = _to_decimal(balance.qty_on_hand or 0)
+    new_qty = current_qty + _to_decimal(delta_qty)
+
+    if new_qty < 0 and not allow_negative:
+        raise ValueError(
+            "Stock underflow: movement would drive qty_on_hand negative"
+        )
+
+    balance.qty_on_hand = new_qty
 
     return balance
 
