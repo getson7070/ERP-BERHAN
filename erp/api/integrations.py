@@ -1,4 +1,9 @@
-"""Module: api/integrations.py â€” audit-added docstring. Refine with precise purpose when convenient."""
+"""DEV/PHASE1 ONLY – NOT FOR PRODUCTION WSGI.
+
+This minimal integrations stub supports early smoke testing. Production should
+use the full app factory (``erp.app:app``) rather than this lightweight
+blueprint set.
+"""
 from __future__ import annotations
 
 from typing import Tuple
