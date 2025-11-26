@@ -16,7 +16,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from erp.extensions import db
-from erp.inventory.models import StockBalance, StockLedgerEntry
+from erp.inventory.models import (
+    Warehouse,
+    Item,
+    Lot,
+    SerialNumber,
+    StockBalance,
+    StockLedgerEntry,
+)
 
 
 @dataclass
@@ -26,6 +33,10 @@ class StockMovementResult:
     balance: StockBalance
     ledger: StockLedgerEntry
 
+def _to_decimal(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
 
 def _to_decimal(value) -> Decimal:
     if isinstance(value, Decimal):
@@ -98,7 +109,8 @@ def _apply_movement(
 
     balance.qty_on_hand = new_qty
 
-    ledger = StockLedgerEntry(
+    balance = _lock_or_create_balance(
+        session,
         org_id=org_id,
         item_id=item_id,
         warehouse_id=warehouse_id,
