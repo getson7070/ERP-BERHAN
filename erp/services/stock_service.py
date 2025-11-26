@@ -71,14 +71,6 @@ class StockMovementResult:
     balance: StockBalance
     ledger: StockLedgerEntry
 
-    balance: StockBalance
-    ledger: StockLedgerEntry
-
-def _to_decimal(value) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
 def _to_decimal(value) -> Decimal:
     if isinstance(value, Decimal):
         return value
@@ -403,6 +395,37 @@ def _apply_movement(
 
     balance.qty_on_hand = new_qty
 
+def _apply_movement(
+    session: Session,
+    *,
+    org_id: int,
+    item_id,
+    warehouse_id,
+    delta_qty: Decimal,
+    tx_type: str,
+    reference_type: Optional[str] = None,
+    reference_id: Optional[str] = None,
+    allow_negative: bool = False,
+) -> StockMovementResult:
+    """Apply a single stock movement inside an active transaction."""
+
+    balance = _lock_or_create_balance(
+        session,
+        org_id=org_id,
+        item_id=item_id,
+        warehouse_id=warehouse_id,
+    )
+
+    current_qty = _to_decimal(balance.qty_on_hand or 0)
+    new_qty = current_qty + _to_decimal(delta_qty)
+
+    if new_qty < 0 and not allow_negative:
+        raise ValueError(
+            "Stock underflow: movement would drive qty_on_hand negative"
+        )
+
+    balance.qty_on_hand = new_qty
+
     return balance
 
 
@@ -455,150 +478,6 @@ def _apply_movement(
         session,
         org_id=org_id,
         item_id=item_id,
-        warehouse_id=warehouse_id,
-    )
-
-    current_qty = _to_decimal(balance.qty_on_hand or 0)
-    new_qty = current_qty + _to_decimal(delta_qty)
-
-    if new_qty < 0 and not allow_negative:
-        raise ValueError(
-            "Stock underflow: movement would drive qty_on_hand negative"
-        )
-
-    balance.qty_on_hand = new_qty
-
-    ledger = StockLedgerEntry(
-        org_id=delta.org_id,
-        warehouse_id=delta.warehouse_id,
-        item_id=delta.item_id,
-        location_id=delta.location_id,
-        lot_id=delta.lot_id,
-        serial_id=delta.serial_id,
-        uom_name=delta.uom_name,
-        movement_type=movement_type,
-        document_type=delta.document_type,
-        document_id=delta.document_id,
-        reason=delta.reason,
-        source=delta.source,
-        actor_id=delta.actor_id,
-        note=delta.note,
-        delta_qty=float(delta.delta_on_hand or 0),
-        reserved_delta=float(delta.delta_reserved or 0),
-        on_hand_after=new_on_hand,
-        reserved_after=new_reserved,
-        available_after=new_available,
-        occurred_at=now,
-    )
-
-    session.add(ledger)
-    session.flush()  # ensure ledger gets an ID before we return
-
-    return balance, ledger
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
-def apply_stock_delta(delta: StockDelta, *, commit: bool = False) -> Tuple[StockBalance, StockLedgerEntry]:
-    """Apply a stock change atomically and return (balance, ledger).
-
-    * Uses SELECT ... FOR UPDATE to serialize concurrent adjustments.
-    * Raises ValueError if invariants would be violated (negative stock, over-reservation).
-    * Does NOT swallow IntegrityError — the caller should handle if needed.
-
-    Args:
-        delta: StockDelta request.
-        commit: If True, commit the surrounding db.session when done.
-                For most web flows, leave this False and let the caller manage
-                the transaction boundary.
-
-    Returns:
-        (StockBalance, StockLedgerEntry)
-    """
-    session = db.session
-
-    try:
-        # nested transaction plays nicely whether or not a transaction is already open
-        with session.begin_nested():
-            balance, ledger = _apply_stock_delta_computed(session, delta)
-    except IntegrityError:
-        # we don't guess how to recover; bubble this up for the caller/logging
-        session.rollback()
-        raise
-
-    if commit:
-        session.commit()
-
-    return balance, ledger
-
-
-def inbound(
-    *,
-    org_id: int,
-    warehouse_id: int,
-    item_id: int,
-    qty: float,
-    uom_name: str = "unit",
-    location_id: Optional[int] = None,
-    lot_id: Optional[int] = None,
-    serial_id: Optional[int] = None,
-    document_type: Optional[str] = None,
-    document_id: Optional[str] = None,
-    actor_id: Optional[int] = None,
-    reason: Optional[str] = None,
-    source: Optional[str] = None,
-    note: Optional[str] = None,
-    commit: bool = False,
-) -> Tuple[StockBalance, StockLedgerEntry]:
-    """Convenience helper for inbound movements (receipts, returns to stock, etc.)."""
-    delta = StockDelta(
-        org_id=org_id,
-        warehouse_id=warehouse_id,
-        item_id=item_id,
-        location_id=location_id,
-        lot_id=lot_id,
-        serial_id=serial_id,
-        uom_name=uom_name,
-        delta_on_hand=qty,
-        delta_reserved=0.0,
-        movement_type="inbound",
-        document_type=document_type,
-        document_id=document_id,
-        actor_id=actor_id,
-        reason=reason,
-        source=source,
-        note=note,
-    )
-    return apply_stock_delta(delta, commit=commit)
-
-
-def outbound(
-    *,
-    org_id: int,
-    warehouse_id: int,
-    item_id: int,
-    qty: float,
-    uom_name: str = "unit",
-    location_id: Optional[int] = None,
-    lot_id: Optional[int] = None,
-    serial_id: Optional[int] = None,
-    document_type: Optional[str] = None,
-    document_id: Optional[str] = None,
-    actor_id: Optional[int] = None,
-    reason: Optional[str] = None,
-    source: Optional[str] = None,
-    note: Optional[str] = None,
-    commit: bool = False,
-) -> Tuple[StockBalance, StockLedgerEntry]:
-    """Convenience helper for outbound movements (picking, shipping, write-offs)."""
-    if qty <= 0:
-        raise ValueError("Outbound qty must be positive")
-
-    delta = StockDelta(
-        org_id=org_id,
         warehouse_id=warehouse_id,
         qty=_to_decimal(delta_qty),
         tx_type=tx_type,
