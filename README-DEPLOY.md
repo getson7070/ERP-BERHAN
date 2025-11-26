@@ -6,8 +6,10 @@
 - **Prod**: freeze explicit blueprint list, set `ERP_AUTO_REGISTER=0`.  
 - **Migrations**: run autogenerate until clean; single Alembic head enforced in CI.  
 - **Per-blueprint limits**: set JSON mapping via `ERP_BP_LIMITS` (e.g., `{"auth":"10/minute;100/day"}`).  
-- **Security**: CSRF enabled, cookies hardened, optional CSP/HSTS if Talisman installed.  
+- **Security**: CSRF enabled, cookies hardened, optional CSP/HSTS if Talisman installed.
 - **Hygiene**: `.dockerignore` excludes `.venv*`, `__pycache__`, backups.
+- **WSGI entrypoint**: run gunicorn/uwsgi against `erp.app:app` (or `wsgi:application`).
+  `erp/wsgi_phase1.py` and `erp/api/integrations.py` are dev/phase1 scaffolding only.
 
 ## Quick Start
 ```powershell
