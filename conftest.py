@@ -56,16 +56,22 @@ if not LIGHTWEIGHT_TEST_MODE:
 
     @pytest.fixture()
     def db_session(app):
-        """Provide a scoped session wrapped in a transaction per test."""
+        """Yield an isolated session per test with predictable rollbacks.
+
+        Each test gets its own database connection and outer transaction; any
+        commits inside the test are rolled back at teardown to keep state clean
+        across the suite while still allowing SQLAlchemy to flush normally.
+        """
 
         with app.app_context():
             connection = db.engine.connect()
             transaction = connection.begin()
+
             Session = scoped_session(sessionmaker(bind=connection))
             db.session = Session
+
             try:
                 yield Session
-                Session.commit()
             finally:
                 Session.remove()
                 transaction.rollback()

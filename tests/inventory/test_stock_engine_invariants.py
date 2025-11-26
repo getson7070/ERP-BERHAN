@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 from erp.inventory.models import StockBalance, StockLedgerEntry
-from erp.models.org import Organization
+from erp.models import Organization
 from erp.services import stock_service
 
 
@@ -87,6 +87,17 @@ def test_stock_out_prevents_negative_by_default(db_session, resolve_org_id):
     db_session.add(bal)
     db_session.commit()
 
+    db_session.add(
+        StockLedgerEntry(
+            org_id=org_id,
+            item_id=item_id,
+            warehouse_id=warehouse_id,
+            qty=Decimal("5"),
+            tx_type="seed",
+        )
+    )
+    db_session.commit()
+
     with pytest.raises(ValueError):
         stock_service.create_stock_movement(
             org_id=org_id,
@@ -103,7 +114,7 @@ def test_stock_out_prevents_negative_by_default(db_session, resolve_org_id):
     assert Decimal(fresh.qty_on_hand) == Decimal("5")
 
     entries = StockLedgerEntry.query.filter_by(org_id=org_id, item_id=item_id, warehouse_id=warehouse_id).all()
-    assert len(entries) == 0
+    assert len(entries) == 1
 
 
 def test_stock_out_can_be_forced_with_allow_negative(db_session, resolve_org_id):
@@ -122,6 +133,17 @@ def test_stock_out_can_be_forced_with_allow_negative(db_session, resolve_org_id)
         qty_on_hand=Decimal("5"),
     )
     db_session.add(bal)
+    db_session.commit()
+
+    db_session.add(
+        StockLedgerEntry(
+            org_id=org_id,
+            item_id=item_id,
+            warehouse_id=warehouse_id,
+            qty=Decimal("5"),
+            tx_type="seed",
+        )
+    )
     db_session.commit()
 
     stock_service.create_stock_movement(
@@ -145,8 +167,8 @@ def test_stock_out_can_be_forced_with_allow_negative(db_session, resolve_org_id)
         .order_by(StockLedgerEntry.posting_time.asc())
         .all()
     )
-    assert len(entries) == 1
-    assert Decimal(entries[0].qty) == Decimal("-10")
+    assert len(entries) == 2
+    assert Decimal(entries[-1].qty) == Decimal("-10")
 
     total_delta = sum(Decimal(e.qty) for e in entries)
     assert total_delta == Decimal(fresh.qty_on_hand)
@@ -161,8 +183,8 @@ def test_inventory_queries_must_be_org_scoped(db_session):
     - It makes multi-tenant leaks much less likely at the application layer.
     """
 
-    org_a = Organization(name="Org A", slug="org-a")
-    org_b = Organization(name="Org B", slug="org-b")
+    org_a = Organization(name="Org A")
+    org_b = Organization(name="Org B")
     db_session.add_all([org_a, org_b])
     db_session.commit()
 

@@ -149,8 +149,6 @@ def test_decrement_blocks_negative_stock(db_session, org_id, base_inventory_obje
             ref_id=3,
         )
 
-    db.session.rollback()
-
     bal_after = _get_balance(org_id, item.id, warehouse.id)
     assert float(bal_after.qty_on_hand) == pytest.approx(1.0)
 

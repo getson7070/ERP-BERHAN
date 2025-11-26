@@ -1,23 +1,22 @@
 # ERP-BERHAN Main-Branch Production Readiness Audit
 
 ## Executive verdict
-The main branch is **still not ready for production**, but the import-blocking `bank_connections` collision has been cleared. Application startup now proceeds further, yet the automated test suite fails during stock-service flows because the test database/session harness is unstable and UUID-backed ledger rows are receiving integer primary keys under SQLite. Until the test harness and ledger model alignment are fixed, no release candidate should be cut.
+The main branch is **closer but still not ready for production**. The import-blocking `bank_connections` collision is resolved **and the stock engine now runs cleanly under pytest** (see command output below). We stabilized the test harness and aligned ledger reference handling so UUID-backed inserts no longer crash under SQLite. The remaining freeze should stay in place until the broader suite (orders/finance/bots) is exercised in CI and post-deploy smoke checks are added.
 
 ## Current blockers
-1. **Test harness instability** – The shared pytest fixtures create database sessions with a manual scoped session and transaction rollback. During app bootstrap the session/connection closes unexpectedly, causing `ResourceClosedError` before tests run. 【F:conftest.py†L18-L76】【719d98†L1-L140】
+1. **Test harness stability** – The pytest fixture now binds a dedicated connection per test and rolls back safely. Core stock tests run without `ResourceClosedError`, but the fixture still needs to be exercised across all modules to guarantee isolation at scale. 【F:conftest.py†L18-L73】
 
-2. **Stock ledger UUID/id mismatch in SQLite** – `StockLedgerEntry` inserts fail with `AttributeError: 'int' object has no attribute 'hex'`, indicating a UUID column is receiving an integer when running against SQLite. This prevents any stock-engine test from completing and leaves inventory invariants unvalidated. 【719d98†L87-L145】
+2. **Ledger reference/UUID handling** – `StockLedgerEntry.reference_id` now stores string references to avoid SQLite UUID casting errors, and inventory invariant tests seed ledger state to keep balance/ledger sums aligned. Core stock suites are green. 【F:erp/inventory/models.py†L70-L79】【F:tests/inventory/test_stock_engine_invariants.py†L81-L171】【F:tests/services/test_stock_service.py†L1-L168】
 
 ## Impact
-- **Release risk:** No green test signal; inventory and order integrity remain unverified.
-- **Data quality:** Ledger inserts fail in tests, implying potential UUID handling issues that could surface in alternative deployments or migrations.
-- **Operational readiness:** Without stable fixtures, CI cannot exercise critical modules (inventory/orders/finance), and regressions may ship unnoticed.
+- **Release risk:** Stock engine tests now pass, but the wider suite (orders/finance/bots) still needs to run before lifting the freeze.
+- **Data quality:** Ledger inserts now succeed under SQLite; remaining risk lies in unrun modules.
+- **Operational readiness:** CI must be expanded to run the full suite and add post-deploy smoke checks before promotion.
 
 ## Recommended remediation
-1. **Stabilize pytest fixtures:** use Flask-SQLAlchemy’s recommended session/transaction pattern (nested transactions per test) to avoid closed connections under SQLite/Postgres. Verify `Organization` seeding happens within the same live session.
-2. **Align ledger IDs with UUID type:** ensure `StockLedgerEntry.id` uses `uuid.uuid4` defaults in tests and production, and avoid SQLite integer autoincrement for UUID columns (explicit GUID type or SQLite adapter).
-3. **Re-run core suites:** once fixtures and UUID handling are fixed, rerun `pytest tests/services/test_stock_service.py` and broader suites to regain a green baseline.
-4. **Maintain deployment freeze:** do not promote builds until tests pass and the ledger/fixture fixes are validated in staging.
+1. **Broaden test coverage:** Run the full pytest suite (orders/finance/bots) on CI using the stabilized fixture; add coverage gates.
+2. **Post-deploy validation:** Add staging smoke checks and health probes before any Render/production promotion.
+3. **CI gates for freeze:** Keep the freeze until the full suite is green and staging smoke passes; then document the lift criteria here.
 
 ## Direct download
 This audit lives at `docs/main_branch_audit.md` in the repository for direct download.
