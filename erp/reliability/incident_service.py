@@ -25,8 +25,6 @@ def _current_org_id(fallback: int | None = 0) -> int:
         except Exception:
             return fallback or 0
     return fallback or 0
-            return fallback
-    return fallback
 
 
 def open_incident(org_id: int | None, service: str, detail: dict[str, Any] | None = None) -> Incident:

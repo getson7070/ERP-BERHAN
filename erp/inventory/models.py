@@ -140,7 +140,10 @@ class StockLedgerEntry(db.Model):
     voucher_type = db.Column(db.String(32))
     voucher_id = db.Column(UUID(as_uuid=True))
     reference_type = db.Column(db.String(64), nullable=True)
-    reference_id = db.Column(UUID(as_uuid=True), nullable=True)
+    # Reference identifiers can originate from non-UUID sources (e.g., integer
+    # test refs or external string IDs), so we store them as strings to avoid
+    # sqlite UUID casting errors during unit tests.
+    reference_id = db.Column(db.String(128), nullable=True)
     idempotency_key = db.Column(db.String(128), nullable=True, index=True)
     created_by_id = db.Column(db.Integer, nullable=True)
 
