@@ -1,4 +1,9 @@
-"""Module: wsgi_phase1.py — audit-added docstring. Refine with precise purpose when convenient."""
+"""DEV/PHASE1 ONLY – NOT FOR PRODUCTION WSGI.
+
+This minimal entrypoint exists to keep early integration smoke tests isolated
+from the full production app factory. Production deployments must target
+``erp.app:app`` (or ``wsgi:application``) instead.
+"""
 from __future__ import annotations
 import os
 from flask import Flask
@@ -19,4 +24,5 @@ def build_app() -> Flask:
     return app
 
 app = build_app()
+
 

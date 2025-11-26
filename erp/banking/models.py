@@ -1,7 +1,7 @@
 """Banking models – fully fixed for double-import issue and syntax errors."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -60,6 +60,7 @@ class BankConnection(db.Model):
     """API connection config for a specific bank (or aggregator)."""
 
     __tablename__ = "bank_connections"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
@@ -78,17 +79,12 @@ class BankConnection(db.Model):
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
     created_by_id: Mapped[int | None] = mapped_column(db.Integer)
 
-    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
-    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
-
-    created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, server_default=func.now())
-    created_by_id: Mapped[int | None] = mapped_column(db.Integer)
-
 
 class BankAccessToken(db.Model):
     """Access/refresh tokens for bank APIs (store encrypted in production)."""
 
     __tablename__ = "bank_access_tokens"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
@@ -112,6 +108,7 @@ class BankTwoFactorChallenge(db.Model):
     """Represents a pending or completed 2FA challenge for a bank connection."""
 
     __tablename__ = "bank_two_factor_challenges"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)
@@ -133,6 +130,7 @@ class BankSyncJob(db.Model):
     """Tracks each statement sync run (manual or scheduled)."""
 
     __tablename__ = "bank_sync_jobs"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(db.Integer, nullable=False, index=True)

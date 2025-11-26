@@ -2,6 +2,7 @@ import importlib.util
 import os
 
 import pytest
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 LIGHTWEIGHT_TEST_MODE = os.getenv("LIGHTWEIGHT_TEST_MODE") == "1"
 
@@ -51,6 +52,44 @@ if not LIGHTWEIGHT_TEST_MODE:
     def client(app):
         with app.test_client(use_cookies=True) as client:
             yield client
+
+
+    @pytest.fixture()
+    def db_session(app):
+        """Yield an isolated session per test with predictable rollbacks.
+
+        Each test gets its own database connection and outer transaction; any
+        commits inside the test are rolled back at teardown to keep state clean
+        across the suite while still allowing SQLAlchemy to flush normally.
+        """
+
+        with app.app_context():
+            connection = db.engine.connect()
+            transaction = connection.begin()
+
+            Session = scoped_session(sessionmaker(bind=connection))
+            db.session = Session
+
+            try:
+                yield Session
+            finally:
+                Session.remove()
+                transaction.rollback()
+                connection.close()
+
+
+    @pytest.fixture()
+    def org_id(app):
+        """Default test organisation identifier."""
+
+        return 1
+
+
+    @pytest.fixture()
+    def resolve_org_id(org_id):
+        """Return a resolver callable matching app code expectations."""
+
+        return lambda: org_id
 else:
 
     @pytest.fixture(scope="session")

@@ -106,6 +106,8 @@ generated/
 *.csv
 *.xlsx
 !docs/access_recert_sample.csv
+# Local logs should never be committed; keep the folder local-only
+logs/
 
 # UI preview build artifacts
 ui-preview/node_modules/
