@@ -86,10 +86,22 @@ def _file_heads() -> list[str]:
 
 
 def _detect_heads(env: dict[str, str]) -> tuple[list[str], str]:
+    """Return alembic heads as reported by ``alembic heads``.
+
+    The previous implementation failed to parse the output because ``alembic
+    heads`` prefixes each revision line with ``Rev:`` (for example,
+    ``Rev: abcd1234 (head)``). We normalise the pattern to capture both the
+    ``Rev:`` prefix and any optional leading whitespace.
+    """
+
     proc = _run(["alembic", "heads", "-v"], env)
     if proc.returncode != 0:
         raise SystemExit(proc.stdout + proc.stderr)
-    heads = re.findall(r"^\s*([0-9a-f]+)\s+\(head\)", proc.stdout, flags=re.MULTILINE)
+
+    # Example lines:
+    # Rev: abcd1234 (head)
+    # Path: /.../migrations/versions/abcd1234_example.py
+    heads = re.findall(r"^\s*Rev:\s*([0-9a-f]+)\s+\(head\)", proc.stdout, flags=re.MULTILINE)
     return heads, proc.stdout.strip()
 
 
@@ -150,17 +162,18 @@ def repair_heads(dry_run: bool = False) -> None:
 
     _ensure_database(env, dry_run=dry_run)
 
+    file_heads = _file_heads()
     if dry_run:
-        file_heads = _file_heads()
         print(f"[repair] DRY-RUN: file-defined heads: {file_heads}")
         if len(file_heads) > 1:
             print("[repair] DRY-RUN: multiple heads would be merged automatically.")
         print("[repair] DRY-RUN: would stamp database if no revision is recorded, then upgrade to head.")
         return
 
+    _merge_heads(file_heads, env, dry_run=dry_run)
+
     heads, heads_output = _detect_heads(env)
     print(heads_output)
-    _merge_heads(heads, env, dry_run=dry_run)
 
     revs, current_output = _current_revision(env)
     print(current_output)
