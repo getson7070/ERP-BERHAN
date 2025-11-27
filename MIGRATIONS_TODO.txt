@@ -1,6 +1,8 @@
 # MIGRATIONS_TODO
 There were multiple Alembic heads earlier. We now automate repair + upgrade
-in one step. Run once after containers are up (or locally with env vars set):
+in one step. The Docker entrypoint runs the fixer automatically (unless
+`SKIP_AUTO_MIGRATION_REPAIR=1`), and you can run it manually after
+containers are up (or locally with env vars set):
 
 ```
 python tools/repair_migration_heads.py
