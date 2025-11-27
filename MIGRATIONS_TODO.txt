@@ -1,5 +1,12 @@
 # MIGRATIONS_TODO
-There were multiple Alembic heads earlier. Run once after containers are up:
-1) docker compose run --rm web bash -lc "alembic heads"
-2) docker compose run --rm web bash -lc "alembic merge -m 'merge heads' <head1> <head2> [<headN>]"
-3) docker compose run --rm web bash -lc "alembic upgrade head"
+There were multiple Alembic heads earlier. We now automate repair + upgrade
+in one step, and we committed a merge revision (`d6c63256408b_auto_merge_heads.py`)
+to keep the lineage linear. The Docker entrypoint runs the fixer automatically
+(unless `SKIP_AUTO_MIGRATION_REPAIR=1`), and you can run it manually after
+containers are up (or locally with env vars set):
+
+```
+python tools/repair_migration_heads.py
+```
+
+Use `--dry-run` to preview actions without modifying the database.
