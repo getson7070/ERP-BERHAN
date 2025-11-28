@@ -34,7 +34,7 @@ Automated agents are non‑human services that run predefined tasks (dependency 
 
 ### Establishing Connections & Push Mechanism
 
-- **Git remote configuration:** To allow the automation agent to push directly to the `main` branch, configure the `origin` remote to use the personal access token (PAT) in the URL along with the automation agit remote set-url origin https://$CODEX_USERNAME:$CODEX_TOKEN@github.com/getson7070/ERP-BERHAN.git
+- **Git remote configuration:** To allow the automation agent to push directly to the `main` branch, configure the `origin` remote to use the personal access token (PAT) in the URL: `git remote set-url origin https://$CODEX_USERNAME:$CODEX_TOKEN@github.com/getson7070/ERP-BERHAN.git`. This keeps the credential scoped to the automation agent while enabling authenticated pushes.
 By following these steps, the automation agent can establish a secure connection and push updates while respecting credential hygiene and traceability.
 
 By following these guidelines, we ensure that Codex-driven bots can update the repository safely while maintaining high security and compliance standards.
