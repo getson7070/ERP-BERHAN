@@ -19,7 +19,7 @@ services:
     container_name: erp-berhan
     restart: always
     ports:
-      - "18000:5000"
+      - "18000:18000"
     env_file:
       - .env
     depends_on:
