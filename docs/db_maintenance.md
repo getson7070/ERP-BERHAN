@@ -2,32 +2,19 @@
 
 ## Backup & Restore
 
-Nightly dumps are handled by `scripts/pg_backup.sh`, which writes timestamped
-archives and companion SHA-256 checksums to `backups/`. Run a monthly restore
-drill by selecting a dump and piping it through `psql` to a scratch database to
-verify integrity and retention policies. The `backup.py` helper remains
-available for ad-hoc snapshots.
+Use the shipped backup drill to validate credentials and binaries without
+depending on an absent `scripts/pg_backup.sh` pipeline:
 
 ```bash
-python backup.py postgresql://user:pass@host:5432/erp?sslmode=require
+python -m tools.backup_drill --database-url=$DATABASE_URL --output-dir=logs/backup-drill
 ```
 
-Backups are written to the `backups/` directory. Store database credentials in
-environment variables rather than committing them to source control. Restores
-for SQLite databases are supported via:
-
-```bash
-python -c "from backup import restore_backup; restore_backup('sqlite:///erp.db', 'backups/<file>.sqlite')"
-```
-
-When using PostgreSQL, apply dumps with `psql`:
-
-```bash
-psql $DATABASE_URL -f backups/<file>.sql
-```
-
-When storing dumps in S3 or another object store, enable a lifecycle policy to
-expire old backups after your retention period to limit storage costs.
+The script writes a schema-only custom-format dump and a `pg_restore --list`
+manifest to `logs/backup-drill/`, then cleans up the temporary archive. Pair
+this monthly with a full restore test by running `pg_restore` against a staging
+database to confirm RPO/RTO expectations. Store database credentials in
+environment variables and apply a cloud retention policy (for example, S3
+lifecycle rules) if you export dumps to object storage.
 
 ## Performance Visibility
 

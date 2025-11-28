@@ -7,24 +7,24 @@ This document outlines recovery objectives and drill procedures.
 - **Recovery Time Objective (RTO):** 1 hour
 
 ## Backup Strategy
-- `scripts/pg_backup.sh` runs nightly `pg_dump` and writes SHA‑256 checksums in
-  `backups/`.
-- Off‑site copies replicated to S3 with 30‑day retention.
+- Nightly readiness checks use `python -m tools.backup_drill --database-url=$DATABASE_URL` to
+  exercise `pg_dump`/`pg_restore` and emit a manifest in `logs/backup-drill/` for audit evidence.
+- Production backups should be captured by your managed database service or infrastructure pipeline;
+  replicate off‑site (e.g., S3) with a 30‑day retention policy.
 
 ## Restore Drill
-Nightly backups and monthly restore drills are automated via Celery beat
-(`backup.run_backup` and `backup.run_restore_drill`). Each drill verifies the
-backup checksum and restores the latest dump into a staging database with
-results logged to `logs/restore_drill.log`.
+Monthly restore drills validate the latest managed backup on a staging database.
+Use the backup drill manifest to confirm tooling works before restoring a
+production snapshot.
 
 1. Provision a staging database and set `DATABASE_URL` (include `?sslmode=require`).
-2. Execute the script manually if needed:
+2. Run a readiness check if `pg_dump`/`pg_restore` paths changed:
    ```bash
-   python scripts/dr_drill.py
+   python -m tools.backup_drill --database-url=$DATABASE_URL --output-dir=logs/backup-drill
    ```
-3. Measure start and end times to confirm the **RTO ≤ 1 hour**.
-4. Compare the backup timestamp against the drill time to validate the
-   **RPO ≤ 15 minutes**.
+3. Restore the latest managed backup into staging and measure start/end times to confirm the
+   **RTO ≤ 1 hour**.
+4. Compare the backup timestamp against the drill time to validate the **RPO ≤ 15 minutes**.
 5. Verify application health checks and record completion time.
 
 Each log entry follows:
