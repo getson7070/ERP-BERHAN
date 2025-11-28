@@ -53,6 +53,30 @@ def _candidate_from_session():
     return None
 
 
+def _is_allowlisted_path(path: str) -> bool:
+    """Paths that must never hard-fail for missing org context.
+
+    Keep this aligned with security-gate allowlisting so probes, login pages,
+    and static assets remain reachable before a tenant is chosen.
+    """
+
+    allowlisted = (
+        "/",  # root redirect should be reachable
+        "/health",
+        "/health/ready",
+        "/health/status",
+        "/status",
+        "/login",
+        "/auth/login",
+        "/register",
+        "/auth/register",
+        "/favicon.ico",
+    )
+    if path in allowlisted:
+        return True
+    return path.startswith("/static/")
+
+
 def _normalize(value, default):
     if value is None:
         return None
@@ -68,6 +92,8 @@ def install_tenant_guard(app):
 
     @app.before_request
     def _bind_org_context():
+        path = request.path or "/"
+        allowlisted = _is_allowlisted_path(path)
         candidate = (
             _candidate_from_request()
             or _candidate_from_session()
@@ -78,7 +104,12 @@ def install_tenant_guard(app):
         strict = app.config.get("STRICT_ORG_BOUNDARIES", True)
         testing = app.config.get("TESTING")
         if org_id is None:
-            if not strict or testing or app.config.get("ALLOW_INSECURE_DEFAULTS") == "1":
+            if (
+                not strict
+                or testing
+                or allowlisted
+                or app.config.get("ALLOW_INSECURE_DEFAULTS") == "1"
+            ):
                 org_id = fallback
             else:
                 abort(400, description="org_id_required")

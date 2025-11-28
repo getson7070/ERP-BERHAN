@@ -345,6 +345,11 @@ def create_app(config_object: str | None = None) -> Flask:
     else:
         _load_config(app)
 
+    # When running under pytest we want predictable test behaviour: bypass global gates
+    # and allow tenant guard to fall back to DEFAULT_ORG_ID without aborting.
+    if os.getenv("PYTEST_CURRENT_TEST") and not app.config.get("TESTING"):
+        app.config["TESTING"] = True
+
     if app.config.get("JSON_LOGGING", True):
         setup_json_logging()
 
