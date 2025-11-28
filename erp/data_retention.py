@@ -6,6 +6,7 @@ quarterly access recertification reports.
 from __future__ import annotations
 
 import hashlib
+import os
 from datetime import datetime, UTC
 from sqlalchemy import text
 
@@ -41,7 +42,15 @@ celery = _celery  # public name
 
 from erp.utils import task_idempotent
 from db import get_db
-from scripts.access_recert_export import export as export_recert
+
+_ACCESS_RECERT_EXPORT_FLAG = os.getenv("ENABLE_ACCESS_RECERT_EXPORT", "true").lower()
+ACCESS_RECERT_EXPORT_ENABLED = _ACCESS_RECERT_EXPORT_FLAG not in {"0", "false", "no"}
+
+try:
+    from scripts.access_recert_export import export as export_recert
+except Exception:  # pragma: no cover - exercised in unit tests via monkeypatch
+    export_recert = None
+# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
 def _connect_signal_or_noop(app):
@@ -124,5 +133,12 @@ def anonymize_users(idempotency_key: str | None = None) -> int:
 @task_idempotent
 def run_access_recert_export(idempotency_key: str | None = None) -> str:
     """Generate and persist an immutable access recertification export."""
+    if not ACCESS_RECERT_EXPORT_ENABLED:
+        return "access recertification export disabled via ENABLE_ACCESS_RECERT_EXPORT"
+    if export_recert is None:
+        return (
+            "access recertification export helper is unavailable; "
+            "install scripts.access_recert_export.export"
+        )
     output = export_recert()
     return str(output)
