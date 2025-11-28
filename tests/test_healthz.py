@@ -6,7 +6,7 @@ from db import get_db
 
 
 def test_health_endpoints(tmp_path, monkeypatch):
-    """/health returns lightweight ok and /healthz performs deep checks."""
+    """/health and /healthz both surface the shared registry results."""
 
     db_file = tmp_path / "app.db"
     monkeypatch.setenv("DATABASE_PATH", str(db_file))
@@ -14,14 +14,13 @@ def test_health_endpoints(tmp_path, monkeypatch):
     client = app.test_client()
 
     rv = client.get("/health")
-    assert rv.status_code == 200
-    assert rv.json["ok"] is True
+    assert rv.status_code in (200, 503)
+    assert rv.json["status"] == ("ok" if rv.json["ok"] else "error")
 
     rv = client.get("/healthz")
     assert rv.status_code in (200, 503)
+    assert rv.json["status"] == ("ok" if rv.json["ok"] else "error")
     if rv.status_code == 200:
-        assert rv.json["ok"] is True
-        assert rv.json["status"] == "ok"
         assert rv.json["checks"]["db"]["ok"] is True
         assert rv.json["checks"]["redis"]["ok"] is True
 
@@ -41,13 +40,18 @@ def test_health_endpoints(tmp_path, monkeypatch):
 
     monkeypatch.setattr(health_registry, "run_all", failing_run_all)
 
-    degraded = client.get("/healthz")
+    degraded = client.get("/health")
     assert degraded.status_code == 503
     degraded_payload = degraded.get_json()
     assert degraded_payload["ok"] is False
     assert degraded_payload["status"] == "error"
     assert degraded_payload["checks"]["redis"]["ok"] is False
     assert degraded_payload["checks"]["redis"]["error"] == "redis connection failed"
+
+    degraded_z = client.get("/healthz")
+    assert degraded_z.status_code == 503
+    degraded_payload_z = degraded_z.get_json()
+    assert degraded_payload_z == degraded_payload
 
     with app.app_context():
         conn = get_db()
