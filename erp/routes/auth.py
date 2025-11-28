@@ -22,7 +22,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import text
 
 from erp.audit import log_audit
-from erp.extensions import db, limiter
+from erp.extensions import db, get_remote_address, limiter
 from erp.models import (
     ClientRegistration,
     Employee,
@@ -83,6 +83,13 @@ def _json_or_form(key: str, default: str = "") -> str:
     return str(request.form.get(key, default) or "").strip()
 
 
+def _login_rate_limit_key() -> str:
+    """Key function that scopes login throttling to remote address + email."""
+
+    email = _json_or_form("email", default="").lower().strip()
+    return f"{get_remote_address()}:{email or 'anon'}"
+
+
 def _assign_role(user: User, role_name: str) -> None:
     role = Role.query.filter_by(name=role_name).first()
     if role is None:
@@ -133,6 +140,7 @@ def _queue_registration_request(org_id: int, username: str, email: str, role: st
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute", key_func=_login_rate_limit_key)
 def login():
     """Authenticate a user via form or JSON payload and start a session."""
 

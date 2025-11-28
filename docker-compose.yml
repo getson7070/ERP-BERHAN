@@ -19,7 +19,8 @@ services:
     container_name: erp-berhan
     restart: always
     ports:
-      - "18000:5000"
+      # Keep container and host ports aligned with gunicorn.conf.py (0.0.0.0:18000)
+      - "18000:18000"
     env_file:
       - .env
     depends_on:

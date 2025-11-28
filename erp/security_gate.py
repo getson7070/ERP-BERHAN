@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import functools
 from typing import Callable, Iterable
-from flask import current_app, request, jsonify
+from flask import current_app, request, jsonify, redirect, url_for
 from werkzeug.exceptions import Unauthorized, Forbidden
 from sqlalchemy import select
 
@@ -155,11 +155,41 @@ def install_global_gate(app):
       - Machine endpoints: require JWT, exempt CSRF (handled by your CSRF extension config)
       - Human endpoints: require session-based auth (customize as needed)
     """
+    # Health/readiness endpoints must stay publicly accessible for load balancers and k8s probes.
+    # Keep this allowlist small and path-based (no wildcards) to minimise bypass risk.
+    PUBLIC_PATHS = {
+        "/health",
+        "/healthz",
+        "/health/ready",
+        "/health/live",
+        "/health/readyz",
+        "/healthz/ready",
+        "/readyz",
+        "/status",
+        "/status/health",
+        "/status/healthz",
+        # Auth endpoints must stay reachable for unauthenticated users to sign in or self-register.
+        "/auth/login",
+        "/login",
+        "/auth/register",
+    }
+
+    PUBLIC_PREFIXES = (
+        "/static/",
+        "/assets/",
+        "/favicon",
+        "/robots.txt",
+    )
+
     @app.before_request
     def _gate():
         if current_app.config.get("TESTING"):
             return
         path = request.path or "/"
+        if path in PUBLIC_PATHS or path.endswith("/") and path[:-1] in PUBLIC_PATHS:
+            return  # allow unauthenticated probes and login/register flows
+        if any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
+            return  # allow unauthenticated static assets and icons
         if is_machine_endpoint(path):
             # Require JWT
             ident = get_identity()
@@ -173,5 +203,11 @@ def install_global_gate(app):
             # Human pages: ensure there is some identity (session/cookie based)
             ident = get_identity()
             if not ident:
-                # Let your login manager redirect; fallback to 401
+                if request.accept_mimetypes.accept_html and not request.is_json:
+                    try:
+                        login_url = url_for("auth.login", next=request.url)
+                    except Exception:
+                        login_url = "/auth/login"
+                    return redirect(login_url)
+                # Let your login manager redirect; fallback to 401 for API/non-HTML
                 raise Unauthorized()
