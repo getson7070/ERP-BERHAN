@@ -56,3 +56,88 @@ def test_health_endpoints(tmp_path, monkeypatch):
         conn.close()
 
 
+def test_readyz_fails_on_critical_check(monkeypatch, tmp_path):
+    """Critical check failures return 503 and mark ready=false."""
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "app.db"))
+    app = create_app()
+    client = app.test_client()
+
+    def failing_ready_checks():
+        return (
+            False,
+            {
+                "db": {"ok": False, "critical": True, "duration_ms": 1, "detail": {}, "error": "down"},
+                "redis": {"ok": True, "critical": False, "duration_ms": 1, "detail": {}, "error": None},
+            },
+        )
+
+    monkeypatch.setattr(health_registry, "run_all", failing_ready_checks)
+
+    response = client.get("/readyz")
+    payload = response.get_json()
+
+    assert response.status_code == 503
+    assert payload["ready"] is False
+    assert payload["ok"] is False
+    assert payload["status"] == "error"
+    assert payload["checks"]["db"]["ok"] is False
+    assert payload["checks"]["redis"]["ok"] is True
+
+
+def test_readyz_succeeds_with_non_critical_failures(monkeypatch, tmp_path):
+    """Non-critical failures keep the service ready while surfacing check details."""
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "app.db"))
+    app = create_app()
+    client = app.test_client()
+
+    def non_critical_failure():
+        return (
+            True,
+            {
+                "db": {"ok": True, "critical": True, "duration_ms": 1, "detail": {}, "error": None},
+                "redis": {"ok": False, "critical": False, "duration_ms": 1, "detail": {}, "error": "missing"},
+            },
+        )
+
+    monkeypatch.setattr(health_registry, "run_all", non_critical_failure)
+
+    response = client.get("/readyz")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["ready"] is True
+    assert payload["ok"] is True
+    assert payload["status"] == "ok"
+    assert payload["checks"]["redis"]["ok"] is False
+
+
+def test_readyz_succeeds_when_all_critical_checks_pass(monkeypatch, tmp_path):
+    """Ready endpoint returns success when all critical checks pass."""
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "app.db"))
+    app = create_app()
+    client = app.test_client()
+
+    def all_clear():
+        return (
+            True,
+            {
+                "db": {"ok": True, "critical": True, "duration_ms": 1, "detail": {}, "error": None},
+                "redis": {"ok": True, "critical": False, "duration_ms": 1, "detail": {}, "error": None},
+            },
+        )
+
+    monkeypatch.setattr(health_registry, "run_all", all_clear)
+
+    response = client.get("/readyz")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["ready"] is True
+    assert payload["ok"] is True
+    assert payload["status"] == "ok"
+    assert all(check["ok"] is True for check in payload["checks"].values())
+
+
