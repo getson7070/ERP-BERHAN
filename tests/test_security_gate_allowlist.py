@@ -28,3 +28,12 @@ def test_static_assets_are_public(monkeypatch):
 
     resp = client.get("/static/favicon.ico")
     assert resp.status_code != 401
+
+
+def test_root_redirects_to_login_for_html(monkeypatch):
+    app = _build_app(monkeypatch)
+    client = app.test_client()
+
+    resp = client.get("/", headers={"Accept": "text/html"})
+    assert resp.status_code in (301, 302, 303)
+    assert "/auth/login" in (resp.location or "")

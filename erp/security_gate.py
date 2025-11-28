@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import functools
 from typing import Callable, Iterable
-from flask import current_app, request, jsonify
+from flask import current_app, request, jsonify, redirect, url_for
 from werkzeug.exceptions import Unauthorized, Forbidden
 from sqlalchemy import select
 
@@ -203,5 +203,11 @@ def install_global_gate(app):
             # Human pages: ensure there is some identity (session/cookie based)
             ident = get_identity()
             if not ident:
-                # Let your login manager redirect; fallback to 401
+                if request.accept_mimetypes.accept_html and not request.is_json:
+                    try:
+                        login_url = url_for("auth.login", next=request.url)
+                    except Exception:
+                        login_url = "/auth/login"
+                    return redirect(login_url)
+                # Let your login manager redirect; fallback to 401 for API/non-HTML
                 raise Unauthorized()
