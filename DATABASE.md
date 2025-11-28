@@ -16,14 +16,16 @@ This document records database maintenance practices.
   captures the manifest in `logs/backup-drill/` for auditor review.
 
 ## Backups
-- `scripts/pg_backup.sh` now writes custom-format dumps, SHA-256 manifests, and
-  JSONL telemetry (`backup-report.jsonl`) so operators can attest to checksum
-  integrity over time.【F:scripts/pg_backup.sh†L1-L62】
-- When `pg_restore` is available, the script emits a manifest listing and schema
-  reconstruction dry-run to catch corruption early without touching production
-  data.【F:scripts/pg_backup.sh†L20-L42】
-- The lightweight `python -m tools.backup_drill` wrapper is safe to run from laptops and CI runners
-  so teams can verify credentials and binaries without invoking the heavier Bash pipeline.
+- `python -m tools.backup_drill` is the supported backup drill for this codebase. It issues a
+  schema-only `pg_dump --format=custom`, confirms `pg_restore --list` can read the archive, and
+  writes the manifest to `logs/backup-drill/` so operators can attest to checksum integrity over
+  time.【F:tools/backup_drill.py†L1-L53】
+- Example (safe for laptops and CI runners):
+  ```bash
+  python -m tools.backup_drill --database-url=$DATABASE_URL --output-dir=logs/backup-drill
+  ```
+- Pair the drill with monthly restore validations on staging databases to prove RPO/RTO readiness
+  and capture artifacts for auditors.
 
 ## Automated Resilience Suite
 - Run `python -m tools.run_resilience_suite --database-url=$DATABASE_URL` nightly. The helper chains the
