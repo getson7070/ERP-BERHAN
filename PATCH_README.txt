@@ -25,3 +25,14 @@ NOTES
 - Extend the clean migration chain with further revisions in 'migrations/versions_clean' (not the old 'versions' dir).
 - If you also want to *remove* the broken migrations, delete 'migrations/versions/*' in your repo permanently.
 - Default credentials are NOT seeded. Create a user via shell or add a seeding revision in versions_clean.
+
+TROUBLESHOOTING PATCH APPLICATION
+---------------------------------
+- Ensure your working tree is clean before running this script (`git status` should show no pending changes). Stash or commit
+  any local edits to avoid conflicts.
+- If you have previously applied a `codex-fix-tests*.patch` file or re-run this script, check whether the changes already
+  exist. Reapplying identical hunks will fail; use `git apply --check <patch>` to confirm whether a patch still applies.
+- If the patch is outdated relative to your branch, refresh it from the latest `main` or rebase your branch so file offsets
+  match.
+- Only one automation or user should apply patches at a time. Concurrent runs that touch the same files can cause the
+  "Failed to apply patch" error seen in CI.
