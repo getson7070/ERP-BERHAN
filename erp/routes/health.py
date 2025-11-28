@@ -20,14 +20,21 @@ def _response_from_registry():
 def health():
     ok, results = _response_from_registry()
     status_code = HTTPStatus.OK if ok else HTTPStatus.SERVICE_UNAVAILABLE
-    return jsonify({"ok": ok, "checks": results}), status_code
+    return jsonify({"status": "ok" if ok else "error", "ok": ok, "checks": results}), status_code
 
 
 @bp.get("/healthz")
 def healthz():
     ok, results = _response_from_registry()
     status_code = HTTPStatus.OK if ok else HTTPStatus.SERVICE_UNAVAILABLE
-    return jsonify({"ok": ok, "checks": results}), status_code
+    return jsonify({"status": "ok" if ok else "error", "ok": ok, "checks": results}), status_code
+
+
+@bp.get("/health/ready")
+def health_ready():
+    ok, results = _response_from_registry()
+    status_code = HTTPStatus.OK if ok else HTTPStatus.SERVICE_UNAVAILABLE
+    return jsonify({"status": "ok" if ok else "error", "ready": ok, "checks": results}), status_code
 
 
 @bp.get("/readyz")
@@ -35,5 +42,12 @@ def readyz():
     ok, results = _response_from_registry()
     critical_ok = all(v["ok"] for v in results.values() if v.get("critical"))
     status_code = HTTPStatus.OK if critical_ok else HTTPStatus.SERVICE_UNAVAILABLE
-    return jsonify({"ok": critical_ok, "checks": results}), status_code
+    return jsonify(
+        {
+            "status": "ok" if critical_ok else "error",
+            "ready": critical_ok,
+            "ok": critical_ok,
+            "checks": results,
+        }
+    ), status_code
 

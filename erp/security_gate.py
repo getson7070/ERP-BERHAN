@@ -155,11 +155,28 @@ def install_global_gate(app):
       - Machine endpoints: require JWT, exempt CSRF (handled by your CSRF extension config)
       - Human endpoints: require session-based auth (customize as needed)
     """
+    # Health/readiness endpoints must stay publicly accessible for load balancers and k8s probes.
+    # Keep this allowlist small and path-based (no wildcards) to minimise bypass risk.
+    PUBLIC_PATHS = {
+        "/health",
+        "/healthz",
+        "/health/ready",
+        "/health/live",
+        "/health/readyz",
+        "/healthz/ready",
+        "/readyz",
+        "/status",
+        "/status/health",
+        "/status/healthz",
+    }
+
     @app.before_request
     def _gate():
         if current_app.config.get("TESTING"):
             return
         path = request.path or "/"
+        if path in PUBLIC_PATHS:
+            return  # allow unauthenticated health probes
         if is_machine_endpoint(path):
             # Require JWT
             ident = get_identity()

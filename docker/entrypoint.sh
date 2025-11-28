@@ -44,18 +44,39 @@ raise SystemExit(1)
 PY
 }
 
+repair_migration_heads() {
+  if [ -n "$SKIP_AUTO_MIGRATION_REPAIR" ]; then
+    echo "repair_migration_heads: skipping (SKIP_AUTO_MIGRATION_REPAIR is set)."
+    return 0
+  fi
+
+  if [ ! -f tools/repair_migration_heads.py ]; then
+    echo "repair_migration_heads: tools/repair_migration_heads.py not found; skipping." >&2
+    return 0
+  fi
+
+  echo "repair_migration_heads: auto-fixing Alembic heads + upgrading schema…"
+  if ! python tools/repair_migration_heads.py; then
+    echo "repair_migration_heads: repair script failed." >&2
+    return 1
+  fi
+}
+
 if [ -z "$cmd" ] || [ "$cmd" = "web" ]; then
   wait_for_db
+  repair_migration_heads
   echo "Starting Gunicorn web server..."
   exec gunicorn -c gunicorn.conf.py wsgi:app
 
 elif [ "$cmd" = "migrate" ]; then
   wait_for_db
+  repair_migration_heads
   echo "Running Alembic migrations (upgrade head)..."
   exec alembic upgrade head
 
 elif [ "$cmd" = "celery" ]; then
   wait_for_db
+  repair_migration_heads
   echo "Starting Celery worker with args: $*"
   exec celery "$@"
 
