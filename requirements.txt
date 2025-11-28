@@ -22,5 +22,6 @@ prometheus-flask-exporter==0.23.0
 sentry-sdk[flask]==1.45.0
 Flask-Caching==2.3.0
 Flask-Mail==0.9.1
+Flask-Limiter==4.0.0
 cryptography==42.0.5
 requests==2.32.5
