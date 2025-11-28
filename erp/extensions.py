@@ -8,6 +8,7 @@ remain lightweight and free of side effects.
 from __future__ import annotations
 
 import importlib.util
+import os
 
 from flask import Flask
 from flask_caching import Cache
@@ -77,6 +78,11 @@ csrf: CSRFProtect = CSRFProtect()
 limiter: Limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[],  # Configure per-view or via app.config if needed
+    storage_uri=(
+        os.environ.get("RATELIMIT_STORAGE_URI")
+        or os.environ.get("REDIS_URL")
+        or "memory://"
+    ),
 )
 
 login_manager: LoginManager = LoginManager()
