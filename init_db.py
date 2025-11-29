@@ -1,4 +1,3 @@
-from erp.security_hardening import safe_run, safe_call, safe_popen
 """Database bootstrap utility using SQLAlchemy.
 
 This script initialises the database schema and seed data for local
@@ -8,6 +7,8 @@ and safety.
 """
 
 from __future__ import annotations
+
+from erp.security_hardening import safe_run, safe_call, safe_popen
 
 import os
 import subprocess
