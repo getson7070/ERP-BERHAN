@@ -204,6 +204,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.dashboard_customize",
     "erp.routes.analytics",
     "erp.routes.auth",
+    "erp.routes.help",
     "erp.routes.banking_api",
     "erp.routes.approvals",
     "erp.routes.maintenance",
