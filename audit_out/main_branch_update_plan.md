@@ -19,7 +19,8 @@
   1. Add CSRF tokens to `templates/login.html` and other onboarding templates using Flask-WTF.
   2. Implement rate limiting + MFA hooks before activating privileged roles.
   3. Update `/auth/register` to queue requests for admin approval and restrict selectable roles in the UI.
-  4. Refresh UI copy/error states so the experience matches industry UX expectations (responsive layout, inline validation, accessibility labels).
+  4. Refresh UI copy/error states so the experience matches industry UX expectations (responsive layout, inline validation,
+     accessibility labels).
 - **Security/Compatibility checks**: Write integration tests covering CSRF enforcement, unauthorized role escalation, and UI snapshot tests; document migration steps for existing self-service tenants in `README.md`.
 
 ## Workstream 3 — Move audit logs into durable, centralized storage
