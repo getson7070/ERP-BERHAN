@@ -19,6 +19,8 @@ def test_language_switch(client):
     res = client.get("/dashboard")
     html = res.get_data(as_text=True)
     assert 'lang="am"' in html
+    assert "ብርሃን ERP ዳሽቦርድ" in html
+    assert "BERHAN ERP Dashboard" not in html
 
 
 def test_locale_switcher_rendered(client):
