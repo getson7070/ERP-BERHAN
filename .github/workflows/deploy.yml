@@ -1,14 +1,61 @@
-name: deploy
+name: CI & Deploy
+
 on:
   push:
-  pull_request:
-permissions:
-  contents: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ main ]
+
 jobs:
-  deploy:
+  ci:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: erp
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U erp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://erp:erp@localhost:5432/erp
+
     steps:
-      - run: echo "deploy muted for Phase 1.1"
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install -r requirements.lock
+
+      - name: Check migration health
+        run: |
+          . .venv/bin/activate
+          python tools/check_migration_health.py
+
+      - name: Run tests
+        run: |
+          . .venv/bin/activate
+          pytest
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"

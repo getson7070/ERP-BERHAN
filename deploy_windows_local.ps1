@@ -1,16 +1,25 @@
+[CmdletBinding()]
 param(
-    [switch]$Rebuild,
-    [string]$RepoRoot = 'C:\Users\Alienware\Documents\ERP-BERHAN\ERP-BERHAN'
+    [switch]$Rebuild
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = "Stop"
 
-$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$helper = Join-Path $scriptRoot 'tools\deploy_windows_local.ps1'
+$RepoRoot = (Resolve-Path $PSScriptRoot).ProviderPath
+Write-Host "Using repo root: $RepoRoot" -ForegroundColor Cyan
 
-if (-not (Test-Path $helper)) {
-    throw "Helper script not found at '$helper'. Run 'git pull' to refresh your checkout."
+Push-Location $RepoRoot
+
+try {
+    if ($Rebuild) {
+        Write-Host "Rebuilding Docker images..." -ForegroundColor Yellow
+        docker compose build
+    }
+
+    Write-Host "Starting docker compose..." -ForegroundColor Yellow
+    docker compose up
 }
-
-& $helper @PSBoundParameters
+finally {
+    Pop-Location
+}
