@@ -14,6 +14,7 @@ from erp.bot_security import (
 )
 from erp.extensions import db
 from erp.models import Role, UserRoleAssignment
+from erp.public_paths import PUBLIC_PATHS, PUBLIC_PREFIXES
 
 # Mark API endpoints that should be CSRF-exempt but JWT-required.
 API_CSRF_EXEMPT_PREFIXES = (
@@ -155,31 +156,6 @@ def install_global_gate(app):
       - Machine endpoints: require JWT, exempt CSRF (handled by your CSRF extension config)
       - Human endpoints: require session-based auth (customize as needed)
     """
-    # Health/readiness endpoints must stay publicly accessible for load balancers and k8s probes.
-    # Keep this allowlist small and path-based (no wildcards) to minimise bypass risk.
-    PUBLIC_PATHS = {
-        "/health",
-        "/healthz",
-        "/health/ready",
-        "/health/live",
-        "/health/readyz",
-        "/healthz/ready",
-        "/readyz",
-        "/status",
-        "/status/health",
-        "/status/healthz",
-        # Auth endpoints must stay reachable for unauthenticated users to sign in or self-register.
-        "/auth/login",
-        "/login",
-        "/auth/register",
-    }
-
-    PUBLIC_PREFIXES = (
-        "/static/",
-        "/assets/",
-        "/favicon",
-        "/robots.txt",
-    )
 
     @app.before_request
     def _gate():

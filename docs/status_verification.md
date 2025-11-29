@@ -2,6 +2,7 @@
 
 ## Local deployment
 - Local Docker workflow remains documented via `README_LOCAL.md`, using `docker compose up --build` with health check and migration commands for reproducible bring-up.
+- Security gate and tenant guard share the same health/status allowlist for probes: `/health`, `/healthz`, `/health/live`, `/health/ready`, `/health/readyz`, `/healthz/ready`, `/readyz`, `/status`, `/status/health`, and `/status/healthz` stay reachable for load balancers.
 
 ## UI and UX readiness
 - Landing and authentication screens use the Bootstrap-based `choose_login.html` layout with dark-mode friendly styles, CTA buttons, and role-specific guidance, aligning UX with industry defaults.
