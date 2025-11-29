@@ -10,3 +10,8 @@ python tools/repair_migration_heads.py
 ```
 
 Use `--dry-run` to preview actions without modifying the database.
+
+Tender-workflow note: the repository no longer includes an
+`*_add_tender_workflow.py` migration (for example
+`2b3c4d5e6f7a_add_tender_workflow.py`). The swap instructions that used to
+mention it are obsolete—follow the in-repo migrations as-is.
