@@ -63,8 +63,15 @@ def _is_allowlisted_path(path: str) -> bool:
     allowlisted = (
         "/",  # root redirect should be reachable
         "/health",
+        "/healthz",
         "/health/ready",
+        "/health/live",
+        "/health/readyz",
+        "/healthz/ready",
+        "/readyz",
         "/health/status",
+        "/status/health",
+        "/status/healthz",
         "/status",
         "/login",
         "/auth/login",
