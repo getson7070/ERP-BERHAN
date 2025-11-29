@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from flask import abort, current_app, g, request, session
 
+from erp.public_paths import PUBLIC_PATHS, PUBLIC_PREFIXES
+
 try:  # Flask-Login optional in some environments
     from flask_login import current_user
 except Exception:  # pragma: no cover
@@ -56,32 +58,25 @@ def _candidate_from_session():
 def _is_allowlisted_path(path: str) -> bool:
     """Paths that must never hard-fail for missing org context.
 
-    Keep this aligned with security-gate allowlisting so probes, login pages,
-    and static assets remain reachable before a tenant is chosen.
+    Health/status endpoints must mirror ``erp.security_gate`` to keep load balancers
+    and k8s probes working: /health, /healthz, /health/ready, /health/live,
+    /health/readyz, /healthz/ready, /readyz, /status, /status/health, and
+    /status/healthz. Auth and static assets remain reachable before a tenant is
+    chosen.
     """
 
-    allowlisted = (
-        "/",  # root redirect should be reachable
-        "/health",
-        "/healthz",
-        "/health/ready",
-        "/health/live",
-        "/health/readyz",
-        "/healthz/ready",
-        "/readyz",
-        "/health/status",
-        "/status/health",
-        "/status/healthz",
-        "/status",
-        "/login",
-        "/auth/login",
-        "/register",
-        "/auth/register",
-        "/favicon.ico",
-    )
-    if path in allowlisted:
+    if path in PUBLIC_PATHS or (path.endswith("/") and path[:-1] in PUBLIC_PATHS):
         return True
-    return path.startswith("/static/")
+
+    extras = {
+        "/",  # root redirect should be reachable
+        "/register",
+        "/favicon.ico",
+    }
+    if path in extras:
+        return True
+
+    return path.startswith(PUBLIC_PREFIXES)
 
 
 def _normalize(value, default):
