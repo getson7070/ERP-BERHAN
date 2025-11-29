@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from flask import Blueprint, render_template, request, session, flash
+from flask_login import login_required
 from sqlalchemy import text
 
 from db import get_db
 from erp.security import require_roles, mfa_required
 from erp.utils import sanitize_sort, sanitize_direction
-sanitize_direction
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -18,10 +18,6 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 def workflows():
     """
     Manage per-org workflows using parameterised SQL.
-
-    Existing body of this function stays exactly as it is below.
-    """
-    # keep your existing function body here...
 
     Still uses raw SQL (no ORM model yet) but strictly with bound parameters,
     plus basic validation on user input.
