@@ -3,12 +3,17 @@ import os, json
 from typing import Any, Optional
 from sqlalchemy import create_engine
 
+from config import _is_production
+
 _engine = None
 def _ensure_engine():
     global _engine
     if _engine is None:
         url = os.environ.get("DATABASE_URL")
         if not url:
+            if _is_production():
+                raise RuntimeError("DATABASE_URL must be set in production environments")
+
             db_path = os.environ.get("DATABASE_PATH")
             url = f"sqlite+pysqlite:///{db_path}" if db_path else "sqlite+pysqlite:///:memory:"
         _engine = create_engine(url, future=True)
