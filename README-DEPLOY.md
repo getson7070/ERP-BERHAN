@@ -37,7 +37,8 @@ docker compose up -d
 ```
 
 ## Windows + Docker Desktop Walkthrough
-Need a detailed, Windows-specific flow (PowerShell, WSL 2 backend, explicit host paths, verification commands, and troubleshooting tips)?
+Need a detailed, Windows-specific flow (PowerShell, WSL 2 backend, explicit host paths, verification commands,
+and troubleshooting tips)?
 Follow [`docs/docker_desktop_guide.md`](docs/docker_desktop_guide.md) for the complete procedure tailored to a checkout at `C:\Users\Alienware\Documents\ERP-BERHAN\ERP-BERHAN`.
 
 **Quick helper script:**
