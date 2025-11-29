@@ -35,12 +35,11 @@ from .metrics import (
     QUEUE_LAG,
     RATE_LIMIT_REJECTIONS,
 )
-from .socket import socketio
 from .middleware.security_headers import apply_security_headers
+from .middleware.tenant_guard import install_tenant_guard
 from .security import apply_security
 from .security_gate import install_global_gate
 from .socket import socketio
-from .middleware.tenant_guard import install_tenant_guard
 
 LOGGER = logging.getLogger(__name__)
 
