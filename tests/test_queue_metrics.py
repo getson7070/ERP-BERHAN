@@ -1,18 +1,40 @@
+import pytest
+
+import db
+from db import _RedisClient
 from erp import create_app, QUEUE_LAG
-from db import redis_client
 from scripts import update_status
 
 
-def test_queue_lag_metric(tmp_path, monkeypatch):
+@pytest.fixture
+def fake_redis(monkeypatch):
+    monkeypatch.setenv("USE_FAKE_REDIS", "1")
+    client = _RedisClient()
+    monkeypatch.setattr(db, "redis_client", client)
+    monkeypatch.setattr("erp.redis_client", client, raising=False)
+    monkeypatch.setattr("erp.routes.metrics.redis_client", client, raising=False)
+    yield client
+    client.delete("celery")
+
+
+@pytest.fixture
+def reset_queue_lag():
+    QUEUE_LAG._metrics.clear()
+    try:
+        yield
+    finally:
+        QUEUE_LAG._metrics.clear()
+
+
+def test_queue_lag_metric(tmp_path, monkeypatch, fake_redis, reset_queue_lag):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path/'test.db'}")
     app = create_app()
     with app.app_context():
-        redis_client.delete("celery")
-        redis_client.rpush("celery", "task1")
+        fake_redis.delete("celery")
+        fake_redis.rpush("celery", "task1")
         client = app.test_client()
         client.get("/metrics")
         assert QUEUE_LAG.labels("celery")._value.get() == 1
-        redis_client.delete("celery")
 
 
 def test_update_status(tmp_path, monkeypatch):
