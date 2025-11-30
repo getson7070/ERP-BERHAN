@@ -1,19 +1,22 @@
 services:
   web:
     build: .
-    command: sh -c "gunicorn --config gunicorn.conf.py erp:create_app()"
+    command: ["web"]
     ports:
       - "18000:18000"
-    environment:
-      ENV: production
-      DATABASE_URL: ${DATABASE_URL}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT}
-      SENTRY_DSN: ${SENTRY_DSN}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      environment:
+        FLASK_ENV: production
+        ENV: production
+        DATABASE_URL: ${DATABASE_URL}
+        CELERY_BROKER_URL: redis://redis:6379/0
+        CELERY_RESULT_BACKEND: redis://redis:6379/0
+        SECRET_KEY: ${SECRET_KEY}
+        JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+        SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT}
+        SENTRY_DSN: ${SENTRY_DSN}
+        BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+        # Safety: prevent runtime Alembic merge revisions in prod
+        SKIP_AUTO_MIGRATION_REPAIR: "1"
     depends_on:
       db:
         condition: service_healthy
@@ -30,8 +33,9 @@ services:
       retries: 3
   worker:
     build: .
-    command: sh -c "celery -A erp.celery_app.celery_app worker --loglevel=info"
+    command: ["celery","-A","erp.celery_app:celery_app","worker","--loglevel=info"]
     environment:
+      FLASK_ENV: production
       ENV: production
       DATABASE_URL: ${DATABASE_URL}
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -53,8 +57,9 @@ services:
       retries: 3
   beat:
     build: .
-    command: sh -c "celery -A erp.celery_app.celery_app beat --loglevel=info"
+    command: ["celery","-A","erp.celery_app:celery_app","beat","--loglevel=info"]
     environment:
+      FLASK_ENV: production
       ENV: production
       DATABASE_URL: ${DATABASE_URL}
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -136,7 +141,3 @@ services:
 volumes:
   pgdata:
   redisdata:
-
-
-
-

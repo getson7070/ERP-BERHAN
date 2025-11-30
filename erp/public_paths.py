@@ -3,6 +3,7 @@
 # Health/readiness endpoints must stay publicly accessible for load balancers and probes.
 # Keep this allowlist small and path-based (no wildcards) to minimise bypass risk.
 PUBLIC_PATHS: set[str] = {
+    "/",
     "/health",
     "/healthz",
     "/health/ready",
