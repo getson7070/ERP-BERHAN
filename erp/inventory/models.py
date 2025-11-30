@@ -19,41 +19,19 @@ class Warehouse(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
-    # Legacy deployments stored only a name; code/address add compatibility for Task 8 flows
-    code = db.Column(db.String(32), nullable=True, index=True)
-    name = db.Column(db.String(128), unique=True, nullable=False)
-    address = db.Column(db.String(255), nullable=True)
-    region = db.Column(db.String(64), nullable=True)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
-    is_default = db.Column(db.Boolean, nullable=False, default=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
-
-    __table_args__ = (UniqueConstraint("org_id", "code", name="uq_warehouses_code"),)
-
-
-class InventoryLocation(db.Model):
-    """Bin / shelf inside a warehouse."""
-
-    __tablename__ = "inventory_locations"
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id = db.Column(db.Integer, nullable=True, index=True)
-    warehouse_id = db.Column(
-        UUID(as_uuid=True), db.ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    code = db.Column(db.String(64), nullable=False, index=True)
-    name = db.Column(db.String(255), nullable=True)
+    name = db.Column(db.String(255), nullable=False)
+    code = db.Column(db.String(64), nullable=True, index=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
-
-    warehouse = db.relationship("Warehouse", backref="locations")
-
-    __table_args__ = (UniqueConstraint("warehouse_id", "code", name="uq_location_code_per_wh"),)
 
 
 class Item(db.Model):
+    """Catalog item with org scoping and minimal fields kept for back-compat."""
+
     __tablename__ = "items"
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = db.Column(db.Integer, nullable=True, index=True)
     sku = db.Column(db.String(64), unique=True, nullable=False)   # keep template compatibility
     name = db.Column(db.String(255), nullable=False)
     uom = db.Column(db.String(32), default="Unit")
@@ -78,8 +56,21 @@ class Lot(db.Model):
     __table_args__ = (UniqueConstraint("org_id", "item_id", "number", name="uq_item_lot_number"),)
 
     @property
-    def expiry_date(self) -> date | None:  # compatibility alias
+    def lot_number(self) -> str | None:
+        """Back-compat name used in tests."""
+        return self.number
+
+    @lot_number.setter
+    def lot_number(self, value: str | None) -> None:
+        self.number = value
+
+    @property
+    def expiry_date(self) -> date | None:
         return self.expiry
+
+    @expiry_date.setter
+    def expiry_date(self, value: date | None) -> None:
+        self.expiry = value
 
 
 class InventorySerial(db.Model):
@@ -94,88 +85,93 @@ class InventorySerial(db.Model):
     lot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("lots.id", ondelete="SET NULL"), nullable=True, index=True)
     status = db.Column(db.String(32), nullable=False, default="in_stock")
     warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=True, index=True)
-    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_locations.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
-    __table_args__ = (UniqueConstraint("serial_number", name="uq_inventory_serial_number"),)
+    __table_args__ = (UniqueConstraint("org_id", "item_id", "serial_number", name="uq_item_serial_number"),)
 
 
 class StockBalance(db.Model):
-    """Current on-hand quantity per item/location/lot with row locking support."""
+    """Aggregated quantity per item/warehouse."""
 
     __tablename__ = "stock_balances"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
-    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id"), nullable=False, index=True)
     warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=False, index=True)
-    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_locations.id"), nullable=True, index=True)
-    lot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("lots.id"), nullable=True, index=True)
     qty_on_hand = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
-    qty_reserved = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
-    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
-    __table_args__ = (
-        UniqueConstraint("org_id", "item_id", "warehouse_id", "location_id", "lot_id", name="uq_stock_balance_multi"),
-    )
+    __table_args__ = (UniqueConstraint("org_id", "item_id", "warehouse_id", name="uq_org_item_warehouse"),)
 
 
 class StockLedgerEntry(db.Model):
-    """Immutable stock movement ledger with idempotency keys for replay safety."""
+    """Immutable stock movement log."""
 
     __tablename__ = "stock_ledger_entries"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
-    posting_time = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id"), nullable=False, index=True)
     warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=False, index=True)
-    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_locations.id"), nullable=True, index=True)
     lot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("lots.id"), nullable=True, index=True)
     serial_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_serials.id"), nullable=True, index=True)
-    qty = db.Column(db.Numeric(18, 3), nullable=False)  # +in / -out
-    rate = db.Column(db.Numeric(18, 4), nullable=False, default=Decimal("0"))
-    value = db.Column(db.Numeric(18, 2), nullable=False, default=Decimal("0"))
-    tx_type = db.Column(db.String(32), nullable=True, index=True)
-    voucher_type = db.Column(db.String(32))
-    voucher_id = db.Column(UUID(as_uuid=True))
+    quantity_delta = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
+    reason = db.Column(db.String(255), nullable=True)
     reference_type = db.Column(db.String(64), nullable=True)
-    # Reference identifiers can originate from non-UUID sources (e.g., integer
-    # test refs or external string IDs), so we store them as strings to avoid
-    # sqlite UUID casting errors during unit tests.
-    reference_id = db.Column(db.String(128), nullable=True)
-    idempotency_key = db.Column(db.String(128), nullable=True, index=True)
-    created_by_id = db.Column(db.Integer, nullable=True)
+    reference_id = db.Column(db.String(64), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class CycleCount(db.Model):
-    """Cycle count header for variance approvals."""
+    """Cycle-count document (header)."""
 
     __tablename__ = "cycle_counts"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
     warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=False, index=True)
-    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_locations.id"), nullable=True, index=True)
-    status = db.Column(db.String(32), nullable=False, default="open", index=True)
-    counted_by_id = db.Column(db.Integer, nullable=True)
-    approved_by_id = db.Column(db.Integer, nullable=True)
+    scheduled_for = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="scheduled")
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     lines = db.relationship("CycleCountLine", back_populates="cycle_count", cascade="all, delete-orphan")
 
 
+class InventoryLocation(db.Model):
+    """Specific physical/bin location inside a warehouse."""
+
+    __tablename__ = "inventory_locations"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = db.Column(db.Integer, nullable=True, index=True)
+    warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id"), nullable=False, index=True)
+    code = db.Column(db.String(64), nullable=False, index=True)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
 class CycleCountLine(db.Model):
+    """Line item for a cycle count."""
+
     __tablename__ = "cycle_count_lines"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
-    cycle_count_id = db.Column(UUID(as_uuid=True), db.ForeignKey("cycle_counts.id", ondelete="CASCADE"), nullable=False, index=True)
+    cycle_count_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("cycle_counts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True)
     lot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("lots.id", ondelete="SET NULL"), nullable=True, index=True)
-    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey("inventory_locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    location_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("inventory_locations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     system_qty = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
     counted_qty = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
     variance = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
@@ -190,8 +186,18 @@ class ReorderRule(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = db.Column(db.Integer, nullable=True, index=True)
-    item_id = db.Column(UUID(as_uuid=True), db.ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True)
-    warehouse_id = db.Column(UUID(as_uuid=True), db.ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("items.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    warehouse_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("warehouses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     min_qty = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
     max_qty = db.Column(db.Numeric(18, 3), nullable=False, default=Decimal("0"))
     reorder_qty = db.Column(db.Numeric(18, 3), nullable=True)
@@ -200,3 +206,21 @@ class ReorderRule(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     __table_args__ = (UniqueConstraint("org_id", "item_id", "warehouse_id", name="uq_reorder_rule"),)
+
+
+# Backwards-compatible alias for tests and services
+SerialNumber = InventorySerial
+
+__all__ = [
+    "Warehouse",
+    "Item",
+    "Lot",
+    "InventorySerial",
+    "SerialNumber",
+    "StockBalance",
+    "StockLedgerEntry",
+    "CycleCount",
+    "CycleCountLine",
+    "InventoryLocation",
+    "ReorderRule",
+]

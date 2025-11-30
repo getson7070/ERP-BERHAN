@@ -1,4 +1,5 @@
 """Public model exports and shared SQLAlchemy handle."""
+
 from __future__ import annotations
 
 # Provide a SQLAlchemy instance early so model modules can import it.
@@ -9,15 +10,15 @@ except Exception:  # pragma: no cover
     db = SQLAlchemy()
 
 # Eager exports the tests expect
-from .user import User                  # noqa: F401
-from .role import Role                  # noqa: F401
+from .user import User  # noqa: F401
+from .role import Role  # noqa: F401
 from .organization import Organization  # noqa: F401
-from .invoice import Invoice            # noqa: F401
-from .employee import Employee          # noqa: F401
-from .recruitment import Recruitment    # noqa: F401
+from .invoice import Invoice  # noqa: F401
+from .employee import Employee  # noqa: F401
+from .recruitment import Recruitment  # noqa: F401
 from .performance_review import PerformanceReview  # noqa: F401
-from .user_dashboard import UserDashboard          # noqa: F401
-from .order import Order                # noqa: F401
+from .user_dashboard import UserDashboard  # noqa: F401
+from .order import Order  # noqa: F401
 from .hr_lifecycle import (  # noqa: F401
     HROnboarding,
     HROffboarding,
@@ -88,8 +89,8 @@ from .rbac import (  # noqa: F401
     RoleHierarchy,
 )
 from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
-from .audit_log import AuditLog         # noqa: F401
-from .core_entities import (            # noqa: F401
+from .audit_log import AuditLog  # noqa: F401
+from .core_entities import (  # noqa: F401
     AnalyticsEvent,
     ApprovalRequest,
     BankTransaction,
@@ -128,7 +129,7 @@ from .finance_gl import (
     BankStatement,
     BankStatementLine,
 )
-StatementLine = BankStatementLine
+StatementLine = BankStatementLine  # noqa: F401
 
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
@@ -147,11 +148,11 @@ try:
         StockLedgerEntry,
         Warehouse,
     )
-
     Item = Inventory  # noqa: F401
     InventoryItem = Inventory  # noqa: F401
     Product = Inventory  # noqa: F401
     StockItem = Inventory  # noqa: F401
+    SerialNumber = InventorySerial  # Alias for crucial device/equipment tracking
 except Exception:  # pragma: no cover
     def __getattr__(name: str):
         if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
@@ -172,35 +173,112 @@ except Exception:  # pragma: no cover
 
 __all__ = [
     "db",
-    "User", "Role", "Organization", "Invoice",
-    "Employee", "Recruitment", "PerformanceReview",
-    "HROnboarding", "HROffboarding", "LeaveRequest",
-    "CRMAccount", "CRMContact", "CRMPipelineEvent",
-    "SupportTicket", "ClientPortalLink",
-    "ClientAccount", "ClientVerification", "ClientPasswordReset", "ClientOAuthAccount", "ClientRoleAssignment",
-    "UserMFA", "UserMFABackupCode", "UserSession",
-    "MaintenanceAsset", "MaintenanceSchedule", "MaintenanceWorkOrder", "MaintenanceEvent",
-    "MaintenanceEscalationRule", "MaintenanceEscalationEvent", "MaintenanceSensorReading",
-    "PurchaseOrder", "PurchaseOrderLine",
-    "UserDashboard", "Order",
-    "AnalyticsEvent", "ApprovalRequest", "BankTransaction", 
-    "ClientRegistration", "CrmInteraction", "CrmLead",
-    "FinanceAccount", "FinanceEntry", "InventoryReservation",
-    "MaintenanceTicket", "MarketingEvent", "MarketingVisit",
-    "MarketingCampaign", "MarketingSegment", "MarketingConsent",
-    "MarketingABVariant", "MarketingGeofence",
-    "AnalyticsMetric", "AnalyticsFact", "AnalyticsDashboard", "AnalyticsWidget", "DataLineage",
-    "KPIRegistry", "ScorecardTemplate", "ScorecardItem", "ReviewCycle", "PerformanceEvaluation", "Feedback360", "MLSuggestion",
+    "User",
+    "Role",
+    "Organization",
+    "Invoice",
+    "Employee",
+    "Recruitment",
+    "PerformanceReview",
+    "HROnboarding",
+    "HROffboarding",
+    "LeaveRequest",
+    "CRMAccount",
+    "CRMContact",
+    "CRMPipelineEvent",
+    "SupportTicket",
+    "ClientPortalLink",
+    "ClientAccount",
+    "ClientVerification",
+    "ClientPasswordReset",
+    "ClientOAuthAccount",
+    "ClientRoleAssignment",
+    "UserMFA",
+    "UserMFABackupCode",
+    "UserSession",
+    "MaintenanceAsset",
+    "MaintenanceSchedule",
+    "MaintenanceWorkOrder",
+    "MaintenanceEvent",
+    "MaintenanceEscalationRule",
+    "MaintenanceEscalationEvent",
+    "MaintenanceSensorReading",
+    "PurchaseOrder",
+    "PurchaseOrderLine",
+    "UserDashboard",
+    "Order",
+    "AnalyticsEvent",
+    "ApprovalRequest",
+    "BankTransaction",
+    "ClientRegistration",
+    "CrmInteraction",
+    "CrmLead",
+    "FinanceAccount",
+    "FinanceEntry",
+    "InventoryReservation",
+    "MaintenanceTicket",
+    "MarketingEvent",
+    "MarketingVisit",
+    "MarketingCampaign",
+    "MarketingSegment",
+    "MarketingConsent",
+    "MarketingABVariant",
+    "MarketingGeofence",
+    "AnalyticsMetric",
+    "AnalyticsFact",
+    "AnalyticsDashboard",
+    "AnalyticsWidget",
+    "DataLineage",
+    "KPIRegistry",
+    "ScorecardTemplate",
+    "ScorecardItem",
+    "ReviewCycle",
+    "PerformanceEvaluation",
+    "Feedback360",
+    "MLSuggestion",
     "Incident",
-    "BankAccount", "BankConnection", "BankAccessToken", "BankTwoFactorChallenge", "BankSyncJob",
-    "BankStatement", "BankStatementLine", "StatementLine",
-    "GLJournalEntry", "GLJournalLine", "FinanceAuditLog",
-    "GeoPing", "GeoLastLocation", "GeoAssignment", "GeoRouteCache",
-    "SalesOpportunity", "SupplyChainShipment",
-    "UserRoleAssignment", "RegistrationInvite", "AuditLog",
-    "BotCommandRegistry", "BotEvent", "BotIdempotencyKey", "BotJobOutbox", "TelegramConversationState",
-    "RBACPolicy", "RBACPolicyRule", "RoleAssignmentRequest", "RoleHierarchy",
-    "Inventory", "Item", "InventoryItem", "Product", "StockItem",
-    "Warehouse", "InventoryLocation", "Lot", "InventorySerial", "StockBalance", "StockLedgerEntry",
-    "CycleCount", "CycleCountLine", "ReorderRule",
+    "BankAccount",
+    "BankConnection",
+    "BankAccessToken",
+    "BankTwoFactorChallenge",
+    "BankSyncJob",
+    "BankStatement",
+    "BankStatementLine",
+    "StatementLine",
+    "GLJournalEntry",
+    "GLJournalLine",
+    "FinanceAuditLog",
+    "GeoPing",
+    "GeoLastLocation",
+    "GeoAssignment",
+    "GeoRouteCache",
+    "SalesOpportunity",
+    "SupplyChainShipment",
+    "UserRoleAssignment",
+    "RegistrationInvite",
+    "AuditLog",
+    "BotCommandRegistry",
+    "BotEvent",
+    "BotIdempotencyKey",
+    "BotJobOutbox",
+    "TelegramConversationState",
+    "RBACPolicy",
+    "RBACPolicyRule",
+    "RoleAssignmentRequest",
+    "RoleHierarchy",
+    "Inventory",
+    "Item",
+    "InventoryItem",
+    "Product",
+    "StockItem",
+    "Warehouse",
+    "InventoryLocation",
+    "Lot",
+    "InventorySerial",
+    "SerialNumber",
+    "StockBalance",
+    "StockLedgerEntry",
+    "CycleCount",
+    "CycleCountLine",
+    "ReorderRule",
 ]
