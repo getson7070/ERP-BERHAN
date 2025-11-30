@@ -20,11 +20,24 @@ try:
     from argon2 import PasswordHasher
 except Exception:
     import hashlib
+
     class PasswordHasher:
+        """Fallback shim when argon2 is not available.
+
+        Accepts arbitrary tuning parameters so construction with
+        time_cost/memory_cost/parallelism still works.
+        """
+
+        def __init__(self, *args, **kwargs) -> None:
+            # Ignore tuning params in the shim
+            pass
+
         def hash(self, pw: str) -> str:
             return hashlib.sha256(pw.encode("utf-8")).hexdigest()
+
         def verify(self, h: str, pw: str) -> bool:
             return self.hash(pw) == h
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -148,7 +161,7 @@ def _reset_schema() -> None:
         engine.dispose()
         if database and database != ":memory:":
             Path(database).unlink(missing_ok=True)
-        else:  # in-memory database â€“ drop all tables instead
+        else:  # in-memory database – drop all tables instead
             with engine.begin() as conn:
                 tables = conn.execute(
                     text(
@@ -282,28 +295,42 @@ if __name__ == "__main__":  # pragma: no cover
     init_db()
 
 
-
 # ---- helper hashing API (stable across backends) ----
 try:
     ph  # reuse whatever PasswordHasher/shim is already configured above
 except NameError:  # last-resort shim if something changes unexpectedly
     try:
         from argon2 import PasswordHasher as _Argon2PH
-        ph = _Argon2PH(time_cost=2, memory_cost=51200, parallelism=2, hash_len=32, salt_len=16)
+        ph = _Argon2PH(
+            time_cost=2,
+            memory_cost=51200,
+            parallelism=2,
+            hash_len=32,
+            salt_len=16,
+        )
     except Exception:
         from werkzeug.security import generate_password_hash, check_password_hash
+
         class _PHShim:
             def hash(self, pw: str) -> str:
-                return generate_password_hash(pw, method="pbkdf2:sha256", salt_length=16)
+                return generate_password_hash(
+                    pw,
+                    method="pbkdf2:sha256",
+                    salt_length=16,
+                )
+
             def verify(self, hashed: str, pw: str) -> bool:
                 try:
                     return check_password_hash(hashed, pw)
                 except Exception:
                     return False
+
         ph = _PHShim()
+
 
 def hash_password(pw: str) -> str:
     return ph.hash(pw)
+
 
 def verify_password(pw: str, hashed: str) -> bool:
     try:
@@ -314,6 +341,3 @@ def verify_password(pw: str, hashed: str) -> bool:
     except Exception:
         return False
 # ---- /helper hashing API ----
-
-
-
