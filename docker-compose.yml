@@ -28,6 +28,9 @@ services:
     volumes:
       - .:/app
       - ./instance:/app/instance
+    environment:
+      - REDIS_URL=  # Empty to disable
+      - RATELIMIT_STORAGE_URI=memory://
 
 volumes:
   postgres_data:
