@@ -19,6 +19,7 @@ from erp.extensions import db
 from erp.inventory.models import (
     Warehouse,
     Item,
+    Warehouse,
     Lot,
     SerialNumber,
     StockBalance,

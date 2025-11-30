@@ -1,78 +1,73 @@
-import threading
-import time
+# tests/selenium/test_homepage.py
+"""
+Basic Selenium smoke test for ERP-BERHAN.
+
+This test is intentionally lightweight:
+- It checks that the homepage is reachable.
+- It verifies that unauthenticated access redirects to the login page.
+- It confirms the login form is rendered.
+
+It is guarded by pytest.importorskip so the rest of the test suite
+does not fail if Selenium is not installed in the environment.
+"""
+
 import os
+import time
 
 import pytest
 
-pytest.importorskip("selenium.webdriver")
-pytest.importorskip("webdriver_manager")
-
-import selenium.webdriver as webdriver  # noqa: E402
-from selenium.webdriver.chrome.options import Options as ChromeOptions  # noqa: E402
-from selenium.webdriver.firefox.options import Options as FirefoxOptions  # noqa: E402
-from selenium.webdriver.edge.options import Options as EdgeOptions  # noqa: E402
-from selenium.webdriver.safari.options import Options as SafariOptions  # noqa: E402
-from webdriver_manager.chrome import ChromeDriverManager  # noqa: E402
-from webdriver_manager.firefox import GeckoDriverManager  # noqa: E402
-
-from erp import create_app  # noqa: E402
+selenium = pytest.importorskip("selenium")
+from selenium import webdriver  # type: ignore
+from selenium.webdriver.common.by import By  # type: ignore
+from selenium.webdriver.chrome.options import Options as ChromeOptions  # type: ignore
 
 
-@pytest.mark.skipif("CI" not in os.environ, reason="Selenium smoke only runs in CI")
-def test_homepage_loads(tmp_path):
-    app = create_app()
+BASE_URL = os.environ.get("ERP_BASE_URL", "http://localhost:18000")
 
-    def run():
-        if __name__ -eq "__main__": `r`n    app.run(port=5001)
 
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    time.sleep(1)
+@pytest.fixture(scope="session")
+def browser():
+    """Provide a minimal Chrome WebDriver instance.
 
-    browser = os.environ.get("BROWSER", "chrome")
-    if browser == "firefox":
-        options = FirefoxOptions()
-        options.add_argument("--headless")
-        try:
-            driver = webdriver.Firefox(
-                executable_path=GeckoDriverManager().install(), options=options
-            )
-        except Exception as exc:  # pragma: no cover
-            pytest.skip(f"Firefox not available: {exc}")
-    elif browser == "safari":
-        remote_url = os.environ.get("SELENIUM_REMOTE_URL")
-        if not remote_url:
-            pytest.skip("Safari requires SELENIUM_REMOTE_URL")
-        options = SafariOptions()
-        try:
-            driver = webdriver.Remote(command_executor=remote_url, options=options)
-        except Exception as exc:  # pragma: no cover
-            pytest.skip(f"Safari not available: {exc}")
-    elif browser == "edge":
-        remote_url = os.environ.get("SELENIUM_REMOTE_URL")
-        if not remote_url:
-            pytest.skip("Edge requires SELENIUM_REMOTE_URL")
-        options = EdgeOptions()
-        options.use_chromium = True
-        options.add_argument("--headless")
-        try:
-            driver = webdriver.Remote(command_executor=remote_url, options=options)
-        except Exception as exc:  # pragma: no cover
-            pytest.skip(f"Edge not available: {exc}")
-    else:
-        options = ChromeOptions()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        try:
-            driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
-        except Exception as exc:  # pragma: no cover - depends on CI environment
-            pytest.skip(f"Chrome not available: {exc}")
+    If the driver cannot be started (e.g. binary missing), the test
+    will be skipped instead of failing the whole suite.
+    """
+    options = ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
     try:
-        driver.get("http://localhost:5001/")
-        assert "BERHAN" in driver.title  # nosec B101
-    finally:
-        driver.quit()
+        driver = webdriver.Chrome(options=options)
+    except Exception as exc:  # pragma: no cover - environment dependent
+        pytest.skip(f"Could not start Chrome driver: {exc}")
+
+    yield driver
+    driver.quit()
 
 
+def test_home_redirects_to_login(browser):
+    """Unauthenticated '/' should redirect to the login page."""
+    browser.get(BASE_URL + "/")
+    # Give a tiny bit of time for redirect
+    time.sleep(0.5)
+
+    current_url = browser.current_url
+    # We expect something like .../auth/login?next=...
+    assert "/auth/login" in current_url
 
 
+def test_login_page_renders(browser):
+    """Login page should render and contain the email/password fields."""
+    browser.get(BASE_URL + "/auth/login")
+
+    # Basic sanity checks on the form
+    email_inputs = browser.find_elements(By.NAME, "email")
+    password_inputs = browser.find_elements(By.NAME, "password")
+
+    assert email_inputs, "Expected an email input on the login page"
+    assert password_inputs, "Expected a password input on the login page"
+
+    # CSRF token should be present as a hidden field
+    csrf_inputs = browser.find_elements(By.NAME, "csrf_token")
+    assert csrf_inputs, "Expected a CSRF token input on the login page"
