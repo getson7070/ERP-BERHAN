@@ -7,6 +7,21 @@ shift || true
 
 echo "ENTRYPOINT: cmd=${cmd:-<none>} args=$*"
 
+is_prod() {
+  [ "${FLASK_ENV:-${ENV:-}}" = "production" ]
+}
+
+# In production, do NOT auto-create new Alembic merge revisions at runtime
+# unless explicitly enabled.
+if is_prod && [ -z "${AUTO_REPAIR_MIGRATIONS:-}" ]; then
+  export SKIP_AUTO_MIGRATION_REPAIR=1
+fi
+
+# Explicit override: allow auto-repair when you deliberately enable it.
+if [ "${AUTO_REPAIR_MIGRATIONS:-0}" = "1" ]; then
+  unset SKIP_AUTO_MIGRATION_REPAIR
+fi
+
 wait_for_db() {
   # Support both DATABASE_URL and SQLALCHEMY_DATABASE_URI
   DB_URL="${DATABASE_URL:-$SQLALCHEMY_DATABASE_URI}"

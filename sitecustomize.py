@@ -1,5 +1,10 @@
 # Auto-fix legacy authz matrices and analytics stubs regardless of import order.
+import os
 import importlib
+
+if os.getenv("FLASK_ENV") == "production":
+    # Never monkeypatch core logic in production. Fix upstream modules instead.
+    raise SystemExit  # prevents accidental silent patching
 
 def _fix_authz(modname: str):
     try:

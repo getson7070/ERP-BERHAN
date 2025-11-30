@@ -29,11 +29,42 @@ def is_machine_endpoint(path: str) -> bool:
 
 def get_identity():
     """
-    Replace with your real identity retrieval logic:
-      - flask_login current_user
-      - flask_jwt_extended get_jwt()
-      - session, etc.
+    Resolve the current request identity.
+    Supports:
+      - Flask-Login session (browser UI)
+      - JWT (API clients)
+      - Service tokens / bot signatures (integrations)
     """
+    # 1) Browser sessions (Flask-Login)
+    try:
+        from flask_login import current_user
+
+        if getattr(current_user, "is_authenticated", False):
+            raw_id = None
+            try:
+                raw_id = current_user.get_id()
+            except Exception:
+                raw_id = getattr(current_user, "id", None)
+
+            # ClientAccount sessions can be string ids like "client:123"
+            if isinstance(raw_id, str) and raw_id.startswith("client:"):
+                try:
+                    client_id = int(raw_id.split(":", 1)[1])
+                except Exception:
+                    client_id = None
+                # Give a stable role so RBAC can allow/deny cleanly
+                return {"client_id": client_id, "roles": ["client"]}
+
+            # Standard User session id should be numeric (or convertible)
+            try:
+                user_id = int(raw_id) if raw_id is not None else int(getattr(current_user, "id", 0))
+            except Exception:
+                user_id = getattr(current_user, "id", None)
+
+            return {"id": user_id, "role": getattr(current_user, "role", None)}
+    except Exception:
+        pass
+
     user = getattr(request, "user", None)
     if user:
         return {"id": getattr(user, "id", None), "role": getattr(user, "role", None)}
@@ -43,7 +74,14 @@ def get_identity():
         verify_jwt_in_request(optional=True)
         claims = get_jwt() or {}
         if claims:
-            return {"id": claims.get("sub"), "role": claims.get("role")}
+            role = claims.get("role")
+            roles = claims.get("roles")
+            ident = {"id": claims.get("sub")}
+            if roles:
+                ident["roles"] = roles
+            elif role:
+                ident["role"] = role
+            return ident
     except Exception:
         pass
 
