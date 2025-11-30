@@ -1,42 +1,59 @@
-"""Analytics blueprint stubs and forecasting helpers."""
-from __future__ import annotations
+"""
+Analytics public API.
 
-from statistics import fmean
-from typing import Iterable, Sequence
+Exposes forecasters, detectors, and tasks for use in app/tests.
+"""
 
-from flask import Blueprint, jsonify
+from dataclasses import dataclass
+from typing import List, Sequence
 
-bp = Blueprint("analytics", __name__, url_prefix="/analytics")
-
-
-@bp.get("/health")
-def health():
-    return jsonify(module="analytics", ok=True)
-
-
+@dataclass
 class DemandForecaster:
-    """Lightweight forecasting stub to keep blueprints importable during scaffolding."""
-
-    def __init__(self) -> None:
-        self._history: list[float] = []
-
-    def fit(self, history: Sequence[float] | Iterable[float]) -> "DemandForecaster":
-        self._history = [float(v) for v in history]
-        return self
-
-    def predict_next(self) -> float:
-        if not self._history:
+    def forecast(self, history: Sequence[float]) -> float:
+        if not history:
             return 0.0
-        return float(self._history[-1])
+        return sum(history) / len(history)
 
 
-def retrain_and_predict(history: Sequence[float] | Iterable[float]) -> float:
-    cleaned = [float(v) for v in history if v is not None]
-    if not cleaned:
-        return 0.0
-    baseline = cleaned[-1]
-    trend = fmean(cleaned[-3:]) if len(cleaned) >= 3 else baseline
-    return DemandForecaster().fit(cleaned).predict_next() or trend
+class InventoryAnomalyDetector:
+    def __init__(self, threshold: float = 1.0):
+        self.threshold = threshold
+
+    def detect(self, values: Sequence[float]) -> List[int]:
+        n = len(values)
+        if n == 0:
+            return []
+
+        mean = sum(values) / n
+        var = sum((v - mean) ** 2 for v in values) / n
+        std = var ** 0.5
+
+        if std == 0:
+            return []
+
+        indices = [i for i, v in enumerate(values) if abs(v - mean) > self.threshold * std]
+        return indices
 
 
-__all__ = ["bp", "DemandForecaster", "retrain_and_predict", "health"]
+class RetrainAndPredictTask:
+    def run(self, history: Sequence[float], inventory_levels: Sequence[float]) -> dict:
+        forecaster = DemandForecaster()
+        forecast = forecaster.forecast(history)
+
+        detector = InventoryAnomalyDetector()
+        anomalies = detector.detect(inventory_levels)
+
+        return {"forecast": forecast, "anomalies": anomalies}
+
+
+retrain_and_predict = RetrainAndPredictTask()
+
+def materialized_view_state() -> dict:
+    return {"status": "ok", "views": []}
+
+__all__ = [
+    "DemandForecaster",
+    "InventoryAnomalyDetector",
+    "retrain_and_predict",
+    "materialized_view_state",
+]

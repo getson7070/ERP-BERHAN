@@ -1,280 +1,86 @@
-"""Stock movement service enforcing inventory invariants.
-
-This module centralizes stock mutations to keep balances and ledger entries
-consistent. It offers both a low-level helper (`create_stock_movement`) and a
-small convenience class (`StockService`) for common operations such as
-incrementing, decrementing, and setting quantities.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass
-from decimal import Decimal
+import decimal
 from typing import Optional, Tuple
 
-from sqlalchemy import select
+from flask import current_app
 from sqlalchemy.orm import Session
-
-from erp.extensions import db
+from erp.db import db
 from erp.inventory.models import (
-    Warehouse,
     Item,
     Warehouse,
     Lot,
-    SerialNumber,
     StockBalance,
     StockLedgerEntry,
+    SerialNumber,  # Crucial for device/equipment tracking
 )
-
-
-@dataclass
-class StockMovementResult:
-    """Return type for stock movement operations."""
-
-    balance: StockBalance
-    ledger: StockLedgerEntry
-
-def _to_decimal(value) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-def _to_decimal(value) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _lock_or_create_balance(
-    session: Session,
-    *,
-    org_id: int,
-    item_id,
-    warehouse_id,
-) -> StockBalance:
-    """Fetch the balance row for update, creating it if missing."""
-
-    stmt = (
-        select(StockBalance)
-        .where(
-            StockBalance.org_id == org_id,
-            StockBalance.item_id == item_id,
-            StockBalance.warehouse_id == warehouse_id,
-        )
-        .with_for_update()
-    )
-
-    balance = session.execute(stmt).scalar_one_or_none()
-    if balance is None:
-        balance = StockBalance(
-            org_id=org_id,
-            item_id=item_id,
-            warehouse_id=warehouse_id,
-            qty_on_hand=Decimal("0"),
-            qty_reserved=Decimal("0"),
-        )
-        session.add(balance)
-        session.flush()
-
-    return balance
-
-
-def _apply_movement(
-    session: Session,
-    *,
-    org_id: int,
-    item_id,
-    warehouse_id,
-    delta_qty: Decimal,
-    tx_type: str,
-    reference_type: Optional[str] = None,
-    reference_id: Optional[str] = None,
-    allow_negative: bool = False,
-) -> StockMovementResult:
-    """Apply a single stock movement inside an active transaction."""
-
-    balance = _lock_or_create_balance(
-        session,
-        org_id=org_id,
-        item_id=item_id,
-        warehouse_id=warehouse_id,
-    )
-
-    current_qty = _to_decimal(balance.qty_on_hand or 0)
-    new_qty = current_qty + _to_decimal(delta_qty)
-
-    if new_qty < 0 and not allow_negative:
-        raise ValueError(
-            "Stock underflow: movement would drive qty_on_hand negative"
-        )
-
-    balance.qty_on_hand = new_qty
-
-    balance = _lock_or_create_balance(
-        session,
-        org_id=org_id,
-        item_id=item_id,
-        warehouse_id=warehouse_id,
-        qty=_to_decimal(delta_qty),
-        tx_type=tx_type,
-        reference_type=reference_type,
-        reference_id=reference_id,
-    )
-    session.add(ledger)
-    session.flush()
-
-    return StockMovementResult(balance=balance, ledger=ledger)
-
-
-def create_stock_movement(
-    *,
-    org_id: int,
-    item_id,
-    warehouse_id,
-    delta_qty,
-    tx_type: str,
-    reference_type: Optional[str] = None,
-    reference_id: Optional[str] = None,
-    allow_negative: bool = False,
-    session: Optional[Session] = None,
-) -> StockMovementResult:
-    """Public entry point for atomic stock changes.
-
-    Args:
-        org_id: Organisation identifier for multi-tenant isolation.
-        item_id: Item UUID.
-        warehouse_id: Warehouse UUID.
-        delta_qty: Quantity delta (+ for inbound, - for outbound).
-        tx_type: Descriptive transaction type for auditability.
-        reference_type: Optional reference entity type.
-        reference_id: Optional reference entity identifier.
-        allow_negative: Allow the resulting qty_on_hand to go negative.
-        session: Optional SQLAlchemy session to use; defaults to `db.session`.
-    """
-
-    session = session or db.session
-    delta_qty = _to_decimal(delta_qty)
-
-    with session.begin_nested():
-        result = _apply_movement(
-            session,
-            org_id=org_id,
-            item_id=item_id,
-            warehouse_id=warehouse_id,
-            delta_qty=delta_qty,
-            tx_type=tx_type,
-            reference_type=reference_type,
-            reference_id=reference_id,
-            allow_negative=allow_negative,
-        )
-
-    return result
+from erp.models.user import User
 
 
 class StockService:
-    """Convenience wrapper around stock movements for common flows."""
+    """Core stock management service."""
 
-    def __init__(self, session: Optional[Session] = None):
-        self.session = session or db.session
-
-    def increment(
-        self,
-        *,
-        org_id: int,
-        item_id,
-        warehouse_id,
-        qty,
+    @classmethod
+    def adjust(
+        cls,
+        session: Session,
+        item_id: int,
+        warehouse_id: int,
+        quantity: decimal.Decimal,
         reason: str,
-        ref_type: Optional[str] = None,
-        ref_id: Optional[str] = None,
-    ) -> StockMovementResult:
-        return create_stock_movement(
-            org_id=org_id,
+        user: User,
+        lot_id: Optional[int] = None,
+        serial_number: Optional[str] = None,  # For devices/equipment
+        batch_number: Optional[str] = None,  # For reagents (alias for Lot)
+    ) -> Tuple[StockBalance, StockLedgerEntry]:
+        """Adjust stock level and create ledger entry."""
+        balance = cls._get_balance(session, item_id, warehouse_id)
+
+        if quantity < 0 and balance.qty_on_hand + quantity < 0:
+            if not current_app.config.get("ALLOW_NEGATIVE_STOCK"):
+                raise ValueError("Cannot go negative without config flag")
+
+        # Update balance
+        balance.qty_on_hand += quantity
+
+        # Create ledger entry with serial/lot
+        ledger = StockLedgerEntry(
             item_id=item_id,
             warehouse_id=warehouse_id,
-            delta_qty=_to_decimal(qty),
-            tx_type=reason,
-            reference_type=ref_type,
-            reference_id=ref_id,
-            session=self.session,
+            lot_id=lot_id,
+            serial_number=serial_number,  # Crucial for serialized items
+            batch_number=batch_number,  # For reagents/batches
+            quantity=quantity,
+            reason=reason,
+            created_by=user.id,
+            reference_id=str(user.id),  # Simple ref for now
         )
+        session.add(ledger)
 
-    def decrement(
-        self,
-        *,
-        org_id: int,
-        item_id,
-        warehouse_id,
-        qty,
-        reason: str,
-        ref_type: Optional[str] = None,
-        ref_id: Optional[str] = None,
-    ) -> StockMovementResult:
-        qty = _to_decimal(qty)
-        if qty <= 0:
-            raise ValueError("Decrement qty must be positive")
+        session.commit()
 
-        return create_stock_movement(
-            org_id=org_id,
-            item_id=item_id,
-            warehouse_id=warehouse_id,
-            delta_qty=-qty,
-            tx_type=reason,
-            reference_type=ref_type,
-            reference_id=ref_id,
-            allow_negative=False,
-            session=self.session,
-        )
+        return balance, ledger
 
-    def set_quantity(
-        self,
-        *,
-        org_id: int,
-        item_id,
-        warehouse_id,
-        new_qty,
-        reason: str,
-        ref_type: Optional[str] = None,
-        ref_id: Optional[str] = None,
-    ) -> StockMovementResult:
-        new_qty = _to_decimal(new_qty)
-        if new_qty < 0:
-            raise ValueError("new_qty cannot be negative")
-
-        with self.session.begin_nested():
-            balance = _lock_or_create_balance(
-                self.session,
-                org_id=org_id,
-                item_id=item_id,
-                warehouse_id=warehouse_id,
-            )
-            current_qty = _to_decimal(balance.qty_on_hand or 0)
-            delta = new_qty - current_qty
-            result = _apply_movement(
-                self.session,
-                org_id=org_id,
-                item_id=item_id,
-                warehouse_id=warehouse_id,
-                delta_qty=delta,
-                tx_type=reason,
-                reference_type=ref_type,
-                reference_id=ref_id,
-                allow_negative=False,
-            )
-
-        return result
-
-    def get_available_quantity(self, *, org_id: int, item_id, warehouse_id) -> Decimal:
+    @classmethod
+    def _get_balance(
+        cls, session: Session, item_id: int, warehouse_id: int
+    ) -> StockBalance:
         balance = (
-            StockBalance.query.filter_by(
-                org_id=org_id, item_id=item_id, warehouse_id=warehouse_id
-            )
-            .with_for_update(read=False)
-            .one_or_none()
+            session.query(StockBalance)
+            .filter_by(item_id=item_id, warehouse_id=warehouse_id)
+            .first()
         )
-        if balance is None:
-            return Decimal("0")
+        if not balance:
+            # Create on demand
+            balance = StockBalance(item_id=item_id, warehouse_id=warehouse_id)
+            session.add(balance)
+            session.commit()
+        return balance
 
-        qty_on_hand = _to_decimal(balance.qty_on_hand or 0)
-        reserved = _to_decimal(balance.qty_reserved or 0)
-        return qty_on_hand - reserved
+
+def get_available_stock(item_id: int, warehouse_id: int) -> decimal.Decimal:
+    """Get current qty_on_hand for an item/warehouse combo."""
+    balance = db.session.query(StockBalance).filter_by(
+        item_id=item_id, warehouse_id=warehouse_id
+    ).first()
+    return balance.qty_on_hand if balance else decimal.Decimal("0")

@@ -1,22 +1,32 @@
-"""ORM compatibility layer for legacy imports.
+"""
+Central DB module for SQLAlchemy and models.
 
-Historically the SQLAlchemy instance lived in ``erp.db``; newer code uses
-``erp.extensions`` to keep all Flask extensions together.  To remain
-backwards compatible we simply re-export the shared ``db`` instance here
-and lazily expose the ``User`` model so tests that import
-``from erp.db import db, User`` continue to work.
+Re-exports commonly-used models so tests/blueprints can import consistently.
 """
 
-from __future__ import annotations
+from flask_sqlalchemy import SQLAlchemy
 
-from typing import Any
+db = SQLAlchemy()
 
-from .extensions import db as db  # re-exported SQLAlchemy handle
+# Core models (existing)
+from .models.user import User
+from .models.org import Organization
 
-try:  # pragma: no cover - import may fail in minimal deployments
-    from erp.models.user import User  # type: ignore
-except Exception:  # pragma: no cover - fallback when models unavailable
-    User = Any  # type: ignore[misc,assignment]
+# Re-export for convenience
+try:
+    from .models.inventory import Inventory
+except ImportError:
+    Inventory = None
 
-__all__ = ["db", "User"]
+try:
+    from .models.user_dashboard import UserDashboard
+except ImportError:
+    UserDashboard = None
 
+__all__ = [
+    "db",
+    "User",
+    "Organization",
+    "Inventory",
+    "UserDashboard",
+]
