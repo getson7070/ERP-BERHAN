@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect  # ADDED: Fixes NameError
 
 revision = "9c2b4b3c6a5e"
 down_revision = "8f5c2e7d9a4b"
