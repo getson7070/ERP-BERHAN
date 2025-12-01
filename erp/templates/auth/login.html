@@ -1,48 +1,67 @@
 {% extends "base.html" %}
+{% from "macros/form_macros.html" import render_field %}  {# Assume macro for fields; optional #}
 
-{% block title %}Login – Berhan ERP{% endblock %}
+{% block title %}Sign In - Berhan ERP{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-body">
-    <h1 class="h4 mb-3">Sign in</h1>
-
-    {# Flash messages from view #}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-container">
-          {% for category, msg in messages %}
-            <div class="flash flash-{{ category }}">{{ msg }}</div>
-          {% endfor %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white text-center">
+          <img src="{{ url_for('static', filename='pictures/berhan_logo.png') }}" alt="Berhan Pharma Logo" class="img-fluid mb-2" style="max-height: 50px;">
+          <h4>Berhan ERP - Sign In</h4>
+          <p class="mb-0">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
         </div>
-      {% endif %}
-    {% endwith %}
+        <div class="card-body">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
 
-    <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
-      {{ form.hidden_tag() }} {# includes CSRF token #}
-
-      <div class="mb-3">
-        <label for="{{ form.email.id }}" class="form-label">Email</label>
-        {{ form.email(class="form-control", autocomplete="email") }}
-        {% if form.email.errors %}
-          <div class="text-danger small">
-            {{ form.email.errors[0] }}
+          <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+            {{ form.hidden_tag() }}  {# CSRF token fix - auto-generates <input name="csrf_token"> #}
+            
+            <div class="mb-3">
+              {{ form.email.label(class="form-label") }}
+              {{ form.email(class="form-control", placeholder="admin@berhanpharma.com", aria-describedby="emailHelp") }}
+              {% if form.email.errors %}
+                <div class="invalid-feedback d-block">{{ form.email.errors[0] }}</div>
+              {% endif %}
+              <div id="emailHelp" class="form-text">We'll never share your email.</div>
+            </div>
+            
+            <div class="mb-3">
+              {{ form.password.label(class="form-label") }}
+              {{ form.password(class="form-control", aria-describedby="passwordHelp") }}
+              {% if form.password.errors %}
+                <div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>
+              {% endif %}
+              <div id="passwordHelp" class="form-text">Use a strong password.</div>
+            </div>
+            
+            <div class="mb-3 form-check">
+              {{ form.remember_me(class="form-check-input") }}
+              {{ form.remember_me.label(class="form-check-label") }}
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+          </form>
+          
+          <hr class="my-4">
+          <div class="text-center">
+            <a href="{{ url_for('auth.forgot') }}" class="btn btn-link">Forgot Password?</a>
+            <a href="{{ url_for('mfa.start') }}" class="btn btn-link">Use MFA</a>
           </div>
-        {% endif %}
+        </div>
       </div>
-
-      <div class="mb-3">
-        <label for="{{ form.password.id }}" class="form-label">Password</label>
-        {{ form.password(class="form-control", autocomplete="current-password") }}
-        {% if form.password.errors %}
-          <div class="text-danger small">
-            {{ form.password.errors[0] }}
-          </div>
-        {% endif %}
-      </div>
-
-      <button type="submit" class="btn btn-primary">Sign in</button>
-    </form>
+    </div>
   </div>
 </div>
 {% endblock %}
