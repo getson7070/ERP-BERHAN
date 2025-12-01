@@ -1,11 +1,10 @@
 """Add banking integration tables and extend bank_accounts."""
+
 from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import inspect
 
-# revision identifiers, used by Alembic.
 revision = "9c2b4b3c6a5e"
 down_revision = "8f5c2e7d9a4b"
 branch_labels = None

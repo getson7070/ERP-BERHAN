@@ -1,9 +1,10 @@
-"""add finance gl, audit log, and reconciliation tables"""
+"""Add finance GL tables and base accounting structures."""
+
+from __future__ import annotations
+
 from alembic import op
 import sqlalchemy as sa
 
-
-# revision identifiers, used by Alembic.
 revision = "8f5c2e7d9a4b"
 down_revision = "7f0b1d2c3a4e"
 branch_labels = None
@@ -55,11 +56,26 @@ def upgrade():
         sa.Column("event_type", sa.String(length=64), nullable=False, index=True),
         sa.Column("entity_type", sa.String(length=64), nullable=False),
         sa.Column("entity_id", sa.Integer(), nullable=False),
-        sa.Column("payload", sa.JSON(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "payload",
+            sa.JSON(),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("created_by_id", sa.Integer(), nullable=True),
     )
 
+    # NOTE:
+    # -----
+    # We intentionally create ``bank_statements`` WITHOUT a foreign key to
+    # ``bank_accounts`` here. The FK is added later by migration
+    # ``a9f1c2d3e4f5_add_fk_bank_statements_bank_accounts`` once the
+    # ``bank_accounts`` table exists (created in 9c2b4b3c6a5e).
+    #
+    # Creating the FK inline here causes a failure on a fresh database
+    # because ``bank_accounts`` does not exist yet when this revision
+    # runs (this revision precedes the banking integration one).
     op.create_table(
         "bank_statements",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -76,7 +92,7 @@ def upgrade():
         sa.Column("statement_date", sa.Date(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("created_by_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(["bank_account_id"], ["bank_accounts.id"], ondelete="SET NULL"),
+        # FK deliberately deferred to a9f1c2d3e4f5
     )
 
     op.create_table(

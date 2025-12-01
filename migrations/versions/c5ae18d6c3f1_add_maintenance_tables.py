@@ -1,10 +1,10 @@
-"""Add maintenance assets, schedules, work orders, and escalation tables."""
+"""Add maintenance tables for assets and work orders."""
+
 from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
 
-# revision identifiers, used by Alembic.
 revision = "c5ae18d6c3f1"
 down_revision = "9c2b4b3c6a5e"
 branch_labels = None

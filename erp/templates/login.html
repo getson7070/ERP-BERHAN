@@ -1,19 +1,45 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container" style="max-width:420px;margin:6rem auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-  <h1 style="font-weight:700;margin-bottom:1rem;">Sign in</h1>
-  <p style="color:#666;margin-bottom:2rem;">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
-  <form method="post" action="/auth/login">
-    {{ csrf_token() }}
 
-    <label>Email</label>
-    <input name="email" type="email" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1rem;">
-    <label>Password</label>
-    <input name="password" type="password" required style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1.25rem;">
-    <button type="submit" style="width:100%;padding:.85rem;border-radius:.5rem;border:0;background:#2d6cdf;color:white;font-weight:600;">Sign in</button>
+{% block title %}Sign in · Berhan ERP{% endblock %}
+
+{% block content %}
+<div class="container"
+     style="max-width:420px;margin:6rem auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+  <h1 style="font-weight:700;margin-bottom:1rem;">Sign in</h1>
+  <p style="color:#666;margin-bottom:2rem;">
+    Secure access to Berhan ERP. Use your company email and password.
+  </p>
+
+  <form method="post"
+        action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+    <!-- CSRF protection: must be a named field -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label for="email" style="display:block;font-weight:500;margin-bottom:.25rem;">Email</label>
+    <input id="email"
+           name="email"
+           type="email"
+           required
+           autocomplete="email"
+           style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1rem;">
+
+    <label for="password" style="display:block;font-weight:500;margin-bottom:.25rem;">Password</label>
+    <input id="password"
+           name="password"
+           type="password"
+           required
+           autocomplete="current-password"
+           style="width:100%;padding:.75rem;border:1px solid #ddd;border-radius:.5rem;margin:.5rem 0 1.25rem;">
+
+    <button type="submit"
+            style="width:100%;padding:.85rem;border:none;border-radius:.5rem;background:#2d6cdf;color:white;font-weight:600;">
+      Sign in
+    </button>
   </form>
+
   <div style="margin-top:1.5rem;color:#888;font-size:.9rem;">
-    <a href="/mfa/start">Use MFA</a> · <a href="/auth/forgot">Forgot password?</a>
+    <!-- Keep this simple and robust: use literal path instead of url_for to avoid endpoint typos -->
+    <a href="/auth/forgot">Forgot password?</a>
   </div>
 </div>
 {% endblock %}
