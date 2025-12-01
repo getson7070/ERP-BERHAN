@@ -25,3 +25,5 @@ Flask-Mail==0.9.1
 Flask-Limiter==4.0.0
 cryptography==42.0.5
 requests==2.32.5
+beautifulsoup4
+boto3
