@@ -77,21 +77,43 @@ repair_migration_heads() {
   fi
 }
 
+seed_demo_data() {
+  if [ "${SEED_DEMO_DATA:-0}" != "1" ]; then
+    echo "seed_demo_data: SEED_DEMO_DATA not set to 1, skipping seeding."
+    return 0
+  fi
+
+  if [ ! -f init_db.py ]; then
+    echo "seed_demo_data: init_db.py not found; skipping." >&2
+    return 0
+  fi
+
+  echo "seed_demo_data: Running init_db.py seeding…"
+  if ! python init_db.py --seed; then
+    echo "seed_demo_data: Seeding failed." >&2
+    return 1
+  fi
+  echo "seed_demo_data: Demo data seeded (admin@berhanpharma.com / securepass)."
+}
+
 if [ -z "$cmd" ] || [ "$cmd" = "web" ]; then
   wait_for_db
   repair_migration_heads
+  seed_demo_data  # ADDED: Seeding after migrations
   echo "Starting Gunicorn web server..."
   exec gunicorn -c gunicorn.conf.py wsgi:app
 
 elif [ "$cmd" = "migrate" ]; then
   wait_for_db
   repair_migration_heads
+  seed_demo_data  # Optional for migrate
   echo "Running Alembic migrations (upgrade head)..."
   exec alembic upgrade head
 
 elif [ "$cmd" = "celery" ]; then
   wait_for_db
   repair_migration_heads
+  seed_demo_data  # Optional
   echo "Starting Celery worker with args: $*"
   exec celery "$@"
 
