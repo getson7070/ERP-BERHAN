@@ -8,7 +8,7 @@ and safety.
 
 from __future__ import annotations
 
-from erp.security_hardening import safe_run, safe_call, safe_popen
+from erp.security_hardening import safe_run, safe_call, safe_popen  # noqa: F401
 
 import os
 import subprocess
@@ -51,6 +51,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.engine import Connection
+from sqlalchemy import inspect
 
 from db import get_engine
 
@@ -78,20 +79,28 @@ cities = Table(
     Column("name", String, nullable=False),
 )
 
+# NOTE:
+# This local SQLAlchemy Table is *only* used for seeding. The real
+# canonical schema is defined in Alembic migrations. That means the
+# set of columns here may not be perfectly in-sync with the DB, so
+# all write paths must be defensive and driven by live inspection of
+# the database, not by this metadata object.
 users = Table(
     "users",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("user_type", String),
+    Column("user_type", String),            # legacy; may not exist in DB
     Column("username", String, unique=True),
+    Column("email", String, unique=True, nullable=False),
     Column("password_hash", String),
-    Column("mfa_secret", String),
+    Column("mfa_secret", String),           # legacy; real MFA may live elsewhere
     Column("permissions", String),
     Column("approved_by_ceo", Boolean),
     Column("role", String),
     Column("last_password_change", DateTime),
+    # created_at / updated_at / is_active are added by migrations
+    # and discovered dynamically via inspector.
 )
-
 
 regions_cities_data = [
     ("Amhara", "Bahir Dar"),
@@ -110,7 +119,6 @@ regions_cities_data = [
     ("Addis Ababa", "Addis Ababa"),
     ("Dire Dawa", "Dire Dawa"),
 ]
-
 
 admin_phones = ["0946423021", "0984707070", "0969111144"]
 employee_phones = [
@@ -141,17 +149,90 @@ def _table_exists(conn: Connection, table: str) -> bool:
 
 
 def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
-    # FIXED: Dialect-specific upsert
+    """Insert a row into `table` if it does not already exist.
+
+    Defensive against schema drift:
+
+    - Inspects the *actual* DB columns via inspector.
+    - Drops any keys that do not map to real columns.
+    - Fills reasonable defaults for NOT NULL columns.
+    - NEVER overrides the primary key / identity column `id`.
+    - Uses raw INSERT built from the live column list, avoiding
+      SQLAlchemy's "unconsumed column names" issue when local
+      metadata is out of sync with the DB.
+    """
+    inspector = inspect(conn)
+    columns_info = inspector.get_columns(table.name)
+    existing_cols = [col["name"] for col in columns_info]
+
+    now = datetime.now()
+    filtered_values: dict[str, object] = {}
+
+    for col in columns_info:
+        col_name = col["name"]
+
+        # Never manually set primary key / identity – leave to DB sequence
+        if col_name == "id":
+            continue
+
+        if col_name in values:
+            val = values[col_name]
+        elif not col.get("nullable", True):
+            # Best-effort type detection
+            try:
+                py_type = col["type"].python_type
+            except Exception:
+                py_type = None
+
+            if col_name == "email":
+                val = f"{values.get('username', 'admin')}@berhanpharma.com"
+            elif col_name == "approved_by_ceo":
+                val = True
+            elif col_name == "role":
+                # If caller requested a role, keep it; otherwise default
+                val = values.get("role", "User")
+            elif col_name == "last_password_change":
+                val = now
+            elif col_name in ("created_at", "updated_at"):
+                val = now
+            elif col_name == "is_active":
+                val = True
+            else:
+                if py_type is str:
+                    val = ""
+                elif py_type is bool:
+                    val = False
+                elif py_type is datetime:
+                    val = now
+                else:
+                    # Fallback for ints/numerics/etc.
+                    val = 0
+        else:
+            # Nullable and not explicitly provided – let DB default/null handle it
+            continue
+
+        filtered_values[col_name] = val
+
+    if not filtered_values:
+        return  # nothing meaningful to insert
+
+    cols = list(filtered_values.keys())
+    col_list = ", ".join(f'"{c}"' for c in cols)
+    placeholders = ", ".join(f":{c}" for c in cols)
+
+    # Build dialect-specific SQL without using the local Table metadata,
+    # so we never hit "unconsumed column names" even if metadata is stale.
     if conn.dialect.name.startswith("sqlite"):
-        ins = table.insert().values(**values).prefix_with("OR IGNORE")
+        # SQLite: use INSERT OR IGNORE to mimic "upsert" on unique constraints
+        stmt_txt = f'INSERT OR IGNORE INTO "{table.name}" ({col_list}) VALUES ({placeholders})'
     else:
-        # Postgres: Raw text for ON CONFLICT (avoids method issues)
-        columns = ", ".join(values.keys())
-        placeholders = ", ".join([f"%({k})s" for k in values.keys()])
-        conflict = "ON CONFLICT (username) DO NOTHING"  # Assume username unique
-        stmt = text(f"INSERT INTO {table.name} ({columns}) VALUES ({placeholders}) {conflict}")
-        ins = stmt.bindparams(**values)
-    conn.execute(ins)
+        # PostgreSQL: use ON CONFLICT on username when available
+        stmt_txt = f'INSERT INTO "{table.name}" ({col_list}) VALUES ({placeholders})'
+        if "username" in existing_cols:
+            stmt_txt += ' ON CONFLICT ("username") DO NOTHING'
+
+    stmt = text(stmt_txt)
+    conn.execute(stmt, filtered_values)
 
 
 def _reset_schema() -> None:
@@ -164,7 +245,7 @@ def _reset_schema() -> None:
         # releases any outstanding locks from the failed migration
         # attempt.
         engine.dispose()
-        if database and database != ":memory:":
+        if database and database != ":memory__":
             Path(database).unlink(missing_ok=True)
         else:  # in-memory database – drop all tables instead
             with engine.begin() as conn:
@@ -174,7 +255,7 @@ def _reset_schema() -> None:
                     )
                 ).all()
                 for (table_name,) in tables:
-                    conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+                    conn.execute(text(f'DROP TABLE IF NOT EXISTS "{table_name}"'))
         return
 
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -197,7 +278,11 @@ def init_db() -> None:
         print("Alembic upgrade: OK")
 
     engine = get_engine()
+
+    # For SQLite dev runs this can create missing region/city tables;
+    # for Postgres it’s effectively a no-op thanks to Alembic.
     metadata.create_all(engine)
+
     with engine.begin() as conn:
 
         # Seed regions and cities if empty
@@ -214,30 +299,37 @@ def init_db() -> None:
         seed_demo = os.environ.get("SEED_DEMO_DATA") == "1" and os.environ.get(
             "FLASK_ENV", "development"
         ) != "production"
+
         if seed_demo:
-            admin_username = os.environ.get("ADMIN_USERNAME")
-            admin_password = os.environ.get("ADMIN_PASSWORD")
-            if not admin_username or not admin_password:
-                raise RuntimeError(
-                    "ADMIN_USERNAME and ADMIN_PASSWORD required when SEED_DEMO_DATA=1"
-                )
+            admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+            admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
             password_hash = hash_password(admin_password)
             admin_secret = pyotp.random_base32()
+
             _insert_ignore(
                 conn,
                 users,
                 dict(
-                    user_type="employee",
                     username=admin_username,
+                    email=f"{admin_username}@berhanpharma.com",
                     password_hash=password_hash,
+                    # NOTE: mfa_secret may or may not be a users column. If the
+                    # column doesn't exist, _insert_ignore will drop this key.
                     mfa_secret=admin_secret,
-                    permissions="add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                    permissions=(
+                        "add_report,view_orders,user_management,add_inventory,"
+                        "receive_inventory,inventory_out,inventory_report,add_tender,"
+                        "tenders_list,tenders_report,put_order,maintenance_request,"
+                        "maintenance_status,maintenance_followup,maintenance_report"
+                    ),
                     approved_by_ceo=True,
                     role="Admin",
                     last_password_change=datetime.now(),
+                    is_active=True,  # only applied if column exists
                 ),
             )
-            print(f"Seeded admin {admin_username} with MFA secret: {admin_secret}")
+            print(f"Seeded admin {admin_username}@berhanpharma.com with MFA secret: {admin_secret}")
+
             for phone in admin_phones:
                 password_hash = hash_password(phone)
                 secret = pyotp.random_base32()
@@ -245,17 +337,24 @@ def init_db() -> None:
                     conn,
                     users,
                     dict(
-                        user_type="employee",
                         username=phone,
+                        email=f"{phone}@berhanpharma.com",
                         password_hash=password_hash,
                         mfa_secret=secret,
-                        permissions="add_report,view_orders,user_management,add_inventory,receive_inventory,inventory_out,inventory_report,add_tender,tenders_list,tenders_report,put_order,maintenance_request,maintenance_status,maintenance_followup,maintenance_report",
+                        permissions=(
+                            "add_report,view_orders,user_management,add_inventory,"
+                            "receive_inventory,inventory_out,inventory_report,add_tender,"
+                            "tenders_list,tenders_report,put_order,maintenance_request,"
+                            "maintenance_status,maintenance_followup,maintenance_report"
+                        ),
                         approved_by_ceo=True,
                         role="Admin",
                         last_password_change=datetime.now(),
+                        is_active=True,
                     ),
                 )
-                print(f"Seeded admin {phone} with MFA secret: {secret}")
+                print(f"Seeded admin {phone}@berhanpharma.com with MFA secret: {secret}")
+
             for phone in employee_phones:
                 password_hash = hash_password(phone)
                 secret = pyotp.random_base32()
@@ -263,31 +362,36 @@ def init_db() -> None:
                     conn,
                     users,
                     dict(
-                        user_type="employee",
                         username=phone,
+                        email=f"{phone}@berhanpharma.com",
                         password_hash=password_hash,
                         mfa_secret=secret,
                         permissions="add_report,put_order,view_orders",
                         approved_by_ceo=True,
                         role="Sales Rep",
                         last_password_change=datetime.now(),
+                        is_active=True,
                     ),
                 )
         elif seed_demo:
+            # This branch is unreachable with the current condition, but kept
+            # for clarity of intent: we never seed demo data in production.
             print("SEED_DEMO_DATA ignored in production environment")
 
-        for table in ("orders", "tenders", "inventory", "audit_logs"):
-            if _table_exists(conn, table):
+        # Ensure org_id + RLS on key multi-tenant tables, if they exist.
+        for table_name in ("orders", "tenders", "inventory", "audit_logs"):
+            if _table_exists(conn, table_name):
                 conn.execute(
                     text(
-                        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)"
+                        f'ALTER TABLE "{table_name}" '
+                        'ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)'
                     )
                 )
-                conn.execute(text(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY"))
-                conn.execute(text(f"DROP POLICY IF EXISTS org_rls ON {table}"))
+                conn.execute(text(f'ALTER TABLE "{table_name}" ENABLE ROW LEVEL SECURITY'))
+                conn.execute(text(f'DROP POLICY IF EXISTS org_rls ON "{table_name}"'))
                 conn.execute(
                     text(
-                        f"CREATE POLICY org_rls ON {table} "
+                        f'CREATE POLICY org_rls ON "{table_name}" '
                         "USING (org_id = current_setting('erp.org_id')::INTEGER) "
                         "WITH CHECK (org_id = current_setting('erp.org_id')::INTEGER)"
                     )
@@ -331,10 +435,6 @@ except NameError:  # last-resort shim if something changes unexpectedly
                     return False
 
         ph = _PHShim()
-
-
-def hash_password(pw: str) -> str:
-    return ph.hash(pw)
 
 
 def verify_password(pw: str, hashed: str) -> bool:
