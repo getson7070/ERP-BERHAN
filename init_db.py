@@ -141,11 +141,16 @@ def _table_exists(conn: Connection, table: str) -> bool:
 
 
 def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
-    ins = table.insert().values(**values)
+    # FIXED: Dialect-specific upsert
     if conn.dialect.name.startswith("sqlite"):
-        ins = ins.prefix_with("OR IGNORE")
+        ins = table.insert().values(**values).prefix_with("OR IGNORE")
     else:
-        ins = ins.prefix_with("ON CONFLICT DO NOTHING")
+        # Postgres: Raw text for ON CONFLICT (avoids method issues)
+        columns = ", ".join(values.keys())
+        placeholders = ", ".join([f"%({k})s" for k in values.keys()])
+        conflict = "ON CONFLICT (username) DO NOTHING"  # Assume username unique
+        stmt = text(f"INSERT INTO {table.name} ({columns}) VALUES ({placeholders}) {conflict}")
+        ins = stmt.bindparams(**values)
     conn.execute(ins)
 
 
