@@ -44,12 +44,17 @@ from erp.utils import resolve_org_id
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+# In-memory backoff for repeated failed logins
 _FAILED_LOGINS: dict[str, tuple[int, datetime]] = {}
 
 
 def _check_backoff(email: str) -> tuple[str, int]:
-    """Return cooldown state for repeated login failures."""
+    """Return cooldown state for repeated login failures.
 
+    Returns:
+        ("ok", 0) when login is allowed.
+        ("cooldown", seconds_remaining) when client must wait.
+    """
     email = (email or "").lower()
     record = _FAILED_LOGINS.get(email)
     if not record:
@@ -63,20 +68,24 @@ def _check_backoff(email: str) -> tuple[str, int]:
 
 
 def _record_failure(email: str) -> None:
+    """Record a failed login attempt and update cooldown."""
     email = (email or "").lower()
-    attempts, locked_until = _FAILED_LOGINS.get(email, (0, datetime.now(UTC)))
+    attempts, _locked_until = _FAILED_LOGINS.get(email, (0, datetime.now(UTC)))
     attempts += 1
+
+    # Simple linear backoff with upper bound:
+    #  1st failure ~5s, 2nd ~10s, up to a max of 300s
     cooldown = min(300, max(5, attempts * 5))
     _FAILED_LOGINS[email] = (attempts, datetime.now(UTC) + timedelta(seconds=cooldown))
 
 
 def _clear_failures(email: str) -> None:
+    """Clear recorded failures after a successful login."""
     _FAILED_LOGINS.pop((email or "").lower(), None)
 
 
 def _json_or_form(key: str, default: str = "") -> str:
     """Return a value from JSON or form payloads with safe defaults."""
-
     if request.is_json:
         payload: dict[str, Any] = request.get_json(silent=True) or {}
         return str(payload.get(key, default) or "").strip()
@@ -85,7 +94,6 @@ def _json_or_form(key: str, default: str = "") -> str:
 
 def _login_rate_limit_key() -> str:
     """Key function that scopes login throttling to remote address + email."""
-
     email = _json_or_form("email", default="").lower().strip()
     return f"{get_remote_address()}:{email or 'anon'}"
 
@@ -143,59 +151,114 @@ def _queue_registration_request(org_id: int, username: str, email: str, role: st
 @limiter.limit("5 per minute", key_func=_login_rate_limit_key)
 def login():
     """Authenticate a user via form or JSON payload and start a session."""
-
+    # ---- GET: render login form or redirect authenticated users ----
     if request.method == "GET":
         if current_user.is_authenticated:
-            return redirect(url_for("dashboard_customize.index"))
+            # Already logged in → go to customizable dashboard
+            return redirect(url_for("dashboard_customize.get_layout"))
         return render_template("login.html")
 
+    # ---- POST: credential-based login ----
     email = _json_or_form("email").lower()
     password = _json_or_form("password")
+
     if not email or not password:
         flash("Email and password are required.", "danger")
         return render_template("login.html"), HTTPStatus.BAD_REQUEST
 
+    # Check per-email cooldown (in addition to IP rate limiting)
+    backoff_state, cooldown = _check_backoff(email)
+    if backoff_state == "cooldown":
+        message = f"Too many failed attempts. Try again in {cooldown} seconds."
+        if request.is_json:
+            return (
+                jsonify(
+                    {
+                        "error": "too_many_attempts",
+                        "retry_after": cooldown,
+                    }
+                ),
+                HTTPStatus.TOO_MANY_REQUESTS,
+            )
+        flash(message, "danger")
+        return render_template("login.html"), HTTPStatus.TOO_MANY_REQUESTS
+
     org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
+
+    # Invalid credentials → record failure + generic error
     if user is None or not user.check_password(password):
+        _record_failure(email)
         flash("Invalid credentials.", "danger")
         if request.is_json:
             return jsonify({"error": "invalid_credentials"}), HTTPStatus.UNAUTHORIZED
         return render_template("login.html"), HTTPStatus.UNAUTHORIZED
 
+    # Optional: account deactivation flag
     if hasattr(user, "is_active") and not getattr(user, "is_active", True):
         if request.is_json:
             return jsonify({"error": "account_inactive"}), HTTPStatus.FORBIDDEN
         flash("This account is deactivated.", "danger")
         return render_template("login.html"), HTTPStatus.FORBIDDEN
 
+    # ---- MFA handling (TOTP / backup codes) ----
     mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
     if mfa_row and mfa_row.is_enabled:
         totp_code = _json_or_form("totp")
         backup_code = _json_or_form("backup_code")
+
         if totp_code:
             if not verify_totp(mfa_row.totp_secret, totp_code):
+                _record_failure(email)
                 if request.is_json:
-                    return jsonify({"error": "mfa_required_invalid_totp"}), HTTPStatus.UNAUTHORIZED
+                    return (
+                        jsonify({"error": "mfa_required_invalid_totp"}),
+                        HTTPStatus.UNAUTHORIZED,
+                    )
                 flash("Multi-factor code is invalid.", "danger")
                 return render_template("login.html"), HTTPStatus.UNAUTHORIZED
             mfa_row.last_used_at = datetime.now(UTC)
+            db.session.add(mfa_row)
+
         elif backup_code:
             if not verify_backup_code(org_id, user.id, backup_code):
+                _record_failure(email)
                 if request.is_json:
-                    return jsonify({"error": "mfa_required_invalid_backup"}), HTTPStatus.UNAUTHORIZED
+                    return (
+                        jsonify({"error": "mfa_required_invalid_backup"}),
+                        HTTPStatus.UNAUTHORIZED,
+                    )
                 flash("Backup code is invalid or already used.", "danger")
                 return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+
         else:
+            # MFA required but no code supplied
             if request.is_json:
                 return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
-            flash("Multi-factor authentication required.", "warning")
+            flash("Multi-factor authentication required. Enter your code.", "warning")
             return render_template("login.html"), HTTPStatus.UNAUTHORIZED
 
+    # All checks passed – clear failure state
+    _clear_failures(email)
+
+    # Login + session registration
     login_user(user)
     session_id = session.get("session_id") or make_session_identifier()
     session["session_id"] = session_id
     record_session(org_id, user.id, session_id)
+
+    # Audit trail for success
+    try:
+        log_audit(
+            user.id,
+            org_id,
+            "auth.login",
+            f"ip={get_remote_address()} session_id={session_id}",
+        )
+    except Exception:
+        # Audit failures must never break login
+        pass
+
     next_url = request.args.get("next")
     if not next_url or urlparse(next_url).netloc:
         next_url = url_for("analytics.dashboard_snapshot")
@@ -213,9 +276,22 @@ def logout():
     """Terminate the active session."""
     org_id = resolve_org_id()
     session_id = session.get("session_id")
+
     if session_id:
         revoke_session(org_id, session_id, getattr(current_user, "id", None))
         session.pop("session_id", None)
+
+    # Audit logout event (best-effort)
+    try:
+        log_audit(
+            getattr(current_user, "id", None),
+            org_id,
+            "auth.logout",
+            f"session_id={session_id}",
+        )
+    except Exception:
+        pass
+
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
@@ -263,7 +339,8 @@ def register():
     pending_exists = bool(
         db.session.execute(
             text(
-                "SELECT 1 FROM client_registrations WHERE email = :email AND status = 'pending' LIMIT 1"
+                "SELECT 1 FROM client_registrations "
+                "WHERE email = :email AND status = 'pending' LIMIT 1"
             ),
             {"email": email},
         ).scalar()
@@ -301,10 +378,12 @@ def register():
         if pending_exists:
             if expects_json:
                 return (
-                    jsonify({
-                        "status": "pending",
-                        "message": "Privileged roles require MFA + manual approval.",
-                    }),
+                    jsonify(
+                        {
+                            "status": "pending",
+                            "message": "Privileged roles require MFA + manual approval.",
+                        }
+                    ),
                     HTTPStatus.ACCEPTED,
                 )
             flash("Privileged roles require MFA and a security review. Request submitted.", "warning")
@@ -313,16 +392,19 @@ def register():
         db.session.commit()
         if expects_json:
             return (
-                jsonify({
-                    "status": "pending",
-                    "message": "Privileged roles require MFA + manual approval.",
-                }),
+                jsonify(
+                    {
+                        "status": "pending",
+                        "message": "Privileged roles require MFA + manual approval.",
+                    }
+                ),
                 HTTPStatus.ACCEPTED,
             )
         flash("Privileged roles require MFA and a security review. Request submitted.", "warning")
         return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
 
     user = User(username=username, email=email)
+    # Relies on User.password setter to hash properly
     user.password = password
     db.session.add(user)
     db.session.flush()

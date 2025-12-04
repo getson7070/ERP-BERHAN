@@ -8,35 +8,14 @@ and safety.
 
 from __future__ import annotations
 
-from erp.security_hardening import safe_run, safe_call, safe_popen  # noqa: F401
-
 import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from erp.security_hardening import safe_run, safe_call, safe_popen  # noqa: F401
+
 import pyotp
-try:
-    from argon2 import PasswordHasher
-except Exception:
-    import hashlib
-
-    class PasswordHasher:
-        """Fallback shim when argon2 is not available.
-
-        Accepts arbitrary tuning parameters so construction with
-        time_cost/memory_cost/parallelism still works.
-        """
-
-        def __init__(self, *args, **kwargs) -> None:
-            # Ignore tuning params in the shim
-            pass
-
-        def hash(self, pw: str) -> str:
-            return hashlib.sha256(pw.encode("utf-8")).hexdigest()
-
-        def verify(self, h: str, pw: str) -> bool:
-            return self.hash(pw) == h
 
 from sqlalchemy import (
     Boolean,
@@ -49,18 +28,106 @@ from sqlalchemy import (
     Table,
     select,
     text,
+    inspect,
 )
 from sqlalchemy.engine import Connection
-from sqlalchemy import inspect
 
 from db import get_engine
 
+# --------------------------------------------------------------------
+# Password hashing – bcrypt-compatible by default
+# --------------------------------------------------------------------
 
-ph = PasswordHasher(
-    time_cost=int(os.environ.get("ARGON2_TIME_COST", "3")),
-    memory_cost=int(os.environ.get("ARGON2_MEMORY_COST", "65536")),
-    parallelism=int(os.environ.get("ARGON2_PARALLELISM", "2")),
-)
+
+class _PasswordHelper:
+    """Unified password helper.
+
+    Primary path: bcrypt-based hashes (compatible with Flask-Bcrypt /
+    bcrypt.checkpw and similar).
+
+    Fallback: Werkzeug's generate_password_hash/check_password_hash
+    so this script can still run even if `bcrypt` is not installed
+    in some environments.
+    """
+
+    def __init__(self) -> None:
+        self._mode = "bcrypt"
+        self._bcrypt = None
+        self._generate = None
+        self._check = None
+
+        # Try bcrypt first (preferred)
+        try:
+            import bcrypt  # type: ignore[import-not-found]
+
+            self._bcrypt = bcrypt
+            self._mode = "bcrypt"
+        except Exception:
+            # Fallback to Werkzeug hashing
+            try:
+                from werkzeug.security import (
+                    generate_password_hash,
+                    check_password_hash,
+                )
+
+                self._generate = generate_password_hash
+                self._check = check_password_hash
+                self._mode = "werkzeug"
+            except Exception:
+                # Last-resort ultra-simple shim (not recommended for real use,
+                # but prevents crashes if everything else is missing).
+                import hashlib
+
+                self._mode = "sha256"
+                self._generate = lambda pw: hashlib.sha256(
+                    pw.encode("utf-8")
+                ).hexdigest()
+                self._check = (
+                    lambda hashed, pw: hashed
+                    == hashlib.sha256(pw.encode("utf-8")).hexdigest()
+                )
+
+    def hash(self, pw: str) -> str:
+        if self._mode == "bcrypt" and self._bcrypt is not None:
+            # bcrypt expects bytes; we generate a standard bcrypt string
+            salt = self._bcrypt.gensalt()
+            hashed = self._bcrypt.hashpw(pw.encode("utf-8"), salt)
+            return hashed.decode("utf-8")
+
+        # Werkzeug or SHA256 fallback
+        return self._generate(pw)
+
+    def verify(self, hashed: str, pw: str) -> bool:
+        if self._mode == "bcrypt" and self._bcrypt is not None:
+            try:
+                return self._bcrypt.checkpw(
+                    pw.encode("utf-8"), hashed.encode("utf-8")
+                )
+            except Exception:
+                return False
+
+        try:
+            return bool(self._check(hashed, pw))
+        except Exception:
+            return False
+
+
+ph = _PasswordHelper()
+
+
+def hash_password(password: str) -> str:
+    """Hash password using the configured helper.
+
+    For the normal case this will produce bcrypt-style hashes compatible
+    with Flask-Bcrypt / bcrypt.checkpw, so existing login code that uses
+    `bcrypt.check_password_hash` will accept these values.
+    """
+    return ph.hash(password)
+
+
+# --------------------------------------------------------------------
+# SQLAlchemy table metadata for seeding
+# --------------------------------------------------------------------
 
 metadata = MetaData()
 
@@ -89,11 +156,11 @@ users = Table(
     "users",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("user_type", String),            # legacy; may not exist in DB
+    Column("user_type", String),  # legacy; may not exist in DB
     Column("username", String, unique=True),
     Column("email", String, unique=True, nullable=False),
     Column("password_hash", String),
-    Column("mfa_secret", String),           # legacy; real MFA may live elsewhere
+    Column("mfa_secret", String),  # legacy; real MFA may live elsewhere
     Column("permissions", String),
     Column("approved_by_ceo", Boolean),
     Column("role", String),
@@ -132,8 +199,9 @@ employee_phones = [
 ]
 
 
-def hash_password(password: str) -> str:
-    return ph.hash(password)
+# --------------------------------------------------------------------
+# Helper functions for schema + seeding
+# --------------------------------------------------------------------
 
 
 def _table_exists(conn: Connection, table: str) -> bool:
@@ -143,9 +211,11 @@ def _table_exists(conn: Connection, table: str) -> bool:
             {"n": table},
         ).first()
         return row is not None
-    return conn.execute(
-        text("SELECT to_regclass(:t)"), {"t": f"public.{table}"}
-    ).scalar() is not None
+    return (
+        conn.execute(text("SELECT to_regclass(:t)"), {"t": f"public.{table}"})
+        .scalar()
+        is not None
+    )
 
 
 def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
@@ -161,8 +231,8 @@ def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
       SQLAlchemy's "unconsumed column names" issue when local
       metadata is out of sync with the DB.
     """
-    inspector = inspect(conn)
-    columns_info = inspector.get_columns(table.name)
+    inspector_obj = inspect(conn)
+    columns_info = inspector_obj.get_columns(table.name)
     existing_cols = [col["name"] for col in columns_info]
 
     now = datetime.now()
@@ -224,7 +294,10 @@ def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
     # so we never hit "unconsumed column names" even if metadata is stale.
     if conn.dialect.name.startswith("sqlite"):
         # SQLite: use INSERT OR IGNORE to mimic "upsert" on unique constraints
-        stmt_txt = f'INSERT OR IGNORE INTO "{table.name}" ({col_list}) VALUES ({placeholders})'
+        stmt_txt = (
+            f'INSERT OR IGNORE INTO "{table.name}" ({col_list}) '
+            f"VALUES ({placeholders})"
+        )
     else:
         # PostgreSQL: use ON CONFLICT on username when available
         stmt_txt = f'INSERT INTO "{table.name}" ({col_list}) VALUES ({placeholders})'
@@ -236,6 +309,7 @@ def _insert_ignore(conn: Connection, table: Table, values: dict) -> None:
 
 
 def _reset_schema() -> None:
+    """Drop and recreate the schema when Alembic upgrade fails."""
     engine = get_engine()
     dialect = engine.dialect.name
 
@@ -250,41 +324,48 @@ def _reset_schema() -> None:
         else:  # in-memory database – drop all tables instead
             with engine.begin() as conn:
                 tables = conn.execute(
-                    text(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    )
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
                 ).all()
                 for (table_name,) in tables:
-                    conn.execute(text(f'DROP TABLE IF NOT EXISTS "{table_name}"'))
+                    conn.execute(
+                        text(f'DROP TABLE IF NOT EXISTS "{table_name}"')
+                    )
         return
 
+    # PostgreSQL path
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
 
 
+# --------------------------------------------------------------------
+# Main init_db entrypoint
+# --------------------------------------------------------------------
+
+
 def init_db() -> None:
     """Bootstrap a fresh/local DB so the app can import without errors."""
 
+    # 1) Always try Alembic migrations first; if they fail, hard reset.
     try:
         safe_run(["alembic", "upgrade", "head"], check=True)
         print("Alembic upgrade: OK")
     except FileNotFoundError:
-        print("Alembic upgrade skipped or failed.")
+        print("Alembic upgrade skipped or not available (FileNotFoundError).")
     except subprocess.CalledProcessError:
         print("Alembic upgrade failed; resetting schema and retrying...")
         _reset_schema()
         safe_run(["alembic", "upgrade", "head"], check=True)
-        print("Alembic upgrade: OK")
+        print("Alembic upgrade after reset: OK")
 
     engine = get_engine()
 
-    # For SQLite dev runs this can create missing region/city tables;
-    # for Postgres it’s effectively a no-op thanks to Alembic.
+    # 2) For SQLite dev runs this can create missing region/city tables;
+    #    for Postgres it’s effectively a no-op thanks to Alembic.
     metadata.create_all(engine)
 
+    # 3) Seed reference data + demo accounts (if enabled)
     with engine.begin() as conn:
-
         # Seed regions and cities if empty
         if conn.execute(select(regions.c.id)).first() is None:
             region_ids: dict[str, int] = {}
@@ -294,13 +375,21 @@ def init_db() -> None:
                     res = conn.execute(regions.insert().values(name=region_name))
                     region_id = int(res.inserted_primary_key[0])
                     region_ids[region_name] = region_id
-                conn.execute(cities.insert().values(region_id=region_id, name=city_name))
+                conn.execute(
+                    cities.insert().values(
+                        region_id=region_id,
+                        name=city_name,
+                    )
+                )
 
         seed_demo = os.environ.get("SEED_DEMO_DATA") == "1" and os.environ.get(
             "FLASK_ENV", "development"
         ) != "production"
 
         if seed_demo:
+            # ----------------------------------------------------------------
+            # Core admin account
+            # ----------------------------------------------------------------
             admin_username = os.environ.get("ADMIN_USERNAME", "admin")
             admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
             password_hash = hash_password(admin_password)
@@ -328,8 +417,14 @@ def init_db() -> None:
                     is_active=True,  # only applied if column exists
                 ),
             )
-            print(f"Seeded admin {admin_username}@berhanpharma.com with MFA secret: {admin_secret}")
+            print(
+                f"Seeded admin {admin_username}@berhanpharma.com "
+                f"with MFA secret: {admin_secret}"
+            )
 
+            # ----------------------------------------------------------------
+            # Extra admin accounts by phone
+            # ----------------------------------------------------------------
             for phone in admin_phones:
                 password_hash = hash_password(phone)
                 secret = pyotp.random_base32()
@@ -353,8 +448,14 @@ def init_db() -> None:
                         is_active=True,
                     ),
                 )
-                print(f"Seeded admin {phone}@berhanpharma.com with MFA secret: {secret}")
+                print(
+                    f"Seeded admin {phone}@berhanpharma.com "
+                    f"with MFA secret: {secret}"
+                )
 
+            # ----------------------------------------------------------------
+            # Sales reps (demo)
+            # ----------------------------------------------------------------
             for phone in employee_phones:
                 password_hash = hash_password(phone)
                 secret = pyotp.random_base32()
@@ -378,17 +479,24 @@ def init_db() -> None:
             # for clarity of intent: we never seed demo data in production.
             print("SEED_DEMO_DATA ignored in production environment")
 
+        # ----------------------------------------------------------------
         # Ensure org_id + RLS on key multi-tenant tables, if they exist.
+        # ----------------------------------------------------------------
         for table_name in ("orders", "tenders", "inventory", "audit_logs"):
             if _table_exists(conn, table_name):
                 conn.execute(
                     text(
                         f'ALTER TABLE "{table_name}" '
-                        'ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id)'
+                        'ADD COLUMN IF NOT EXISTS org_id INTEGER '
+                        'REFERENCES organizations(id)'
                     )
                 )
-                conn.execute(text(f'ALTER TABLE "{table_name}" ENABLE ROW LEVEL SECURITY'))
-                conn.execute(text(f'DROP POLICY IF EXISTS org_rls ON "{table_name}"'))
+                conn.execute(
+                    text(f'ALTER TABLE "{table_name}" ENABLE ROW LEVEL SECURITY')
+                )
+                conn.execute(
+                    text(f'DROP POLICY IF EXISTS org_rls ON "{table_name}"')
+                )
                 conn.execute(
                     text(
                         f'CREATE POLICY org_rls ON "{table_name}" '
@@ -400,49 +508,18 @@ def init_db() -> None:
     print("Database initialized / schema ensured successfully.")
 
 
-if __name__ == "__main__":  # pragma: no cover
-    init_db()
-
-
-# ---- helper hashing API (stable across backends) ----
-try:
-    ph  # reuse whatever PasswordHasher/shim is already configured above
-except NameError:  # last-resort shim if something changes unexpectedly
-    try:
-        from argon2 import PasswordHasher as _Argon2PH
-        ph = _Argon2PH(
-            time_cost=2,
-            memory_cost=51200,
-            parallelism=2,
-            hash_len=32,
-            salt_len=16,
-        )
-    except Exception:
-        from werkzeug.security import generate_password_hash, check_password_hash
-
-        class _PHShim:
-            def hash(self, pw: str) -> str:
-                return generate_password_hash(
-                    pw,
-                    method="pbkdf2:sha256",
-                    salt_length=16,
-                )
-
-            def verify(self, hashed: str, pw: str) -> bool:
-                try:
-                    return check_password_hash(hashed, pw)
-                except Exception:
-                    return False
-
-        ph = _PHShim()
+# --------------------------------------------------------------------
+# Helper hashing API (stable across backends) – external callers
+# --------------------------------------------------------------------
 
 
 def verify_password(pw: str, hashed: str) -> bool:
+    """Verify a plaintext password against a stored hash."""
     try:
-        return ph.verify(hashed, pw)  # argon2 style
-    except TypeError:
-        # just in case a shim expects (pw, hashed)
-        return ph.verify(pw, hashed)
+        return ph.verify(hashed, pw)
     except Exception:
         return False
-# ---- /helper hashing API ----
+
+
+if __name__ == "__main__":  # pragma: no cover
+    init_db()
