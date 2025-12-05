@@ -1,38 +1,37 @@
-"""Stub migration to provide the missing parent for banking integration.
+"""Stub parent for finance GL tables.
 
-Revision ID: 7f0b76d5d3f1
-Revises: 8f5c2e7d9a4b
-Create Date: 2025-11-22 14:50:00
+WHY THIS EXISTS
+---------------
+Several later revisions (e.g. 8f5c2e7d9a4b_add_finance_gl_tables) reference
+`7f0b1d2c3a4e` as their down_revision, but the actual revision file was
+missing. That caused Alembic to raise `KeyError: '7f0b1d2c3a4e'` when
+building the revision map.
 
-This migration intentionally does not perform any schema changes.
+This stub:
 
-It exists solely to provide the missing parent for revision
-``9c2b4b3c6a5e`` ("Add banking integration tables and extend bank_accounts")
-so that Alembic can construct the revision map without a KeyError.
+- Defines the missing revision ID `7f0b1d2c3a4e`.
+- Anchors it after the user security spine (`a12b34c56d78`).
+- Performs no schema changes itself.
 """
+
+from typing import Sequence, Union
 
 from alembic import op  # noqa: F401
 import sqlalchemy as sa  # noqa: F401
 
+
 # revision identifiers, used by Alembic.
-revision = "7f0b76d5d3f1"
-down_revision = "8f5c2e7d9a4b"
-branch_labels = None
-depends_on = None
+revision: str = "7f0b1d2c3a4e"
+down_revision: Union[str, None] = "a12b34c56d78"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade():
-    """No-op upgrade.
-
-    This is a placeholder migration – it does not change the schema.
-    """
+def upgrade() -> None:
+    """No-op upgrade for the finance stub parent."""
     pass
 
 
-def downgrade():
-    """No-op downgrade.
-
-    Since this migration does not change the schema, the downgrade
-    is also a no-op.
-    """
+def downgrade() -> None:
+    """No-op downgrade for the finance stub parent."""
     pass
