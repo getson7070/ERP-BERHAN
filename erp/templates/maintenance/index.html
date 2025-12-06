@@ -1,12 +1,53 @@
-{% raw %}
 {% extends 'base.html' %}
 {% block title %}Maintenance{% endblock %}
 {% block header %}Maintenance{% endblock %}
+
 {% block content %}
-<section class="grid md:grid-cols-3 gap-4">
-  <a href="/kanban" class="rounded bg-white p-4 shadow-sm hover:shadow">Maintenance Board</a>
-  <a href="/projects" class="rounded bg-white p-4 shadow-sm hover:shadow">Asset Projects</a>
-  <a href="/report_builder?domain=manufacturing" class="rounded bg-white p-4 shadow-sm hover:shadow">Maintenance KPIs</a>
+<section class="container my-4" aria-label="Maintenance module">
+  <p class="text-muted mb-3">
+    Track equipment, service tickets and field visits. This page acts as the entry
+    point into maintenance workflows.
+  </p>
+
+  <div class="row g-3">
+    <div class="col-12 col-md-4">
+      <a href="/maintenance/tickets" class="text-decoration-none">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Tickets board</h2>
+            <p class="small text-muted mb-0">
+              Open, in-progress and resolved tickets with SLA status.
+            </p>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <a href="/maintenance/assets" class="text-decoration-none">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Installed base</h2>
+            <p class="small text-muted mb-0">
+              Devices and analyzers in the field, with service history.
+            </p>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <a href="/maintenance/geo" class="text-decoration-none">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Field geo-tracking</h2>
+            <p class="small text-muted mb-0">
+              Live locations and ETAs for maintenance visits.
+            </p>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
 </section>
 {% endblock %}
-{% endraw %}

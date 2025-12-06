@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Bot Dashboard – Berhan ERP{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Bot Dashboard</h1>
+    <span class="badge bg-secondary">Admin / Analytics</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header">
+      <span class="small fw-semibold">Last 24 hours summary</span>
+    </div>
+    <div class="card-body">
+      <div id="bot-summary" class="row g-3 small">
+        <div class="col-12 text-muted">Loading summary…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters + per-bot info -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="small fw-semibold">Bot activity</span>
+      <div class="d-flex gap-2 align-items-center">
+        <select id="filter-bot" class="form-select form-select-sm">
+          <option value="">All bots</option>
+        </select>
+        <select id="filter-type" class="form-select form-select-sm">
+          <option value="">All event types</option>
+          <option value="message">message</option>
+          <option value="command">command</option>
+          <option value="error">error</option>
+        </select>
+        <button type="button" id="btn-reload" class="btn btn-primary btn-sm">
+          Reload
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <h6 class="small text-muted">Bots seen in this window</h6>
+          <ul class="list-group list-group-flush small" id="bot-list">
+            <!-- Filled by JS -->
+          </ul>
+        </div>
+        <div class="col-md-8">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0" id="events-table">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>When</th>
+                  <th>Bot</th>
+                  <th>Type</th>
+                  <th>Severity</th>
+                  <th>Actor</th>
+                  <th>Payload (truncated)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Filled by JS -->
+              </tbody>
+            </table>
+          </div>
+          <div class="small text-muted mt-1" id="events-footnote"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const summaryContainer = document.getElementById("bot-summary");
+  const eventsTbody = document.querySelector("#events-table tbody");
+  const eventsFootnote = document.getElementById("events-footnote");
+  const botList = document.getElementById("bot-list");
+  const filterBot = document.getElementById("filter-bot");
+  const filterType = document.getElementById("filter-type");
+  const reloadBtn = document.getElementById("btn-reload");
+
+  let lastEvents = [];
+
+  async function loadSummary() {
+    summaryContainer.innerHTML = '<div class="col-12 text-muted">Loading summary…</div>';
+    try {
+      const resp = await fetch("/api/bot-dashboard/summary");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      // Render summary generically as key/value grid to avoid assumptions.
+      const entries = Object.entries(data || {});
+      if (!entries.length) {
+        summaryContainer.innerHTML = '<div class="col-12 text-muted">No summary data.</div>';
+        return;
+      }
+      summaryContainer.innerHTML = entries.map(([key, value]) => `
+        <div class="col-md-3 col-sm-6">
+          <div class="card border-0 bg-light h-100">
+            <div class="card-body py-2">
+              <div class="small text-muted text-uppercase">${key}</div>
+              <div class="fw-semibold fs-6">${value}</div>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error(err);
+      summaryContainer.innerHTML =
+        '<div class="col-12 text-danger small">Failed to load summary.</div>';
+    }
+  }
+
+  async function loadEvents() {
+    eventsTbody.innerHTML =
+      '<tr><td colspan="7" class="text-center small text-muted py-3">Loading events…</td></tr>';
+    try {
+      const params = new URLSearchParams();
+      if (filterBot.value) params.append("bot_name", filterBot.value);
+      if (filterType.value) params.append("event_type", filterType.value);
+
+      const resp = await fetch("/api/bot-dashboard/events" + (params.toString() ? "?" + params.toString() : ""));
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      lastEvents = data || [];
+      renderEvents(lastEvents);
+      renderBots(lastEvents);
+    } catch (err) {
+      console.error(err);
+      eventsTbody.innerHTML =
+        '<tr><td colspan="7" class="text-center text-danger small py-3">Failed to load events.</td></tr>';
+      eventsFootnote.textContent = "";
+    }
+  }
+
+  function renderEvents(rows) {
+    if (!rows.length) {
+      eventsTbody.innerHTML =
+        '<tr><td colspan="7" class="text-center small text-muted py-3">No events for this filter.</td></tr>';
+      eventsFootnote.textContent = "";
+      return;
+    }
+    const esc = (v) => v == null ? "" : String(v);
+    eventsTbody.innerHTML = rows.map(r => {
+      const payload = r.payload_json || r.payload || {};
+      const payloadStr = JSON.stringify(payload).slice(0, 80);
+      return `
+        <tr>
+          <td>${esc(r.id)}</td>
+          <td><code class="small">${esc(r.created_at)}</code></td>
+          <td class="small">${esc(r.bot_name)}</td>
+          <td class="small">${esc(r.event_type)}</td>
+          <td><span class="badge bg-${r.event_type === "error" || r.severity === "error" ? "danger" : "secondary"}">${esc(r.severity)}</span></td>
+          <td class="small">${esc(r.actor_id)}</td>
+          <td class="small"><code>${payloadStr}</code></td>
+        </tr>`;
+    }).join("");
+    eventsFootnote.textContent = `${rows.length} events shown (server limit: 500).`;
+  }
+
+  function renderBots(rows) {
+    const byBot = new Map();
+    for (const r of rows) {
+      if (!r.bot_name) continue;
+      const existing = byBot.get(r.bot_name) || { count: 0, last: r.created_at };
+      existing.count += 1;
+      if (!existing.last || (r.created_at && r.created_at > existing.last)) {
+        existing.last = r.created_at;
+      }
+      byBot.set(r.bot_name, existing);
+    }
+
+    // Update filter dropdown
+    const current = filterBot.value;
+    filterBot.innerHTML = '<option value="">All bots</option>' +
+      Array.from(byBot.keys()).sort().map(name =>
+        `<option value="${name}" ${name === current ? "selected" : ""}>${name}</option>`
+      ).join("");
+
+    // Render per-bot list
+    if (!byBot.size) {
+      botList.innerHTML =
+        '<li class="list-group-item small text-muted">No bots seen in this window.</li>';
+      return;
+    }
+
+    botList.innerHTML = Array.from(byBot.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, info]) => `
+        <li class="list-group-item d-flex justify-content-between align-items-center small">
+          <div>
+            <div class="fw-semibold">${name}</div>
+            <div class="text-muted">Last event: <code>${info.last || ""}</code></div>
+          </div>
+          <span class="badge bg-primary rounded-pill">${info.count}</span>
+        </li>
+      `).join("");
+  }
+
+  reloadBtn.addEventListener("click", () => {
+    loadSummary();
+    loadEvents();
+  });
+
+  // Initial load
+  loadSummary();
+  loadEvents();
+})();
+</script>
+{% endblock %}

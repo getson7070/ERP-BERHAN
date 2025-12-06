@@ -1,136 +1,49 @@
 services:
   web:
     build: .
-    command: ["web"]
+    # Use the default CMD from the Dockerfile:
+    #   python init_db.py && gunicorn -b 0.0.0.0:8000 'erp.app:create_app()'
+    environment:
+      FLASK_ENV: production
+      ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set for production}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set for production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set for production}
+      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:?SECURITY_PASSWORD_SALT must be set}
+      SENTRY_DSN: ${SENTRY_DSN:?SENTRY_DSN must be set (or explicitly empty)}
+      TELEGRAM_BOT_TOKENS: ${TELEGRAM_BOT_TOKENS:?TELEGRAM_BOT_TOKENS must be set}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?BACKUP_ENCRYPTION_KEY must be set}
+      SKIP_AUTO_MIGRATION_REPAIR: "1"
     ports:
-      - "18000:18000"
-      environment:
-        FLASK_ENV: production
-        ENV: production
-        DATABASE_URL: ${DATABASE_URL}
-        CELERY_BROKER_URL: redis://redis:6379/0
-        CELERY_RESULT_BACKEND: redis://redis:6379/0
-        SECRET_KEY: ${SECRET_KEY}
-        JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-        SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT}
-        SENTRY_DSN: ${SENTRY_DSN}
-        BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
-        # Safety: prevent runtime Alembic merge revisions in prod
-        SKIP_AUTO_MIGRATION_REPAIR: "1"
+      # host:container → browser hits http://localhost:18000 → container listens on 8000
+      - "18000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: always
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-      - seccomp:./deploy/seccomp.json
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  worker:
-    build: .
-    command: ["celery","-A","erp.celery_app:celery_app","worker","--loglevel=info"]
-    environment:
-      FLASK_ENV: production
-      ENV: production
-      DATABASE_URL: ${DATABASE_URL}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      SENTRY_DSN: ${SENTRY_DSN}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: always
-    security_opt:
-      - no-new-privileges:true
-      - seccomp:./deploy/seccomp.json
-    healthcheck:
-      test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  beat:
-    build: .
-    command: ["celery","-A","erp.celery_app:celery_app","beat","--loglevel=info"]
-    environment:
-      FLASK_ENV: production
-      ENV: production
-      DATABASE_URL: ${DATABASE_URL}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      SENTRY_DSN: ${SENTRY_DSN}
-    depends_on:
-      worker:
-        condition: service_healthy
-    restart: always
-    security_opt:
-      - no-new-privileges:true
-      - seccomp:./deploy/seccomp.json
-    healthcheck:
-      test: ["CMD", "celery", "-A", "erp.app.celery", "inspect", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  backup:
-    build: .
-    command: sh -c "while true; do python backup.py; sleep 86400; done"
-    environment:
-      ENV: production
-      DATABASE_URL: ${DATABASE_URL}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
-      S3_BUCKET: ${S3_BUCKET}
-      S3_ENDPOINT: ${S3_ENDPOINT}
-      AWS_REGION: ${AWS_REGION}
-      SENTRY_DSN: ${SENTRY_DSN}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: always
-    security_opt:
-      - no-new-privileges:true
-      - seccomp:./deploy/seccomp.json
-  monitor:
-    build: .
-    command: sh -c "while true; do python scripts/monitor_queue.py; sleep 60; done"
-    environment:
-      ENV: production
-      CELERY_BROKER_URL: redis://redis:6379/0
-      REDIS_URL: redis://redis:6379/0
-      ALERT_EMAIL: ${ALERT_EMAIL}
-      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
-    depends_on:
-      web:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: always
-    security_opt:
-      - no-new-privileges:true
-      - seccomp:./deploy/seccomp.json
+
   db:
     image: postgres:15
+    restart: unless-stopped
     environment:
+      POSTGRES_DB: erp_berhan
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./deploy/init-app-user.sh:/docker-entrypoint-initdb.d/init-app-user.sh:ro
-    restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d $${POSTGRES_DB:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp_berhan"]
       interval: 10s
       timeout: 5s
       retries: 5
+
   redis:
     image: redis:7
-    restart: always
+    restart: unless-stopped
     volumes:
       - redisdata:/data
     healthcheck:
@@ -138,6 +51,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
 volumes:
   pgdata:
   redisdata:

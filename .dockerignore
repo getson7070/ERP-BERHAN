@@ -1,4 +1,4 @@
-# Python
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
 *.pyo
@@ -9,28 +9,40 @@ __pycache__/
 venv/
 env/
 
-# Git
+# Git metadata
 .git/
 .gitignore
+.gitattributes
 
-# Editor / OS trash
-.vscode/
-.idea/
+# Editor / OS noise
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Tests and caches
+# Test artefacts
+tests/
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Local env
+# Local env files (never bake into image)
 .env
 .env.local
 .env.development
 .env.production
+.env.example
+.env.example.phase1
 
-# Other
+# Logs & sqlite
 *.log
 *.sqlite3
+
+# Node / UI preview
+ui/
+ui-preview/
+node_modules/
+dist/
+build/

@@ -13,67 +13,93 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
 @bp.route("/workflows", methods=["GET", "POST"])
+@login_required
 @require_roles("admin")
 @mfa_required
 def workflows():
-    """
-    Manage per-org workflows using parameterised SQL.
+    """Basic admin workflows page.
 
-    Still uses raw SQL (no ORM model yet) but strictly with bound parameters,
-    plus basic validation on user input.
+    This implementation is intentionally conservative:
+    - Reads workflows for the current org_id from the DB.
+    - Allows creating a simple workflow definition via POST.
+    - Uses sanitize_sort / sanitize_direction to avoid injection.
     """
-    org_id = session.get("org_id")
-    if not org_id:
-        flash("Missing organisation context.", "danger")
-        return render_template("admin/workflows.html", workflows=[])
 
     conn = get_db()
+    org_id = session.get("org_id") or 1  # adjust if you centralise org resolution
 
     if request.method == "POST":
-        module = (request.form.get("module") or "").strip()
-        steps = (request.form.get("steps") or "").strip()
-        enabled = request.form.get("enabled") == "on"
+        form = request.form
+        module = (form.get("module") or "").strip()
+        steps = (form.get("steps") or "").strip()
+        enabled = form.get("enabled") in ("1", "true", "on")
 
-        # Basic validation – adjust as you like
-        if not module:
-            flash("Module is required.", "danger")
-        elif len(module) > 64:
-            flash("Module name is too long.", "danger")
+        if not module or not steps:
+            flash("Module and steps are required.", "error")
         else:
             conn.execute(
                 text(
                     """
                     INSERT INTO workflows (org_id, module, steps, enabled)
-                    VALUES (:org, :module, :steps, :enabled)
+                    VALUES (:org_id, :module, :steps, :enabled)
                     """
                 ),
-                {"org": org_id, "module": module, "steps": steps, "enabled": enabled},
+                {
+                    "org_id": org_id,
+                    "module": module,
+                    "steps": steps,
+                    "enabled": enabled,
+                },
             )
             conn.commit()
             flash("Workflow saved.", "success")
 
-    # safe sort direction / column if you add query params later
-    sort = sanitize_sort(request.args.get("sort"), allowed=["module", "id", "enabled"], default="module")
+    sort = sanitize_sort(
+        request.args.get("sort"),
+        allowed=["module", "id", "enabled"],
+        default="module",
+    )
     direction = sanitize_direction(request.args.get("direction"), default="asc")
+    order_clause = f"{sort} {direction}"
 
-    wf = conn.execute(
+    rows = conn.execute(
         text(
             f"""
-            SELECT id, module, steps, enabled
+            SELECT id, module, steps, enabled, org_id
             FROM workflows
-            WHERE org_id = :org
-            ORDER BY {sort} {direction}
+            WHERE org_id = :org_id
+            ORDER BY {order_clause}
             """
         ),
-        {"org": org_id},
+        {"org_id": org_id},
     ).fetchall()
     conn.close()
-    return render_template("admin/workflows.html", workflows=wf)
+
+    return render_template("admin/workflows.html", workflows=rows)
 
 
 @bp.route("/panel")
 @login_required
+@require_roles("admin")
 @mfa_required
 def panel():
-    """Simple administrative panel protected by MFA."""
-    return "admin panel"
+    """Admin landing page with links to workflows, audit logs, and bot dashboard."""
+    return render_template("admin/panel.html")
+
+
+@bp.route("/audit/logs")
+@login_required
+@require_roles("admin", "compliance", "audit")
+@mfa_required
+def audit_logs():
+    """UI shell that talks to /api/audit/logs and /api/audit/export."""
+    return render_template("admin/audit_logs.html")
+
+
+@bp.route("/bots")
+@login_required
+@require_roles("admin", "analytics")
+@mfa_required
+def bots_dashboard():
+    """UI shell that talks to /api/bot-dashboard/summary and /events."""
+    return render_template("admin/bots_dashboard.html")

@@ -5,7 +5,6 @@ from decimal import Decimal
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
 
 from erp.security import require_roles
 
@@ -45,13 +44,26 @@ def index():
             quantity = int(item.get("quantity", 0))
             unit_price = Decimal(str(item.get("unit_price", "0")))
             if not inventory_id or quantity <= 0:
-                return jsonify({"error": "inventory_item_id and positive quantity required"}), HTTPStatus.BAD_REQUEST
+                return (
+                    jsonify(
+                        {"error": "inventory_item_id and positive quantity required"}
+                    ),
+                    HTTPStatus.BAD_REQUEST,
+                )
 
             inventory = Inventory.query.filter_by(id=inventory_id, org_id=org_id).first()
             if inventory is None:
-                return jsonify({"error": f"inventory item {inventory_id} not found"}), HTTPStatus.BAD_REQUEST
+                return (
+                    jsonify({"error": f"inventory item {inventory_id} not found"}),
+                    HTTPStatus.BAD_REQUEST,
+                )
             if inventory.quantity < quantity:
-                return jsonify({"error": f"insufficient stock for {inventory.sku}"}), HTTPStatus.CONFLICT
+                return (
+                    jsonify(
+                        {"error": f"insufficient stock for {inventory.sku}"}
+                    ),
+                    HTTPStatus.CONFLICT,
+                )
 
             total += unit_price * quantity
             reservations.append(
@@ -88,7 +100,7 @@ def index():
 
 
 @bp.patch("/<int:order_id>")
-@login_required
+@require_roles("sales", "admin")
 def update(order_id: int):
     """Update order status (approve, cancel, fulfil)."""
 
@@ -96,13 +108,22 @@ def update(order_id: int):
     status = (payload.get("status") or "").lower()
     org_id = resolve_org_id()
     order = Order.query.filter_by(id=order_id, organization_id=org_id).first_or_404()
-    valid_statuses = {"pending", "approved", "shipped", "canceled", "rejected", "fulfilled"}
+    valid_statuses = {
+        "pending",
+        "approved",
+        "shipped",
+        "canceled",
+        "rejected",
+        "fulfilled",
+    }
     if status not in valid_statuses:
-        return jsonify({"error": f"status must be one of {sorted(valid_statuses)}"}), HTTPStatus.BAD_REQUEST
+        return (
+            jsonify(
+                {"error": f"status must be one of {sorted(valid_statuses)}"}
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
 
     order.status = status
     db.session.commit()
     return jsonify(_serialize(order))
-
-
-

@@ -1,9 +1,125 @@
 {% extends 'base.html' %}
+{% block title %}Orders{% endblock %}
+{% block header %}Orders{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h1 class="h4 mb-3">{{ title or 'orders/index.html' }}</h1>
-    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+<section class="container my-4" aria-label="Orders list">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form class="row g-2 mb-3" method="get">
+        <div class="col-12 col-md-4">
+          <label for="q" class="form-label small mb-1">Search</label>
+          <input type="text"
+                 id="q"
+                 name="q"
+                 class="form-control form-control-sm"
+                 value="{{ request.args.get('q', '') }}"
+                 placeholder="Order ID, customer, notes…">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label for="status" class="form-label small mb-1">Status</label>
+          {% set status = request.args.get('status', '') %}
+          <select id="status" name="status" class="form-select form-select-sm">
+            <option value="">Any</option>
+            {% for s in ['pending', 'approved', 'shipped', 'fulfilled', 'canceled', 'rejected'] %}
+              <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            Filter
+          </button>
+        </div>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Status</th>
+              <th scope="col">Amount</th>
+              <th scope="col">Currency</th>
+              <th scope="col">Placed at</th>
+              <th scope="col" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in orders or [] %}
+              <tr>
+                <td>#{{ o.id }}</td>
+                <td><span class="badge bg-secondary text-capitalize">{{ o.status }}</span></td>
+                <td>{{ "%.2f"|format(o.total_amount or 0) }}</td>
+                <td>{{ o.currency or 'ETB' }}</td>
+                <td><small class="text-muted">{{ o.placed_at }}</small></td>
+                <td class="text-end">
+                  <a href="{{ url_for('orders.detail', order_id=o.id) }}"
+                     class="btn btn-outline-secondary btn-sm">
+                    View
+                  </a>
+                  <button type="button"
+                          class="btn btn-outline-primary btn-sm"
+                          data-order-id="{{ o.id }}"
+                          data-action="request-approval">
+                    Request approval
+                  </button>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">
+                  No orders found for the current filters.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+  {{ super() }}
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll('button[data-action="request-approval"]');
+      if (!buttons.length) return;
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const orderId = btn.getAttribute("data-order-id");
+          if (!orderId) return;
+
+          // TODO: wire this to your real approvals endpoint
+          const url = "/approvals/orders/" + orderId + "/request";
+          if (!confirm("Request approval for order #" + orderId + "?")) return;
+
+          fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": "{{ csrf_token()|e }}"
+            },
+            body: JSON.stringify({})
+          })
+          .then(function (resp) {
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            return resp.json();
+          })
+          .then(function () {
+            alert("Approval request sent.");
+          })
+          .catch(function (err) {
+            console.error("Approval request failed", err);
+            alert("Could not request approval. Check console/logs.");
+          });
+        });
+      });
+    })();
+  </script>
 {% endblock %}

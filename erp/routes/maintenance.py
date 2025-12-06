@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from datetime import datetime
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
 
 from erp.security import require_roles
 
@@ -65,7 +63,10 @@ def list_tickets():
         asset = (payload.get("asset_name") or "").strip()
         description = (payload.get("description") or "").strip()
         if not asset or not description:
-            return jsonify({"error": "asset_name and description required"}), HTTPStatus.BAD_REQUEST
+            return (
+                jsonify({"error": "asset_name and description required"}),
+                HTTPStatus.BAD_REQUEST,
+            )
 
         ticket = MaintenanceTicket(
             org_id=org_id,
@@ -82,7 +83,12 @@ def list_tickets():
         )
         db.session.add(ticket)
         db.session.commit()
-        log_audit(None, org_id, "maintenance.ticket_created", f"ticket={ticket.id};asset={asset}")
+        log_audit(
+            None,
+            org_id,
+            "maintenance.ticket_created",
+            f"ticket={ticket.id};asset={asset}",
+        )
         return jsonify(_serialize(ticket)), HTTPStatus.CREATED
 
     records = (
@@ -94,11 +100,13 @@ def list_tickets():
 
 
 @bp.patch("/tickets/<int:ticket_id>")
-@login_required
+@require_roles("maintenance", "admin")
 def update_ticket(ticket_id: int):
     payload = request.get_json(silent=True) or {}
     org_id = resolve_org_id()
-    ticket = MaintenanceTicket.query.filter_by(id=ticket_id, org_id=org_id).first_or_404()
+    ticket = MaintenanceTicket.query.filter_by(
+        id=ticket_id, org_id=org_id
+    ).first_or_404()
     status = payload.get("status")
     assigned_to = payload.get("assigned_to")
     if status:
@@ -109,26 +117,40 @@ def update_ticket(ticket_id: int):
         ticket.assigned_to = assigned_to
 
     if "warranty_expires_at" in payload:
-        ticket.warranty_expires_at = _parse_date(payload.get("warranty_expires_at"))
+        ticket.warranty_expires_at = _parse_date(
+            payload.get("warranty_expires_at")
+        )
 
     db.session.commit()
-    log_audit(None, org_id, "maintenance.ticket_updated", f"ticket={ticket.id};status={ticket.status}")
+    log_audit(
+        None,
+        org_id,
+        "maintenance.ticket_updated",
+        f"ticket={ticket.id};status={ticket.status}",
+    )
     return jsonify(_serialize(ticket))
 
 
 @bp.post("/devices/<int:ticket_id>/heartbeat")
-@login_required
+@require_roles("maintenance", "admin")
 def geo_heartbeat(ticket_id: int):
     org_id = resolve_org_id()
-    ticket = MaintenanceTicket.query.filter_by(id=ticket_id, org_id=org_id).first_or_404()
+    ticket = MaintenanceTicket.query.filter_by(
+        id=ticket_id, org_id=org_id
+    ).first_or_404()
     payload = request.get_json(silent=True) or {}
     ticket.site_lat = payload.get("lat")
     ticket.site_lng = payload.get("lng")
     ticket.site_label = payload.get("label", ticket.site_label)
     ticket.last_geo_heartbeat_at = utc_now()
     db.session.commit()
-    log_audit(None, org_id, "maintenance.geo_heartbeat", f"ticket={ticket.id};lat={ticket.site_lat};lng={ticket.site_lng}")
+    log_audit(
+        None,
+        org_id,
+        "maintenance.geo_heartbeat",
+        f"ticket={ticket.id};lat={ticket.site_lat};lng={ticket.site_lng}",
+    )
     return jsonify(_serialize(ticket))
 
 
-__all__ = ["bp", "tickets", "update_ticket", "geo_heartbeat"]
+__all__ = ["bp", "list_tickets", "update_ticket", "geo_heartbeat"]

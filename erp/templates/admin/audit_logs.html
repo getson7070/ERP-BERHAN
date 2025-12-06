@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs – Berhan ERP{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Audit Logs</h1>
+    <span class="badge bg-secondary">Admin / Compliance / Audit</span>
+  </div>
+
+  <!-- Filters -->
+  <form id="audit-filters" class="card mb-3 shadow-sm p-3">
+    <div class="row g-2 mb-2">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Actor ID (user)</label>
+        <input type="number" class="form-control form-control-sm" name="actor_id"
+               placeholder="e.g. 42">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Entity type</label>
+        <input type="text" class="form-control form-control-sm" name="entity_type"
+               placeholder="order, maintenance_ticket, tender...">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Entity ID</label>
+        <input type="number" class="form-control form-control-sm" name="entity_id"
+               placeholder="e.g. 1001">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Module</label>
+        <input type="text" class="form-control form-control-sm" name="module"
+               placeholder="orders, maintenance, auth...">
+      </div>
+    </div>
+
+    <div class="row g-2 mb-2">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Action</label>
+        <input type="text" class="form-control form-control-sm" name="action"
+               placeholder="ticket_created, login, order_approved...">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Severity</label>
+        <select class="form-select form-select-sm" name="severity">
+          <option value="">Any</option>
+          <option value="info">info</option>
+          <option value="warning">warning</option>
+          <option value="error">error</option>
+          <option value="critical">critical</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">From (ISO datetime)</label>
+        <input type="datetime-local" class="form-control form-control-sm" name="from">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">To (ISO datetime)</label>
+        <input type="datetime-local" class="form-control form-control-sm" name="to">
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2">
+      <button type="button" id="btn-reset" class="btn btn-outline-secondary btn-sm">
+        Reset
+      </button>
+      <button type="button" id="btn-load" class="btn btn-primary btn-sm">
+        Load logs
+      </button>
+    </div>
+  </form>
+
+  <!-- Results -->
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="small fw-semibold">Results</span>
+      <button type="button" id="btn-copy-json"
+              class="btn btn-outline-secondary btn-sm">
+        Copy JSON
+      </button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0" id="audit-table">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>When</th>
+            <th>Actor</th>
+            <th>Module / Action</th>
+            <th>Entity</th>
+            <th>Severity</th>
+            <th>IP</th>
+            <th>Metadata</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Filled by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const filtersForm = document.getElementById("audit-filters");
+  const tableBody = document.querySelector("#audit-table tbody");
+  let lastPayload = [];
+
+  function buildQuery() {
+    const params = new URLSearchParams();
+    const formData = new FormData(filtersForm);
+    for (const [key, value] of formData.entries()) {
+      if (!value) continue;
+      if (key === "from" || key === "to") {
+        // datetime-local → ISO string
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) {
+          params.append(key, d.toISOString());
+        }
+      } else {
+        params.append(key, value);
+      }
+    }
+    return params.toString();
+  }
+
+  async function loadLogs() {
+    tableBody.innerHTML = '<tr><td colspan="8" class="text-center small text-muted py-3">Loading…</td></tr>';
+    try {
+      const query = buildQuery();
+      const resp = await fetch("/api/audit/logs" + (query ? "?" + query : ""));
+      if (!resp.ok) {
+        throw new Error("HTTP " + resp.status);
+      }
+      const data = await resp.json();
+      lastPayload = data;
+      renderTable(data);
+    } catch (err) {
+      console.error(err);
+      tableBody.innerHTML =
+        '<tr><td colspan="8" class="text-center text-danger small py-3">Failed to load logs.</td></tr>';
+    }
+  }
+
+  function renderTable(rows) {
+    if (!rows.length) {
+      tableBody.innerHTML =
+        '<tr><td colspan="8" class="text-center small text-muted py-3">No logs found for this filter.</td></tr>';
+      return;
+    }
+    const esc = (v) => v == null ? "" : String(v);
+    tableBody.innerHTML = rows.map(row => {
+      const entity = (row.entity_type || "") + (row.entity_id ? "#" + row.entity_id : "");
+      const actor = (row.actor_type || "user") + (row.actor_id ? "#" + row.actor_id : "");
+      const meta = row.metadata ? JSON.stringify(row.metadata).slice(0, 80) : "";
+      return `
+        <tr>
+          <td>${esc(row.id)}</td>
+          <td><code class="small">${esc(row.created_at)}</code></td>
+          <td class="small">${esc(actor)}</td>
+          <td class="small">${esc(row.module)}/${esc(row.action)}</td>
+          <td class="small">${esc(entity)}</td>
+          <td><span class="badge bg-${row.severity === "error" || row.severity === "critical" ? "danger" : "secondary"}">${esc(row.severity)}</span></td>
+          <td class="small">${esc(row.ip_address)}</td>
+          <td class="small"><code>${meta}</code></td>
+        </tr>`;
+    }).join("");
+  }
+
+  document.getElementById("btn-load").addEventListener("click", loadLogs);
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    filtersForm.reset();
+    tableBody.innerHTML = "";
+    lastPayload = [];
+  });
+
+  document.getElementById("btn-copy-json").addEventListener("click", () => {
+    if (!lastPayload.length) return;
+    navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2))
+      .catch(err => console.error("Clipboard failed", err));
+  });
+
+  // Auto-load initial logs (last 5000, server-side limited)
+  loadLogs();
+})();
+</script>
+{% endblock %}

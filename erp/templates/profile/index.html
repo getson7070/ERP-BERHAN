@@ -1,29 +1,96 @@
-{% raw %}
 {% extends 'base.html' %}
 {% block title %}My Profile{% endblock %}
 {% block header %}My Profile{% endblock %}
-{% block content %}
-<div class="grid md:grid-cols-2 gap-6">
-  <section class="rounded bg-white p-4 border" aria-label="Identity">
-    <h2 class="font-medium mb-2">Identity</h2>
-    <dl class="text-sm grid grid-cols-3 gap-2">
-      <dt class="text-gray-600">Name</dt><dd class="col-span-2">{{ current_user.name if current_user.is_authenticated else '-' }}</dd>
-      <dt class="text-gray-600">Email</dt><dd class="col-span-2">{{ current_user.email if current_user.is_authenticated else '-' }}</dd>
-      <dt class="text-gray-600">Roles</dt><dd class="col-span-2">{{ (current_user.roles|join(', ')) if (current_user.is_authenticated and current_user.roles) else '-' }}</dd>
-    </dl>
-  </section>
-  <section class="rounded bg-white p-4 border" aria-label="Preferences">
-    <h2 class="font-medium mb-2">Preferences</h2>
-    <form method="post" action="/profile/preferences" class="space-y-3">
-    {{ csrf_token() }}
 
-      <div class="flex items-center gap-2">
-        <input id="dark" name="dark" type="checkbox" class="rounded" />
-        <label for="dark" class="text-sm">Dark Mode</label>
+{% block content %}
+<section class="container my-4">
+  <div class="row g-4">
+    <div class="col-12 col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Account</h2>
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Name</dt>
+            <dd class="col-sm-8">
+              {% if current_user.is_authenticated %}
+                {{ current_user.name or current_user.full_name or current_user.username }}
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Email</dt>
+            <dd class="col-sm-8">
+              {% if current_user.is_authenticated %}
+                {{ current_user.email or '-' }}
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Roles</dt>
+            <dd class="col-sm-8">
+              {% if current_user.is_authenticated and current_user.roles %}
+                {{ ", ".join(current_user.roles) }}
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Organization</dt>
+            <dd class="col-sm-8">
+              {{ org.name if org is defined else "-" }}
+            </dd>
+          </dl>
+        </div>
       </div>
-      <button class="px-3 py-2 rounded bg-emerald-600 text-white">Save</button>
-    </form>
-  </section>
-</div>
+    </div>
+
+    <div class="col-12 col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Preferences</h2>
+          <p class="small text-muted">
+            UI preferences, notification settings and marketing consent.
+          </p>
+
+          <form method="post" action="{{ url_for('profile.update_preferences') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" value="1" id="dark_mode"
+                     name="dark_mode"
+                     {% if prefs.dark_mode %}checked{% endif %}>
+              <label class="form-check-label" for="dark_mode">
+                Dark mode
+              </label>
+            </div>
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" value="1" id="email_notifications"
+                     name="email_notifications"
+                     {% if prefs.email_notifications %}checked{% endif %}>
+              <label class="form-check-label" for="email_notifications">
+                Email notifications
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" value="1" id="marketing_consent"
+                     name="marketing_consent"
+                     {% if prefs.marketing_consent %}checked{% endif %}>
+              <label class="form-check-label" for="marketing_consent">
+                Allow anonymous usage analytics & marketing optimisation
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm">
+              Save preferences
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 {% endblock %}
-{% endraw %}

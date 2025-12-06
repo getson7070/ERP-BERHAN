@@ -1,40 +1,215 @@
-{% raw %}
 {% extends 'base.html' %}
 {% block title %}Home{% endblock %}
 {% block header %}Home{% endblock %}
+
 {% block content %}
 {% set ACL = acl or {} %}
-{% set is_admin = (current_user.is_authenticated and (getattr(current_user,'is_admin', False) or ('admin' in (getattr(current_user,'roles',[]) or [])))) %}
 
-<section class="grid md:grid-cols-3 gap-4" aria-label="Main Modules">
-  {% macro card(label, desc, path, show) -%}
-    {% if show %}
-    <a href="{{ path }}" class="rounded bg-white p-4 border hover:shadow focus:outline-none focus:ring-2 focus:ring-emerald-500" aria-label="Open {{ label }}">
-      <div class="text-lg font-semibold">{{ label }}</div>
-      <p class="text-sm text-gray-600 mt-1">{{ desc }}</p>
-    </a>
+{% if current_user.is_authenticated %}
+  {% set roles = current_user.roles or [] %}
+{% else %}
+  {% set roles = [] %}
+{% endif %}
+{% set is_admin = 'admin' in roles %}
+
+<section class="container my-4">
+  <div class="row g-3" aria-label="Main modules">
+    {% macro card(label, desc, endpoint, show) -%}
+      {% if show %}
+        <div class="col-12 col-md-4">
+          <a href="{{ endpoint }}" class="text-decoration-none">
+            <div class="card h-100 shadow-sm">
+              <div class="card-body">
+                <h2 class="h5 card-title mb-1">{{ label }}</h2>
+                <p class="card-text small text-muted mb-0">{{ desc }}</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      {% endif %}
+    {%- endmacro %}
+
+    {{ card('Analytics', 'Realtime KPIs and approvals overview', url_for('analytics.dashboard_snapshot'), True) }}
+    {{ card('Orders', 'Sales orders with stock reservation and fulfilment flow', '#', ACL.get('orders', True)) }}
+    {{ card('Maintenance', 'Tickets, assets and field activity', '#', ACL.get('maintenance', True)) }}
+    {{ card('Inventory', 'Stock levels, batches and serialised devices', '#', ACL.get('inventory', True)) }}
+    {{ card('CRM', 'Leads, opportunities and visit tracking', '#', ACL.get('crm', True)) }}
+    {{ card('Tenders', 'Tender pipeline and submissions', '#', ACL.get('tenders', True)) }}
+    {{ card('Finance', 'Journals, P&L and exposure', '#', ACL.get('finance', True)) }}
+    {{ card('Banking', 'Bank accounts, reconciliations and FX', '#', ACL.get('banking', True)) }}
+    {{ card('Bots & Automation', 'ERP bot jobs, queues and errors', '#', ACL.get('bots', True)) }}
+    {% if is_admin %}
+      {{ card('Admin', 'Workflows, plugins and user management', url_for('admin.panel'), True) }}
     {% endif %}
-  {%- endmacro %}
-
-  {{ card('Tenders', 'Register, track, and report tenders.', '/tenders', ACL.get('tenders') or is_admin) }}
-  {{ card('Orders', 'Submit, review, and escalate orders.', '/orders', ACL.get('orders') or is_admin) }}
-  {{ card('Inventory', 'Stock levels and receipts.', '/inventory', ACL.get('inventory') or is_admin) }}
-  {{ card('Marketing', 'Campaigns, leads, and analytics.', '/marketing', ACL.get('marketing') or is_admin) }}
-  {{ card('HR', 'Onboarding, performance, recruitment.', '/hr', ACL.get('hr') or is_admin) }}
-  {{ card('Maintenance', 'Work orders and preventive plans.', '/maintenance', ACL.get('maintenance') or is_admin) }}
-  {{ card('My Profile', 'Personal info and preferences.', '/profile', current_user.is_authenticated) }}
-  {{ card('Admin Panel', 'Workflows and governance.', '/admin', ACL.get('admin') or is_admin) }}
-</section>
-
-<section class="mt-6 grid md:grid-cols-3 gap-4" aria-label="At a glance">
-  {% for kpi in (kpis or []) %}
-  <div class="rounded bg-white p-4 shadow-sm">
-    <div class="text-sm text-gray-500">{{ kpi.label }}</div>
-    <div class="text-2xl font-semibold">{{ kpi.value }}</div>
+    {{ card('Help & Feedback', 'Help center and feedback form', url_for('main.help_center'), True) }}
   </div>
-  {% else %}
-  <div class="md:col-span-3 p-4 text-center text-gray-500 bg-white rounded border">Welcome! Select a module to begin.</div>
-  {% endfor %}
+
+  <section class="mt-4" aria-label="At a glance">
+    <div class="row g-3">
+      {% for kpi in (kpis or []) %}
+        <div class="col-12 col-md-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="small text-muted">{{ kpi.label }}</div>
+              <div class="h3 mb-0">{{ kpi.value }}</div>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="col-12">
+          <div class="card border-0">
+            <div class="card-body text-center text-muted">
+              Welcome! Select a module above to begin.
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if current_user.is_authenticated %}
+  <section class="mt-4" aria-label="Live field locations">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Live locations</span>
+        <small id="geo-status" class="text-muted"></small>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0" id="geo-table">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Subject</th>
+                <th scope="col">Latitude</th>
+                <th scope="col">Longitude</th>
+                <th scope="col">Updated at</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="text-muted">
+                <td colspan="4">Waiting for first location ping…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <!-- carries user id for JS -->
+    <div id="geo-section" data-user-id="{{ current_user.id }}"></div>
+  </section>
+  {% endif %}
 </section>
 {% endblock %}
-{% endraw %}
+
+{% block extra_js %}
+  {{ super() }}
+  {% if current_user.is_authenticated %}
+  <script>
+    (function () {
+      const container = document.getElementById("geo-section");
+      if (!container) return;
+
+      const userId = container.dataset.userId;
+      const statusEl = document.getElementById("geo-status");
+      const tableBody = document.querySelector("#geo-table tbody");
+      const csrfToken = "{{ csrf_token()|e }}";
+
+      function setStatus(msg) {
+        if (statusEl) statusEl.textContent = msg;
+      }
+
+      function renderRows(items) {
+        if (!tableBody) return;
+        tableBody.innerHTML = "";
+        if (!items || !items.length) {
+          const tr = document.createElement("tr");
+          tr.classList.add("text-muted");
+          tr.innerHTML = '<td colspan="4">No active locations yet.</td>';
+          tableBody.appendChild(tr);
+          return;
+        }
+        items.forEach(function (item) {
+          const tr = document.createElement("tr");
+          const lat = item.lat ?? item.latitude ?? "";
+          const lng = item.lng ?? item.longitude ?? "";
+          const updated = item.updated_at || item.recorded_at || "";
+          const label = (item.subject_type || "user") + "#" + (item.subject_id ?? "");
+          tr.innerHTML =
+            "<td>" + label + "</td>" +
+            "<td>" + lat + "</td>" +
+            "<td>" + lng + "</td>" +
+            "<td><small class='text-muted'>" + updated + "</small></td>";
+          tableBody.appendChild(tr);
+        });
+      }
+
+      function fetchLive() {
+        fetch("/api/geo/live")
+          .then(function (resp) {
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            return resp.json();
+          })
+          .then(function (data) {
+            const items = Array.isArray(data) ? data : (data.items || []);
+            renderRows(items);
+            setStatus("Live locations loaded");
+          })
+          .catch(function (err) {
+            console.error("geo.live failed", err);
+            setStatus("Could not load live locations");
+          });
+      }
+
+      function sendPing(position) {
+        const payload = {
+          subject_type: "user",
+          subject_id: parseInt(userId || "0", 10) || null,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy_m: position.coords.accuracy || null
+        };
+        fetch("/api/geo/ping", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          return resp.json();
+        })
+        .then(function () {
+          setStatus("Location updated");
+          fetchLive();
+        })
+        .catch(function (err) {
+          console.error("geo.ping failed", err);
+          setStatus("Could not send location (maybe consent not granted)");
+          fetchLive();
+        });
+      }
+
+      if (!navigator.geolocation) {
+        setStatus("Geolocation is not supported in this browser.");
+        fetchLive();
+        return;
+      }
+
+      setStatus("Requesting location…");
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          sendPing(pos);
+        },
+        function (err) {
+          console.warn("Geolocation error", err);
+          setStatus("Location permission denied or unavailable.");
+          fetchLive();
+        },
+        { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 }
+      );
+    })();
+  </script>
+  {% endif %}
+{% endblock %}
