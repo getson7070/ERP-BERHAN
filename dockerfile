@@ -1,33 +1,41 @@
-FROM python:3.11-slim
+# Multi-tenant ERP-BERHAN Dockerfile
+# Clean, production-ready base with no reliance on the host .venv
 
-# 1) System deps
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       build-essential \
-       libpq-dev \
-       curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:3.11-slim AS base
 
-# 2) App base
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# System deps for building some Python packages (psycopg2, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# 3) Python deps from lock file + extras we know we need
-COPY requirements.lock /app/requirements.lock
-RUN pip install --no-cache-dir -r /app/requirements.lock \
-    && pip install --no-cache-dir pip-tools "psycopg[binary]"
+# ------------------------------------------------------------------
+# Install Python dependencies
+# ------------------------------------------------------------------
+COPY requirements.txt .
 
-# 4) Copy project
-COPY . /app
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 5) Normalize entrypoint line endings & make executable
-RUN sed -i 's/\r$//' docker/entrypoint.sh && chmod +x docker/entrypoint.sh
+# ------------------------------------------------------------------
+# Copy application source
+# ------------------------------------------------------------------
+COPY . .
 
-# 6) Non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
+# Create non-root user for better security
+RUN useradd -m appuser
 USER appuser
 
-EXPOSE 18000
+# Expose the app port (inside the container).
+EXPOSE 8000
 
-# 7) Use our entrypoint; default command is "web"
-ENTRYPOINT ["docker/entrypoint.sh"]
-CMD ["web"]
+# ------------------------------------------------------------------
+# Default command:
+# - Run init_db.py to ensure schema + seeds
+# - Start the app via gunicorn using the Flask app factory
+# ------------------------------------------------------------------
+CMD ["sh", "-c", "python init_db.py && gunicorn -b 0.0.0.0:8000 'erp.app:create_app()'"]

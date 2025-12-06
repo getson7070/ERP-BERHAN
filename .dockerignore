@@ -3,23 +3,34 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.so
 
-# Virtualenvs / vendored envs
+# Virtualenvs
 .venv/
-.venv*/
+venv/
+env/
 
-# Node / front-end caches
-node_modules/
+# Git
+.git/
+.gitignore
 
-# Backup / temp / tools
-*_backup*/
-_backup*/
-*.bak_*
-*.bak
-*.tmp
+# Editor / OS trash
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store
 
-# Git & CI
-.git/
-.github/
+# Tests and caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local env
+.env
+.env.local
+.env.development
+.env.production
+
+# Other
+*.log
+*.sqlite3

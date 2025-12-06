@@ -1,35 +1,33 @@
-
 services:
   db:
-    image: postgres:16-alpine
-    container_name: erp-postgres
-    restart: always
+    container_name: db
+    image: postgres:15
+    restart: unless-stopped
     environment:
+      POSTGRES_DB: erp_berhan
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: erp_berhan
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - erp-berhan_postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
-  web:
-    build: .
+  erp-berhan:
     container_name: erp-berhan
-    restart: always
-    ports:
-      # Keep container and host ports aligned with gunicorn.conf.py (0.0.0.0:18000)
-      - "18000:18000"
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
+    volumes:
+      # Mount source for dev/hot-reload; remove in production if you want immutable images
+      - .:/app
+    ports:
+      # host:container → browser hits http://localhost:18000 → container listens on 8000
+      - "18000:8000"
     depends_on:
       - db
-    volumes:
-      - .:/app
-      - ./instance:/app/instance
-    environment:
-      - REDIS_URL=  # Empty to disable
-      - RATELIMIT_STORAGE_URI=memory://
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
+  erp-berhan_postgres_data:
