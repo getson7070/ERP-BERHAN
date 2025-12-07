@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+from secrets import token_urlsafe
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlparse
@@ -20,11 +21,16 @@ from flask import (
 )
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import text
+from flask_wtf import FlaskForm
+from wtforms import PasswordField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, Length, Optional, Regexp
+from werkzeug.security import generate_password_hash
 
 from erp.audit import log_audit
 from erp.extensions import db, get_remote_address, limiter
 from erp.models import (
     ClientRegistration,
+    ClientAccount,
     Employee,
     RegistrationInvite,
     Role,
@@ -77,6 +83,34 @@ def _record_failure(email: str) -> None:
     #  1st failure ~5s, 2nd ~10s, up to a max of 300s
     cooldown = min(300, max(5, attempts * 5))
     _FAILED_LOGINS[email] = (attempts, datetime.now(UTC) + timedelta(seconds=cooldown))
+
+
+class ClientRegistrationForm(FlaskForm):
+    tin = StringField(
+        "TIN",
+        validators=[
+            DataRequired(),
+            Length(min=10, max=10, message="TIN must be exactly 10 digits"),
+            Regexp(r"^\d{10}$", message="TIN must be 10 digits"),
+        ],
+    )
+    institution_name = StringField("Institution name", validators=[DataRequired(), Length(max=255)])
+    contact_name = StringField("Contact name", validators=[DataRequired(), Length(max=255)])
+    contact_position = StringField("Position", validators=[DataRequired(), Length(max=128)])
+    email = StringField("Work email", validators=[DataRequired(), Email(), Length(max=255)])
+    phone = StringField("Phone", validators=[DataRequired(), Length(max=64)])
+    region = StringField("Region", validators=[DataRequired(), Length(max=128)])
+    zone = StringField("Zone", validators=[Optional(), Length(max=128)])
+    city = StringField("City", validators=[DataRequired(), Length(max=128)])
+    subcity = StringField("Sub-city/Woreda", validators=[Optional(), Length(max=128)])
+    woreda = StringField("Woreda", validators=[Optional(), Length(max=128)])
+    kebele = StringField("Kebele", validators=[Optional(), Length(max=128)])
+    street = StringField("Street", validators=[Optional(), Length(max=255)])
+    house_number = StringField("House number", validators=[Optional(), Length(max=64)])
+    gps_hint = StringField("GPS / landmark", validators=[Optional(), Length(max=255)])
+    notes = TextAreaField("Notes", validators=[Optional(), Length(max=2000)])
+    password = PasswordField("Portal password", validators=[DataRequired(), Length(min=8, max=128)])
+    submit = SubmitField("Submit registration")
 
 
 def _clear_failures(email: str) -> None:
@@ -139,12 +173,63 @@ def _consume_invite(token: str, email: str, requested_role: str) -> Registration
 def _queue_registration_request(org_id: int, username: str, email: str, role: str) -> ClientRegistration:
     pending = ClientRegistration(
         org_id=org_id,
-        name=username,
+        institution_name=username,
+        contact_name=username,
         email=email,
+        tin=f"EMP-{int(datetime.now(UTC).timestamp())}-{token_urlsafe(4)}",
         status="pending",
     )
     db.session.add(pending)
     return pending
+
+
+@bp.route("/client/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def client_register():
+    """Capture client onboarding requests with rich institution metadata."""
+
+    form = ClientRegistrationForm()
+    if form.validate_on_submit():
+        org_id = resolve_org_id()
+        email = (form.email.data or "").lower()
+
+        existing_account = ClientAccount.query.filter_by(org_id=org_id, email=email).first()
+        if existing_account:
+            flash("An account with that email already exists.", "warning")
+            return redirect(url_for("auth.login"))
+
+        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=form.tin.data).first()
+        if pending and pending.status == "pending":
+            flash("A registration for this TIN is already awaiting review.", "info")
+            return redirect(url_for("auth.login"))
+
+        registration = ClientRegistration(
+            org_id=org_id,
+            institution_name=form.institution_name.data.strip(),
+            contact_name=form.contact_name.data.strip(),
+            contact_position=form.contact_position.data.strip(),
+            email=email,
+            phone=form.phone.data.strip(),
+            tin=form.tin.data.strip(),
+            region=form.region.data.strip() if form.region.data else None,
+            zone=form.zone.data.strip() if form.zone.data else None,
+            city=form.city.data.strip() if form.city.data else None,
+            subcity=form.subcity.data.strip() if form.subcity.data else None,
+            woreda=form.woreda.data.strip() if form.woreda.data else None,
+            kebele=form.kebele.data.strip() if form.kebele.data else None,
+            street=form.street.data.strip() if form.street.data else None,
+            house_number=form.house_number.data.strip() if form.house_number.data else None,
+            gps_hint=form.gps_hint.data.strip() if form.gps_hint.data else None,
+            notes=form.notes.data.strip() if form.notes.data else None,
+            password_hash=generate_password_hash(form.password.data),
+            status="pending",
+        )
+        db.session.add(registration)
+        db.session.commit()
+        flash("Registration submitted. A supervisor will approve your access.", "success")
+        return redirect(url_for("auth.login"))
+
+    return render_template("client_registration.html", form=form)
 
 
 @bp.route("/login", methods=["GET", "POST"])
