@@ -127,10 +127,20 @@ class MaintenanceWorkOrder(db.Model):
     requested_by_id = db.Column(db.Integer, nullable=True)
     assigned_to_id = db.Column(db.Integer, nullable=True)
 
+    request_lat = db.Column(db.Float, nullable=True)
+    request_lng = db.Column(db.Float, nullable=True)
+    request_location_label = db.Column(db.String(255), nullable=True)
+
+    start_lat = db.Column(db.Float, nullable=True)
+    start_lng = db.Column(db.Float, nullable=True)
+    last_check_in_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     requested_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     due_date = db.Column(db.Date, nullable=True)
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    sla_status = db.Column(db.String(32), nullable=False, default="ok")
 
     downtime_start = db.Column(db.DateTime(timezone=True), nullable=True)
     downtime_end = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -180,6 +190,9 @@ class MaintenanceEvent(db.Model):
     message = db.Column(db.Text, nullable=True)
     from_status = db.Column(db.String(32), nullable=True)
     to_status = db.Column(db.String(32), nullable=True)
+
+    geo_lat = db.Column(db.Float, nullable=True)
+    geo_lng = db.Column(db.Float, nullable=True)
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     created_by_id = db.Column(db.Integer, nullable=True)
@@ -238,6 +251,7 @@ class MaintenanceEscalationEvent(db.Model):
     )
 
     status = db.Column(db.String(32), nullable=False, default="triggered")
+    note = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     created_by_id = db.Column(db.Integer, nullable=True)

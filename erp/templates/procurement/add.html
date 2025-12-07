@@ -1,9 +1,112 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h1 class="h4 mb-3">{{ title or 'procurement/add.html' }}</h1>
-    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+<div class="row justify-content-center">
+  <div class="col-xl-8 col-lg-9">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h1 class="h4 mb-1">New procurement ticket</h1>
+            <p class="text-muted mb-0">Capture import milestones with SLA and landed cost readiness.</p>
+          </div>
+          <a href="{{ url_for('procurement.index') }}" class="btn btn-outline-secondary">Back</a>
+        </div>
+        <form id="ticket-form" class="needs-validation" novalidate>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Title<span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., Q3 anesthesia machines import" />
+              <div class="invalid-feedback">Title is required.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Priority</label>
+              <select class="form-select" id="priority" name="priority">
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Purchase order ID (optional)</label>
+              <input type="number" min="1" class="form-control" id="purchase_order_id" name="purchase_order_id" placeholder="Link to PO" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Assign to employee ID (optional)</label>
+              <input type="number" min="1" class="form-control" id="assigned_to_id" name="assigned_to_id" placeholder="User ID" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">SLA due at (optional)</label>
+              <input type="datetime-local" class="form-control" id="sla_due_at" name="sla_due_at" />
+              <div class="form-text">Used for breach detection and escalation.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" id="description" name="description" rows="3" placeholder="Vendor, payment terms, routing details..."></textarea>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 mt-4">
+            <button type="submit" class="btn btn-primary" id="submit-btn">Create ticket</button>
+            <div id="form-status" class="text-muted small"></div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  const form = document.getElementById('ticket-form');
+  const statusEl = document.getElementById('form-status');
+  const submitBtn = document.getElementById('submit-btn');
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    form.classList.add('was-validated');
+    if (!form.checkValidity()) {
+      return;
+    }
+
+    submitBtn.disabled = true;
+    statusEl.textContent = 'Submitting...';
+
+    const payload = {
+      title: document.getElementById('title').value.trim(),
+      priority: document.getElementById('priority').value,
+      purchase_order_id: document.getElementById('purchase_order_id').value || null,
+      assigned_to_id: document.getElementById('assigned_to_id').value || null,
+      sla_due_at: document.getElementById('sla_due_at').value || null,
+      description: document.getElementById('description').value.trim(),
+    };
+
+    try {
+      const res = await fetch('/api/procurement/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Request failed');
+      }
+      await res.json();
+      statusEl.textContent = 'Created successfully. Redirecting...';
+      window.setTimeout(() => {
+        window.location.href = '{{ url_for('procurement.index') }}';
+      }, 600);
+    } catch (err) {
+      statusEl.textContent = err.message || 'Something went wrong';
+      statusEl.classList.remove('text-muted');
+      statusEl.classList.add('text-danger');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  form?.addEventListener('submit', handleSubmit);
+})();
+</script>
 {% endblock %}

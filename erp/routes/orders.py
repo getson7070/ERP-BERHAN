@@ -5,12 +5,14 @@ from decimal import Decimal
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
+from flask_login import current_user
 
 from erp.security import require_roles
 
 from erp.extensions import db
-from erp.models import Inventory, InventoryReservation, Order
+from erp.models import Inventory, InventoryReservation, Order, User
 from erp.utils import resolve_org_id
+from erp.utils.activity import log_activity_event
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -19,12 +21,32 @@ def _serialize(order: Order) -> dict[str, object]:
     return {
         "id": order.id,
         "status": order.status,
+        "payment_status": order.payment_status,
         "currency": order.currency,
         "total_amount": float(order.total_amount),
         "organization_id": order.organization_id,
         "user_id": order.user_id,
-        "placed_at": order.placed_at.isoformat(),
+        "initiator_type": order.initiator_type,
+        "initiator_id": order.initiator_id,
+        "assigned_sales_rep_id": order.assigned_sales_rep_id,
+        "commission_enabled": order.commission_enabled,
+        "commission_rate": float(order.commission_rate or 0),
+        "commission_status": order.commission_status,
+        "commission_amount": float(order.commission_amount),
+        "placed_at": order.placed_at.isoformat() if order.placed_at else None,
     }
+
+
+def _as_bool(value: object, *, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return default
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -75,11 +97,47 @@ def index():
             )
             inventory.quantity -= quantity
 
+        initiator_type = (payload.get("initiator_type") or "").lower() or None
+        if initiator_type and initiator_type not in {"client", "employee", "management"}:
+            return (
+                jsonify({"error": "initiator_type must be client, employee, or management"}),
+                HTTPStatus.BAD_REQUEST,
+            )
+
+        assigned_sales_rep_id = payload.get("assigned_sales_rep_id")
+        if assigned_sales_rep_id is not None:
+            rep = User.query.filter_by(id=assigned_sales_rep_id).first()
+            if rep is None:
+                return (
+                    jsonify({"error": "assigned_sales_rep_id is invalid"}),
+                    HTTPStatus.BAD_REQUEST,
+                )
+
+        commission_enabled = _as_bool(payload.get("commission_enabled"), default=False)
+        commission_rate = payload.get("commission_rate")
+        try:
+            commission_rate_decimal = (
+                Decimal(str(commission_rate)) if commission_rate is not None else Decimal("0.02")
+            )
+        except Exception:
+            return (
+                jsonify({"error": "commission_rate must be numeric"}),
+                HTTPStatus.BAD_REQUEST,
+            )
+
         order = Order(
             organization_id=org_id,
             user_id=payload.get("user_id"),
             currency=payload.get("currency", "USD"),
             total_amount=total,
+            initiator_type=initiator_type,
+            initiator_id=payload.get("initiator_id"),
+            assigned_sales_rep_id=assigned_sales_rep_id,
+            commission_enabled=commission_enabled,
+            commission_rate=commission_rate_decimal,
+            status="submitted",
+            payment_status="unpaid",
+            commission_status="pending" if commission_enabled else "none",
         )
         db.session.add(order)
         db.session.flush()
@@ -88,6 +146,18 @@ def index():
             reservation.order_id = order.id
             db.session.add(reservation)
 
+        log_activity_event(
+            action="order.created",
+            entity_type="order",
+            entity_id=order.id,
+            status=order.status,
+            actor_user_id=getattr(current_user, "id", None),
+            metadata={
+                "initiator_type": initiator_type,
+                "assigned_sales_rep_id": assigned_sales_rep_id,
+                "commission_enabled": commission_enabled,
+            },
+        )
         db.session.commit()
         return jsonify(_serialize(order)), HTTPStatus.CREATED
 
@@ -108,22 +178,60 @@ def update(order_id: int):
     status = (payload.get("status") or "").lower()
     org_id = resolve_org_id()
     order = Order.query.filter_by(id=order_id, organization_id=org_id).first_or_404()
-    valid_statuses = {
-        "pending",
-        "approved",
-        "shipped",
-        "canceled",
-        "rejected",
-        "fulfilled",
-    }
-    if status not in valid_statuses:
-        return (
-            jsonify(
-                {"error": f"status must be one of {sorted(valid_statuses)}"}
-            ),
-            HTTPStatus.BAD_REQUEST,
-        )
+    if status:
+        valid_statuses = set(Order.valid_statuses())
+        if status not in valid_statuses:
+            return (
+                jsonify({"error": f"status must be one of {sorted(valid_statuses)}"}),
+                HTTPStatus.BAD_REQUEST,
+            )
+        order.set_status(status)
 
-    order.status = status
+    if "payment_status" in payload:
+        payment_status = (payload.get("payment_status") or "").lower()
+        valid_payment_statuses = {"unpaid", "partial", "settled"}
+        if payment_status not in valid_payment_statuses:
+            return (
+                jsonify({"error": f"payment_status must be one of {sorted(valid_payment_statuses)}"}),
+                HTTPStatus.BAD_REQUEST,
+            )
+        order.set_payment_status(payment_status)
+
+    if "commission_enabled" in payload:
+        order.set_commission_enabled(_as_bool(payload.get("commission_enabled")))
+
+    if "commission_rate" in payload:
+        commission_rate_val = payload.get("commission_rate")
+        try:
+            order.commission_rate = Decimal(str(commission_rate_val))
+        except Exception:
+            return (
+                jsonify({"error": "commission_rate must be numeric"}),
+                HTTPStatus.BAD_REQUEST,
+            )
+
+    if "assigned_sales_rep_id" in payload:
+        rep_id = payload.get("assigned_sales_rep_id")
+        if rep_id is not None:
+            rep = User.query.filter_by(id=rep_id).first()
+            if rep is None:
+                return (
+                    jsonify({"error": "assigned_sales_rep_id is invalid"}),
+                    HTTPStatus.BAD_REQUEST,
+                )
+        order.assigned_sales_rep_id = rep_id
+
     db.session.commit()
+    log_activity_event(
+        action="order.updated",
+        entity_type="order",
+        entity_id=order.id,
+        status=order.status,
+        actor_user_id=getattr(current_user, "id", None),
+        metadata={
+            "payment_status": order.payment_status,
+            "commission_status": order.commission_status,
+            "assigned_sales_rep_id": order.assigned_sales_rep_id,
+        },
+    )
     return jsonify(_serialize(order))

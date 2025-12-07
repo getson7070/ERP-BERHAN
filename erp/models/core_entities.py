@@ -54,6 +54,32 @@ class AnalyticsEvent(TimestampMixin, OrgScopedMixin, db.Model):
     location_lng: Mapped[Optional[float]] = mapped_column(db.Float)
 
 
+class ActivityEvent(TimestampMixin, OrgScopedMixin, db.Model):
+    """Unified activity log across orders, maintenance, CRM, and bots."""
+
+    __tablename__ = "activity_events"
+    __table_args__ = (
+        Index("ix_activity_events_org_action", "org_id", "action"),
+        Index("ix_activity_events_actor", "actor_user_id", "org_id"),
+        Index("ix_activity_events_entity", "entity_type", "entity_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_user_id: Mapped[Optional[int]] = mapped_column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_type: Mapped[str] = mapped_column(db.String(32), default="user", nullable=False)
+    action: Mapped[str] = mapped_column(db.String(128), nullable=False)
+    entity_type: Mapped[Optional[str]] = mapped_column(db.String(64), index=True)
+    entity_id: Mapped[Optional[int]] = mapped_column(db.Integer, index=True)
+    status: Mapped[Optional[str]] = mapped_column(db.String(64))
+    severity: Mapped[str] = mapped_column(db.String(16), nullable=False, default="info")
+    occurred_at: Mapped[datetime] = mapped_column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
+    )
+    metadata: Mapped[Optional[dict]] = mapped_column(db.JSON)
+
+
 class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):
     """Workflow approval requests referencing orders or other documents."""
 
@@ -80,6 +106,31 @@ class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):
     notes: Mapped[Optional[str]] = mapped_column(db.Text)
 
     order = relationship("Order", backref="approval_requests")
+
+
+class Institution(TimestampMixin, OrgScopedMixin, db.Model):
+    """Institution/company profile collected during client onboarding."""
+
+    __tablename__ = "institutions"
+    __table_args__ = (
+        UniqueConstraint("org_id", "tin", name="uq_institutions_org_tin"),
+        Index("ix_institutions_tin", "tin"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    legal_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    region: Mapped[Optional[str]] = mapped_column(db.String(128))
+    zone: Mapped[Optional[str]] = mapped_column(db.String(128))
+    city: Mapped[Optional[str]] = mapped_column(db.String(128))
+    subcity: Mapped[Optional[str]] = mapped_column(db.String(128))
+    woreda: Mapped[Optional[str]] = mapped_column(db.String(128))
+    kebele: Mapped[Optional[str]] = mapped_column(db.String(128))
+    street: Mapped[Optional[str]] = mapped_column(db.String(255))
+    house_number: Mapped[Optional[str]] = mapped_column(db.String(64))
+    gps_hint: Mapped[Optional[str]] = mapped_column(db.String(255))
+    main_phone: Mapped[Optional[str]] = mapped_column(db.String(64))
+    main_email: Mapped[Optional[str]] = mapped_column(db.String(255))
 
 
 class MaintenanceTicket(TimestampMixin, OrgScopedMixin, db.Model):
@@ -298,15 +349,36 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     __tablename__ = "client_registrations"
     __table_args__ = (
         Index("ix_client_registrations_status", "status"),
+        Index("ix_client_registrations_tin", "tin"),
+        UniqueConstraint("org_id", "tin", name="uq_client_registrations_org_tin"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    institution_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    contact_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    contact_position: Mapped[Optional[str]] = mapped_column(db.String(128))
     email: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(db.String(64))
+    tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    region: Mapped[Optional[str]] = mapped_column(db.String(128))
+    zone: Mapped[Optional[str]] = mapped_column(db.String(128))
+    city: Mapped[Optional[str]] = mapped_column(db.String(128))
+    subcity: Mapped[Optional[str]] = mapped_column(db.String(128))
+    woreda: Mapped[Optional[str]] = mapped_column(db.String(128))
+    kebele: Mapped[Optional[str]] = mapped_column(db.String(128))
+    street: Mapped[Optional[str]] = mapped_column(db.String(255))
+    house_number: Mapped[Optional[str]] = mapped_column(db.String(64))
+    gps_hint: Mapped[Optional[str]] = mapped_column(db.String(255))
+    notes: Mapped[Optional[str]] = mapped_column(db.Text)
+    password_hash: Mapped[Optional[str]] = mapped_column(db.String(255))
     status: Mapped[str] = mapped_column(
         db.String(16), nullable=False, default="pending"
     )  # pending|approved|rejected
+    decided_by: Mapped[Optional[int]] = mapped_column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
+    decision_notes: Mapped[Optional[str]] = mapped_column(db.Text)
 
 
 class RegistrationInvite(TimestampMixin, db.Model):
@@ -366,9 +438,54 @@ class SalesOpportunity(TimestampMixin, OrgScopedMixin, db.Model):
     )
 
 
+class EmployeeScorecard(TimestampMixin, OrgScopedMixin, db.Model):
+    """Monthly performance rollup per employee."""
+
+    __tablename__ = "employee_scorecards"
+    __table_args__ = (
+        UniqueConstraint("org_id", "user_id", "period_start", name="uq_scorecards_period"),
+        Index("ix_employee_scorecards_user", "user_id"),
+        Index("ix_employee_scorecards_period", "period_start", "org_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    period_start: Mapped[date] = mapped_column(db.Date, nullable=False)
+    period_end: Mapped[Optional[date]] = mapped_column(db.Date)
+    sales_total: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False, default=0)
+    orders_closed: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    maintenance_closed: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    overdue_tasks: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    conversion_rate: Mapped[float] = mapped_column(db.Float, nullable=False, default=0)
+    complaints: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
+    performance_score: Mapped[float] = mapped_column(db.Float, nullable=False, default=0)
+    highlights: Mapped[Optional[dict]] = mapped_column(db.JSON)
+
+
+class Recommendation(TimestampMixin, OrgScopedMixin, db.Model):
+    """Rule-based recommendations derived from scorecards and activity events."""
+
+    __tablename__ = "recommendations"
+    __table_args__ = (Index("ix_recommendations_status", "status"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[str] = mapped_column(db.String(64), nullable=False)
+    message: Mapped[str] = mapped_column(db.Text, nullable=False)
+    severity: Mapped[str] = mapped_column(db.String(16), nullable=False, default="info")
+    created_for_user_id: Mapped[Optional[int]] = mapped_column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    source_period: Mapped[Optional[date]] = mapped_column(db.Date)
+    status: Mapped[str] = mapped_column(db.String(16), nullable=False, default="open")
+
+
 __all__ = [
     "AnalyticsEvent",
+    "ActivityEvent",
     "ApprovalRequest",
+    "Institution",
     "MaintenanceTicket",
     "CrmLead",
     "CrmInteraction",
@@ -380,4 +497,6 @@ __all__ = [
     "ClientRegistration",
     "UserRoleAssignment",
     "SalesOpportunity",
+    "EmployeeScorecard",
+    "Recommendation",
 ]

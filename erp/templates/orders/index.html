@@ -22,7 +22,7 @@
           {% set status = request.args.get('status', '') %}
           <select id="status" name="status" class="form-select form-select-sm">
             <option value="">Any</option>
-            {% for s in ['pending', 'approved', 'shipped', 'fulfilled', 'canceled', 'rejected'] %}
+            {% for s in ['submitted', 'approved', 'invoiced', 'delivered', 'paid', 'settled', 'pending', 'shipped', 'fulfilled', 'canceled', 'rejected'] %}
               <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|capitalize }}</option>
             {% endfor %}
           </select>
@@ -42,6 +42,9 @@
               <th scope="col">ID</th>
               <th scope="col">Status</th>
               <th scope="col">Amount</th>
+              <th scope="col">Payment</th>
+              <th scope="col">Commission</th>
+              <th scope="col">Rep</th>
               <th scope="col">Currency</th>
               <th scope="col">Placed at</th>
               <th scope="col" class="text-end">Actions</th>
@@ -53,6 +56,20 @@
                 <td>#{{ o.id }}</td>
                 <td><span class="badge bg-secondary text-capitalize">{{ o.status }}</span></td>
                 <td>{{ "%.2f"|format(o.total_amount or 0) }}</td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ (o.payment_status or 'unpaid')|capitalize }}</span>
+                </td>
+                <td>
+                  <div class="d-flex flex-column small">
+                    <span class="badge bg-secondary text-capitalize align-self-start">{{ o.commission_status or 'none' }}</span>
+                    {% if o.commission_enabled %}
+                      <span class="text-muted">{{ "%.2f"|format((o.commission_amount or 0)) }} at {{ (o.commission_rate or 0) * 100 }}%</span>
+                    {% else %}
+                      <span class="text-muted">Not enabled</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td>{{ o.assigned_sales_rep.username if o.assigned_sales_rep else 'Unassigned' }}</td>
                 <td>{{ o.currency or 'ETB' }}</td>
                 <td><small class="text-muted">{{ o.placed_at }}</small></td>
                 <td class="text-end">
@@ -70,7 +87,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="6" class="text-center text-muted py-3">
+                <td colspan="9" class="text-center text-muted py-3">
                   No orders found for the current filters.
                 </td>
               </tr>

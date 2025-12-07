@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% block title %}Work Orders & SLA{% endblock %}
+{% block header %}Work Orders{% endblock %}
+
+{% block content %}
+<section class="container my-4" aria-label="Maintenance work orders">
+  <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-3 mb-3">
+    <div>
+      <h2 class="h4 mb-1">Field maintenance control</h2>
+      <p class="text-muted mb-0">Submit requests, capture geo check-ins, and monitor SLA health.</p>
+    </div>
+    <div class="ms-lg-auto d-flex gap-2">
+      <button class="btn btn-outline-secondary" id="refresh-board" type="button">Refresh board</button>
+      <button class="btn btn-primary" id="open-request" type="button">New request</button>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <form id="request-form" class="row gy-3" novalidate>
+        <div class="col-12 col-md-6">
+          <label class="form-label small text-muted">Title *</label>
+          <input type="text" name="title" class="form-control" required placeholder="Analyzer calibration" />
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label small text-muted">Priority</label>
+          <select name="priority" class="form-select">
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-muted">Description *</label>
+          <textarea name="description" class="form-control" rows="2" required placeholder="Observed error code..." ></textarea>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted">Due date</label>
+          <input type="date" name="due_date" class="form-control" />
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted">Location label</label>
+          <input type="text" name="request_location_label" class="form-control" placeholder="Lab - Addis Ababa" />
+        </div>
+        <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+          <input type="hidden" name="request_lat" id="request-lat" />
+          <input type="hidden" name="request_lng" id="request-lng" />
+          <button class="btn btn-outline-primary w-100" id="capture-geo" type="button">Use my location</button>
+        </div>
+        <div class="col-12 text-end">
+          <button class="btn btn-success" type="submit">Submit request</button>
+        </div>
+        <div class="col-12">
+          <div class="alert alert-secondary d-none" role="alert" id="request-status"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="h6 mb-0">Live work orders</h3>
+        <span class="badge bg-info" id="board-meta">--</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle" id="work-orders-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>SLA</th>
+              <th>Due</th>
+              <th>Geo</th>
+              <th>Assigned</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="timelinePanel" aria-labelledby="timelinePanelLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="timelinePanelLabel">Work order timeline</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="timeline-body" class="d-flex flex-column gap-3 small"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const tableBody = document.querySelector('#work-orders-table tbody');
+  const statusAlert = document.getElementById('request-status');
+  const boardMeta = document.getElementById('board-meta');
+  const requestForm = document.getElementById('request-form');
+  const refreshBtn = document.getElementById('refresh-board');
+  const openRequestBtn = document.getElementById('open-request');
+  const captureBtn = document.getElementById('capture-geo');
+  const timelineBody = document.getElementById('timeline-body');
+  const offcanvasEl = document.getElementById('timelinePanel');
+  const offcanvas = offcanvasEl ? new bootstrap.Offcanvas(offcanvasEl) : null;
+
+  function badge(status, map) {
+    const variant = map[status] || 'secondary';
+    return `<span class="badge bg-${variant} text-uppercase">${status}</span>`;
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+    return new Date(value).toLocaleString();
+  }
+
+  function renderRows(workOrders) {
+    tableBody.innerHTML = '';
+    workOrders.forEach((wo) => {
+      const slaVariant = wo.sla_status === 'breached' ? 'danger' : wo.sla_status === 'completed' ? 'success' : 'info';
+      const geo = wo.request_location_label || (wo.request_lat && wo.request_lng ? `${wo.request_lat.toFixed(4)}, ${wo.request_lng.toFixed(4)}` : '—');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="fw-semibold">${wo.title}</td>
+        <td>${badge(wo.status, {open: 'warning', in_progress: 'primary', completed: 'success'})}</td>
+        <td>${badge(wo.sla_status, {breached: 'danger', ok: 'info', completed: 'success'})}</td>
+        <td>${wo.due_date ? wo.due_date : '—'}</td>
+        <td>${geo}</td>
+        <td>${wo.assigned_to_id || '—'}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-secondary" data-action="timeline" data-id="${wo.id}">Timeline</button>
+            <button class="btn btn-outline-primary" data-action="check-in" data-id="${wo.id}">Check-in</button>
+          </div>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+    boardMeta.textContent = `${workOrders.length} open items`;
+  }
+
+  async function fetchWorkOrders() {
+    const res = await fetch('/api/maintenance/work-orders');
+    if (!res.ok) {
+      tableBody.innerHTML = '<tr><td colspan="7" class="text-muted text-center">Could not load work orders</td></tr>';
+      return;
+    }
+    const data = await res.json();
+    renderRows(data);
+  }
+
+  async function fetchTimeline(id) {
+    const res = await fetch(`/api/maintenance/work-orders/${id}/events`);
+    if (!res.ok) return;
+    const events = await res.json();
+    timelineBody.innerHTML = events
+      .map((ev) => {
+        const geo = ev.geo_lat || ev.geo_lng ? `<div class="text-muted">Geo: ${ev.geo_lat ?? ''} ${ev.geo_lng ?? ''}</div>` : '';
+        return `
+          <div class="border-start ps-3">
+            <div class="fw-semibold">${ev.event_type}</div>
+            <div class="text-muted">${formatDate(ev.created_at)}</div>
+            ${ev.message ? `<div>${ev.message}</div>` : ''}
+            ${geo}
+          </div>`;
+      })
+      .join('');
+    if (offcanvas) offcanvas.show();
+  }
+
+  async function submitRequest(e) {
+    e.preventDefault();
+    const formData = new FormData(requestForm);
+    const payload = Object.fromEntries(formData.entries());
+    if (!payload.title || !payload.description) {
+      statusAlert.classList.remove('d-none');
+      statusAlert.classList.remove('alert-success');
+      statusAlert.classList.add('alert-danger');
+      statusAlert.textContent = 'Title and description are required.';
+      return;
+    }
+    statusAlert.classList.add('d-none');
+    const res = await fetch('/api/maintenance/work-orders', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      statusAlert.classList.remove('d-none', 'alert-danger');
+      statusAlert.classList.add('alert-success');
+      statusAlert.textContent = 'Request submitted. SLA tracking started.';
+      requestForm.reset();
+      fetchWorkOrders();
+    } else {
+      const error = await res.json().catch(() => ({error: 'Could not submit'}));
+      statusAlert.classList.remove('d-none', 'alert-success');
+      statusAlert.classList.add('alert-danger');
+      statusAlert.textContent = error.error || 'Could not submit';
+    }
+  }
+
+  async function checkIn(id) {
+    const geo = await captureGeo();
+    const res = await fetch(`/api/maintenance/work-orders/${id}/check-in`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(geo || {}),
+    });
+    if (res.ok) {
+      fetchWorkOrders();
+    }
+  }
+
+  async function captureGeo() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          document.getElementById('request-lat').value = latitude;
+          document.getElementById('request-lng').value = longitude;
+          resolve({ lat: latitude, lng: longitude });
+        },
+        () => resolve(null),
+        { timeout: 8000 }
+      );
+    });
+  }
+
+  tableBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    if (action === 'timeline') fetchTimeline(id);
+    if (action === 'check-in') checkIn(id);
+  });
+
+  requestForm.addEventListener('submit', submitRequest);
+  refreshBtn.addEventListener('click', fetchWorkOrders);
+  openRequestBtn.addEventListener('click', () => requestForm.scrollIntoView({ behavior: 'smooth' }));
+  captureBtn.addEventListener('click', captureGeo);
+
+  fetchWorkOrders();
+})();
+</script>
+{% endblock %}
