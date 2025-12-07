@@ -93,9 +93,13 @@ login_manager: LoginManager = LoginManager()
 @login_manager.user_loader
 def load_user(user_id: str):
     """
-    Flask-Login callback: given a user_id stored in the session, return
-    the corresponding principal instance (User or ClientAccount).
+    Flask-Login callback for *all* principals (employees + clients).
+
+    The loader performs basic integrity checks so inactive or unverified
+    principals are not restored into an authenticated session, ensuring a
+    single policy enforcement point for identity resolution.
     """
+
     # Import inside function to avoid circular imports during app startup
     from erp.models.user import User
     from erp.models.client_auth import ClientAccount
@@ -108,13 +112,29 @@ def load_user(user_id: str):
             client_id = int(user_id.split(":", 1)[1])
         except (TypeError, ValueError, IndexError):
             return None
-        return ClientAccount.query.get(client_id)
+
+        client: ClientAccount | None = ClientAccount.query.get(client_id)
+        if client is None:
+            return None
+        if not getattr(client, "is_active", True):
+            return None
+        if not getattr(client, "is_verified", False):
+            # Enforce approval/verification gate for client principals
+            return None
+        return client
 
     try:
-        return User.query.get(int(user_id))
+        employee = User.query.get(int(user_id))
     except (TypeError, ValueError):
         # Malformed or non-integer user_id in session
         return None
+
+    if employee is None:
+        return None
+    if not getattr(employee, "is_active", True):
+        return None
+
+    return employee
 
 
 # --- Extension init hook -----------------------------------------------------
