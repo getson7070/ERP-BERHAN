@@ -48,6 +48,12 @@ class PurchaseOrder(db.Model):
         order_by="PurchaseOrderLine.id",
     )
 
+    ticket = db.relationship(
+        "ProcurementTicket",
+        back_populates="purchase_order",
+        uselist=False,
+    )
+
     def recalc_totals(self) -> None:
         self.total_amount = sum(
             (line.ordered_quantity or Decimal("0"))
@@ -124,3 +130,126 @@ class PurchaseOrderLine(db.Model):
         if (self.returned_quantity or Decimal("0")) + quantity > (self.received_quantity or Decimal("0")):
             raise ValueError("cannot return more than received")
         self.returned_quantity = (self.returned_quantity or Decimal("0")) + quantity
+
+
+class ProcurementTicket(db.Model):
+    __tablename__ = "procurement_tickets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, nullable=False, index=True)
+    purchase_order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("purchase_orders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="submitted", index=True)
+    priority = db.Column(db.String(16), nullable=False, default="normal")
+    sla_due_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    breached_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    escalation_level = db.Column(db.Integer, nullable=False, default=0)
+
+    assigned_to_id = db.Column(db.Integer, nullable=True, index=True)
+    created_by_id = db.Column(db.Integer, nullable=True)
+    approved_by_id = db.Column(db.Integer, nullable=True)
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    closed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    closed_reason = db.Column(db.Text, nullable=True)
+    cancelled_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    cancelled_reason = db.Column(db.Text, nullable=True)
+
+    landed_cost_total = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    landed_cost_posted_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    purchase_order = db.relationship("PurchaseOrder", back_populates="ticket")
+    milestones = db.relationship(
+        "ProcurementMilestone",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="ProcurementMilestone.expected_at",
+    )
+
+    @property
+    def sla_breached(self) -> bool:
+        return self.breached_at is not None
+
+    def evaluate_breach(self) -> None:
+        if self.sla_due_at and self.status not in {"closed", "cancelled"}:
+            if datetime.now(UTC) > self.sla_due_at and not self.breached_at:
+                self.breached_at = datetime.now(UTC)
+                self.escalation_level = max(self.escalation_level, 1)
+
+    def mark_status(self, status: str, actor_id: int | None = None, reason: str | None = None) -> None:
+        allowed = {
+            "draft",
+            "submitted",
+            "approved",
+            "in_transit",
+            "customs",
+            "receiving",
+            "landed",
+            "closed",
+            "cancelled",
+        }
+        if status not in allowed:
+            raise ValueError("invalid status")
+
+        self.status = status
+
+        if status == "approved":
+            if not self.approved_at:
+                self.approved_at = datetime.now(UTC)
+            self.approved_by_id = actor_id or self.approved_by_id
+        elif status == "closed":
+            self.closed_at = datetime.now(UTC)
+            self.closed_reason = reason or self.closed_reason
+        elif status == "cancelled":
+            self.cancelled_at = datetime.now(UTC)
+            self.cancelled_reason = reason or self.cancelled_reason
+
+        self.evaluate_breach()
+
+
+class ProcurementMilestone(db.Model):
+    __tablename__ = "procurement_milestones"
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, nullable=False, index=True)
+    ticket_id = db.Column(
+        db.Integer,
+        db.ForeignKey("procurement_tickets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    name = db.Column(db.String(128), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="pending", index=True)
+    expected_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    ticket = db.relationship("ProcurementTicket", back_populates="milestones")
+
+    def mark_completed(self) -> None:
+        self.status = "completed"
+        if not self.completed_at:
+            self.completed_at = datetime.now(UTC)

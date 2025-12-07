@@ -1,9 +1,253 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h1 class="h4 mb-3">{{ title or 'procurement/index.html' }}</h1>
-    <p class="text-muted">Placeholder template generated to satisfy route coverage. Replace with your production UI.</p>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Procurement & Imports</h1>
+    <p class="text-muted mb-0">Track purchase orders, import milestones, landed costs, and SLA performance.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('procurement.add') }}">
+      <i class="bi bi-plus-circle"></i>
+      New ticket
+    </a>
+    <button id="refresh-btn" class="btn btn-primary" type="button">
+      <i class="bi bi-arrow-clockwise"></i>
+      Refresh
+    </button>
   </div>
 </div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div>
+            <h2 class="h5 mb-0">Procurement tickets</h2>
+            <small class="text-muted">Lifecycle: submitted → approved → in transit → customs → receiving → landed → closed</small>
+          </div>
+          <span class="badge bg-info-subtle text-info" id="ticket-count">0</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" aria-label="Procurement tickets">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th class="text-nowrap">Status</th>
+                <th class="text-nowrap">Priority</th>
+                <th class="text-nowrap">SLA</th>
+              </tr>
+            </thead>
+            <tbody id="ticket-table-body">
+              <tr><td colspan="4" class="text-muted text-center py-4">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div>
+            <h2 class="h5 mb-0">Purchase orders</h2>
+            <small class="text-muted">Monitor receipts, returns, approvals and landed cost linkage.</small>
+          </div>
+          <span class="badge bg-info-subtle text-info" id="order-count">0</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" aria-label="Purchase orders">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Supplier</th>
+                <th class="text-nowrap">Status</th>
+                <th class="text-nowrap">Total</th>
+                <th class="text-nowrap">Ticket</th>
+              </tr>
+            </thead>
+            <tbody id="order-table-body">
+              <tr><td colspan="5" class="text-muted text-center py-4">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="ticketDrawer" aria-labelledby="ticketDrawerLabel">
+  <div class="offcanvas-header">
+    <div>
+      <h5 class="offcanvas-title" id="ticketDrawerLabel">Ticket details</h5>
+      <div class="small text-muted" id="ticketDrawerMeta"></div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="ticketDrawerBody" class="text-muted">Select a ticket to view milestones.</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  const ticketTableBody = document.getElementById('ticket-table-body');
+  const orderTableBody = document.getElementById('order-table-body');
+  const refreshBtn = document.getElementById('refresh-btn');
+  const ticketCount = document.getElementById('ticket-count');
+  const orderCount = document.getElementById('order-count');
+  const drawerEl = document.getElementById('ticketDrawer');
+  const drawer = drawerEl ? new bootstrap.Offcanvas(drawerEl) : null;
+  const drawerBody = document.getElementById('ticketDrawerBody');
+  const drawerMeta = document.getElementById('ticketDrawerMeta');
+
+  async function fetchJSON(url, options) {
+    const res = await fetch(url, options || {});
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Request failed (${res.status}): ${text}`);
+    }
+    return res.json();
+  }
+
+  function renderTicketRow(ticket) {
+    const statusBadge = `<span class="badge bg-${badgeClass(ticket.status)} text-uppercase">${ticket.status}</span>`;
+    const priorityBadge = `<span class="badge bg-${priorityClass(ticket.priority)} text-uppercase">${ticket.priority}</span>`;
+    const slaLabel = ticket.sla_due_at ? new Date(ticket.sla_due_at).toLocaleString() : '—';
+    const breach = ticket.sla_breached ? '<span class="badge bg-danger ms-2">SLA breached</span>' : '';
+    return `<tr role="button" class="align-middle" data-ticket-id="${ticket.id}">
+      <td>
+        <div class="fw-semibold">${escapeHtml(ticket.title)}</div>
+        <div class="text-muted small">PO #${ticket.purchase_order_id || '—'}</div>
+      </td>
+      <td class="text-nowrap">${statusBadge}</td>
+      <td class="text-nowrap">${priorityBadge}</td>
+      <td class="text-nowrap">${slaLabel}${breach}</td>
+    </tr>`;
+  }
+
+  function renderOrderRow(order) {
+    const status = `<span class="badge bg-${badgeClass(order.status)} text-uppercase">${order.status}</span>`;
+    const ticket = order.ticket_id ? `#${order.ticket_id}` : '—';
+    return `<tr>
+      <td class="fw-semibold">#${order.id}</td>
+      <td>${escapeHtml(order.supplier_name || '—')}</td>
+      <td class="text-nowrap">${status}</td>
+      <td class="text-nowrap">${order.total_amount.toLocaleString(undefined, { style: 'currency', currency: order.currency || 'ETB' })}</td>
+      <td class="text-nowrap">${ticket}</td>
+    </tr>`;
+  }
+
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function badgeClass(status) {
+    const normalized = (status || '').toLowerCase();
+    if (['approved', 'landed', 'received', 'closed'].includes(normalized)) return 'success-subtle text-success';
+    if (['submitted', 'draft'].includes(normalized)) return 'info-subtle text-info';
+    if (['in_transit', 'receiving'].includes(normalized)) return 'primary-subtle text-primary';
+    if (['customs', 'partially_received'].includes(normalized)) return 'warning-subtle text-warning';
+    if (['cancelled'].includes(normalized)) return 'secondary';
+    if (['sla_breached', 'overdue'].includes(normalized)) return 'danger';
+    return 'light text-dark';
+  }
+
+  function priorityClass(priority) {
+    const normalized = (priority || '').toLowerCase();
+    if (normalized === 'high') return 'danger-subtle text-danger';
+    if (normalized === 'low') return 'secondary-subtle text-secondary';
+    return 'info-subtle text-info';
+  }
+
+  function renderMilestones(milestones) {
+    if (!milestones || milestones.length === 0) {
+      return '<p class="text-muted small mb-0">No milestones yet.</p>';
+    }
+    return `<ul class="list-group list-group-flush">
+      ${milestones.map(m => `
+        <li class="list-group-item px-0">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">${escapeHtml(m.name)}</div>
+              <div class="text-muted small">Expected: ${m.expected_at ? new Date(m.expected_at).toLocaleString() : '—'}</div>
+              ${m.notes ? `<div class="text-muted small">${escapeHtml(m.notes)}</div>` : ''}
+            </div>
+            <span class="badge bg-${badgeClass(m.status)} text-uppercase">${m.status}</span>
+          </div>
+        </li>`).join('')}
+    </ul>`;
+  }
+
+  async function loadTickets() {
+    try {
+      const tickets = await fetchJSON('/api/procurement/tickets');
+      ticketTableBody.innerHTML = tickets.map(renderTicketRow).join('') || '<tr><td colspan="4" class="text-muted text-center py-4">No tickets yet.</td></tr>';
+      ticketCount.textContent = tickets.length;
+    } catch (err) {
+      ticketTableBody.innerHTML = `<tr><td colspan="4" class="text-danger">${err.message}</td></tr>`;
+    }
+  }
+
+  async function loadOrders() {
+    try {
+      const orders = await fetchJSON('/api/procurement/orders');
+      orderTableBody.innerHTML = orders.map(renderOrderRow).join('') || '<tr><td colspan="5" class="text-muted text-center py-4">No purchase orders yet.</td></tr>';
+      orderCount.textContent = orders.length;
+    } catch (err) {
+      orderTableBody.innerHTML = `<tr><td colspan="5" class="text-danger">${err.message}</td></tr>`;
+    }
+  }
+
+  async function showTicketDetail(ticketId) {
+    try {
+      const ticket = await fetchJSON(`/api/procurement/tickets/${ticketId}`);
+      drawerMeta.textContent = `Priority ${ticket.priority.toUpperCase()} · Status ${ticket.status.toUpperCase()} · SLA ${ticket.sla_due_at ? new Date(ticket.sla_due_at).toLocaleString() : '—'}`;
+      drawerBody.innerHTML = `
+        <div class="mb-3">
+          <div class="fw-semibold">${escapeHtml(ticket.title)}</div>
+          <div class="text-muted small">PO #${ticket.purchase_order_id || '—'}</div>
+          ${ticket.sla_breached ? '<span class="badge bg-danger">SLA breached</span>' : ''}
+        </div>
+        <div class="mb-3">
+          <div class="fw-semibold">Milestones</div>
+          ${renderMilestones(ticket.milestones)}
+        </div>
+        <div class="mb-3">
+          <div class="fw-semibold">Landed cost</div>
+          <div class="text-muted small">${ticket.landed_cost_total?.toFixed(2)} (posted: ${ticket.landed_cost_posted_at ? new Date(ticket.landed_cost_posted_at).toLocaleString() : '—'})</div>
+        </div>
+      `;
+      drawer && drawer.show();
+    } catch (err) {
+      drawerBody.innerHTML = `<div class="text-danger small">${err.message}</div>`;
+      drawer && drawer.show();
+    }
+  }
+
+  ticketTableBody?.addEventListener('click', (event) => {
+    const row = event.target.closest('tr[data-ticket-id]');
+    if (!row) return;
+    const ticketId = row.getAttribute('data-ticket-id');
+    if (ticketId) {
+      showTicketDetail(ticketId);
+    }
+  });
+
+  refreshBtn?.addEventListener('click', () => {
+    loadTickets();
+    loadOrders();
+  });
+
+  loadTickets();
+  loadOrders();
+})();
+</script>
 {% endblock %}
