@@ -1,24 +1,19 @@
 """Module: auth_loaders.py — audit-added docstring. Refine with precise purpose when convenient."""
 # erp/auth_loaders.py
 from __future__ import annotations
-from erp.extensions import login_manager, db
-from erp.models import User
+from erp.extensions import load_user as canonical_load_user
 
 
-@login_manager.user_loader
 def load_user(user_id: str):
     """
-    Flask-Login callback: return a User or None.
-    Works whether primary keys are int or str.
+    Legacy shim that delegates to :func:`erp.extensions.load_user`.
+
+    Keeping this function avoids breaking imports in older blueprints
+    while ensuring a single policy enforcement point handles session
+    principal restoration.
     """
-    try:
-        # If your User PK is UUID/str, remove the int() cast.
-        return db.session.get(User, int(user_id))
-    except Exception:
-        try:
-            return db.session.get(User, user_id)
-        except Exception:
-            return None
+
+    return canonical_load_user(user_id)
 
 
 
