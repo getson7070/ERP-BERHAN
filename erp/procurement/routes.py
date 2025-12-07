@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Iterable, Optional
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy.orm import joinedload
 
 from erp.extensions import db
-from erp.models import PurchaseOrder, PurchaseOrderLine
+from erp.models import (
+    Inventory,
+    ProcurementMilestone,
+    ProcurementTicket,
+    PurchaseOrder,
+    PurchaseOrderLine,
+)
 from erp.security import require_roles
 from erp.utils import resolve_org_id
 
@@ -53,6 +59,7 @@ def _serialize_order(order: PurchaseOrder) -> dict[str, Any]:
         "cancelled_at": order.cancelled_at.isoformat() if order.cancelled_at else None,
         "cancelled_by_id": order.cancelled_by_id,
         "cancel_reason": order.cancel_reason,
+        "ticket_id": order.ticket.id if order.ticket else None,
         "lines": [_serialize_line(line) for line in order.lines],
     }
 
@@ -61,6 +68,62 @@ def _parse_decimal(value: Any, default: str = "0") -> Decimal:
     if value is None or value == "":
         return Decimal(default)
     return Decimal(str(value))
+
+
+def _parse_ts(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        cleaned = value.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(cleaned)
+        except ValueError:
+            return None
+    return None
+
+
+def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
+    return {
+        "id": m.id,
+        "name": m.name,
+        "status": m.status,
+        "expected_at": m.expected_at.isoformat() if m.expected_at else None,
+        "completed_at": m.completed_at.isoformat() if m.completed_at else None,
+        "notes": m.notes,
+    }
+
+
+def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
+    ticket.evaluate_breach()
+    return {
+        "id": ticket.id,
+        "organization_id": ticket.organization_id,
+        "purchase_order_id": ticket.purchase_order_id,
+        "title": ticket.title,
+        "description": ticket.description,
+        "status": ticket.status,
+        "priority": ticket.priority,
+        "sla_due_at": ticket.sla_due_at.isoformat() if ticket.sla_due_at else None,
+        "sla_breached": ticket.sla_breached,
+        "breached_at": ticket.breached_at.isoformat() if ticket.breached_at else None,
+        "escalation_level": ticket.escalation_level,
+        "assigned_to_id": ticket.assigned_to_id,
+        "created_at": ticket.created_at.isoformat(),
+        "created_by_id": ticket.created_by_id,
+        "approved_at": ticket.approved_at.isoformat() if ticket.approved_at else None,
+        "approved_by_id": ticket.approved_by_id,
+        "closed_at": ticket.closed_at.isoformat() if ticket.closed_at else None,
+        "closed_reason": ticket.closed_reason,
+        "cancelled_at": ticket.cancelled_at.isoformat() if ticket.cancelled_at else None,
+        "cancelled_reason": ticket.cancelled_reason,
+        "landed_cost_total": float(ticket.landed_cost_total or 0),
+        "landed_cost_posted_at": ticket.landed_cost_posted_at.isoformat()
+        if ticket.landed_cost_posted_at
+        else None,
+        "milestones": [_serialize_milestone(m) for m in ticket.milestones],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +170,15 @@ def create_order():
         status="draft",
         created_by_id=getattr(current_user, "id", None),
     )
+
+    ticket_id = payload.get("ticket_id")
+    if ticket_id:
+        ticket = ProcurementTicket.query.filter_by(
+            id=int(ticket_id), organization_id=organization_id
+        ).first()
+        if not ticket:
+            return jsonify({"error": "invalid ticket reference"}), HTTPStatus.BAD_REQUEST
+        po.ticket = ticket
 
     for raw in lines_payload:
         item_code = (raw.get("item_code") or "").strip()
@@ -275,11 +347,16 @@ def receive_goods(order_id: int):
                 raise ValueError(f"invalid line_id {line_id}")
 
             line.receive(quantity)
+        _apply_inventory_receipt(organization_id, lines_payload, lines_by_id)
     except ValueError as exc:
         db.session.rollback()
         return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     po.update_status_from_lines()
+    if po.ticket:
+        if po.status in {"received", "partially_received"}:
+            po.ticket.mark_status("receiving", getattr(current_user, "id", None))
+            po.ticket.evaluate_breach()
     db.session.commit()
     return jsonify(_serialize_order(po))
 
@@ -334,6 +411,191 @@ def return_goods(order_id: int):
 
     db.session.commit()
     return jsonify(_serialize_order(po))
+
+
+# ---------------------------------------------------------------------------
+# Procurement tickets (imports, SLA, approvals)
+# ---------------------------------------------------------------------------
+
+
+@bp.get("/tickets")
+@require_roles("procurement", "inventory", "admin")
+def list_tickets() -> Any:
+    organization_id = resolve_org_id()
+    query = (
+        ProcurementTicket.query.filter_by(organization_id=organization_id)
+        .options(joinedload(ProcurementTicket.milestones))
+        .order_by(ProcurementTicket.created_at.desc())
+        .limit(200)
+    )
+    tickets = query.all()
+    for ticket in tickets:
+        ticket.evaluate_breach()
+    return jsonify([_serialize_ticket(t) for t in tickets])
+
+
+@bp.post("/tickets")
+@require_roles("procurement", "inventory", "admin")
+def create_ticket() -> Any:
+    organization_id = resolve_org_id()
+    payload = request.get_json(silent=True) or {}
+
+    title = (payload.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "title is required"}), HTTPStatus.BAD_REQUEST
+
+    purchase_order_id = payload.get("purchase_order_id")
+    purchase_order = None
+    if purchase_order_id:
+        purchase_order = PurchaseOrder.query.filter_by(
+            id=int(purchase_order_id), organization_id=organization_id
+        ).first()
+        if not purchase_order:
+            return jsonify({"error": "invalid purchase_order_id"}), HTTPStatus.BAD_REQUEST
+        if purchase_order.ticket:
+            return jsonify({"error": "order already linked to a ticket"}), HTTPStatus.BAD_REQUEST
+
+    ticket = ProcurementTicket(
+        organization_id=organization_id,
+        purchase_order=purchase_order,
+        title=title,
+        description=(payload.get("description") or "").strip() or None,
+        priority=(payload.get("priority") or "normal").lower(),
+        sla_due_at=_parse_ts(payload.get("sla_due_at")),
+        assigned_to_id=payload.get("assigned_to_id"),
+        status="submitted",
+        created_by_id=getattr(current_user, "id", None),
+    )
+
+    db.session.add(ticket)
+    db.session.commit()
+    return jsonify(_serialize_ticket(ticket)), HTTPStatus.CREATED
+
+
+@bp.get("/tickets/<int:ticket_id>")
+@require_roles("procurement", "inventory", "admin")
+def ticket_detail(ticket_id: int) -> Any:
+    organization_id = resolve_org_id()
+    ticket = (
+        ProcurementTicket.query.filter_by(organization_id=organization_id, id=ticket_id)
+        .options(joinedload(ProcurementTicket.milestones))
+        .first_or_404()
+    )
+    ticket.evaluate_breach()
+    db.session.commit()
+    return jsonify(_serialize_ticket(ticket))
+
+
+@bp.post("/tickets/<int:ticket_id>/status")
+@require_roles("procurement", "admin")
+def update_ticket_status(ticket_id: int) -> Any:
+    organization_id = resolve_org_id()
+    ticket = (
+        ProcurementTicket.query.filter_by(organization_id=organization_id, id=ticket_id)
+        .with_for_update()
+        .first_or_404()
+    )
+
+    payload = request.get_json(silent=True) or {}
+    status = (payload.get("status") or "").strip()
+    reason = (payload.get("reason") or "").strip() or None
+
+    try:
+        ticket.mark_status(status=status, actor_id=getattr(current_user, "id", None), reason=reason)
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
+
+    db.session.commit()
+    return jsonify(_serialize_ticket(ticket))
+
+
+@bp.post("/tickets/<int:ticket_id>/milestones")
+@require_roles("procurement", "inventory", "admin")
+def add_milestone(ticket_id: int) -> Any:
+    organization_id = resolve_org_id()
+    ticket = (
+        ProcurementTicket.query.filter_by(organization_id=organization_id, id=ticket_id)
+        .with_for_update()
+        .options(joinedload(ProcurementTicket.milestones))
+        .first_or_404()
+    )
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
+
+    milestone = ProcurementMilestone(
+        organization_id=organization_id,
+        ticket=ticket,
+        name=name,
+        status=(payload.get("status") or "pending").strip() or "pending",
+        expected_at=_parse_ts(payload.get("expected_at")),
+        completed_at=_parse_ts(payload.get("completed_at")),
+        notes=(payload.get("notes") or "").strip() or None,
+    )
+
+    if milestone.status == "completed" and not milestone.completed_at:
+        milestone.completed_at = datetime.now(UTC)
+
+    ticket.evaluate_breach()
+    db.session.add(milestone)
+    db.session.commit()
+
+    return jsonify(_serialize_ticket(ticket)), HTTPStatus.CREATED
+
+
+@bp.post("/tickets/<int:ticket_id>/landed-cost")
+@require_roles("procurement", "admin")
+def post_landed_cost(ticket_id: int) -> Any:
+    organization_id = resolve_org_id()
+    ticket = (
+        ProcurementTicket.query.filter_by(organization_id=organization_id, id=ticket_id)
+        .with_for_update()
+        .first_or_404()
+    )
+
+    payload = request.get_json(silent=True) or {}
+    amount = _parse_decimal(payload.get("amount"), default="0")
+    if amount < 0:
+        return jsonify({"error": "amount must be zero or positive"}), HTTPStatus.BAD_REQUEST
+
+    ticket.landed_cost_total = amount
+    ticket.landed_cost_posted_at = datetime.now(UTC)
+    ticket.mark_status("landed", getattr(current_user, "id", None))
+
+    db.session.commit()
+    return jsonify(_serialize_ticket(ticket))
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _apply_inventory_receipt(
+    organization_id: int,
+    lines_payload: Iterable[dict[str, Any]],
+    lines_by_id: dict[int, PurchaseOrderLine],
+) -> None:
+    for raw in lines_payload:
+        line_id = int(raw.get("line_id"))
+        quantity = _parse_decimal(raw.get("quantity"), default="0")
+        line = lines_by_id[line_id]
+        sku = line.item_code
+        item = Inventory.query.filter_by(org_id=organization_id, sku=sku).first()
+        if not item:
+            item = Inventory(
+                org_id=organization_id,
+                name=line.item_description or sku,
+                sku=sku,
+                price=line.unit_price or Decimal("0"),
+            )
+            db.session.add(item)
+
+        incoming_qty = int(quantity.to_integral_value(rounding=ROUND_HALF_UP))
+        item.quantity = (item.quantity or 0) + incoming_qty
 
 
 # ---------------------------------------------------------------------------

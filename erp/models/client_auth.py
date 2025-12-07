@@ -19,6 +19,12 @@ class ClientAccount(UserMixin, db.Model):
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     client_id = db.Column(db.Integer, nullable=False, index=True)
+    institution_id = db.Column(
+        db.Integer,
+        db.ForeignKey("institutions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     email = db.Column(db.String(255), nullable=True, index=True)
     phone = db.Column(db.String(32), nullable=True, index=True)
@@ -44,6 +50,8 @@ class ClientAccount(UserMixin, db.Model):
         db.UniqueConstraint("org_id", "email", name="uq_client_email"),
         db.UniqueConstraint("org_id", "phone", name="uq_client_phone"),
     )
+
+    institution = db.relationship("Institution", backref="client_accounts")
 
     # Flask-Login integration -------------------------------------------------
     def get_id(self) -> str:

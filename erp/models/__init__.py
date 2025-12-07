@@ -88,12 +88,18 @@ from .rbac import (  # noqa: F401
     RoleAssignmentRequest,
     RoleHierarchy,
 )
-from erp.procurement.models import PurchaseOrder, PurchaseOrderLine
+from erp.procurement.models import (
+    ProcurementMilestone,
+    ProcurementTicket,
+    PurchaseOrder,
+    PurchaseOrderLine,
+)
 from .audit_log import AuditLog  # noqa: F401
 from .core_entities import (  # noqa: F401
     AnalyticsEvent,
     ApprovalRequest,
     BankTransaction,
+    Institution,
     ClientRegistration,
     CrmInteraction,
     CrmLead,
@@ -203,6 +209,8 @@ __all__ = [
     "MaintenanceEscalationRule",
     "MaintenanceEscalationEvent",
     "MaintenanceSensorReading",
+    "ProcurementTicket",
+    "ProcurementMilestone",
     "PurchaseOrder",
     "PurchaseOrderLine",
     "UserDashboard",
@@ -210,6 +218,7 @@ __all__ = [
     "AnalyticsEvent",
     "ApprovalRequest",
     "BankTransaction",
+    "Institution",
     "ClientRegistration",
     "CrmInteraction",
     "CrmLead",
