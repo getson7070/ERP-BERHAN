@@ -5,140 +5,300 @@
     <h1 class="page-title">Register your organization</h1>
     <p class="page-subtitle">Provide accurate details to access client procurement tools.</p>
   </header>
-  <form method="post" class="form-grid">
+  <form method="post" class="form-grid" novalidate>
     {{ form.csrf_token }}
-    <div class="form-field">
-      {{ form.tin.label(class_="form-label") }}
-      {{ form.tin(
-        class_="form-input",
-        autocomplete="off",
-        placeholder="1234567890",
-        aria_invalid="true" if form.tin.errors else "false",
-        aria_describedby=form.tin.id ~ '-errors' if form.tin.errors else None,
-      ) }}
-      {% if form.tin.errors %}
-        <ul class="form-errors" id="{{ form.tin.id }}-errors">
-          {% for error in form.tin.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.institution_name.label(class_="form-label") }}
-      {{ form.institution_name(
-        class_="form-input",
-        placeholder="Institution name",
-        aria_invalid="true" if form.institution_name.errors else "false",
-        aria_describedby=form.institution_name.id ~ '-errors' if form.institution_name.errors else None,
-      ) }}
-      {% if form.institution_name.errors %}
-        <ul class="form-errors" id="{{ form.institution_name.id }}-errors">
-          {% for error in form.institution_name.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.address.label(class_="form-label") }}
-      {{ form.address(
-        class_="form-input",
-        placeholder="Street, suite",
-        aria_invalid="true" if form.address.errors else "false",
-        aria_describedby=form.address.id ~ '-errors' if form.address.errors else None,
-      ) }}
-      {% if form.address.errors %}
-        <ul class="form-errors" id="{{ form.address.id }}-errors">
-          {% for error in form.address.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.phone.label(class_="form-label") }}
-      {{ form.phone(
-        class_="form-input",
-        autocomplete="tel",
-        placeholder="+251-000-0000",
-        aria_invalid="true" if form.phone.errors else "false",
-        aria_describedby=form.phone.id ~ '-errors' if form.phone.errors else None,
-      ) }}
-      {% if form.phone.errors %}
-        <ul class="form-errors" id="{{ form.phone.id }}-errors">
-          {% for error in form.phone.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.region.label(class_="form-label") }}
-      {{ form.region(
-        class_="form-input",
-        aria_invalid="true" if form.region.errors else "false",
-        aria_describedby=form.region.id ~ '-errors' if form.region.errors else None,
-      ) }}
-      {% if form.region.errors %}
-        <ul class="form-errors" id="{{ form.region.id }}-errors">
-          {% for error in form.region.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.city.label(class_="form-label") }}
-      {{ form.city(
-        class_="form-input",
-        aria_invalid="true" if form.city.errors else "false",
-        aria_describedby=form.city.id ~ '-errors' if form.city.errors else None,
-      ) }}
-      {% if form.city.errors %}
-        <ul class="form-errors" id="{{ form.city.id }}-errors">
-          {% for error in form.city.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.email.label(class_="form-label") }}
-      {{ form.email(
-        class_="form-input",
-        autocomplete="email",
-        placeholder="contact@example.com",
-        aria_invalid="true" if form.email.errors else "false",
-        aria_describedby=form.email.id ~ '-errors' if form.email.errors else None,
-      ) }}
-      {% if form.email.errors %}
-        <ul class="form-errors" id="{{ form.email.id }}-errors">
-          {% for error in form.email.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div class="form-field">
-      {{ form.password.label(class_="form-label") }}
-      {{ form.password(
-        class_="form-input",
-        type="password",
-        autocomplete="new-password",
-        placeholder="Create a strong password",
-        aria_invalid="true" if form.password.errors else "false",
-        aria_describedby=form.password.id ~ '-errors' if form.password.errors else None,
-      ) }}
-      {% if form.password.errors %}
-        <ul class="form-errors" id="{{ form.password.id }}-errors">
-          {% for error in form.password.errors %}
-            <li class="form-error">{{ error }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-    <div>
+    <section class="card">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Institution details</h2>
+      </div>
+      <div class="card-body grid-2">
+        <div class="form-field">
+          {{ form.tin.label(class_="form-label") }}
+          {{ form.tin(
+            class_="form-input",
+            autocomplete="off",
+            placeholder="1234567890",
+            aria_invalid="true" if form.tin.errors else "false",
+            aria_describedby=form.tin.id ~ '-errors' if form.tin.errors else None,
+          ) }}
+          {% if form.tin.errors %}
+            <ul class="form-errors" id="{{ form.tin.id }}-errors">
+              {% for error in form.tin.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.institution_name.label(class_="form-label") }}
+          {{ form.institution_name(
+            class_="form-input",
+            placeholder="Institution name",
+            aria_invalid="true" if form.institution_name.errors else "false",
+            aria_describedby=form.institution_name.id ~ '-errors' if form.institution_name.errors else None,
+          ) }}
+          {% if form.institution_name.errors %}
+            <ul class="form-errors" id="{{ form.institution_name.id }}-errors">
+              {% for error in form.institution_name.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.region.label(class_="form-label") }}
+          {{ form.region(
+            class_="form-input",
+            aria_invalid="true" if form.region.errors else "false",
+            aria_describedby=form.region.id ~ '-errors' if form.region.errors else None,
+          ) }}
+          {% if form.region.errors %}
+            <ul class="form-errors" id="{{ form.region.id }}-errors">
+              {% for error in form.region.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.city.label(class_="form-label") }}
+          {{ form.city(
+            class_="form-input",
+            aria_invalid="true" if form.city.errors else "false",
+            aria_describedby=form.city.id ~ '-errors' if form.city.errors else None,
+          ) }}
+          {% if form.city.errors %}
+            <ul class="form-errors" id="{{ form.city.id }}-errors">
+              {% for error in form.city.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.zone.label(class_="form-label") }}
+          {{ form.zone(
+            class_="form-input",
+            aria_invalid="true" if form.zone.errors else "false",
+            aria_describedby=form.zone.id ~ '-errors' if form.zone.errors else None,
+          ) }}
+          {% if form.zone.errors %}
+            <ul class="form-errors" id="{{ form.zone.id }}-errors">
+              {% for error in form.zone.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.subcity.label(class_="form-label") }}
+          {{ form.subcity(
+            class_="form-input",
+            aria_invalid="true" if form.subcity.errors else "false",
+            aria_describedby=form.subcity.id ~ '-errors' if form.subcity.errors else None,
+          ) }}
+          {% if form.subcity.errors %}
+            <ul class="form-errors" id="{{ form.subcity.id }}-errors">
+              {% for error in form.subcity.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.woreda.label(class_="form-label") }}
+          {{ form.woreda(
+            class_="form-input",
+            aria_invalid="true" if form.woreda.errors else "false",
+            aria_describedby=form.woreda.id ~ '-errors' if form.woreda.errors else None,
+          ) }}
+          {% if form.woreda.errors %}
+            <ul class="form-errors" id="{{ form.woreda.id }}-errors">
+              {% for error in form.woreda.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.kebele.label(class_="form-label") }}
+          {{ form.kebele(
+            class_="form-input",
+            aria_invalid="true" if form.kebele.errors else "false",
+            aria_describedby=form.kebele.id ~ '-errors' if form.kebele.errors else None,
+          ) }}
+          {% if form.kebele.errors %}
+            <ul class="form-errors" id="{{ form.kebele.id }}-errors">
+              {% for error in form.kebele.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.street.label(class_="form-label") }}
+          {{ form.street(
+            class_="form-input",
+            placeholder="Street, suite",
+            aria_invalid="true" if form.street.errors else "false",
+            aria_describedby=form.street.id ~ '-errors' if form.street.errors else None,
+          ) }}
+          {% if form.street.errors %}
+            <ul class="form-errors" id="{{ form.street.id }}-errors">
+              {% for error in form.street.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.house_number.label(class_="form-label") }}
+          {{ form.house_number(
+            class_="form-input",
+            aria_invalid="true" if form.house_number.errors else "false",
+            aria_describedby=form.house_number.id ~ '-errors' if form.house_number.errors else None,
+          ) }}
+          {% if form.house_number.errors %}
+            <ul class="form-errors" id="{{ form.house_number.id }}-errors">
+              {% for error in form.house_number.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.gps_hint.label(class_="form-label") }}
+          {{ form.gps_hint(
+            class_="form-input",
+            aria_invalid="true" if form.gps_hint.errors else "false",
+            aria_describedby=form.gps_hint.id ~ '-errors' if form.gps_hint.errors else None,
+          ) }}
+          {% if form.gps_hint.errors %}
+            <ul class="form-errors" id="{{ form.gps_hint.id }}-errors">
+              {% for error in form.gps_hint.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Primary contact</h2>
+      </div>
+      <div class="card-body grid-2">
+        <div class="form-field">
+          {{ form.contact_name.label(class_="form-label") }}
+          {{ form.contact_name(
+            class_="form-input",
+            aria_invalid="true" if form.contact_name.errors else "false",
+            aria_describedby=form.contact_name.id ~ '-errors' if form.contact_name.errors else None,
+          ) }}
+          {% if form.contact_name.errors %}
+            <ul class="form-errors" id="{{ form.contact_name.id }}-errors">
+              {% for error in form.contact_name.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.contact_position.label(class_="form-label") }}
+          {{ form.contact_position(
+            class_="form-input",
+            aria_invalid="true" if form.contact_position.errors else "false",
+            aria_describedby=form.contact_position.id ~ '-errors' if form.contact_position.errors else None,
+          ) }}
+          {% if form.contact_position.errors %}
+            <ul class="form-errors" id="{{ form.contact_position.id }}-errors">
+              {% for error in form.contact_position.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.email.label(class_="form-label") }}
+          {{ form.email(
+            class_="form-input",
+            autocomplete="email",
+            placeholder="contact@example.com",
+            aria_invalid="true" if form.email.errors else "false",
+            aria_describedby=form.email.id ~ '-errors' if form.email.errors else None,
+          ) }}
+          {% if form.email.errors %}
+            <ul class="form-errors" id="{{ form.email.id }}-errors">
+              {% for error in form.email.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.phone.label(class_="form-label") }}
+          {{ form.phone(
+            class_="form-input",
+            autocomplete="tel",
+            placeholder="+251-000-0000",
+            aria_invalid="true" if form.phone.errors else "false",
+            aria_describedby=form.phone.id ~ '-errors' if form.phone.errors else None,
+          ) }}
+          {% if form.phone.errors %}
+            <ul class="form-errors" id="{{ form.phone.id }}-errors">
+              {% for error in form.phone.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-0">Portal access</h2>
+      </div>
+      <div class="card-body grid-2">
+        <div class="form-field">
+          {{ form.password.label(class_="form-label") }}
+          {{ form.password(
+            class_="form-input",
+            type="password",
+            autocomplete="new-password",
+            placeholder="Create a strong password",
+            aria_invalid="true" if form.password.errors else "false",
+            aria_describedby=form.password.id ~ '-errors' if form.password.errors else None,
+          ) }}
+          {% if form.password.errors %}
+            <ul class="form-errors" id="{{ form.password.id }}-errors">
+              {% for error in form.password.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-field">
+          {{ form.notes.label(class_="form-label") }}
+          {{ form.notes(
+            class_="form-input",
+            placeholder="Purpose of access, preferred delivery site, etc.",
+            aria_invalid="true" if form.notes.errors else "false",
+            aria_describedby=form.notes.id ~ '-errors' if form.notes.errors else None,
+          ) }}
+          {% if form.notes.errors %}
+            <ul class="form-errors" id="{{ form.notes.id }}-errors">
+              {% for error in form.notes.errors %}
+                <li class="form-error">{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-3">
       {{ form.submit(class_="btn btn--primary btn--full") }}
     </div>
   </form>

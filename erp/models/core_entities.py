@@ -82,6 +82,31 @@ class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):
     order = relationship("Order", backref="approval_requests")
 
 
+class Institution(TimestampMixin, OrgScopedMixin, db.Model):
+    """Institution/company profile collected during client onboarding."""
+
+    __tablename__ = "institutions"
+    __table_args__ = (
+        UniqueConstraint("org_id", "tin", name="uq_institutions_org_tin"),
+        Index("ix_institutions_tin", "tin"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    legal_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    region: Mapped[Optional[str]] = mapped_column(db.String(128))
+    zone: Mapped[Optional[str]] = mapped_column(db.String(128))
+    city: Mapped[Optional[str]] = mapped_column(db.String(128))
+    subcity: Mapped[Optional[str]] = mapped_column(db.String(128))
+    woreda: Mapped[Optional[str]] = mapped_column(db.String(128))
+    kebele: Mapped[Optional[str]] = mapped_column(db.String(128))
+    street: Mapped[Optional[str]] = mapped_column(db.String(255))
+    house_number: Mapped[Optional[str]] = mapped_column(db.String(64))
+    gps_hint: Mapped[Optional[str]] = mapped_column(db.String(255))
+    main_phone: Mapped[Optional[str]] = mapped_column(db.String(64))
+    main_email: Mapped[Optional[str]] = mapped_column(db.String(255))
+
+
 class MaintenanceTicket(TimestampMixin, OrgScopedMixin, db.Model):
     """Maintenance request raised by users and fulfilled by operations."""
 
@@ -298,15 +323,36 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     __tablename__ = "client_registrations"
     __table_args__ = (
         Index("ix_client_registrations_status", "status"),
+        Index("ix_client_registrations_tin", "tin"),
+        UniqueConstraint("org_id", "tin", name="uq_client_registrations_org_tin"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    institution_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    contact_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    contact_position: Mapped[Optional[str]] = mapped_column(db.String(128))
     email: Mapped[str] = mapped_column(db.String(255), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(db.String(64))
+    tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
+    region: Mapped[Optional[str]] = mapped_column(db.String(128))
+    zone: Mapped[Optional[str]] = mapped_column(db.String(128))
+    city: Mapped[Optional[str]] = mapped_column(db.String(128))
+    subcity: Mapped[Optional[str]] = mapped_column(db.String(128))
+    woreda: Mapped[Optional[str]] = mapped_column(db.String(128))
+    kebele: Mapped[Optional[str]] = mapped_column(db.String(128))
+    street: Mapped[Optional[str]] = mapped_column(db.String(255))
+    house_number: Mapped[Optional[str]] = mapped_column(db.String(64))
+    gps_hint: Mapped[Optional[str]] = mapped_column(db.String(255))
+    notes: Mapped[Optional[str]] = mapped_column(db.Text)
+    password_hash: Mapped[Optional[str]] = mapped_column(db.String(255))
     status: Mapped[str] = mapped_column(
         db.String(16), nullable=False, default="pending"
     )  # pending|approved|rejected
+    decided_by: Mapped[Optional[int]] = mapped_column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
+    decision_notes: Mapped[Optional[str]] = mapped_column(db.Text)
 
 
 class RegistrationInvite(TimestampMixin, db.Model):
@@ -369,6 +415,7 @@ class SalesOpportunity(TimestampMixin, OrgScopedMixin, db.Model):
 __all__ = [
     "AnalyticsEvent",
     "ApprovalRequest",
+    "Institution",
     "MaintenanceTicket",
     "CrmLead",
     "CrmInteraction",
