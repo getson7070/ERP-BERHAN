@@ -5,12 +5,14 @@ from decimal import Decimal
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
+from flask_login import current_user
 
 from erp.security import require_roles
 
 from erp.extensions import db
 from erp.models import Inventory, InventoryReservation, Order, User
 from erp.utils import resolve_org_id
+from erp.utils.activity import log_activity_event
 
 bp = Blueprint("orders", __name__, url_prefix="/orders")
 
@@ -144,6 +146,18 @@ def index():
             reservation.order_id = order.id
             db.session.add(reservation)
 
+        log_activity_event(
+            action="order.created",
+            entity_type="order",
+            entity_id=order.id,
+            status=order.status,
+            actor_user_id=getattr(current_user, "id", None),
+            metadata={
+                "initiator_type": initiator_type,
+                "assigned_sales_rep_id": assigned_sales_rep_id,
+                "commission_enabled": commission_enabled,
+            },
+        )
         db.session.commit()
         return jsonify(_serialize(order)), HTTPStatus.CREATED
 
@@ -208,4 +222,16 @@ def update(order_id: int):
         order.assigned_sales_rep_id = rep_id
 
     db.session.commit()
+    log_activity_event(
+        action="order.updated",
+        entity_type="order",
+        entity_id=order.id,
+        status=order.status,
+        actor_user_id=getattr(current_user, "id", None),
+        metadata={
+            "payment_status": order.payment_status,
+            "commission_status": order.commission_status,
+            "assigned_sales_rep_id": order.assigned_sales_rep_id,
+        },
+    )
     return jsonify(_serialize(order))

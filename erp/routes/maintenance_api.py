@@ -21,6 +21,7 @@ from erp.models import (
 from erp.audit import log_audit
 from erp.security import require_roles
 from erp.utils import resolve_org_id
+from erp.utils.activity import log_activity_event
 
 bp = Blueprint("maintenance_api", __name__, url_prefix="/api/maintenance")
 
@@ -255,6 +256,14 @@ def _run_sla_evaluations(work_order: MaintenanceWorkOrder) -> None:
             "maintenance.sla_overdue",
             f"work_order={work_order.id};due_date={work_order.due_date}",
         )
+        log_activity_event(
+            action="maintenance.sla_overdue",
+            entity_type="work_order",
+            entity_id=work_order.id,
+            status=work_order.status,
+            severity="warning",
+            metadata={"due_date": str(work_order.due_date)},
+        )
 
     rules = MaintenanceEscalationRule.query.filter_by(org_id=org_id, is_active=True).all()
     for rule in rules:
@@ -297,6 +306,14 @@ def _run_sla_evaluations(work_order: MaintenanceWorkOrder) -> None:
             org_id,
             "maintenance.sla_escalated",
             f"work_order={work_order.id};rule={rule.name};channel={rule.notify_channel}",
+        )
+        log_activity_event(
+            action="maintenance.sla_escalated",
+            entity_type="work_order",
+            entity_id=work_order.id,
+            status=work_order.status,
+            severity="warning",
+            metadata={"rule": rule.name, "channel": rule.notify_channel},
         )
 
     work_order.sla_status = "breached" if sla_breached else "ok"
@@ -346,6 +363,14 @@ def create_work_order():
         "STATUS_CHANGE",
         from_status=None,
         to_status="open",
+    )
+
+    log_activity_event(
+        action="maintenance.request_created",
+        entity_type="work_order",
+        entity_id=work_order.id,
+        status=work_order.status,
+        metadata={"priority": work_order.priority, "request_location": request_label},
     )
 
     db.session.commit()
@@ -435,6 +460,13 @@ def check_in(work_order_id: int):
     db.session.commit()
     _run_sla_evaluations(work_order)
     db.session.commit()
+    log_activity_event(
+        action="maintenance.check_in",
+        entity_type="work_order",
+        entity_id=work_order.id,
+        status=work_order.status,
+        metadata={"lat": lat, "lng": lng},
+    )
     log_audit(
         getattr(current_user, "id", None),
         org_id,
@@ -482,6 +514,16 @@ def complete_work_order(work_order_id: int):
     db.session.commit()
     _run_sla_evaluations(work_order)
     db.session.commit()
+    log_activity_event(
+        action="maintenance.completed",
+        entity_type="work_order",
+        entity_id=work_order.id,
+        status=work_order.status,
+        metadata={
+            "labor_cost": float(work_order.labor_cost or 0),
+            "material_cost": float(work_order.material_cost or 0),
+        },
+    )
     log_audit(
         getattr(current_user, "id", None),
         org_id,

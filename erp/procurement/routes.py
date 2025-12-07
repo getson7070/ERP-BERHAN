@@ -21,6 +21,7 @@ from erp.models import (
 )
 from erp.security import require_roles
 from erp.utils import resolve_org_id
+from erp.utils.activity import log_activity_event
 
 bp = Blueprint("procurement_api", __name__, url_prefix="/api/procurement")
 
@@ -203,6 +204,14 @@ def create_order():
     db.session.add(po)
     db.session.commit()
 
+    log_activity_event(
+        action="procurement.order_created",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+        metadata={"currency": po.currency, "line_count": len(lines_payload)},
+    )
+
     return jsonify(_serialize_order(po)), HTTPStatus.CREATED
 
 
@@ -243,6 +252,12 @@ def submit_order(order_id: int):
 
     po.status = "submitted"
     db.session.commit()
+    log_activity_event(
+        action="procurement.order_submitted",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+    )
     return jsonify(_serialize_order(po))
 
 
@@ -270,6 +285,13 @@ def approve_order(order_id: int):
     po.approved_by_id = getattr(current_user, "id", None)
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.order_approved",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+        actor_user_id=po.approved_by_id,
+    )
     return jsonify(_serialize_order(po))
 
 
@@ -300,6 +322,13 @@ def cancel_order(order_id: int):
     po.cancel_reason = reason or None
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.order_cancelled",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+        metadata={"reason": po.cancel_reason},
+    )
     return jsonify(_serialize_order(po))
 
 
@@ -358,6 +387,13 @@ def receive_goods(order_id: int):
             po.ticket.mark_status("receiving", getattr(current_user, "id", None))
             po.ticket.evaluate_breach()
     db.session.commit()
+    log_activity_event(
+        action="procurement.order_received",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+        metadata={"lines": len(lines_payload)},
+    )
     return jsonify(_serialize_order(po))
 
 
@@ -410,6 +446,13 @@ def return_goods(order_id: int):
         return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.order_returned",
+        entity_type="purchase_order",
+        entity_id=po.id,
+        status=po.status,
+        metadata={"lines": len(lines_payload)},
+    )
     return jsonify(_serialize_order(po))
 
 
@@ -469,6 +512,13 @@ def create_ticket() -> Any:
 
     db.session.add(ticket)
     db.session.commit()
+    log_activity_event(
+        action="procurement.ticket_created",
+        entity_type="procurement_ticket",
+        entity_id=ticket.id,
+        status=ticket.status,
+        metadata={"priority": ticket.priority},
+    )
     return jsonify(_serialize_ticket(ticket)), HTTPStatus.CREATED
 
 
@@ -507,6 +557,13 @@ def update_ticket_status(ticket_id: int) -> Any:
         return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.ticket_status",
+        entity_type="procurement_ticket",
+        entity_id=ticket.id,
+        status=ticket.status,
+        metadata={"reason": reason},
+    )
     return jsonify(_serialize_ticket(ticket))
 
 
@@ -542,6 +599,13 @@ def add_milestone(ticket_id: int) -> Any:
     ticket.evaluate_breach()
     db.session.add(milestone)
     db.session.commit()
+    log_activity_event(
+        action="procurement.milestone_added",
+        entity_type="procurement_ticket",
+        entity_id=ticket.id,
+        status=ticket.status,
+        metadata={"milestone": milestone.name, "status": milestone.status},
+    )
 
     return jsonify(_serialize_ticket(ticket)), HTTPStatus.CREATED
 
@@ -566,6 +630,13 @@ def post_landed_cost(ticket_id: int) -> Any:
     ticket.mark_status("landed", getattr(current_user, "id", None))
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.landed_cost_posted",
+        entity_type="procurement_ticket",
+        entity_id=ticket.id,
+        status=ticket.status,
+        metadata={"amount": float(amount)},
+    )
     return jsonify(_serialize_ticket(ticket))
 
 
@@ -666,6 +737,13 @@ def bulk_import_orders():
         created_ids.append(po.id)
 
     db.session.commit()
+    log_activity_event(
+        action="procurement.bulk_import",
+        entity_type="purchase_order",
+        entity_id=created_ids[-1] if created_ids else None,
+        status="draft",
+        metadata={"created_count": len(created_ids)},
+    )
     return jsonify({"created_ids": created_ids}), HTTPStatus.CREATED
 
 

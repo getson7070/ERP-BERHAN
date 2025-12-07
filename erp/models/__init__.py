@@ -96,6 +96,7 @@ from erp.procurement.models import (
 )
 from .audit_log import AuditLog  # noqa: F401
 from .core_entities import (  # noqa: F401
+    ActivityEvent,
     AnalyticsEvent,
     ApprovalRequest,
     BankTransaction,
@@ -108,6 +109,8 @@ from .core_entities import (  # noqa: F401
     InventoryReservation,
     MaintenanceTicket,
     SalesOpportunity,
+    EmployeeScorecard,
+    Recommendation,
     SupplyChainShipment,
     UserRoleAssignment,
     RegistrationInvite,
