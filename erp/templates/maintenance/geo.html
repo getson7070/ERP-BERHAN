@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Field Geo-Tracking{% endblock %}
+{% block header %}Field Geo-Tracking{% endblock %}
+
+{% block content %}
+<section class="container my-4" aria-label="Field geo-tracking">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Field geo-tracking</h1>
+      <p class="text-muted mb-0">
+        Live last-known locations for maintenance visits, sales reps and marketing activities.
+      </p>
+    </div>
+    <div>
+      <button id="geo-refresh-btn" type="button" class="btn btn-outline-primary btn-sm">
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-center" role="alert">
+    <div>
+      This view shows the <strong>last submitted ping</strong> per tracked subject inside your organisation.
+      Browser-based tracking is driven by the geolocation helper on field pages and mobile devices.
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle" id="geo-table">
+      <thead>
+        <tr>
+          <th scope="col">Subject</th>
+          <th scope="col">Type</th>
+          <th scope="col">Latitude</th>
+          <th scope="col">Longitude</th>
+          <th scope="col">Accuracy (m)</th>
+          <th scope="col">Speed (m/s)</th>
+          <th scope="col">Heading (&deg;)</th>
+          <th scope="col">Updated at</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td colspan="8" class="text-muted text-center py-3">
+            Loading latest locations...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function loadGeoLocations() {
+    const tableBody = document.querySelector('#geo-table tbody');
+    if (!tableBody) return;
+    try {
+      const resp = await fetch('/api/geo/live?subject_type=user', {
+        headers: {'Accept': 'application/json'}
+      });
+      if (!resp.ok) {
+        tableBody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-3">Failed to load locations.</td></tr>';
+        return;
+      }
+      const data = await resp.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">No telemetry submitted yet.</td></tr>';
+        return;
+      }
+      const rows = data.map((item) => {
+        const subjectId = item.subject_id ?? '';
+        const subjectType = item.subject_type ?? '';
+        const lat = item.lat ?? '';
+        const lng = item.lng ?? '';
+        const accuracy = item.accuracy_m ?? '';
+        const speed = item.speed_mps ?? '';
+        const heading = item.heading_deg ?? '';
+        const updated = item.updated_at ?? '';
+        return `
+          <tr>
+            <td><code>${subjectId}</code></td>
+            <td>${subjectType}</td>
+            <td>${lat}</td>
+            <td>${lng}</td>
+            <td>${accuracy}</td>
+            <td>${speed}</td>
+            <td>${heading}</td>
+            <td><span class="small text-muted">${updated}</span></td>
+          </tr>
+        `;
+      }).join('');
+      tableBody.innerHTML = rows;
+    } catch (err) {
+      console.error('Failed to load geo locations', err);
+      tableBody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-3">Error loading locations.</td></tr>';
+    }
+  }
+
+  document.getElementById('geo-refresh-btn')?.addEventListener('click', loadGeoLocations);
+  // Initial load
+  document.addEventListener('DOMContentLoaded', loadGeoLocations);
+</script>
+{% endblock %}

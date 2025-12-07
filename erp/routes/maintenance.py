@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from http import HTTPStatus
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 
 from erp.security import require_roles
 
@@ -57,6 +57,7 @@ def _serialize(ticket: MaintenanceTicket) -> dict[str, object]:
 @bp.route("/tickets", methods=["GET", "POST"])
 @require_roles("maintenance", "admin")
 def list_tickets():
+    """List or create maintenance tickets for the current organisation."""
     org_id = resolve_org_id()
     if request.method == "POST":
         payload = request.get_json(silent=True) or {}
@@ -102,6 +103,7 @@ def list_tickets():
 @bp.patch("/tickets/<int:ticket_id>")
 @require_roles("maintenance", "admin")
 def update_ticket(ticket_id: int):
+    """Update ticket status, assignment and key dates."""
     payload = request.get_json(silent=True) or {}
     org_id = resolve_org_id()
     ticket = MaintenanceTicket.query.filter_by(
@@ -134,6 +136,7 @@ def update_ticket(ticket_id: int):
 @bp.post("/devices/<int:ticket_id>/heartbeat")
 @require_roles("maintenance", "admin")
 def geo_heartbeat(ticket_id: int):
+    """Update the geo heartbeat for a maintenance device or site."""
     org_id = resolve_org_id()
     ticket = MaintenanceTicket.query.filter_by(
         id=ticket_id, org_id=org_id
@@ -153,4 +156,15 @@ def geo_heartbeat(ticket_id: int):
     return jsonify(_serialize(ticket))
 
 
-__all__ = ["bp", "list_tickets", "update_ticket", "geo_heartbeat"]
+@bp.get("/geo")
+@require_roles("maintenance", "dispatch", "sales", "marketing", "admin")
+def geo_dashboard():
+    """Render the maintenance geo-tracking dashboard.
+
+    This view consumes /api/geo/live on the backend to show last-known
+    locations for maintenance visits, sales reps and marketing staff.
+    """
+    return render_template("maintenance/geo.html")
+
+
+__all__ = ["bp", "list_tickets", "update_ticket", "geo_heartbeat", "geo_dashboard"]

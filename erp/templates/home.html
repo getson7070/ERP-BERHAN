@@ -109,10 +109,8 @@
       const container = document.getElementById("geo-section");
       if (!container) return;
 
-      const userId = container.dataset.userId;
       const statusEl = document.getElementById("geo-status");
       const tableBody = document.querySelector("#geo-table tbody");
-      const csrfToken = "{{ csrf_token()|e }}";
 
       function setStatus(msg) {
         if (statusEl) statusEl.textContent = msg;
@@ -144,7 +142,8 @@
       }
 
       function fetchLive() {
-        fetch("/api/geo/live")
+        setStatus("Loading live locations…");
+        fetch("/api/geo/live?subject_type=user")
           .then(function (resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
             return resp.json();
@@ -160,55 +159,8 @@
           });
       }
 
-      function sendPing(position) {
-        const payload = {
-          subject_type: "user",
-          subject_id: parseInt(userId || "0", 10) || null,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy_m: position.coords.accuracy || null
-        };
-        fetch("/api/geo/ping", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken
-          },
-          body: JSON.stringify(payload)
-        })
-        .then(function (resp) {
-          if (!resp.ok) throw new Error("HTTP " + resp.status);
-          return resp.json();
-        })
-        .then(function () {
-          setStatus("Location updated");
-          fetchLive();
-        })
-        .catch(function (err) {
-          console.error("geo.ping failed", err);
-          setStatus("Could not send location (maybe consent not granted)");
-          fetchLive();
-        });
-      }
-
-      if (!navigator.geolocation) {
-        setStatus("Geolocation is not supported in this browser.");
-        fetchLive();
-        return;
-      }
-
-      setStatus("Requesting location…");
-      navigator.geolocation.getCurrentPosition(
-        function (pos) {
-          sendPing(pos);
-        },
-        function (err) {
-          console.warn("Geolocation error", err);
-          setStatus("Location permission denied or unavailable.");
-          fetchLive();
-        },
-        { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 }
-      );
+      // Initial load – pings are handled globally by static/js/geo.js
+      fetchLive();
     })();
   </script>
   {% endif %}
