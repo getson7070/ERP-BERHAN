@@ -167,4 +167,19 @@ def geo_dashboard():
     return render_template("maintenance/geo.html")
 
 
-__all__ = ["bp", "list_tickets", "update_ticket", "geo_heartbeat", "geo_dashboard"]
+@bp.get("/work-orders")
+@require_roles("maintenance", "admin", "client", "dispatch")
+def work_orders_page():
+    """Render a modern work order board with geo and SLA visibility."""
+
+    return render_template("maintenance/work_orders.html")
+
+
+__all__ = [
+    "bp",
+    "list_tickets",
+    "update_ticket",
+    "geo_heartbeat",
+    "geo_dashboard",
+    "work_orders_page",
+]
