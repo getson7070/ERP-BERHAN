@@ -120,8 +120,30 @@ def role_required(*roles):
             user_role = _current_role()
             needed = max((_RANKS.get(r, 0) for r in roles), default=0)
             if _RANKS.get(user_role, 0) < needed:
-                # Could also redirect to a dedicated "access denied" page
+                accepts_json = request.accept_mimetypes.accept_json
+                accepts_html = request.accept_mimetypes.accept_html
+                if accepts_json and not accepts_html:
+                    abort(403)
                 return redirect(url_for("main.dashboard"), code=302)
+
+            # Enforce MFA for privileged roles defined in configuration to
+            # align with org security policy. This mirrors the newer
+            # `require_roles` decorator behaviour so legacy routes using
+            # `role_required` remain protected.
+            try:
+                privileged = {
+                    r.lower() for r in current_app.config.get("MFA_REQUIRED_ROLES", ())
+                }
+            except Exception:
+                privileged = set()
+
+            role_lower = (user_role or "").lower()
+            if privileged and role_lower in privileged and not session.get("mfa_verified"):
+                accepts_json = request.accept_mimetypes.accept_json
+                accepts_html = request.accept_mimetypes.accept_html
+                if accepts_json and not accepts_html:
+                    abort(403)
+                return redirect(url_for("auth.login", next=request.url), code=302)
             return fn(*a, **k)
         return wrapper
     return deco
