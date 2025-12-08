@@ -72,7 +72,7 @@ def index():
 
             username = email.split("@", 1)[0]
             password = token_urlsafe(12)
-            user = User(username=username, email=email)
+            user = User(username=username, email=email, org_id=org_id)
             user.password = password  # hashed via setter
             db.session.add(user)
             db.session.flush()

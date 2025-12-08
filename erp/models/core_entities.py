@@ -42,6 +42,7 @@ class AnalyticsEvent(TimestampMixin, OrgScopedMixin, db.Model):
     """Persisted frontend vitals or KPI snapshots collected by analytics."""
 
     __tablename__ = "analytics_events"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     metric: Mapped[str] = mapped_column(db.String(64), nullable=False, index=True)
@@ -77,7 +78,7 @@ class ActivityEvent(TimestampMixin, OrgScopedMixin, db.Model):
     occurred_at: Mapped[datetime] = mapped_column(
         db.DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
     )
-    metadata: Mapped[Optional[dict]] = mapped_column(db.JSON)
+    metadata_json: Mapped[Optional[dict]] = mapped_column("metadata", db.JSON)
 
 
 class ApprovalRequest(TimestampMixin, OrgScopedMixin, db.Model):
@@ -350,7 +351,13 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     __table_args__ = (
         Index("ix_client_registrations_status", "status"),
         Index("ix_client_registrations_tin", "tin"),
-        UniqueConstraint("org_id", "tin", name="uq_client_registrations_org_tin"),
+        Index("ix_client_registrations_email", "email"),
+        UniqueConstraint(
+            "org_id",
+            "tin",
+            "email",
+            name="uq_client_registrations_org_tin_email",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
