@@ -1,43 +1,25 @@
 <!-- templates/partials/navbar.html -->
-<style>
-  :root {
-    /* color tokens */
-    --color-primary: #0d6efd;
-    --color-primary-contrast: #ffffff;
-    --color-bg: #ffffff;
-    --color-surface: #f8f9fa;
-    --color-muted: #6c757d;
-    --color-text: #212529;
-
-    /* spacing tokens */
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 12px;
-    --space-lg: 16px;
-
-    /* radius tokens */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-
-    /* shadow tokens */
-    --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
-  }
-</style>
-
-<a class="skip-link" href="#main" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Skip to content</a>
-
-<nav role="navigation" aria-label="Main"
-     style="display:flex;align-items:center;gap:var(--space-lg);
-            background:var(--color-surface);color:var(--color-text);
-            padding:var(--space-md) var(--space-lg);
-            border-radius:var(--radius-md);box-shadow:var(--shadow-sm);">
-  <a href="/" class="brand" style="color:var(--color-primary);font-weight:600;text-decoration:none;">
-    ERP
-  </a>
-  <ul style="display:flex;gap:var(--space-md);list-style:none;margin:0;padding:0;">
-    <li><a href="/dashboard" aria-current="page" style="text-decoration:none;color:var(--color-text);">Dashboard</a></li>
-    <li><a href="/orders" style="text-decoration:none;color:var(--color-text);">Orders</a></li>
-    <li><a href="/inventory" style="text-decoration:none;color:var(--color-text);">Inventory</a></li>
-  </ul>
+<nav class="navbar navbar-expand-lg bg-body border rounded-3 shadow-sm px-3 py-2" role="navigation" aria-label="Main">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="/">ERP</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#primaryNav" aria-controls="primaryNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="primaryNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 gap-2 align-items-lg-center">
+        <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/orders">Orders</a></li>
+        <li class="nav-item"><a class="nav-link" href="/inventory">Inventory</a></li>
+        <li class="nav-item"><a class="nav-link" href="/maintenance">Maintenance</a></li>
+        <li class="nav-item"><a class="nav-link" href="/procurement">Procurement</a></li>
+      </ul>
+      <div class="d-flex align-items-center gap-3">
+        <button id="themeToggle" type="button" class="btn btn-outline-secondary btn-sm" aria-pressed="false" aria-label="Toggle theme">
+          <i class="bi bi-sun-fill me-1" aria-hidden="true"></i>
+          <span data-theme-label>Light</span>
+        </button>
+        <a class="btn btn-primary btn-sm" href="/logout">Logout</a>
+      </div>
+    </div>
+  </div>
 </nav>
