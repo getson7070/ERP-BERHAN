@@ -230,19 +230,20 @@ def client_register():
             flash("An account with that email already exists.", "warning")
             return redirect(url_for("auth.login"))
 
-        duplicate_pending = ClientRegistration.query.filter_by(
-            org_id=org_id, email=email, status="pending"
+        duplicate_contact = ClientRegistration.query.filter_by(
+            org_id=org_id, tin=tin, email=email
         ).first()
-        if duplicate_pending:
+        if duplicate_contact and duplicate_contact.status == "pending":
             flash(
-                "A registration with this email is already pending review. Please await approval.",
+                "A registration for this institution and contact is already pending review.",
                 "info",
             )
             return redirect(url_for("auth.login"))
-
-        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=tin).first()
-        if pending and pending.status == "pending":
-            flash("A registration for this TIN is already awaiting review.", "info")
+        if duplicate_contact and duplicate_contact.status == "approved":
+            flash(
+                "This contact is already approved for the institution. Please sign in or reset your password.",
+                "info",
+            )
             return redirect(url_for("auth.login"))
 
         existing_institution = (
@@ -254,10 +255,11 @@ def client_register():
             ).scalar()
             is not None
         )
+        is_additional_contact = existing_institution
         if existing_institution:
             flash(
-                "This TIN is already registered. Submit again only if requesting an additional contact for the same institution.",
-                "warning",
+                "TIN found: this submission will be reviewed as an additional contact for the existing institution.",
+                "info",
             )
 
         registration = ClientRegistration(
@@ -289,12 +291,17 @@ def client_register():
                 None,
                 org_id,
                 "auth.client_register",
-                f"tin={tin} email={email}",
+                f"tin={tin} email={email} additional_contact={is_additional_contact}",
             )
         except Exception:
             # Registration should not fail if audit logging encounters an error.
             pass
-        flash("Registration submitted. A supervisor will approve your access.", "success")
+        success_message = (
+            "Registration submitted as an additional contact. A supervisor will link you to the institution."
+            if is_additional_contact
+            else "Registration submitted. A supervisor will approve your access."
+        )
+        flash(success_message, "success")
         return redirect(url_for("auth.login"))
 
     return render_template("client_registration.html", form=form)

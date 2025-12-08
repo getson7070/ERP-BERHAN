@@ -16,11 +16,12 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - UX: surface denied-access states with consistent UI patterns and audit trail links.  
    - Database: add `permissions`, `role_permissions`, and `user_roles` tables plus Alembic migrations; backfill legacy roles safely.
 
-3) **Client onboarding validation and approval control**  
-   - Layers: 2 (Onboarding), 4, 5.  
-   - Actions: require TIN (10 digits) uniqueness; enforce institution-level approvals; support multiple contacts per TIN with manager approval; block unapproved clients from orders/maintenance.  
-   - UX: guided registration wizard with clear error states; responsive forms; geo-consent prompts.  
+3) **Client onboarding validation and approval control**
+   - Layers: 2 (Onboarding), 4, 5.
+   - Actions: require TIN (10 digits) uniqueness; enforce institution-level approvals; support multiple contacts per TIN with manager approval; block unapproved clients from orders/maintenance.
+   - UX: guided registration wizard with clear error states; responsive forms; geo-consent prompts.
    - Database: unique index on TIN; tables for institution contacts and approval status history.
+   - Progress: client registration now enforces `(org_id, TIN, email)` uniqueness via migration, allowing multi-contact submissions without collisions and warning when an additional contact is detected.
 
 4) **Geo capture and auditability for field actions**  
    - Layers: 5 (Maintenance), 8 (Geo Engine), 4 (Orders), 6 (Procurement).  
