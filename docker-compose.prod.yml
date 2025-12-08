@@ -25,6 +25,11 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; resp=urllib.request.urlopen('http://localhost:8000/readyz', timeout=5); sys.exit(0 if resp.status==200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:15
