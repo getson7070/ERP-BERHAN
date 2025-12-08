@@ -350,7 +350,13 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     __table_args__ = (
         Index("ix_client_registrations_status", "status"),
         Index("ix_client_registrations_tin", "tin"),
-        UniqueConstraint("org_id", "tin", name="uq_client_registrations_org_tin"),
+        Index("ix_client_registrations_email", "email"),
+        UniqueConstraint(
+            "org_id",
+            "tin",
+            "email",
+            name="uq_client_registrations_org_tin_email",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
