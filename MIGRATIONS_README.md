@@ -47,6 +47,34 @@ alembic merge -m "merge_heads" <head1> <head2> [...]
 alembic upgrade 20251212100000
 ```
 
+### Windows / compose workflows (no container writes)
+
+When running on Windows with Docker Desktop, avoid generating merge revisions
+**inside** the container because the runtime user (`appuser`) cannot write to
+`/app/migrations/versions`. Instead:
+
+1. Activate your local virtualenv and generate the merge on the host:
+
+   ```powershell
+   .\.venv\Scripts\activate
+   $env:ALEMBIC_INI = "alembic.ini"
+   alembic heads
+   alembic merge <head1> <head2> -m "merge_heads"
+   ```
+
+2. Commit the merge revision so all environments pick it up.
+
+3. Run the preflight check inside an ephemeral container (no DB needed) to
+   confirm the tree is clean:
+
+   ```powershell
+   docker compose -f docker-compose.migrate.yml run --rm migrate python tools/check_migration_health.py
+   ```
+
+This sequence prevents the `PermissionError` seen when trying to run `alembic
+merge` inside a container and gives a consistent single-head graph before
+booting the stack.
+
 ## Rebuilding images
 
 If compose still shows permission issues when generating merge revisions,

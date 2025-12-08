@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Rebuild
+    [switch]$Rebuild,
+    [switch]$SkipMigrationCheck
 )
 
 Set-StrictMode -Version Latest
@@ -15,6 +16,11 @@ try {
     if ($Rebuild) {
         Write-Host "Rebuilding Docker images..." -ForegroundColor Yellow
         docker compose build
+    }
+
+    if (-not $SkipMigrationCheck) {
+        Write-Host "Running migration preflight (no DB required)..." -ForegroundColor Yellow
+        docker compose -f docker-compose.migrate.yml run --rm migrate python tools/check_migration_health.py
     }
 
     Write-Host "Starting docker compose..." -ForegroundColor Yellow
