@@ -24,4 +24,3 @@ Review migration wiring, metadata discovery, and standards for schema evolution 
 
 ## Recent progress
 - Added a critical health check that verifies the running database revision against the latest Alembic head, with safe skips in testing/ALLOW_INSECURE_DEFAULTS flows and strict opt-in for CI or production diagnostics. This closes a key readiness gap by surfacing drift early through `/health`/`/readyz` without breaking local dev.
-- Added a companion configuration sanity check that fails readiness when core env vars (SECRET_KEY, DATABASE_URL/SQLALCHEMY_DATABASE_URI, JWT_SECRET_KEY) are missing, weak, or pointing to sqlite in production/strict runs, keeping migrations paired with secure configuration.

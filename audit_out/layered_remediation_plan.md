@@ -35,7 +35,7 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Actions: fail fast when `SECRET_KEY`/`DATABASE_URL` missing; enforce TLS, security headers, and secret management via env/vault; add health checks for migrations/backups.
    - UX: admin banner for maintenance/rollback states.
    - Database: migration guardrails, PITR drills, and schema linting in CI.
-   - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; Telegram webhooks now reject requests without the configured secret, bind to known chat IDs/allowlists, and optionally block chats lacking a recent authenticated session; migration drift is now surfaced via `/health`/`readyz`, failing fast when the DB is behind the Alembic head while skipping test/dev by default; configuration sanity is now enforced via a critical health check that fails readiness when SECRET_KEY/DATABASE_URL/JWT secrets are missing or weak (sqlite in prod/strict); next step is bot/session token issuance UX.
+   - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; Telegram webhooks now reject requests without the configured secret, bind to known chat IDs/allowlists, and optionally block chats lacking a recent authenticated session; migration drift is now surfaced via `/health`/`readyz`, failing fast when the DB is behind the Alembic head while skipping test/dev by default; next step is bot/session token issuance UX.
 
 ## Important (start after critical underway)
 1) **Order/commission correctness and approvals**  
