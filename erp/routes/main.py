@@ -7,8 +7,10 @@ Front-facing entry points for the ERP-BERHAN web UI:
 - Global /login shim that redirects to /auth/login
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user
+
+from erp.routes.help import _support_context
 
 # Keep both names for backwards compatibility:
 # - some code may import `main_bp`
@@ -47,7 +49,7 @@ def login_redirect():
 @main_bp.route("/help")
 def help_page():
     """Static help page with basic guidance and contacts."""
-    return render_template("help.html")
+    return render_template("help.html", **_support_context(current_app.config))
 
 
 @main_bp.route("/privacy")

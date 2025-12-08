@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Help Center · ERP Platform{% endblock %}
+{% block content %}
+<section class="mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <p class="text-uppercase text-muted fw-semibold mb-1" style="letter-spacing: 0.04em;">Support</p>
+      <h1 class="fw-bold mb-2">Help Center</h1>
+      <p class="text-muted mb-0">Find answers, reach support, and learn how to get the most from ERP-BERHAN.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="mailto:{{ support_email }}">
+      <i class="bi bi-envelope me-2" aria-hidden="true"></i>Contact support
+    </a>
+  </div>
+</section>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card card-soft h-100 p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <h2 class="h5 mb-1">Top topics</h2>
+          <p class="text-muted mb-0">Quick links for clients, employees, and administrators.</p>
+        </div>
+        <span class="badge text-bg-light">Updated</span>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="p-3 rounded-3 border bg-light-subtle h-100">
+            <div class="d-flex align-items-center mb-2">
+              <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center me-2" style="width: 38px; height: 38px;">
+                <i class="bi bi-person-badge" aria-hidden="true"></i>
+              </div>
+              <div>
+                <p class="fw-semibold mb-0">Clients</p>
+                <small class="text-muted">Access, onboarding, support</small>
+              </div>
+            </div>
+            <ul class="list-unstyled mb-0 small text-muted">
+              <li class="mb-1">• Register with a valid 10-digit TIN</li>
+              <li class="mb-1">• Track maintenance and order status</li>
+              <li>• Submit support tickets or complaints</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-3 rounded-3 border bg-light-subtle h-100">
+            <div class="d-flex align-items-center mb-2">
+              <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center me-2" style="width: 38px; height: 38px;">
+                <i class="bi bi-shield-check" aria-hidden="true"></i>
+              </div>
+              <div>
+                <p class="fw-semibold mb-0">Employees & Admins</p>
+                <small class="text-muted">Roles, MFA, approvals</small>
+              </div>
+            </div>
+            <ul class="list-unstyled mb-0 small text-muted">
+              <li class="mb-1">• Use MFA for privileged access</li>
+              <li class="mb-1">• Submit visit and maintenance geo logs</li>
+              <li>• Follow supervisor approval workflows</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <hr class="my-4" />
+      <h3 class="h6 text-uppercase text-muted" style="letter-spacing: 0.05em;">Frequently asked</h3>
+      <div class="accordion" id="helpFaq">
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="faqOne">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqOneCollapse" aria-expanded="true" aria-controls="faqOneCollapse">
+              How do I request access?
+            </button>
+          </h2>
+          <div id="faqOneCollapse" class="accordion-collapse collapse show" aria-labelledby="faqOne" data-bs-parent="#helpFaq">
+            <div class="accordion-body text-muted">
+              Clients can self-register with their institution TIN and contact details. Employees receive invitations from admins with assigned roles; MFA is required for privileged users.
+            </div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="faqTwo">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqTwoCollapse" aria-expanded="false" aria-controls="faqTwoCollapse">
+              Where can I track orders or maintenance?
+            </button>
+          </h2>
+          <div id="faqTwoCollapse" class="accordion-collapse collapse" aria-labelledby="faqTwo" data-bs-parent="#helpFaq">
+            <div class="accordion-body text-muted">
+              Visit the Orders or Maintenance dashboards to see status, SLA, and geo checkpoints. Supervisors can approve, escalate, or request additional information.
+            </div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="faqThree">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqThreeCollapse" aria-expanded="false" aria-controls="faqThreeCollapse">
+              How do I reach support?
+            </button>
+          </h2>
+          <div id="faqThreeCollapse" class="accordion-collapse collapse" aria-labelledby="faqThree" data-bs-parent="#helpFaq">
+            <div class="accordion-body text-muted">
+              Use the contact options on this page or the in-app Help menu. Include your organisation, contact details, and ticket reference for faster follow-up.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card card-soft p-4 mb-4">
+      <h2 class="h6 mb-3">Live support</h2>
+      <p class="text-muted small mb-2">We respond within standard business hours and triage critical operational incidents immediately.</p>
+      <div class="d-grid gap-2">
+        <a class="btn btn-primary" href="mailto:{{ support_email }}">Email support</a>
+        {% if support_phone %}
+        <a class="btn btn-outline-secondary" href="tel:{{ support_phone }}">Call {{ support_phone }}</a>
+        {% endif %}
+      </div>
+      {% if support_hours %}
+      <p class="text-muted small mt-3 mb-0">Hours: {{ support_hours }}</p>
+      {% endif %}
+      {% if support_response_sla %}
+      <p class="text-muted small mb-0">Response time: {{ support_response_sla }}</p>
+      {% endif %}
+    </div>
+    <div class="card card-soft p-4">
+      <h2 class="h6 mb-3">System status</h2>
+      <ul class="list-unstyled mb-0 small text-muted">
+        {% for item in system_status %}
+        {% set badge_class = 'text-success' if item.status == 'operational' else 'text-primary' %}
+        {% set icon = 'bi-check-circle-fill' if item.status == 'operational' else 'bi-info-circle-fill' %}
+        <li class="d-flex align-items-start mb-2">
+          <i class="bi {{ icon }} {{ badge_class }} me-2" aria-hidden="true"></i>
+          <div>
+            <span class="fw-semibold d-block">{{ item.label }}</span>
+            <span class="text-muted">{{ item.note }}</span>
+          </div>
+        </li>
+        {% else %}
+        <li class="d-flex align-items-start">
+          <i class="bi bi-info-circle-fill text-primary me-2" aria-hidden="true"></i>
+          <div>
+            <span class="fw-semibold d-block">Status</span>
+            <span class="text-muted">Status information is currently unavailable.</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
