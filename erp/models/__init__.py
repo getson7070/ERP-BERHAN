@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-# Provide a SQLAlchemy instance early so model modules can import it.
-try:
-    from ..extensions import db  # type: ignore
-except Exception:  # pragma: no cover
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
+# Provide a single SQLAlchemy instance early so model modules can import it.
+# Always reuse the shared handle exported by ``erp.db`` to avoid creating
+# duplicate metadata registries during test bootstraps.
+from ..db import db  # type: ignore
 
 # Eager exports the tests expect
 from .user import User  # noqa: F401

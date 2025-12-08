@@ -53,6 +53,12 @@ def _serialize_order(order: PurchaseOrder) -> dict[str, Any]:
         "status": order.status,
         "currency": order.currency,
         "total_amount": float(order.total_amount or 0),
+        "pi_number": order.pi_number,
+        "awb_number": order.awb_number,
+        "hs_code": order.hs_code,
+        "bank_name": order.bank_name,
+        "customs_valuation": float(order.customs_valuation) if order.customs_valuation else None,
+        "efda_reference": order.efda_reference,
         "created_at": order.created_at.isoformat(),
         "created_by_id": order.created_by_id,
         "approved_at": order.approved_at.isoformat() if order.approved_at else None,
@@ -85,6 +91,25 @@ def _parse_ts(value: Any) -> Optional[datetime]:
     return None
 
 
+def _parse_geo(payload: dict[str, Any]) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    lat_raw = payload.get("geo_lat")
+    lng_raw = payload.get("geo_lng")
+    accuracy_raw = payload.get("geo_accuracy_m")
+
+    lat = float(lat_raw) if lat_raw not in (None, "") else None
+    lng = float(lng_raw) if lng_raw not in (None, "") else None
+    accuracy = float(accuracy_raw) if accuracy_raw not in (None, "") else None
+
+    if lat is not None and (lat < -90 or lat > 90):
+        raise ValueError("geo_lat must be between -90 and 90")
+    if lng is not None and (lng < -180 or lng > 180):
+        raise ValueError("geo_lng must be between -180 and 180")
+    if accuracy is not None and accuracy < 0:
+        raise ValueError("geo_accuracy_m must be zero or positive")
+
+    return lat, lng, accuracy
+
+
 def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
     return {
         "id": m.id,
@@ -93,11 +118,30 @@ def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
         "expected_at": m.expected_at.isoformat() if m.expected_at else None,
         "completed_at": m.completed_at.isoformat() if m.completed_at else None,
         "notes": m.notes,
+        "geo": {
+            "lat": m.geo_lat,
+            "lng": m.geo_lng,
+            "accuracy_m": m.geo_accuracy_m,
+            "recorded_at": m.recorded_at.isoformat() if m.recorded_at else None,
+            "recorded_by_id": m.recorded_by_id,
+        },
     }
 
 
 def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
     ticket.evaluate_breach()
+    po_meta: dict[str, Any] | None = None
+    if ticket.purchase_order:
+        po_meta = {
+            "id": ticket.purchase_order.id,
+            "pi_number": ticket.purchase_order.pi_number,
+            "awb_number": ticket.purchase_order.awb_number,
+            "hs_code": ticket.purchase_order.hs_code,
+            "efda_reference": ticket.purchase_order.efda_reference,
+            "customs_valuation": float(ticket.purchase_order.customs_valuation)
+            if ticket.purchase_order.customs_valuation
+            else None,
+        }
     return {
         "id": ticket.id,
         "organization_id": ticket.organization_id,
@@ -123,6 +167,7 @@ def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
         "landed_cost_posted_at": ticket.landed_cost_posted_at.isoformat()
         if ticket.landed_cost_posted_at
         else None,
+        "purchase_order": po_meta,
         "milestones": [_serialize_milestone(m) for m in ticket.milestones],
     }
 
@@ -160,6 +205,16 @@ def create_order():
     currency = (payload.get("currency") or "ETB").upper()
     lines_payload = payload.get("lines") or []
 
+    pi_number = (payload.get("pi_number") or "").strip() or None
+    awb_number = (payload.get("awb_number") or "").strip() or None
+    hs_code = (payload.get("hs_code") or "").strip() or None
+    bank_name = (payload.get("bank_name") or "").strip() or None
+    customs_raw = payload.get("customs_valuation")
+    customs_valuation = None
+    if customs_raw not in (None, ""):
+        customs_valuation = _parse_decimal(customs_raw, default="0")
+    efda_reference = (payload.get("efda_reference") or "").strip() or None
+
     if not lines_payload:
         return jsonify({"error": "at least one line is required"}), HTTPStatus.BAD_REQUEST
 
@@ -170,6 +225,12 @@ def create_order():
         currency=currency,
         status="draft",
         created_by_id=getattr(current_user, "id", None),
+        pi_number=pi_number,
+        awb_number=awb_number,
+        hs_code=hs_code,
+        bank_name=bank_name,
+        customs_valuation=customs_valuation,
+        efda_reference=efda_reference,
     )
 
     ticket_id = payload.get("ticket_id")
@@ -209,7 +270,14 @@ def create_order():
         entity_type="purchase_order",
         entity_id=po.id,
         status=po.status,
-        metadata={"currency": po.currency, "line_count": len(lines_payload)},
+        metadata={
+            "currency": po.currency,
+            "line_count": len(lines_payload),
+            "pi_number": po.pi_number,
+            "awb_number": po.awb_number,
+            "hs_code": po.hs_code,
+            "efda_reference": po.efda_reference,
+        },
     )
 
     return jsonify(_serialize_order(po)), HTTPStatus.CREATED
@@ -583,14 +651,30 @@ def add_milestone(ticket_id: int) -> Any:
     if not name:
         return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
 
+    try:
+        geo_lat, geo_lng, geo_accuracy_m = _parse_geo(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
+
+    status = (payload.get("status") or "pending").strip() or "pending"
+    if status == "completed" and (geo_lat is None or geo_lng is None):
+        return (
+            jsonify({"error": "geo_lat and geo_lng are required when completing a milestone"}),
+            HTTPStatus.BAD_REQUEST,
+        )
+
     milestone = ProcurementMilestone(
         organization_id=organization_id,
         ticket=ticket,
         name=name,
-        status=(payload.get("status") or "pending").strip() or "pending",
+        status=status,
         expected_at=_parse_ts(payload.get("expected_at")),
         completed_at=_parse_ts(payload.get("completed_at")),
         notes=(payload.get("notes") or "").strip() or None,
+        geo_lat=geo_lat,
+        geo_lng=geo_lng,
+        geo_accuracy_m=geo_accuracy_m,
+        recorded_by_id=getattr(current_user, "id", None),
     )
 
     if milestone.status == "completed" and not milestone.completed_at:
