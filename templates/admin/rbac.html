@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}RBAC Policies{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">RBAC Policies</h1>
+      <p class="text-muted mb-0">Review and edit allow/deny rules with MFA enforced for this session.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('rbac_policy_api.list_policies') }}">Download JSON</a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white border-0">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h2 class="h5 mb-0">Active rules</h2>
+              <small class="text-muted">Ordered by policy priority; deny rules win.</small>
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Policy</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Resource</th>
+                  <th scope="col">Action</th>
+                  <th scope="col">Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for policy in policies %}
+                  {% for rule in policy.rules %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ policy.name }}</div>
+                      <div class="text-muted small">Priority {{ policy.priority }}{% if not policy.is_active %} · inactive{% endif %}</div>
+                    </td>
+                    <td><span class="badge bg-primary-subtle text-primary">{{ rule.role_key }}</span></td>
+                    <td class="font-monospace small">{{ rule.resource }}</td>
+                    <td class="font-monospace small">{{ rule.action }}</td>
+                    <td>
+                      {% if rule.effect == 'deny' %}
+                        <span class="badge bg-danger-subtle text-danger">deny</span>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success">allow</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  {% if not policy.rules %}
+                  <tr>
+                    <td colspan="5" class="text-muted text-center py-3">No rules configured for {{ policy.name }}.</td>
+                  </tr>
+                  {% endif %}
+                {% else %}
+                  <tr>
+                    <td colspan="5" class="text-muted text-center py-3">No policies found for this organisation.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white border-0">
+          <h2 class="h5 mb-0">Add rule</h2>
+          <small class="text-muted">Create a new rule or append to an existing policy.</small>
+        </div>
+        <div class="card-body">
+          <form method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Policy</label>
+              <select name="policy_id" class="form-select">
+                <option value="">Create a new custom policy</option>
+                {% for policy in policies %}
+                <option value="{{ policy.id }}">{{ policy.name }} (priority {{ policy.priority }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Role key<span class="text-danger">*</span></label>
+              <input type="text" name="role_key" class="form-control" placeholder="admin" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Resource (supports wildcards)<span class="text-danger">*</span></label>
+              <input type="text" name="resource" class="form-control" placeholder="orders:*" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Action<span class="text-danger">*</span></label>
+              <input type="text" name="action" class="form-control" placeholder="approve" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Effect</label>
+              <select name="effect" class="form-select">
+                <option value="allow">Allow</option>
+                <option value="deny">Deny</option>
+              </select>
+            </div>
+            <div class="alert alert-warning small">
+              <div class="fw-semibold mb-1">Safety tips</div>
+              <ul class="mb-0 ps-3">
+                <li>Deny rules override allow rules at evaluation time.</li>
+                <li>Keep admin/finance resources scoped to trusted roles only.</li>
+                <li>MFA is required for this console; changes are auditable.</li>
+              </ul>
+            </div>
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary">Save rule</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

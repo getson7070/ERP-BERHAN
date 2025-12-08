@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System health & readiness</title>
+  <style>
+    :root {
+      --bg: #0b1021;
+      --card: #0f172a;
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --success: #34d399;
+      --error: #f87171;
+      --warning: #fbbf24;
+      --pill: #1f2937;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 10px 50px rgba(0, 0, 0, 0.35);
+      --radius: 14px;
+      --spacing: 14px;
+      --grid-min: 240px;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 20% 20%, rgba(52, 211, 153, 0.08), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.07), transparent 30%),
+                  var(--bg);
+      color: var(--text);
+      padding: clamp(18px, 3vw, 32px);
+      display: flex;
+      justify-content: center;
+    }
+
+    .shell {
+      width: min(1100px, 100%);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+      margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    h1 {
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--pill);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .pill.ok {
+      color: var(--success);
+      background: rgba(52, 211, 153, 0.08);
+      border-color: rgba(52, 211, 153, 0.35);
+    }
+
+    .pill.error {
+      color: var(--error);
+      background: rgba(248, 113, 113, 0.1);
+      border-color: rgba(248, 113, 113, 0.35);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: calc(var(--spacing) * 1.25);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(var(--grid-min), 1fr));
+      gap: var(--spacing);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat strong {
+      font-size: 28px;
+      letter-spacing: -0.02em;
+    }
+
+    .table-shell {
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-top: var(--spacing);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: var(--pill);
+    }
+
+    .badge.ok { color: var(--success); border-color: rgba(52, 211, 153, 0.35); }
+    .badge.error { color: var(--error); border-color: rgba(248, 113, 113, 0.35); }
+    .badge.warn { color: var(--warning); border-color: rgba(251, 191, 36, 0.35); }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .ghost-btn, .primary-btn {
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #2563eb, #14b8a6);
+      border: none;
+      color: white;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35);
+    }
+
+    .ghost-btn:hover, .primary-btn:hover { transform: translateY(-1px); }
+
+    .helper {
+      margin-top: var(--spacing);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" id="main">
+    <header>
+      <div>
+        <h1>System health & readiness</h1>
+        <p class="helper">MFA-gated view of critical readiness checks (config, migrations, DB, Redis, bot config, banking).<br>Use this page during go-live, change windows, and post-incident verification.</p>
+      </div>
+      <div class="actions">
+        <a class="ghost-btn" href="/healthz" target="_blank" rel="noopener">Raw /healthz</a>
+        <a class="primary-btn" href="/admin/health?format=json" target="_blank" rel="noopener">Download JSON</a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card stat">
+        <label>Overall status</label>
+        {% if ok %}
+          <strong>Operational</strong>
+          <span class="pill ok">All critical checks are healthy</span>
+        {% else %}
+          <strong>Attention needed</strong>
+          <span class="pill error">One or more critical checks failed</span>
+        {% endif %}
+      </div>
+      <div class="card stat">
+        <label>Critical checks</label>
+        <strong>{{ critical_total - critical_failed }}/{{ critical_total }}</strong>
+        {% if critical_failed %}
+          <span class="pill error">{{ critical_failed }} failing</span>
+        {% else %}
+          <span class="pill ok">All passing</span>
+        {% endif %}
+      </div>
+      <div class="card stat">
+        <label>Non-critical</label>
+        <strong>{{ results|length - critical_total - non_critical_failed }}/{{ results|length - critical_total }}</strong>
+        {% if non_critical_failed %}
+          <span class="pill warn">{{ non_critical_failed }} need attention</span>
+        {% else %}
+          <span class="pill ok">Observability green</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: var(--spacing);">
+      <div class="table-shell">
+        <table aria-label="Health check results">
+          <thead>
+            <tr>
+              <th scope="col">Check</th>
+              <th scope="col">Critical</th>
+              <th scope="col">Status</th>
+              <th scope="col">Detail</th>
+              <th scope="col">Latency</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for name, meta in results.items() %}
+            <tr>
+              <td><strong>{{ name }}</strong></td>
+              <td>
+                {% if meta.critical %}
+                  <span class="badge warn">Critical</span>
+                {% else %}
+                  <span class="badge">Non-critical</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if meta.ok %}
+                  <span class="badge ok">Healthy</span>
+                {% else %}
+                  <span class="badge error">Failing</span>
+                {% endif %}
+              </td>
+              <td style="color: var(--muted); font-size: 13px;">
+                {% if meta.error %}
+                  {{ meta.error }}
+                {% elif meta.detail.skipped %}
+                  Skipped ({{ meta.detail.reason }})
+                {% elif meta.detail.insecure_sqlite %}
+                  Insecure SQLite URL blocked for prod/strict
+                {% elif meta.detail.weak_defaults and meta.detail.weak_defaults|length %}
+                  Weak defaults: {{ meta.detail.weak_defaults|join(', ') }}
+                {% elif meta.detail.missing and meta.detail.missing|length %}
+                  Missing: {{ meta.detail.missing|join(', ') }}
+                {% elif meta.detail.heads %}
+                  Current: {{ meta.detail.current }} | Heads: {{ meta.detail.heads|join(', ') }}
+                {% else %}
+                  Ready
+                {% endif %}
+              </td>
+              <td>{{ meta.duration_ms }} ms</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="helper">Privileged roles (admin/management/supervisor/compliance) must be MFA-verified to load this view. Use the JSON endpoint for automation and deployment gates.</p>
+    </div>
+  </main>
+</body>
+</html>
