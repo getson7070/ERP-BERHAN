@@ -85,6 +85,30 @@ def _record_failure(email: str) -> None:
     _FAILED_LOGINS[email] = (attempts, datetime.now(UTC) + timedelta(seconds=cooldown))
 
 
+def _get_role_names(user: Any) -> set[str]:
+    """Extract normalized role names from the user model for MFA decisions."""
+
+    roles: set[str] = set()
+    if not user:
+        return roles
+
+    # Relationship collection
+    rel = getattr(user, "roles", None)
+    if rel:
+        for r in rel:
+            name = getattr(r, "name", None)
+            if name:
+                roles.add(str(name).lower())
+
+    # Fallback single-value attributes
+    for attr in ("role", "role_name"):
+        val = getattr(user, attr, None)
+        if isinstance(val, str):
+            roles.add(val.lower())
+
+    return roles
+
+
 class ClientRegistrationForm(FlaskForm):
     tin = StringField(
         "TIN",
@@ -271,6 +295,16 @@ def login():
     org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
 
+    # Reset MFA session markers on every login attempt
+    session.pop("mfa_verified", None)
+
+    privileged_roles = {
+        r.lower() for r in current_app.config.get("MFA_REQUIRED_ROLES", ())
+    }
+
+    user_roles = _get_role_names(user)
+    mfa_required_for_role = bool(user_roles & privileged_roles)
+
     # Invalid credentials → record failure + generic error
     if user is None or not user.check_password(password):
         _record_failure(email)
@@ -288,6 +322,14 @@ def login():
 
     # ---- MFA handling (TOTP / backup codes) ----
     mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
+
+    if mfa_required_for_role and not (mfa_row and mfa_row.is_enabled):
+        message = "Admins and supervisors must enroll MFA before signing in."
+        if request.is_json:
+            return jsonify({"error": "mfa_enrollment_required"}), HTTPStatus.FORBIDDEN
+        flash(message, "danger")
+        return render_template("login.html"), HTTPStatus.FORBIDDEN
+
     if mfa_row and mfa_row.is_enabled:
         totp_code = _json_or_form("totp")
         backup_code = _json_or_form("backup_code")
@@ -322,6 +364,12 @@ def login():
                 return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
             flash("Multi-factor authentication required. Enter your code.", "warning")
             return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+
+        session["mfa_verified"] = True
+    else:
+        # No MFA configured; mark session verified only when role does not
+        # mandate MFA.
+        session["mfa_verified"] = not mfa_required_for_role
 
     # All checks passed – clear failure state
     _clear_failures(email)
