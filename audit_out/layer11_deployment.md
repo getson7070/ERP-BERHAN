@@ -20,3 +20,7 @@ Assess deployment guides, hardening defaults, and operational controls versus re
 3. **Security hardening**: Define rate limits, WAF/CDN guidance, webhook verification, secrets management, SBOM/dependency scanning, and container image hardening steps.
 4. **Data resilience**: Document backups, restores, key rotation, retention for geo/personal data, and disaster recovery testing cadence.
 5. **Post-deploy validation & UX**: Standardize smoke tests, browser/mobile compatibility checks, and accessibility/performance budgets to keep UX at industry standards.
+
+## Recent progress
+- Deployment readiness now includes migration drift detection exposed via the shared health endpoints, enabling probes to fail fast when the database is behind the Alembic head while still allowing safe skips in test/dev by default.
+- Added configuration sanity checking to the shared health suite so deployments fail readiness when secrets are missing/weak or when a sqlite database is configured in production/strict runs; testing/dev can bypass via ALLOW_INSECURE_DEFAULTS.

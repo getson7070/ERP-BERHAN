@@ -21,3 +21,7 @@ Review migration wiring, metadata discovery, and standards for schema evolution 
 3. **Migration discipline**: Enable migration linting, auto-generation with review, and CI checks for drift; document upgrade paths in README-DEPLOY.
 4. **Seed data migrations** for roles, KPI catalog, marketing consent defaults, and supervisor/admin records; ensure idempotent seeds.
 5. **DB performance & security**: Partition high-volume tables (geo pings/logs), add auditing triggers, and ensure least-privilege DB roles; keep backups/SLA documented.
+
+## Recent progress
+- Added a critical health check that verifies the running database revision against the latest Alembic head, with safe skips in testing/ALLOW_INSECURE_DEFAULTS flows and strict opt-in for CI or production diagnostics. This closes a key readiness gap by surfacing drift early through `/health`/`/readyz` without breaking local dev.
+- Added a companion configuration sanity check that fails readiness when core env vars (SECRET_KEY, DATABASE_URL/SQLALCHEMY_DATABASE_URI, JWT_SECRET_KEY) are missing, weak, or pointing to sqlite in production/strict runs, keeping migrations paired with secure configuration.
