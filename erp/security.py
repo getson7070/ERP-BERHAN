@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Any, Callable, Optional, TypeVar
 import os  # kept for future expansion / compatibility
 
-from flask import abort, current_app, redirect, request, url_for
+from flask import abort, current_app, redirect, request, session, url_for
 from erp.security_decorators_phase2 import require_permission
 
 try:  # Flask-Login is the primary auth backend
@@ -128,6 +128,20 @@ def require_roles(*role_names: str) -> Callable[[F], F]:
                 if not (user_roles & normalized):
                     abort(403)
 
+                # Enforce MFA for privileged roles defined in config. Admin,
+                # management, and supervisors must complete MFA before
+                # accessing role-gated endpoints.
+                required_roles = {
+                    r.lower() for r in current_app.config.get("MFA_REQUIRED_ROLES", ())
+                }
+                if user_roles & required_roles and not session.get("mfa_verified"):
+                    # Preserve API/browser semantics for missing MFA.
+                    accepts_json = request.accept_mimetypes.accept_json
+                    accepts_html = request.accept_mimetypes.accept_html
+                    if accepts_json and not accepts_html:
+                        abort(403)
+                    return redirect(url_for("auth.login", next=request.url))
+
             return fn(*args, **kwargs)
 
         return wrapper  # type: ignore[misc]
@@ -161,7 +175,9 @@ def mfa_required(fn: F) -> F:
             return redirect(url_for("auth.login", next=request.url))
 
         # If the app defines a stricter check, honour it; otherwise allow.
-        mfa_ok = getattr(user, "mfa_verified", True)
+        mfa_ok = session.get("mfa_verified")
+        if mfa_ok is None:
+            mfa_ok = getattr(user, "mfa_verified", True)
         if not mfa_ok:
             # You can replace this with a dedicated MFA route in your app.
             abort(403)
