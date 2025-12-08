@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Operational Analytics{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Operational Analytics</h1>
+      <p class="text-muted mb-0">Maintenance escalations and geo heartbeat health at a glance.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('analytics_dashboard_api.operations_summary') }}">Download JSON</a>
+  </div>
+
+  <div class="row g-3" id="ops-cards">
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Open escalations</p>
+          <h2 class="display-6" id="open-escalations">--</h2>
+          <p class="mb-0 text-muted">Pending escalation events that require supervisor follow-up.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Total escalations</p>
+          <h2 class="display-6" id="total-escalations">--</h2>
+          <p class="mb-0 text-muted">All recorded escalation triggers.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100 border-warning-subtle">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Geo offline ({{ lookback_hours|default(24) }}h)</p>
+          <h2 class="display-6 text-warning" id="geo-stale">--</h2>
+          <p class="mb-0 text-muted">Work orders without fresh location check-ins.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mt-4">
+    <div class="card-body">
+      <h2 class="h5">Geo heartbeat trend</h2>
+      <p class="text-muted">Recent check-ins for active work orders are tracked to surface offline risk.</p>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center border rounded-3 p-3 mb-2">
+            <span class="fw-semibold">Recent check-ins</span>
+            <span class="badge bg-success-subtle text-success" id="geo-recent">--</span>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center border rounded-3 p-3 mb-2">
+            <span class="fw-semibold">Stale check-ins</span>
+            <span class="badge bg-warning-subtle text-warning" id="geo-stale-badge">--</span>
+          </div>
+        </div>
+      </div>
+      <small class="text-muted" id="ops-updated">Last updated —</small>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadOpsSummary() {
+  const res = await fetch("{{ url_for('analytics_dashboard_api.operations_summary') }}");
+  if (!res.ok) return;
+  const data = await res.json();
+  document.getElementById('open-escalations').innerText = data.maintenance_escalations?.open ?? 0;
+  document.getElementById('total-escalations').innerText = data.maintenance_escalations?.total ?? 0;
+  document.getElementById('geo-stale').innerText = data.geo_offline?.stale_work_orders ?? 0;
+  document.getElementById('geo-recent').innerText = data.geo_offline?.recent_checkins ?? 0;
+  document.getElementById('geo-stale-badge').innerText = data.geo_offline?.stale_work_orders ?? 0;
+  document.getElementById('ops-updated').innerText = `Last updated ${data.captured_at || ''}`;
+}
+
+document.addEventListener('DOMContentLoaded', loadOpsSummary);
+</script>
+{% endblock %}
