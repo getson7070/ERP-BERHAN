@@ -61,10 +61,10 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - UX: modern dashboards with export/share; dark mode and accessibility.  
    - Database: materialized views or summary tables; scheduled refresh jobs.
 
-5) **Telegram bot hardening and workflow parity**  
-   - Layers: 9.  
-   - Actions: align bot intents with web workflows; enforce auth tokens and rate limits; add audit logs; support approval actions with MFA challenge links.  
-   - UX: concise prompts with fallback web links; error handling for offline/invalid states.  
+5) **Telegram bot hardening and workflow parity**
+   - Layers: 9.
+   - Actions: align bot intents with web workflows; enforce auth tokens and rate limits; add audit logs; support approval actions with MFA challenge links. Progress: org-scoped chat binding with migration + regression tests for secrets/session gating completed.
+   - UX: concise prompts with fallback web links; error handling for offline/invalid states.
    - Database: store bot session bindings with expiry and org scoping.
 
 ## Medium (start after critical/important in progress)

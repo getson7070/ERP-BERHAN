@@ -7,6 +7,7 @@ Evaluate Telegram/automation handlers for approvals, inventory, analytics, and i
 - **Command handlers for approvals/inventory/analytics**: Bot handlers provide approve/reject responses, inventory summaries, and top performance scores via analytics queries, enabling lightweight chat interactions.【F:erp/bots/handlers.py†L1-L58】
 - **Intent mapping**: NLP intents map analytics keywords to the analytics handler, showing extendable intent-based automation surface for future flows.【F:erp/bots/nlp_intents.py†L1-L34】
 - **Webhook security controls**: Webhooks require configured secrets, optional per-bot chat allowlists, and now (when enabled) block chats without a recent authenticated user session, aligning chat automation with active login state.【F:erp/blueprints/telegram_webhook.py†L16-L123】
+- **Org-scoped chat binding + regression tests**: Users now store `org_id` and `telegram_chat_id` for tenant-safe bot lookups, guarded by a migration, and regression tests cover misconfigured secrets, session blocking, and successful queued jobs with valid sessions.【F:erp/models/user.py†L14-L36】【F:migrations/versions/e1f9a41f2f2c_add_org_and_telegram_to_users.py†L1-L36】【F:tests/test_telegram_webhook.py†L1-L66】
 
 ## Gaps & Risks vs. Requirements
 - **Workflow execution**: Handlers return static text; they do not execute real approval, order, maintenance, or procurement actions with audit/RBAC checks.

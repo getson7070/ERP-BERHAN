@@ -587,7 +587,7 @@ def register():
         flash("Privileged roles require MFA and a security review. Request submitted.", "warning")
         return redirect(url_for("auth.login")), HTTPStatus.ACCEPTED
 
-    user = User(username=username, email=email)
+    user = User(username=username, email=email, org_id=org_id)
     # Relies on User.password setter to hash properly
     user.password = password
     db.session.add(user)

@@ -7,6 +7,7 @@ Review migration wiring, metadata discovery, and standards for schema evolution 
 - **Alembic environment configuration**: `alembic/env.py` bootstraps metadata discovery from `erp.extensions.db`, supports offline/online runs, and configures compare_type/server_default for drift detection with environment-driven DB URL.【F:alembic/env.py†L1-L85】
 - **Metadata discovery fallback**: Env file attempts multiple modules then honors `ALEMBIC_METADATA` override to locate SQLAlchemy metadata, reducing migration failures when refactoring structure.【F:alembic/env.py†L26-L53】
 - **Migration inventory**: Repository contains consolidated migration docs and TODOs (MIGRATIONS_README/TODO) indicating awareness of schema gaps; tables include procurement, geo, analytics models referenced in services.
+- **Recent migrations**: Org-scoped Telegram chat binding for users now ships with a merge-aware migration to keep bot security aligned with tenant boundaries and active session checks.【F:migrations/versions/e1f9a41f2f2c_add_org_and_telegram_to_users.py†L1-L36】
 
 ## Gaps & Risks vs. Requirements
 - **Schema coverage**: Need verification that clients/employees/admins, MFA, commission, geo audit, procurement milestones, performance KPIs, and Telegram tokens are all modeled; current audit did not find dedicated MFA/commission tables.
