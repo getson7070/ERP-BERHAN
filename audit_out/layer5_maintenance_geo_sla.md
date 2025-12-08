@@ -9,6 +9,10 @@ Evaluation of maintenance asset/work-order flows, geo capture, SLA/escalation ru
 - **Technician start/check-in with geo logging**: Start and check-in endpoints capture geo coordinates, record events, and update SLA evaluations, ensuring geo trail for on-site actions.【F:erp/routes/maintenance_api.py†L397-L476】
 - **SLA and escalation engine**: `_run_sla_evaluations` raises escalation events for overdue due dates and downtime thresholds, logging audit/activity events with rule metadata and updating `sla_status`.【F:erp/routes/maintenance_api.py†L232-L319】
 
+## Remediation delivered in this update
+- Geo coordinates are now required (and validated) for work-order start and technician check-ins so SLA and audit trails always include a location signal. Numeric validation prevents malformed payloads and returns actionable 400 responses when geo is missing.【F:erp/routes/maintenance_api.py†L382-L437】
+- Work-order serialization now surfaces SLA due timestamps/minutes remaining, and a new responsive maintenance dashboard (`/maintenance/work_orders.html`) visualizes status, priority, SLA, and geo coverage for supervisors and technicians.【F:erp/routes/maintenance_api.py†L155-L178】【F:templates/maintenance/work_orders.html†L1-L236】
+
 ## Gaps & Risks vs. Requirements
 - **Supervisor approval and visibility**: Maintenance creation/updates lack supervisor/admin approval gates and dashboards; escalation rules trigger silently without management acknowledgment flows or MFA prompts for overrides.【F:erp/routes/maintenance_api.py†L322-L476】
 - **Geo requirements not end-to-end**: While geo is captured for work orders, there is no enforcement for employee access events, scheduled visits logging, or delivery/maintenance completion confirmation by clients with location proof.【F:erp/routes/maintenance_api.py†L322-L476】

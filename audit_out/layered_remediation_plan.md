@@ -24,11 +24,12 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Database: unique index on TIN; tables for institution contacts and approval status history.
    - Progress: client registration now enforces `(org_id, TIN, email)` uniqueness via migration, allowing multi-contact submissions without collisions and warning when an additional contact is detected.
 
-4) **Geo capture and auditability for field actions**  
-   - Layers: 5 (Maintenance), 8 (Geo Engine), 4 (Orders), 6 (Procurement).  
-   - Actions: require geolocation for visits/maintenance tickets/procurement milestones; store timestamps, accuracy, and actor; add SLA breach alerts.  
-   - UX: map-based check-in UI with permission prompts and offline-friendly retry.  
+4) **Geo capture and auditability for field actions**
+   - Layers: 5 (Maintenance), 8 (Geo Engine), 4 (Orders), 6 (Procurement).
+   - Actions: require geolocation for visits/maintenance tickets/procurement milestones; store timestamps, accuracy, and actor; add SLA breach alerts.
+   - UX: map-based check-in UI with permission prompts and offline-friendly retry.
    - Database: geo columns with indexes; retention and privacy redaction policies.
+   - Progress: maintenance start and check-in flows now require validated lat/lng and surface SLA due minutes plus a responsive dashboard showing status/priority/geo coverage; procurement/order geo capture still pending.
 
 5) **Secure deployment baselines**
    - Layers: 10 (DB/Alembic), 11 (Deployment).
