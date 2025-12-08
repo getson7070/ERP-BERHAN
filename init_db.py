@@ -13,6 +13,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+
 from erp.security_hardening import safe_run, safe_call, safe_popen  # noqa: F401
 
 import pyotp
@@ -338,6 +341,35 @@ def _reset_schema() -> None:
         conn.execute(text("CREATE SCHEMA public"))
 
 
+def _get_migration_heads() -> list[str]:
+    """Return all Alembic heads for the configured environment."""
+
+    alembic_ini = os.getenv("ALEMBIC_INI_PATH", "alembic.ini")
+    cfg = Config(alembic_ini)
+    script = ScriptDirectory.from_config(cfg)
+    return list(script.get_heads())
+
+
+def _assert_single_migration_head(heads: list[str] | None = None) -> list[str]:
+    """Fail fast when multiple heads exist to avoid restart loops.
+
+    The caller can optionally supply ``heads`` to simplify testing; otherwise the
+    heads are resolved from the Alembic environment. The returned list is
+    deduplicated and sorted for readability.
+    """
+
+    resolved_heads = sorted(set(heads or _get_migration_heads()))
+    if len(resolved_heads) > 1:
+        formatted = ", ".join(resolved_heads)
+        raise RuntimeError(
+            "Multiple Alembic heads detected: "
+            f"{formatted}. Apply the merge revision 20251212100000 or run "
+            "`alembic merge` to unify branches before bootstrapping."
+        )
+
+    return resolved_heads
+
+
 # --------------------------------------------------------------------
 # Main init_db entrypoint
 # --------------------------------------------------------------------
@@ -345,6 +377,15 @@ def _reset_schema() -> None:
 
 def init_db() -> None:
     """Bootstrap a fresh/local DB so the app can import without errors."""
+
+    try:
+        _assert_single_migration_head()
+    except RuntimeError as exc:
+        # Provide a clear, single-line hint so container orchestrators surface
+        # the actionable cause instead of reboot-looping on an opaque stack
+        # trace. The error is still raised so CI/CD fails fast.
+        print(f"Migration head check failed: {exc}")
+        raise
 
     # 1) Always try Alembic migrations first; if they fail, hard reset.
     try:

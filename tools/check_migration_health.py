@@ -32,14 +32,30 @@ def _format_paths(paths: list[Path]) -> str:
 
 def main() -> int:
     problems: List[str] = []
+    warnings: List[str] = []
 
     # 1) Detect multiple migration roots. The canonical path is migrations/.
     migration_roots = [p for p in (ROOT / "migrations", ROOT / "alembic") if p.exists()]
     if len(migration_roots) > 1:
-        problems.append(
-            "Detected more than one migration root (expected only migrations/): "
-            f"{_format_paths(migration_roots)}"
-        )
+        legacy_env_only = False
+        legacy_alembic = ROOT / "alembic"
+        try:
+            legacy_env_only = legacy_alembic.exists() and all(
+                child.name == "env.py" for child in legacy_alembic.iterdir()
+            )
+        except PermissionError:
+            legacy_env_only = False
+
+        if legacy_env_only:
+            warnings.append(
+                "Detected legacy alembic/ env shim alongside migrations/. "
+                "Prefer the canonical migrations/ root; remove alembic/ if unused."
+            )
+        else:
+            problems.append(
+                "Detected more than one migration root (expected only migrations/): "
+                f"{_format_paths(migration_roots)}"
+            )
 
     # 2) Validate Alembic configuration points to the canonical migrations/ location.
     alembic_ini = ROOT / "alembic.ini"
@@ -56,13 +72,21 @@ def main() -> int:
             script_dir = ScriptDirectory.from_config(cfg)
             heads = script_dir.get_heads()
             if len(heads) > 1:
+                head_list = ", ".join(heads)
                 problems.append(
-                    f"Multiple Alembic heads detected ({len(heads)}). Run a merge revision before deploying."
+                    "Multiple Alembic heads detected ({}): {}. "
+                    "Run `alembic merge` or apply the latest merge revision "
+                    "(e.g., 20251212100000) before deploying.".format(
+                        len(heads), head_list
+                    )
                 )
         except Exception as exc:  # pragma: no cover - defensive guard for misconfigured environments
             problems.append(f"Could not inspect migration heads: {exc}")
     else:
         problems.append("alembic.ini not found; cannot validate migration setup.")
+
+    for item in warnings:
+        print(f"[migration-check][warning] {item}")
 
     if problems:
         for item in problems:
