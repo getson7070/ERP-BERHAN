@@ -1,6 +1,8 @@
-# ERP-BERHAN Migration Guide — v5
+# ERP-BERHAN Migration Guide — v6
 
-- Single canonical migration root: `migrations/` (no more `alembic/`).
+- Canonical migration root: `migrations/`. A legacy `alembic/` directory that
+  only contains `env.py` is tolerated, but the health check will emit a warning;
+  prefer deleting it once local clones no longer depend on the shim.
 - Strict multi-head detection via `tools/check_migration_health.py` and
   `init_db._assert_single_migration_head()`.
 - Latest merge revision: **20251212100000_merge_commission_and_trade_heads**.
@@ -17,6 +19,15 @@ python tools/check_migration_health.py
 
 Expected output:
 `[migration-check] OK: single migration root, correct script_location, single head.`
+
+If you see only a warning like:
+
+```
+[migration-check][warning] Detected legacy alembic/ env shim alongside migrations/...
+```
+
+you can safely remove the legacy `alembic/` folder (after confirming no local
+scripts depend on it) or leave it in place; the check will still return `0`.
 
 If the check reports multiple heads, list them explicitly with:
 
