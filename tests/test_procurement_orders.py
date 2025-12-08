@@ -108,4 +108,43 @@ def test_cannot_receive_more_than_ordered(client, db_session, procurement_user):
         headers=headers,
     )
     assert resp.status_code == 400
-    assert "cannot receive more than ordered" in resp.get_json()["error"]
+    assert "cannot receive goods in status received" in resp.get_json()["error"]
+
+
+def test_milestone_requires_geo_when_completed(client, db_session, procurement_user):
+    headers = _auth_headers(procurement_user)
+
+    # Create a ticket
+    ticket_resp = client.post(
+        "/api/procurement/tickets",
+        json={"title": "Import lot A"},
+        headers=headers,
+    )
+    assert ticket_resp.status_code == 201
+    ticket_id = ticket_resp.get_json()["id"]
+
+    # Attempt to complete milestone without geo should fail
+    bad_resp = client.post(
+        f"/api/procurement/tickets/{ticket_id}/milestones",
+        json={"name": "Arrived customs", "status": "completed"},
+        headers=headers,
+    )
+    assert bad_resp.status_code == 400
+    assert "geo_lat" in bad_resp.get_json()["error"]
+
+    # Valid geo payload passes and is returned
+    good_resp = client.post(
+        f"/api/procurement/tickets/{ticket_id}/milestones",
+        json={
+            "name": "Arrived customs",
+            "status": "completed",
+            "geo_lat": 9.0101,
+            "geo_lng": 38.7607,
+            "geo_accuracy_m": 12.3,
+        },
+        headers=headers,
+    )
+    assert good_resp.status_code == 201
+    payload = good_resp.get_json()
+    assert payload["milestones"][0]["geo"]["lat"] == 9.0101
+    assert payload["milestones"][0]["geo"]["lng"] == 38.7607

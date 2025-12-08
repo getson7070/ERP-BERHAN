@@ -179,11 +179,24 @@
               <div class="fw-semibold">${escapeHtml(m.name)}</div>
               <div class="text-muted small">Expected: ${m.expected_at ? new Date(m.expected_at).toLocaleString() : '—'}</div>
               ${m.notes ? `<div class="text-muted small">${escapeHtml(m.notes)}</div>` : ''}
+              ${renderMilestoneGeo(m.geo)}
             </div>
             <span class="badge bg-${badgeClass(m.status)} text-uppercase">${m.status}</span>
           </div>
         </li>`).join('')}
     </ul>`;
+  }
+
+  function renderMilestoneGeo(geo) {
+    if (!geo || (!geo.lat && !geo.lng)) {
+      return '';
+    }
+    const coords = [geo.lat?.toFixed?.(5) ?? geo.lat, geo.lng?.toFixed?.(5) ?? geo.lng]
+      .filter(Boolean)
+      .join(', ');
+    const accuracy = geo.accuracy_m ? `${geo.accuracy_m.toFixed(1)}m` : '—';
+    const recorded = geo.recorded_at ? new Date(geo.recorded_at).toLocaleString() : '—';
+    return `<div class="text-muted small">Geo: ${coords || '—'} (±${accuracy}) · Recorded ${recorded}</div>`;
   }
 
   async function loadTickets() {

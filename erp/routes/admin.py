@@ -1,11 +1,20 @@
 # erp/routes/admin.py
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request, session, flash
+from flask import (
+    Blueprint,
+    jsonify,
+    render_template,
+    request,
+    session,
+    flash,
+)
+from http import HTTPStatus
 from flask_login import login_required
 from sqlalchemy import text
 
 from db import get_db
+from erp.health import health_registry
 from erp.security import require_roles, mfa_required
 from erp.utils import sanitize_sort, sanitize_direction
 
@@ -103,3 +112,54 @@ def audit_logs():
 def bots_dashboard():
     """UI shell that talks to /api/bot-dashboard/summary and /events."""
     return render_template("admin/bots_dashboard.html")
+
+
+@bp.route("/health", methods=["GET"])
+@login_required
+@require_roles("admin", "management", "supervisor", "compliance")
+@mfa_required
+def health_dashboard():
+    """Privileged, MFA-gated health dashboard with JSON/HTML views.
+
+    - Surfaces registry-backed health checks (config, migration drift, DB, redis, etc.).
+    - Uses JSON when explicitly requested (Accept: application/json or format=json).
+    - Applies secure defaults by requiring admin/management/supervisor/compliance roles.
+    """
+
+    overall_ok, results = health_registry.run_all()
+
+    payload = {
+        "status": "ok" if overall_ok else "error",
+        "ok": overall_ok,
+        "checks": results,
+    }
+
+    prefers_json = request.args.get("format") == "json"
+    if not prefers_json:
+        prefers_json = (
+            request.accept_mimetypes.accept_json
+            and not request.accept_mimetypes.accept_html
+        )
+
+    if prefers_json:
+        status_code = HTTPStatus.OK if overall_ok else HTTPStatus.SERVICE_UNAVAILABLE
+        return jsonify(payload), status_code
+
+    # Compute quick aggregates for the UI chips.
+    critical_total = sum(1 for meta in results.values() if meta.get("critical"))
+    critical_failed = sum(
+        1 for meta in results.values() if meta.get("critical") and not meta.get("ok")
+    )
+    non_critical_failed = sum(
+        1 for meta in results.values() if not meta.get("critical") and not meta.get("ok")
+    )
+
+    return render_template(
+        "admin/health_dashboard.html",
+        ok=overall_ok,
+        results=results,
+        payload=payload,
+        critical_total=critical_total,
+        critical_failed=critical_failed,
+        non_critical_failed=non_critical_failed,
+    )
