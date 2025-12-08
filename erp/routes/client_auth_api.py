@@ -157,7 +157,29 @@ def client_login():
 
     email = (payload.get("email") or "").strip().lower()
     phone = (payload.get("phone") or "").strip()
-    password = payload.get("password") or ""
+    password = (payload.get("password") or "").strip()
+
+    if not (email or phone):
+        return (
+            jsonify(
+                {
+                    "error": "missing_identifier",
+                    "message": "Provide either email or phone to sign in.",
+                }
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
+
+    if not password:
+        return (
+            jsonify(
+                {
+                    "error": "missing_password",
+                    "message": "Password is required to sign in.",
+                }
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
 
     account: Optional[ClientAccount] = None
     if email:
