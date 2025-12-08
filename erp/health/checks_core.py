@@ -93,6 +93,14 @@ def db_migrations() -> dict[str, Any]:
             "error": f"head_discovery_failed: {exc}",
         }
 
+    if len(heads) > 1:
+        return {
+            "ok": False,
+            "current": current_version,
+            "heads": sorted(heads),
+            "error": "multiple_heads_detected",
+        }
+
     ok = bool(current_version and current_version in heads)
     return {"ok": ok, "current": current_version, "heads": sorted(heads)}
 
