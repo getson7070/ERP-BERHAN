@@ -38,6 +38,7 @@ from .metrics import (
 )
 from .middleware.security_headers import apply_security_headers
 from .middleware.tenant_guard import install_tenant_guard
+from .bots.registry import register_default_bot_commands
 from .security import apply_security, install_privileged_mfa_guard
 from .security_gate import install_global_gate
 from .socket import socketio
@@ -388,6 +389,10 @@ def create_app(config_object: str | None = None) -> Flask:
     from erp.routes.sso_oidc import init_sso
 
     init_sso(app)
+
+    # Ensure Telegram bot commands are registered before webhooks start routing
+    # updates so that intents resolve to concrete handlers.
+    register_default_bot_commands()
 
     # Guarantee marketing endpoints are present even when manifest skips them
     marketing_spec = importlib.util.find_spec("erp.marketing.routes")
