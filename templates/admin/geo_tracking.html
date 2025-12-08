@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Geo Tracking | ERP Berhan{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center mb-3 flex-wrap gap-3">
+    <div>
+      <h1 class="h3 mb-0">Geo Tracking</h1>
+      <p class="text-muted mb-0">Live pings, stale sessions, and distance-aware assignments.</p>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-outline-secondary" id="refresh-live" type="button">Refresh Live</button>
+      <button class="btn btn-outline-secondary" id="refresh-offline" type="button">Refresh Offline</button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h6 mb-0">Live subjects</h2>
+            <span class="badge bg-success" id="live-count">0</span>
+          </div>
+          <p class="text-muted small mb-2">Latest ping within the last 30 minutes.</p>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-success" id="live-progress" role="progressbar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h6 mb-0">Offline subjects</h2>
+            <span class="badge bg-danger" id="offline-count">0</span>
+          </div>
+          <p class="text-muted small mb-2">No pings since the configured threshold.</p>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-danger" id="offline-progress" role="progressbar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h6 mb-0">Stale threshold</h2>
+            <span class="badge bg-info text-dark" id="stale-minutes">30 min</span>
+          </div>
+          <p class="text-muted small mb-2">Adjust using the selector below to tune your alerting window.</p>
+          <div class="input-group">
+            <input type="number" class="form-control" id="stale-input" min="5" max="180" value="30">
+            <button class="btn btn-outline-primary" id="apply-threshold" type="button">Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div>
+          <h2 class="h5 mb-0">Live locations</h2>
+          <p class="text-muted small mb-0">Up to 500 last-known locations across maintenance, sales, and dispatch.</p>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0" id="live-table">
+          <thead>
+            <tr class="text-muted small">
+              <th scope="col">Subject</th>
+              <th scope="col">Coordinates</th>
+              <th scope="col">Accuracy</th>
+              <th scope="col">Updated</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div>
+          <h2 class="h5 mb-0">Offline subjects</h2>
+          <p class="text-muted small mb-0">Subjects with no ping since the configured threshold.</p>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0" id="offline-table">
+          <thead>
+            <tr class="text-muted small">
+              <th scope="col">Subject</th>
+              <th scope="col">Last Coordinates</th>
+              <th scope="col">Last Update</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const liveTable = document.querySelector('#live-table tbody');
+  const offlineTable = document.querySelector('#offline-table tbody');
+  const liveCount = document.getElementById('live-count');
+  const offlineCount = document.getElementById('offline-count');
+  const liveProgress = document.getElementById('live-progress');
+  const offlineProgress = document.getElementById('offline-progress');
+  const staleBadge = document.getElementById('stale-minutes');
+  const staleInput = document.getElementById('stale-input');
+  const applyBtn = document.getElementById('apply-threshold');
+
+  function formatTime(value) {
+    if (!value) return '—';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString();
+  }
+
+  function formatCoords(lat, lng) {
+    if (lat === null || lng === null || lat === undefined || lng === undefined) return '—';
+    return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+  }
+
+  function renderLiveRows(rows) {
+    liveTable.innerHTML = '';
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${row.subject_type || 'n/a'} #${row.subject_id}</strong></td>
+        <td>${formatCoords(row.lat, row.lng)}</td>
+        <td>${row.accuracy_m ? `${row.accuracy_m} m` : '—'}</td>
+        <td class="text-muted small">${formatTime(row.updated_at)}</td>
+      `;
+      liveTable.appendChild(tr);
+    });
+  }
+
+  function renderOfflineRows(rows) {
+    offlineTable.innerHTML = '';
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${row.subject_type || 'n/a'} #${row.subject_id}</strong></td>
+        <td>${formatCoords(row.lat, row.lng)}</td>
+        <td class="text-muted small">${formatTime(row.updated_at)}</td>
+        <td><span class="badge bg-danger">${row.status || 'offline'}</span></td>
+      `;
+      offlineTable.appendChild(tr);
+    });
+  }
+
+  async function loadLive() {
+    const resp = await fetch('/api/geo/live');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderLiveRows(data || []);
+    const count = Array.isArray(data) ? data.length : 0;
+    liveCount.textContent = count;
+    liveProgress.style.width = `${Math.min(count, 100)}%`;
+  }
+
+  async function loadOffline() {
+    const minutes = Number(staleInput.value) || 30;
+    staleBadge.textContent = `${minutes} min`;
+    const resp = await fetch(`/api/geo/offline?minutes=${minutes}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const rows = data.offline || [];
+    renderOfflineRows(rows);
+    offlineCount.textContent = data.count || rows.length;
+    offlineProgress.style.width = `${Math.min(rows.length, 100)}%`;
+  }
+
+  document.getElementById('refresh-live').addEventListener('click', loadLive);
+  document.getElementById('refresh-offline').addEventListener('click', loadOffline);
+  applyBtn.addEventListener('click', loadOffline);
+
+  loadLive();
+  loadOffline();
+})();
+</script>
+{% endblock %}

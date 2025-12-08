@@ -4,6 +4,31 @@ from __future__ import annotations
 from math import asin, cos, radians, sin, sqrt
 
 
+class InvalidCoordinate(ValueError):
+    """Raised when a latitude/longitude pair is invalid."""
+
+
+def validate_lat_lng(lat: float | int | str, lng: float | int | str) -> tuple[float, float]:
+    """Coerce and validate a latitude/longitude pair.
+
+    Returns a tuple of floats when valid or raises :class:`InvalidCoordinate` with a
+    human‑readable message when the input is out of range.
+    """
+
+    try:
+        lat_f = float(lat)
+        lng_f = float(lng)
+    except (TypeError, ValueError):
+        raise InvalidCoordinate("latitude and longitude must be numeric")
+
+    if not (-90.0 <= lat_f <= 90.0):
+        raise InvalidCoordinate("latitude must be between -90 and 90 degrees")
+    if not (-180.0 <= lng_f <= 180.0):
+        raise InvalidCoordinate("longitude must be between -180 and 180 degrees")
+
+    return lat_f, lng_f
+
+
 def haversine_m(lat1, lng1, lat2, lng2) -> float:
     """Return the great-circle distance between two coordinates in meters."""
 

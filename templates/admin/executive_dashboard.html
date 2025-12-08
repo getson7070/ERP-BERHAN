@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Executive Dashboard{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Executive Dashboard</h1>
+      <p class="text-muted mb-0">Cross-layer health for orders, procurement, maintenance, and bot automation.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('analytics_dashboard_api.executive_summary') }}">Download JSON</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <p class="text-muted text-uppercase fw-semibold small mb-1">Orders</p>
+              <h2 class="h4 mb-0" id="orders-total">--</h2>
+            </div>
+            <span class="badge bg-primary-subtle text-primary" id="orders-amount">--</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge bg-success-subtle text-success" id="orders-approved">Approved: --</span>
+            <span class="badge bg-warning-subtle text-warning" id="orders-pending">Pending: --</span>
+            <span class="badge bg-info-subtle text-info" id="orders-commission">Commission eligible: --</span>
+            <span class="badge bg-danger-subtle text-danger" id="orders-commission-blocked">Commission blocked: --</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Procurement</p>
+          <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+            <h2 class="h4 mb-0" id="procurement-total">--</h2>
+            <div class="d-flex gap-2 flex-wrap">
+              <span class="badge bg-warning-subtle text-warning" id="procurement-open">Open: --</span>
+              <span class="badge bg-danger-subtle text-danger" id="procurement-breach">SLA breached: --</span>
+            </div>
+          </div>
+          <p class="text-muted mb-0">Trade pipeline health including SLA breaches and open tickets.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Maintenance</p>
+          <div class="d-flex align-items-center justify-content-between">
+            <h2 class="h4 mb-0" id="maintenance-open">--</h2>
+            <span class="badge bg-danger-subtle text-danger" id="maintenance-sla">SLA at risk: --</span>
+          </div>
+          <p class="text-muted mb-0">Work orders in flight and SLA exceptions requiring supervisor action.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <p class="text-muted text-uppercase fw-semibold small mb-1">Bot throughput</p>
+            <button class="btn btn-outline-primary btn-sm" id="refresh-btn">
+              <span class="spinner-border spinner-border-sm me-1 d-none" id="refresh-spinner"></span>
+              Refresh
+            </button>
+          </div>
+          <div class="d-flex flex-wrap gap-2" id="bot-badges">
+            <span class="badge bg-secondary-subtle text-secondary">No bot activity yet</span>
+          </div>
+          <small class="text-muted" id="updated-at">Last updated —</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadExecutiveSummary() {
+    const spinner = document.getElementById('refresh-spinner');
+    spinner.classList.remove('d-none');
+    try {
+      const res = await fetch('{{ url_for("analytics_dashboard_api.executive_summary") }}');
+      if (!res.ok) throw new Error('Failed to load dashboard');
+      const data = await res.json();
+
+      document.getElementById('orders-total').innerText = data.orders.total;
+      document.getElementById('orders-approved').innerText = `Approved: ${data.orders.approved}`;
+      document.getElementById('orders-pending').innerText = `Pending: ${data.orders.pending}`;
+      document.getElementById('orders-commission').innerText = `Commission eligible: ${data.orders.commission.eligible}`;
+      document.getElementById('orders-commission-blocked').innerText = `Commission blocked: ${data.orders.commission.blocked}`;
+      document.getElementById('orders-amount').innerText = `Total value: ${data.orders.total_amount.toFixed(2)}`;
+
+      document.getElementById('procurement-total').innerText = data.procurement.total;
+      document.getElementById('procurement-open').innerText = `Open: ${data.procurement.open}`;
+      document.getElementById('procurement-breach').innerText = `SLA breached: ${data.procurement.sla_breached}`;
+
+      document.getElementById('maintenance-open').innerText = data.maintenance.open;
+      document.getElementById('maintenance-sla').innerText = `SLA at risk: ${data.maintenance.sla_at_risk}`;
+
+      const botBadges = document.getElementById('bot-badges');
+      botBadges.innerHTML = '';
+      const entries = Object.entries(data.bots || {});
+      if (entries.length === 0) {
+        botBadges.innerHTML = '<span class="badge bg-secondary-subtle text-secondary">No bot activity yet</span>';
+      } else {
+        entries.forEach(([status, count]) => {
+          const badge = document.createElement('span');
+          badge.className = 'badge bg-info-subtle text-info';
+          badge.innerText = `${status}: ${count}`;
+          botBadges.appendChild(badge);
+        });
+      }
+
+      const updated = new Date();
+      document.getElementById('updated-at').innerText = `Last updated ${updated.toLocaleString()}`;
+    } catch (err) {
+      console.error(err);
+      document.getElementById('updated-at').innerText = 'Unable to refresh data';
+    } finally {
+      spinner.classList.add('d-none');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadExecutiveSummary);
+  document.getElementById('refresh-btn').addEventListener('click', loadExecutiveSummary);
+</script>
+{% endblock %}

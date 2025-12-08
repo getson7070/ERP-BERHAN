@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="auth-shell" aria-labelledby="client-register-title">
+  <div class="content-wrapper">
+    <div class="row">
+      <div class="col">
+        <h1 id="client-register-title" class="display-5 mb-2">Client onboarding</h1>
+        <p class="lead text-muted mb-4">Provide your institution details for supervisor review. TIN (10 digits) is required for approval. Existing institutions may add multiple verified contacts with supervisor approval.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="stacked-alerts" role="status" aria-live="assertive">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'warning' if category == 'danger' else category }}" role="alert">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('auth.client_register') }}" class="card shadow-sm" novalidate>
+          <div class="card-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="tin">TIN</label>
+                {{ form.tin(class_='form-control', id='tin', placeholder='10 digit Tax ID', autocomplete='off', required=True) }}
+                <div class="form-text">The Tax Identification Number uniquely identifies your institution.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="institution_name">Institution name</label>
+                {{ form.institution_name(class_='form-control', id='institution_name', placeholder='Organization legal name', required=True) }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="contact_name">Primary contact</label>
+                {{ form.contact_name(class_='form-control', id='contact_name', placeholder='Full name', required=True) }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="contact_position">Position</label>
+                {{ form.contact_position(class_='form-control', id='contact_position', placeholder='Role/Title', required=True) }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="email">Work email</label>
+                {{ form.email(class_='form-control', id='email', placeholder='user@institution.com', autocomplete='email', required=True) }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="phone">Phone</label>
+                {{ form.phone(class_='form-control', id='phone', placeholder='+251...', autocomplete='tel', required=True) }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="region">Region</label>
+                {{ form.region(class_='form-control', id='region', required=True) }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="zone">Zone</label>
+                {{ form.zone(class_='form-control', id='zone') }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="city">City</label>
+                {{ form.city(class_='form-control', id='city', required=True) }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="subcity">Sub-city/Woreda</label>
+                {{ form.subcity(class_='form-control', id='subcity') }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="woreda">Woreda</label>
+                {{ form.woreda(class_='form-control', id='woreda') }}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="kebele">Kebele</label>
+                {{ form.kebele(class_='form-control', id='kebele') }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="street">Street</label>
+                {{ form.street(class_='form-control', id='street') }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="house_number">House number</label>
+                {{ form.house_number(class_='form-control', id='house_number') }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="gps_hint">GPS / landmark</label>
+                {{ form.gps_hint(class_='form-control', id='gps_hint', placeholder='Drop pin or nearby landmark') }}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="notes">Notes</label>
+                {{ form.notes(class_='form-control', id='notes', rows='3', placeholder='Add any operational or compliance details to help review') }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="password">Portal password</label>
+                {{ form.password(class_='form-control', id='password', placeholder='Minimum 8 characters', autocomplete='new-password', required=True) }}
+                <div class="form-text">A secure password is required even while awaiting approval.</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="text-muted small">Supervisors review submissions. Additional contacts for an existing TIN are welcome but must be explicitly approved and linked.</div>
+            <button type="submit" class="btn btn-primary">Submit for approval</button>
+          </div>
+        </form>
+      </div>
+      <div class="col">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5">What happens next?</h2>
+            <ul class="list-unstyled small text-muted mb-0">
+              <li class="mb-2">Supervisors validate your TIN and institution details.</li>
+              <li class="mb-2">Approved clients receive login access to orders and maintenance tracking.</li>
+              <li class="mb-2">If your institution is already registered, supervisors will link this request as an additional contact and maintain the shared TIN record.</li>
+              <li>MFA is required for management actions; we recommend enabling it once approved.</li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a class="link-primary" href="{{ url_for('auth.login') }}">Back to sign in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<style>
+  .auth-shell { padding: 2rem 1rem 3rem; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; }
+  .card { border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 1rem; }
+  .stacked-alerts { margin-bottom: 1rem; }
+  label { font-weight: 600; }
+  @media (prefers-color-scheme: dark) {
+    .card { background: rgba(28,35,42,0.9); border-color: rgba(255,255,255,0.08); }
+  }
+</style>
+{% endblock %}

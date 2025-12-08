@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Authentication required{% endblock %}
+{% block content %}
+<section class="card-soft p-4" aria-labelledby="error-401-title">
+  <p class="text-uppercase text-muted fw-semibold mb-1">Error 401</p>
+  <h1 id="error-401-title" class="display-6 mb-3">Authentication required</h1>
+  <p class="lead text-muted mb-4">Please sign in to continue. If you do not have access, request it from an administrator.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="/login">Sign in</a>
+    <a class="btn btn-outline-secondary" href="/help">Visit Help Center</a>
+  </div>
+</section>
+{% endblock %}
