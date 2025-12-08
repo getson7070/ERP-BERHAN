@@ -38,11 +38,12 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; Telegram webhooks now reject requests without the configured secret, bind to known chat IDs/allowlists, and optionally block chats lacking a recent authenticated session; migration drift is now surfaced via `/health`/`readyz`, failing fast when the DB is behind the Alembic head while skipping test/dev by default; configuration sanity is now enforced via a critical health check that fails readiness when SECRET_KEY/DATABASE_URL/JWT secrets are missing or weak (sqlite in prod/strict); an MFA-gated admin health dashboard with JSON export now surfaces readiness results for go-live/change windows; next step is bot/session token issuance UX.
 
 ## Important (start after critical underway)
-1) **Order/commission correctness and approvals**  
-   - Layers: 4.  
-   - Actions: differentiate client-initiated vs rep-initiated orders; block commission until payments clear for credit sales; allow management override to assign commission; tie approvals to supervisor roles.  
-   - UX: timeline view for approvals/payments; clear commission status badges.  
+1) **Order/commission correctness and approvals**
+   - Layers: 4.
+   - Actions: differentiate client-initiated vs rep-initiated orders; block commission until payments clear for credit sales; allow management override to assign commission; tie approvals to supervisor roles.
+   - UX: timeline view for approvals/payments; clear commission status badges.
    - Database: commission ledger with payment-status linkage and audit trail.
+   - Progress: client-initiated commissions are blocked unless `commission_approved_by_management` is true, block reasons are recorded, and commission stays pending until payment settlement with UI surfacing the block/approval state; ledger rollups and payout scheduling remain.
 
 2) **Maintenance workflow modernization**  
    - Layers: 5.  

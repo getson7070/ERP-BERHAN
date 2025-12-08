@@ -44,6 +44,10 @@ class Order(db.Model):
     commission_status = db.Column(
         db.String(20), nullable=False, default="none", server_default="none"
     )  # none|pending|eligible|paid|blocked
+    commission_approved_by_management = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.text("false")
+    )
+    commission_block_reason = db.Column(db.String(255), nullable=True)
 
     placed_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -101,21 +105,37 @@ class Order(db.Model):
             self.paid_at = datetime.now(UTC)
         self._sync_commission_status()
 
-    def set_commission_enabled(self, enabled: bool) -> None:
+    def set_commission_enabled(self, enabled: bool, *, approved_by_management: bool | None = None) -> None:
         self.commission_enabled = enabled
+        if approved_by_management is not None:
+            self.commission_approved_by_management = approved_by_management
+        self._sync_commission_status()
+
+    def set_commission_approved(self, approved: bool) -> None:
+        self.commission_approved_by_management = approved
         self._sync_commission_status()
 
     def _sync_commission_status(self) -> None:
-        """Update commission_status based on payment_status and enablement."""
+        """Update commission_status based on payment_status, enablement, and approval."""
+        self.commission_block_reason = None
+
         if not self.commission_enabled:
             self.commission_status = "none"
+            self.commission_block_reason = "commission disabled"
             return
-        if self.payment_status == "settled":
-            self.commission_status = "eligible"
-        elif self.payment_status in {"unpaid", "partial"}:
+
+        if (self.initiator_type or "").lower() == "client" and not self.commission_approved_by_management:
+            self.commission_status = "blocked"
+            self.commission_block_reason = "management approval required for client-initiated commission"
+            return
+
+        if self.payment_status != "settled":
             self.commission_status = "pending"
-        else:
-            self.commission_status = "pending"
+            self.commission_block_reason = "awaiting payment settlement"
+            return
+
+        self.commission_status = "eligible"
+        self.commission_block_reason = None
 
     @property
     def commission_amount(self) -> Decimal:
