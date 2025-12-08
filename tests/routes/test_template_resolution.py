@@ -37,6 +37,12 @@ def test_admin_executive_analytics_template(client):
     assert b"Executive Dashboard" in resp.data
 
 
+def test_admin_geo_tracking_template(client):
+    resp = client.get("/admin/analytics/geo")
+    assert resp.status_code == 200
+    assert b"Geo Tracking" in resp.data
+
+
 def test_admin_bot_dashboard_template(client):
     resp = client.get("/admin/bots")
     assert resp.status_code == 200

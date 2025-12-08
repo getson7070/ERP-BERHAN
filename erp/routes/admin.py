@@ -227,6 +227,16 @@ def executive_analytics():
     return render_template("admin/executive_dashboard.html")
 
 
+@bp.route("/analytics/geo")
+@login_required
+@require_roles("admin", "analytics", "maintenance", "dispatch", "management")
+@mfa_required
+def geo_tracking_dashboard():
+    """Interactive dashboard for live/ offline geo tracking."""
+
+    return render_template("admin/geo_tracking.html")
+
+
 @bp.route("/health", methods=["GET"])
 @login_required
 @require_roles("admin", "management", "supervisor", "compliance")
