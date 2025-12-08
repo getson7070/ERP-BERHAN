@@ -1,7 +1,9 @@
-"""Module: models/employee.py — audit-added docstring. Refine with precise purpose when convenient."""
-# erp/models/employee.py
+"""Employee directory model scoped to an organisation."""
+
 from datetime import UTC, datetime
+
 from erp.models import db  # re-exported from erp.models.__init__
+
 
 class Employee(db.Model):
     __tablename__ = "employees"
@@ -20,7 +22,9 @@ class Employee(db.Model):
     role = db.Column(db.String(120), default="staff")
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -30,19 +34,14 @@ class Employee(db.Model):
 
     @classmethod
     def tenant_query(cls, org_id: int | None = None):
+        """Convenience helper to scope queries by organisation."""
+
         query = cls.query
         if org_id is not None:
             query = query.filter_by(organization_id=org_id)
         return query
 
-    @classmethod
-    def tenant_query(cls, org_id: int | None = None):
-        query = cls.query
-        if org_id is not None:
-            query = query.filter_by(organization_id=org_id)
-        return query
-
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<Employee {self.id} {self.email}>"
 
 
