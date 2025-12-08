@@ -23,3 +23,5 @@ Assess deployment guides, hardening defaults, and operational controls versus re
 
 ## Recent progress
 - Deployment readiness now includes migration drift detection exposed via the shared health endpoints, enabling probes to fail fast when the database is behind the Alembic head while still allowing safe skips in test/dev by default.
+- Added configuration sanity checking to the shared health suite so deployments fail readiness when secrets are missing/weak or when a sqlite database is configured in production/strict runs; testing/dev can bypass via ALLOW_INSECURE_DEFAULTS.
+- Introduced an MFA-gated admin health dashboard with JSON export to surface readiness signals (config, migration drift, DB/Redis, bot config, banking) during go-live, change windows, and post-incident verification.

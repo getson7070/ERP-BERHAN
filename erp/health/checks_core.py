@@ -97,9 +97,67 @@ def db_migrations() -> dict[str, Any]:
     return {"ok": ok, "current": current_version, "heads": sorted(heads)}
 
 
+def config_sanity() -> dict[str, Any]:
+    """Validate core deployment secrets and database configuration.
+
+    The check defaults to a strict stance in production while allowing
+    local/test environments to opt out unless CONFIG_CHECK_STRICT=1 forces
+    validation. Weak defaults (e.g., "change-me" placeholders) or sqlite
+    database URLs in production are treated as failures to reduce the risk
+    of insecure rollouts.
+    """
+
+    allow_insecure = os.getenv("ALLOW_INSECURE_DEFAULTS") == "1"
+    strict = os.getenv("CONFIG_CHECK_STRICT", "0") == "1"
+    env_flag = (os.getenv("FLASK_ENV") or os.getenv("ENV") or "").lower()
+    production = env_flag == "production"
+
+    testing = False
+    try:
+        testing = bool(current_app.config.get("TESTING"))
+    except Exception:
+        testing = False
+
+    if (testing or allow_insecure) and not strict:
+        return {"ok": True, "skipped": True, "reason": "testing_or_insecure_mode"}
+
+    secret_key = os.getenv("SECRET_KEY")
+    db_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI")
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+
+    missing = [
+        key
+        for key, value in (
+            ("SECRET_KEY", secret_key),
+            ("DATABASE_URL", db_url),
+            ("JWT_SECRET_KEY", jwt_secret),
+        )
+        if not value
+    ]
+
+    weak_markers = {"change-me", "change-me-in-prod"}
+    weak_defaults = []
+    if secret_key in weak_markers:
+        weak_defaults.append("SECRET_KEY")
+    if jwt_secret in weak_markers:
+        weak_defaults.append("JWT_SECRET_KEY")
+
+    insecure_sqlite = bool(db_url and db_url.startswith("sqlite://") and (production or strict))
+
+    ok = not missing and not weak_defaults and not insecure_sqlite
+    return {
+        "ok": ok,
+        "missing": missing,
+        "weak_defaults": weak_defaults,
+        "insecure_sqlite": insecure_sqlite,
+        "production": production or strict,
+    }
+
+
 def _register_checks() -> None:
     try:
         health_registry.register(HealthCheck("db", db_check, critical=True))
+        health_registry.register(HealthCheck("config", config_sanity, critical=True))
         health_registry.register(HealthCheck("db_migrations", db_migrations, critical=True))
         health_registry.register(HealthCheck("redis", redis_check, critical=False))
         health_registry.register(HealthCheck("telegram_cfg", telegram_configured, critical=False))
