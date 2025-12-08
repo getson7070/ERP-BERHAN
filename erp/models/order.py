@@ -49,6 +49,14 @@ class Order(db.Model):
     )
     commission_block_reason = db.Column(db.String(255), nullable=True)
 
+    geo_lat = db.Column(db.Float, nullable=True)
+    geo_lng = db.Column(db.Float, nullable=True)
+    geo_accuracy_m = db.Column(db.Float, nullable=True)
+    geo_recorded_by_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    geo_recorded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     placed_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
     shipped_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -75,6 +83,11 @@ class Order(db.Model):
         "User",
         backref=db.backref("assigned_orders", lazy=True),
         foreign_keys=[assigned_sales_rep_id],
+    )
+    geo_recorded_by = db.relationship(
+        "User",
+        foreign_keys=[geo_recorded_by_id],
+        backref=db.backref("orders_geo_recorded", lazy=True),
     )
 
     # handy helpers

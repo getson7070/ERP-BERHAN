@@ -1,6 +1,7 @@
-"""Order management endpoints with inventory integration."""
+"""Order management endpoints with inventory integration and geo audit."""
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from http import HTTPStatus
 
@@ -36,6 +37,11 @@ def _serialize(order: Order) -> dict[str, object]:
         "commission_approved_by_management": order.commission_approved_by_management,
         "commission_amount": float(order.commission_amount),
         "placed_at": order.placed_at.isoformat() if order.placed_at else None,
+        "geo_lat": order.geo_lat,
+        "geo_lng": order.geo_lng,
+        "geo_accuracy_m": order.geo_accuracy_m,
+        "geo_recorded_at": order.geo_recorded_at.isoformat() if order.geo_recorded_at else None,
+        "geo_recorded_by_id": order.geo_recorded_by_id,
     }
 
 
@@ -51,6 +57,43 @@ def _as_bool(value: object, *, default: bool = False) -> bool:
     return default
 
 
+def _extract_geo(payload: dict[str, object]) -> tuple[float, float, float | None, str | None]:
+    """Validate and coerce geo metadata, returning (lat, lng, accuracy, error)."""
+
+    lat_raw = payload.get("geo_lat") or payload.get("lat")
+    lng_raw = payload.get("geo_lng") or payload.get("lng")
+    acc_raw = payload.get("geo_accuracy_m") or payload.get("accuracy")
+
+    if lat_raw is None or lng_raw is None:
+        return 0.0, 0.0, None, "geo_lat and geo_lng are required to record order location"
+
+    try:
+        lat = float(lat_raw)
+    except (TypeError, ValueError):
+        return 0.0, 0.0, None, "geo_lat must be numeric"
+
+    try:
+        lng = float(lng_raw)
+    except (TypeError, ValueError):
+        return 0.0, 0.0, None, "geo_lng must be numeric"
+
+    if lat < -90 or lat > 90:
+        return lat, lng, None, "geo_lat must be between -90 and 90"
+    if lng < -180 or lng > 180:
+        return lat, lng, None, "geo_lng must be between -180 and 180"
+
+    accuracy = None
+    if acc_raw is not None:
+        try:
+            accuracy = float(acc_raw)
+        except (TypeError, ValueError):
+            return lat, lng, None, "geo_accuracy_m must be numeric when provided"
+        if accuracy < 0:
+            return lat, lng, None, "geo_accuracy_m cannot be negative"
+
+    return lat, lng, accuracy, None
+
+
 @bp.route("/", methods=["GET", "POST"])
 @require_roles("sales", "admin")
 def index():
@@ -60,6 +103,10 @@ def index():
         items = payload.get("items", [])
         if not items:
             return jsonify({"error": "items are required"}), HTTPStatus.BAD_REQUEST
+
+        lat, lng, accuracy, geo_error = _extract_geo(payload)
+        if geo_error:
+            return jsonify({"error": geo_error}), HTTPStatus.BAD_REQUEST
 
         total = Decimal("0")
         reservations: list[InventoryReservation] = []
@@ -160,6 +207,11 @@ def index():
             status="submitted",
             payment_status="unpaid",
             commission_status="pending" if commission_enabled else "none",
+            geo_lat=lat,
+            geo_lng=lng,
+            geo_accuracy_m=accuracy,
+            geo_recorded_at=datetime.now(UTC),
+            geo_recorded_by_id=getattr(current_user, "id", None),
         )
         order._sync_commission_status()
         db.session.add(order)
@@ -179,6 +231,9 @@ def index():
                 "initiator_type": initiator_type,
                 "assigned_sales_rep_id": assigned_sales_rep_id,
                 "commission_enabled": commission_enabled,
+                "geo_lat": lat,
+                "geo_lng": lng,
+                "geo_accuracy_m": accuracy,
             },
         )
         db.session.commit()

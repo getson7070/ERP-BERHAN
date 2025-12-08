@@ -45,6 +45,7 @@
               <th scope="col">Payment</th>
               <th scope="col">Commission</th>
               <th scope="col">Rep</th>
+              <th scope="col">Location</th>
               <th scope="col">Currency</th>
               <th scope="col">Placed at</th>
               <th scope="col" class="text-end">Actions</th>
@@ -81,6 +82,23 @@
                   </div>
                 </td>
                 <td>{{ o.assigned_sales_rep.username if o.assigned_sales_rep else 'Unassigned' }}</td>
+                <td>
+                  {% set has_geo = o.geo_lat is not none and o.geo_lng is not none %}
+                  {% if has_geo %}
+                    <div class="d-flex flex-column">
+                      <span class="fw-semibold small">{{ "%.5f"|format(o.geo_lat) }}, {{ "%.5f"|format(o.geo_lng) }}</span>
+                      {% if o.geo_accuracy_m %}
+                        <small class="text-muted">Accuracy ±{{ "%.1f"|format(o.geo_accuracy_m) }} m</small>
+                      {% endif %}
+                      {% if o.geo_recorded_at %}
+                        <small class="text-muted">Captured {{ o.geo_recorded_at }}</small>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Geo required</span>
+                    <small class="d-block text-muted">Capture location at creation/approval.</small>
+                  {% endif %}
+                </td>
                 <td>{{ o.currency or 'ETB' }}</td>
                 <td><small class="text-muted">{{ o.placed_at }}</small></td>
                 <td class="text-end">

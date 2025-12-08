@@ -51,6 +51,40 @@ def test_employee_initiated_defaults_commission_enabled(app, sales_rep_id):
         assert order.commission_block_reason is None
 
 
+def test_order_creation_requires_geo(app, inventory_item, client):
+    resp = client.post(
+        "/orders/",
+        json={
+            "items": [
+                {"inventory_item_id": inventory_item, "quantity": 1, "unit_price": "10"},
+            ],
+            "initiator_type": "employee",
+            "assigned_sales_rep_id": None,
+            "commission_enabled": False,
+        },
+    )
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    assert "geo_lat" in resp.get_json()["error"]
+
+
+def test_order_creation_validates_geo_ranges(app, inventory_item, client):
+    resp = client.post(
+        "/orders/",
+        json={
+            "items": [
+                {"inventory_item_id": inventory_item, "quantity": 1, "unit_price": "10"},
+            ],
+            "initiator_type": "employee",
+            "assigned_sales_rep_id": None,
+            "commission_enabled": False,
+            "geo_lat": 120,
+            "geo_lng": 10,
+        },
+    )
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    assert "between -90 and 90" in resp.get_json()["error"]
+
+
 def test_client_initiated_requires_management_approval(app, sales_rep_id, inventory_item, client):
     resp = client.post(
         "/orders/",
@@ -61,6 +95,8 @@ def test_client_initiated_requires_management_approval(app, sales_rep_id, invent
             "initiator_type": "client",
             "assigned_sales_rep_id": sales_rep_id,
             "commission_enabled": True,
+            "geo_lat": 9.015,
+            "geo_lng": 38.746,
         },
     )
     assert resp.status_code == HTTPStatus.FORBIDDEN
@@ -79,6 +115,8 @@ def test_management_override_allows_client_commission(app, sales_rep_id, invento
             "assigned_sales_rep_id": sales_rep_id,
             "commission_enabled": True,
             "commission_approved_by_management": True,
+            "geo_lat": 9.015,
+            "geo_lng": 38.746,
         },
     )
     assert resp.status_code == HTTPStatus.CREATED

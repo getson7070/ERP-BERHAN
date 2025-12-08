@@ -7,6 +7,7 @@ Assess live geolocation ingestion, route optimization, consent, and assignment c
 - **Geo ping ingestion with consent checks**: `/api/geo/ping` stores immutable pings, updates last-known locations, and enforces consent for non-field users while allowing privileged roles to submit on behalf of others.【F:erp/routes/geo_api.py†L1-L123】
 - **Last-location and assignment serializers**: Geo API provides structured responses for last-known locations and assignments with ETA utilities, enabling downstream routing/dispatch features.【F:erp/routes/geo_api.py†L1-L74】
 - **Marketing consent integration**: Geo consent is verified via `MarketingConsent.location_opt_in`, distinguishing operational tracking for sales/marketing staff from marketing opt-in requirements.【F:erp/routes/geo_api.py†L34-L123】
+- **Order flow geo stamping**: Order creation now enforces latitude/longitude (with optional accuracy) and records the actor/timestamp, enabling geo-audited order dashboards and alignment with sales visit tracking.【F:erp/routes/orders.py†L15-L118】【F:erp/models/order.py†L32-L70】
 
 ## Gaps & Risks vs. Requirements
 - **Sales/maintenance visit capture**: No explicit endpoints for logging institutional visits with geo stamps tied to orders or maintenance tickets; requirement expects visit capture with location.
