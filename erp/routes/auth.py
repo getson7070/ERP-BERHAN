@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+import re
 from secrets import token_urlsafe
 from http import HTTPStatus
 from typing import Any
@@ -83,6 +84,30 @@ def _record_failure(email: str) -> None:
     #  1st failure ~5s, 2nd ~10s, up to a max of 300s
     cooldown = min(300, max(5, attempts * 5))
     _FAILED_LOGINS[email] = (attempts, datetime.now(UTC) + timedelta(seconds=cooldown))
+
+
+def _get_role_names(user: Any) -> set[str]:
+    """Extract normalized role names from the user model for MFA decisions."""
+
+    roles: set[str] = set()
+    if not user:
+        return roles
+
+    # Relationship collection
+    rel = getattr(user, "roles", None)
+    if rel:
+        for r in rel:
+            name = getattr(r, "name", None)
+            if name:
+                roles.add(str(name).lower())
+
+    # Fallback single-value attributes
+    for attr in ("role", "role_name"):
+        val = getattr(user, attr, None)
+        if isinstance(val, str):
+            roles.add(val.lower())
+
+    return roles
 
 
 class ClientRegistrationForm(FlaskForm):
@@ -192,16 +217,38 @@ def client_register():
     if form.validate_on_submit():
         org_id = resolve_org_id()
         email = (form.email.data or "").lower()
+        tin = (form.tin.data or "").strip()
+
+        # Server-side enforcement beyond WTForms to guarantee 10-digit TINs and
+        # avoid relying solely on client validation.
+        if not re.fullmatch(r"\d{10}", tin):
+            flash("TIN must be a 10 digit number.", "danger")
+            return render_template("client_registration.html", form=form), HTTPStatus.BAD_REQUEST
 
         existing_account = ClientAccount.query.filter_by(org_id=org_id, email=email).first()
         if existing_account:
             flash("An account with that email already exists.", "warning")
             return redirect(url_for("auth.login"))
 
-        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=form.tin.data).first()
+        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=tin).first()
         if pending and pending.status == "pending":
             flash("A registration for this TIN is already awaiting review.", "info")
             return redirect(url_for("auth.login"))
+
+        existing_institution = (
+            db.session.execute(
+                text(
+                    "SELECT id FROM institutions WHERE org_id = :org_id AND tin = :tin LIMIT 1"
+                ),
+                {"org_id": org_id, "tin": tin},
+            ).scalar()
+            is not None
+        )
+        if existing_institution:
+            flash(
+                "This TIN is already registered. Submit again only if requesting an additional contact for the same institution.",
+                "warning",
+            )
 
         registration = ClientRegistration(
             org_id=org_id,
@@ -210,7 +257,7 @@ def client_register():
             contact_position=form.contact_position.data.strip(),
             email=email,
             phone=form.phone.data.strip(),
-            tin=form.tin.data.strip(),
+            tin=tin,
             region=form.region.data.strip() if form.region.data else None,
             zone=form.zone.data.strip() if form.zone.data else None,
             city=form.city.data.strip() if form.city.data else None,
@@ -271,6 +318,16 @@ def login():
     org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
 
+    # Reset MFA session markers on every login attempt
+    session.pop("mfa_verified", None)
+
+    privileged_roles = {
+        r.lower() for r in current_app.config.get("MFA_REQUIRED_ROLES", ())
+    }
+
+    user_roles = _get_role_names(user)
+    mfa_required_for_role = bool(user_roles & privileged_roles)
+
     # Invalid credentials → record failure + generic error
     if user is None or not user.check_password(password):
         _record_failure(email)
@@ -288,6 +345,14 @@ def login():
 
     # ---- MFA handling (TOTP / backup codes) ----
     mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
+
+    if mfa_required_for_role and not (mfa_row and mfa_row.is_enabled):
+        message = "Admins and supervisors must enroll MFA before signing in."
+        if request.is_json:
+            return jsonify({"error": "mfa_enrollment_required"}), HTTPStatus.FORBIDDEN
+        flash(message, "danger")
+        return render_template("login.html"), HTTPStatus.FORBIDDEN
+
     if mfa_row and mfa_row.is_enabled:
         totp_code = _json_or_form("totp")
         backup_code = _json_or_form("backup_code")
@@ -322,6 +387,12 @@ def login():
                 return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
             flash("Multi-factor authentication required. Enter your code.", "warning")
             return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+
+        session["mfa_verified"] = True
+    else:
+        # No MFA configured; mark session verified only when role does not
+        # mandate MFA.
+        session["mfa_verified"] = not mfa_required_for_role
 
     # All checks passed – clear failure state
     _clear_failures(email)

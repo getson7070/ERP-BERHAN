@@ -76,5 +76,15 @@ class Config:
         else {}
     )
 
+    # Authentication / MFA
+    # Roles listed here must complete MFA before login and while performing
+    # privileged actions such as approvals, role changes, or financial posting.
+    # Values are normalized to lowercase during enforcement.
+    MFA_REQUIRED_ROLES = (
+        "admin",
+        "management",
+        "supervisor",
+    )
+
 
 
