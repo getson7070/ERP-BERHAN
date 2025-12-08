@@ -13,7 +13,8 @@ from flask import (
 )
 from http import HTTPStatus
 from flask_login import login_required
-from sqlalchemy import text
+from sqlalchemy import Boolean, Column, Integer, MetaData, Table, Text as SAText, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from db import get_db
 from erp.health import health_registry
@@ -40,7 +41,9 @@ def workflows():
     """
 
     conn = get_db()
-    org_id = session.get("org_id") or 1  # adjust if you centralise org resolution
+    org_id = resolve_org_id()
+
+    _ensure_workflows_table(conn)
 
     if request.method == "POST":
         form = request.form
@@ -76,20 +79,42 @@ def workflows():
     direction = sanitize_direction(request.args.get("direction"), default="asc")
     order_clause = f"{sort} {direction}"
 
-    rows = conn.execute(
-        text(
-            f"""
-            SELECT id, module, steps, enabled, org_id
-            FROM workflows
-            WHERE org_id = :org_id
-            ORDER BY {order_clause}
-            """
-        ),
-        {"org_id": org_id},
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            text(
+                f"""
+                SELECT id, module, steps, enabled, org_id
+                FROM workflows
+                WHERE org_id = :org_id
+                ORDER BY {order_clause}
+                """
+            ),
+            {"org_id": org_id},
+        ).fetchall()
+    finally:
+        conn.close()
 
     return render_template("admin/workflows.html", workflows=rows)
+
+
+def _ensure_workflows_table(conn) -> None:
+    """Create the workflows table when missing to avoid 500s on fresh tenants."""
+
+    metadata = MetaData()
+    workflows = Table(
+        "workflows",
+        metadata,
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("org_id", Integer, nullable=False, index=True),
+        Column("module", SAText, nullable=False),
+        Column("steps", SAText, nullable=False),
+        Column("enabled", Boolean, nullable=False, default=True),
+    )
+    try:
+        metadata.create_all(bind=conn, tables=[workflows])
+    except SQLAlchemyError:
+        conn.rollback()
+        raise
 
 
 @bp.route("/panel")

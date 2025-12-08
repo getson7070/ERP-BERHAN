@@ -340,6 +340,16 @@ def create_app(config_object: str | None = None) -> Flask:
     """Application factory used by Flask, Celery, and CLI tooling."""
 
     app = Flask(__name__, instance_relative_config=False)
+
+    # Allow both package-scoped templates (erp/templates) and repository-level
+    # templates/ so modernized UI assets remain available after refactors.
+    repo_templates = Path(__file__).resolve().parent.parent / "templates"
+    if repo_templates.exists():
+        loader = getattr(app, "jinja_loader", None)
+        searchpath = getattr(loader, "searchpath", None)
+        repo_path = str(repo_templates)
+        if isinstance(searchpath, list) and repo_path not in searchpath:
+            searchpath.insert(0, repo_path)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     if config_object:
