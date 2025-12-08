@@ -99,6 +99,7 @@ def db_migrations() -> dict[str, Any]:
             "current": current_version,
             "heads": sorted(heads),
             "error": "multiple_heads_detected",
+            "resolution": "Apply merge revision 20251212100000 or manually merge the heads",
         }
 
     ok = bool(current_version and current_version in heads)

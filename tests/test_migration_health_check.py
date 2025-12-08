@@ -91,3 +91,4 @@ def test_migration_check_flags_multiple_heads(app, monkeypatch):
         assert result["ok"] is False
         assert result["error"] == "multiple_heads_detected"
         assert result["heads"] == ["h1", "h2"]
+        assert "20251212100000" in result.get("resolution", "")
