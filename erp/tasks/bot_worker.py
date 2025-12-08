@@ -68,10 +68,17 @@ def process_bot_job(self, job_id: int):
     try:
         intent = job.parsed_intent or parse_intent(job.raw_text or "")
         state = _load_state(job)
+
+        # Merge the structured context captured at ingestion (e.g., entity_type,
+        # entity_id) directly into the handler context so downstream commands see
+        # the expected keys instead of a nested payload. This keeps approve/
+        # reject and inventory/analytics queries functional when dispatched via
+        # the outbox worker.
+        base_ctx = job.context_json if isinstance(job.context_json, dict) else {}
         ctx = {
+            **base_ctx,
             "user": _resolve_user(job),
             "raw_text": job.raw_text,
-            "context": job.context_json or {},
             "state": getattr(state, "state_key", None),
             "state_data": getattr(state, "data_json", {}) if state else {},
         }

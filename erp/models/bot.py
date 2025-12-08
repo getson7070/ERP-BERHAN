@@ -103,7 +103,11 @@ class TelegramConversationState(db.Model):
 
     __tablename__ = "telegram_conversation_state"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(
+        db.BigInteger().with_variant(db.Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     bot_name = db.Column(db.String(64), nullable=False, index=True)
@@ -132,7 +136,11 @@ class TelegramConversationState(db.Model):
 class BotIdempotencyKey(db.Model):
     __tablename__ = "bot_idempotency_keys"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(
+        db.BigInteger().with_variant(db.Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     bot_name = db.Column(db.String(64), nullable=False, index=True)
