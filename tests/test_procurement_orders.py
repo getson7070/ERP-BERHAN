@@ -94,8 +94,11 @@ def test_ticket_serialization_includes_trade_fields(client, db_session, procurem
         json={
             "supplier_id": 5,
             "pi_number": "PI-555",
+            "awb_number": "AWB-123",
             "hs_code": "0101.10",
             "efda_reference": "EFDA-10",
+            "bank_name": "Commercial Bank",
+            "customs_valuation": "12000.55",
             "lines": [{"item_code": "ITEM-TR", "ordered_quantity": 1, "unit_price": 50}],
         },
         headers=headers,
@@ -111,8 +114,12 @@ def test_ticket_serialization_includes_trade_fields(client, db_session, procurem
     assert ticket_resp.status_code == 201
     payload = ticket_resp.get_json()
     assert payload["purchase_order"]["pi_number"] == "PI-555"
+    assert payload["purchase_order"]["awb_number"] == "AWB-123"
     assert payload["purchase_order"]["hs_code"] == "0101.10"
     assert payload["purchase_order"]["efda_reference"] == "EFDA-10"
+    assert payload["purchase_order"]["bank_name"] == "Commercial Bank"
+    assert payload["purchase_order"]["customs_valuation"] == 12000.55
+    assert payload["purchase_order"]["currency"] == "ETB"
 
 
 def test_cannot_receive_more_than_ordered(client, db_session, procurement_user):

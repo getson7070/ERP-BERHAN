@@ -137,6 +137,8 @@ def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
             "pi_number": ticket.purchase_order.pi_number,
             "awb_number": ticket.purchase_order.awb_number,
             "hs_code": ticket.purchase_order.hs_code,
+            "bank_name": ticket.purchase_order.bank_name,
+            "currency": ticket.purchase_order.currency,
             "efda_reference": ticket.purchase_order.efda_reference,
             "customs_valuation": float(ticket.purchase_order.customs_valuation)
             if ticket.purchase_order.customs_valuation
