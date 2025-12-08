@@ -90,6 +90,37 @@ if not LIGHTWEIGHT_TEST_MODE:
         """Return a resolver callable matching app code expectations."""
 
         return lambda: org_id
+
+
+    @pytest.fixture()
+    def make_user_with_role(app):
+        """Create a user with the provided role attached for API auth paths."""
+
+        from uuid import uuid4
+
+        from erp import db
+        from erp.models import Role, User
+
+        def _make(role_name: str) -> User:
+            with app.app_context():
+                role = Role.query.filter_by(name=role_name).first()
+                if not role:
+                    role = Role(name=role_name)
+                    db.session.add(role)
+                    db.session.commit()
+
+                user = User(
+                    org_id=1,
+                    username=f"{role_name}_tester_{uuid4().hex[:6]}",
+                    email=f"{role_name}_{uuid4().hex[:6]}@example.test",
+                )
+                user.password = "testpass123"
+                user.roles.append(role)
+                db.session.add(user)
+                db.session.commit()
+                return user
+
+        return _make
 else:
 
     @pytest.fixture(scope="session")

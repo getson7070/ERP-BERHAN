@@ -14,7 +14,7 @@ class GeoPing(db.Model):
         Index("ix_geo_pings_subject_time", "org_id", "subject_type", "subject_id", "recorded_at"),
     )
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     subject_type = db.Column(db.String(32), nullable=False, index=True)
@@ -40,7 +40,7 @@ class GeoLastLocation(db.Model):
         UniqueConstraint("org_id", "subject_type", "subject_id", name="uq_geo_last"),
     )
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     subject_type = db.Column(db.String(32), nullable=False, index=True)
@@ -64,7 +64,7 @@ class GeoAssignment(db.Model):
         Index("ix_geo_assign_task", "org_id", "task_type", "task_id"),
     )
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     subject_type = db.Column(db.String(32), nullable=False)
@@ -90,7 +90,7 @@ class GeoRouteCache(db.Model):
     __tablename__ = "geo_route_cache"
     __table_args__ = (UniqueConstraint("org_id", "cache_key", name="uq_route_cache"),)
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     cache_key = db.Column(db.String(128), nullable=False, index=True)

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maintenance Work Orders</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0b1021;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --primary: #2563eb;
+        --primary-soft: rgba(37, 99, 235, 0.1);
+        --success: #16a34a;
+        --warning: #f59e0b;
+        --danger: #dc2626;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1021;
+          --panel: #111827;
+          --text: #e5e7eb;
+          --muted: #9ca3af;
+          --border: #1f2937;
+          --primary-soft: rgba(59, 130, 246, 0.14);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin: 0;
+        font-size: 15px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px 18px 8px;
+        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+      thead {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      tbody tr:hover {
+        background: var(--primary-soft);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: capitalize;
+      }
+      .badge.sla-ok {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--success);
+      }
+      .badge.sla-breached {
+        background: rgba(220, 38, 38, 0.12);
+        color: var(--danger);
+      }
+      .badge.priority-high,
+      .badge.priority-critical {
+        background: rgba(220, 38, 38, 0.12);
+        color: var(--danger);
+      }
+      .badge.priority-normal {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--primary);
+      }
+      .badge.priority-low {
+        background: rgba(16, 185, 129, 0.12);
+        color: #0f766e;
+      }
+      .pill {
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--primary);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .table-empty {
+        text-align: center;
+        padding: 28px 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .ghost-btn {
+        background: var(--primary-soft);
+        color: var(--primary);
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .ghost-btn:hover {
+        filter: brightness(0.96);
+      }
+      @media (max-width: 768px) {
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+        thead tr {
+          position: absolute;
+          top: -9999px;
+          left: -9999px;
+        }
+        td {
+          border: none;
+          position: relative;
+          padding-left: 55%;
+          min-height: 44px;
+        }
+        td::before {
+          position: absolute;
+          top: 12px;
+          left: 10px;
+          width: 45%;
+          white-space: nowrap;
+          color: var(--muted);
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        td[data-label]::before {
+          content: attr(data-label);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div>
+          <h1>Maintenance Work Orders</h1>
+          <p class="subtitle">
+            Geo-verified work orders with live SLA and priority signals.
+          </p>
+        </div>
+        <div class="row-actions">
+          <span class="pill"><span class="status-dot"></span> Live SLA</span>
+          <a class="ghost-btn" href="/maintenance/geo">Geo map</a>
+        </div>
+      </header>
+      <section class="card" aria-live="polite">
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>SLA</th>
+              <th>Due</th>
+              <th>Geo</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr class="table-empty"><td colspan="6">Loading work orders…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+    <script>
+      const tableBody = document.getElementById("orders-body");
+
+      const statusBadge = (status) => {
+        const colors = {
+          open: { text: "#2563eb", bg: "rgba(37,99,235,0.12)" },
+          in_progress: { text: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
+          completed: { text: "#16a34a", bg: "rgba(22,163,74,0.12)" },
+        };
+        const palette = colors[status] || colors.open;
+        return `<span class="badge" style="color:${palette.text};background:${palette.bg}"><span class="status-dot" style="background:${palette.text}"></span>${status.replace("_", " ")}</span>`;
+      };
+
+      const priorityBadge = (priority) => {
+        const normalized = priority || "normal";
+        return `<span class="badge priority-${normalized}">${normalized}</span>`;
+      };
+
+      const slaBadge = (slaStatus, dueMinutes) => {
+        const isBreached = slaStatus === "breached" || (typeof dueMinutes === "number" && dueMinutes < 0);
+        const minutes = typeof dueMinutes === "number" ? dueMinutes : null;
+        const label = isBreached ? "Breached" : "On track";
+        const eta = minutes !== null ? `${minutes} min` : "—";
+        const css = isBreached ? "sla-breached" : "sla-ok";
+        return `<span class="badge ${css}">${label} • ${eta}</span>`;
+      };
+
+      const geoSummary = (row) => {
+        if (row.start_lat && row.start_lng) {
+          return `${row.start_lat.toFixed(5)}, ${row.start_lng.toFixed(5)}`;
+        }
+        if (row.request_lat && row.request_lng) {
+          return `${row.request_lat.toFixed(5)}, ${row.request_lng.toFixed(5)}`;
+        }
+        return "Missing";
+      };
+
+      const formatDate = (iso) => {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        return d.toLocaleString();
+      };
+
+      async function loadWorkOrders() {
+        tableBody.innerHTML = `<tr class="table-empty"><td colspan="6">Loading work orders…</td></tr>`;
+        try {
+          const res = await fetch("/api/maintenance/work-orders?limit=100", {
+            headers: { Accept: "application/json" },
+          });
+          if (!res.ok) {
+            throw new Error("Failed to load work orders");
+          }
+          const rows = await res.json();
+          if (!rows.length) {
+            tableBody.innerHTML = `<tr class="table-empty"><td colspan="6">No work orders yet.</td></tr>`;
+            return;
+          }
+          tableBody.innerHTML = rows
+            .map((row) => {
+              return `
+                <tr>
+                  <td data-label="Title">
+                    <div style="font-weight:600">${row.title}</div>
+                    <div style="color:var(--muted);font-size:13px;">${row.description || "No description"}</div>
+                  </td>
+                  <td data-label="Status">${statusBadge(row.status)}</td>
+                  <td data-label="Priority">${priorityBadge(row.priority)}</td>
+                  <td data-label="SLA">${slaBadge(row.sla_status, row.sla_due_minutes)}</td>
+                  <td data-label="Due">${row.due_date ? row.due_date : "—"}</td>
+                  <td data-label="Geo">${geoSummary(row)}</td>
+                </tr>`;
+            })
+            .join("");
+        } catch (err) {
+          console.error(err);
+          tableBody.innerHTML = `<tr class="table-empty"><td colspan="6">Unable to load work orders. Check your connection or permissions.</td></tr>`;
+        }
+      }
+
+      loadWorkOrders();
+    </script>
+  </body>
+</html>
