@@ -44,12 +44,12 @@ def verify_slack_request(request: Request, tolerance_seconds: int = 300) -> bool
     return _constant_time_equals(expected, signed)
 
 
-def verify_telegram_secret(request: Request) -> bool:
-    """Validate Telegram webhook secret token (if configured)."""
+def verify_telegram_secret(request: Request, require_config: bool = True) -> bool:
+    """Validate Telegram webhook secret token when configured or required."""
 
     secret = current_app.config.get("TELEGRAM_WEBHOOK_SECRET")
     if not secret:
-        return False
+        return not require_config
     provided = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
     return _constant_time_equals(secret, provided)
 

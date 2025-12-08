@@ -1,7 +1,7 @@
 """Maintenance API covering assets, schedules, work orders, and KPIs."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from http import HTTPStatus
 from typing import Any
@@ -153,6 +153,14 @@ def create_schedule(asset_id: int):
 # ---------------------------------------------------------------------------
 
 def _serialize_work_order(work_order: MaintenanceWorkOrder) -> dict[str, Any]:
+    now = datetime.now(UTC)
+    sla_due_at: datetime | None = None
+    sla_due_minutes: int | None = None
+    if work_order.due_date:
+        sla_due_at = datetime.combine(work_order.due_date, time(23, 59, tzinfo=UTC))
+        delta = sla_due_at - now
+        sla_due_minutes = int(delta.total_seconds() // 60)
+
     return {
         "id": work_order.id,
         "asset_id": work_order.asset_id,
@@ -177,6 +185,8 @@ def _serialize_work_order(work_order: MaintenanceWorkOrder) -> dict[str, Any]:
         if work_order.last_check_in_at
         else None,
         "sla_status": work_order.sla_status,
+        "sla_due_at": sla_due_at.isoformat() if sla_due_at else None,
+        "sla_due_minutes": sla_due_minutes,
         "downtime_start": work_order.downtime_start.isoformat() if work_order.downtime_start else None,
         "downtime_end": work_order.downtime_end.isoformat() if work_order.downtime_end else None,
         "downtime_minutes": work_order.downtime_minutes,
@@ -227,6 +237,28 @@ def _should_escalate_for_rule(
         if rule.asset_category != work_order.asset.category:
             return False
     return _priority_rank(work_order.priority) >= _priority_rank(rule.min_priority)
+
+
+def _extract_geo_coordinates(payload: dict[str, Any], *, required: bool = False) -> tuple[float | None, float | None, str | None]:
+    """Parse latitude/longitude with validation and optional requirement."""
+
+    lat_raw = payload.get("lat") or payload.get("geo_lat") or payload.get("start_lat")
+    lng_raw = payload.get("lng") or payload.get("geo_lng") or payload.get("start_lng")
+
+    try:
+        lat = float(lat_raw) if lat_raw is not None else None
+    except (TypeError, ValueError):
+        return None, None, "lat must be numeric"
+
+    try:
+        lng = float(lng_raw) if lng_raw is not None else None
+    except (TypeError, ValueError):
+        return None, None, "lng must be numeric"
+
+    if required and (lat is None or lng is None):
+        return None, None, "lat and lng are required for geo check-ins"
+
+    return lat, lng, None
 
 
 def _run_sla_evaluations(work_order: MaintenanceWorkOrder) -> None:
@@ -398,9 +430,12 @@ def start_work_order(work_order_id: int):
     work_order.status = "in_progress"
     work_order.started_at = now
     payload = request.get_json(silent=True) or {}
-    if "start_lat" in payload or "start_lng" in payload:
-        work_order.start_lat = payload.get("start_lat") or payload.get("lat")
-        work_order.start_lng = payload.get("start_lng") or payload.get("lng")
+    start_lat, start_lng, geo_error = _extract_geo_coordinates(payload, required=True)
+    if geo_error:
+        return jsonify({"error": geo_error}), HTTPStatus.BAD_REQUEST
+
+    work_order.start_lat = start_lat
+    work_order.start_lng = start_lng
     work_order.last_check_in_at = now
     if not work_order.downtime_start:
         work_order.downtime_start = now
@@ -440,13 +475,12 @@ def check_in(work_order_id: int):
         )
 
     payload = request.get_json(silent=True) or {}
-    lat = payload.get("lat") or payload.get("geo_lat") or payload.get("start_lat")
-    lng = payload.get("lng") or payload.get("geo_lng") or payload.get("start_lng")
+    lat, lng, geo_error = _extract_geo_coordinates(payload, required=True)
+    if geo_error:
+        return jsonify({"error": geo_error}), HTTPStatus.BAD_REQUEST
     work_order.last_check_in_at = datetime.now(UTC)
-    if lat is not None:
-        work_order.start_lat = work_order.start_lat or lat
-    if lng is not None:
-        work_order.start_lng = work_order.start_lng or lng
+    work_order.start_lat = work_order.start_lat or lat
+    work_order.start_lng = work_order.start_lng or lng
 
     _record_event(
         work_order,

@@ -6,10 +6,7 @@ Re-exports commonly-used models so tests/blueprints can import consistently.
 
 from __future__ import annotations
 
-from flask_sqlalchemy import SQLAlchemy
-
-# Single shared SQLAlchemy handle
-db = SQLAlchemy()
+from .extensions import db
 
 # Core models (existing) – imported defensively so that a missing
 # optional module does not break `from erp import db`.
