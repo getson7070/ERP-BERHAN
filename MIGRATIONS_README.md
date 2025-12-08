@@ -12,7 +12,10 @@ python -m scripts.migrations.automerge_and_upgrade
 ```
 
 **New guard (November 2025):** run `python tools/check_migration_health.py` in CI or before any deploy to confirm we only have
-a single migration root (`migrations/`) and no multi-head Alembic state.
+a single migration root (`migrations/`) and no multi-head Alembic state. The
+tool now prints the exact head revisions it finds (and suggests using the
+latest merge revision `20251212100000`) so you can resolve conflicts without
+guesswork.
 
 **Container note (December 2025):** The base Docker image now `chown`s `/app` to
 `appuser` so `alembic revision --autogenerate` and `alembic merge` work inside
