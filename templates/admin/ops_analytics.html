@@ -32,7 +32,14 @@
     <div class="col-lg-4">
       <div class="card shadow-sm h-100 border-warning-subtle">
         <div class="card-body">
-          <p class="text-muted text-uppercase fw-semibold small mb-1">Geo offline ({{ lookback_hours|default(24) }}h)</p>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <p class="text-muted text-uppercase fw-semibold small mb-0">Geo offline</p>
+            <select id="lookback-hours" class="form-select form-select-sm w-auto">
+              <option value="24">24h</option>
+              <option value="72">72h</option>
+              <option value="168">7d</option>
+            </select>
+          </div>
           <h2 class="display-6 text-warning" id="geo-stale">--</h2>
           <p class="mb-0 text-muted">Work orders without fresh location check-ins.</p>
         </div>
@@ -58,24 +65,65 @@
           </div>
         </div>
       </div>
+      <div class="d-flex justify-content-between flex-wrap gap-2 mt-2">
+        <div class="d-flex align-items-center gap-2 text-muted">
+          <span class="small">SLA at risk</span>
+          <span class="badge bg-danger-subtle text-danger" id="sla-at-risk">--</span>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" id="refresh-btn">
+          <span class="spinner-border spinner-border-sm me-1 d-none" id="refresh-spinner"></span>
+          Refresh
+        </button>
+      </div>
       <small class="text-muted" id="ops-updated">Last updated —</small>
     </div>
   </div>
 </div>
 
 <script>
+const state = {
+  lookback: 24,
+};
+
 async function loadOpsSummary() {
-  const res = await fetch("{{ url_for('analytics_dashboard_api.operations_summary') }}");
-  if (!res.ok) return;
-  const data = await res.json();
-  document.getElementById('open-escalations').innerText = data.maintenance_escalations?.open ?? 0;
-  document.getElementById('total-escalations').innerText = data.maintenance_escalations?.total ?? 0;
-  document.getElementById('geo-stale').innerText = data.geo_offline?.stale_work_orders ?? 0;
-  document.getElementById('geo-recent').innerText = data.geo_offline?.recent_checkins ?? 0;
-  document.getElementById('geo-stale-badge').innerText = data.geo_offline?.stale_work_orders ?? 0;
-  document.getElementById('ops-updated').innerText = `Last updated ${data.captured_at || ''}`;
+  const spinner = document.getElementById('refresh-spinner');
+  spinner.classList.remove('d-none');
+  try {
+    const res = await fetch(`{{ url_for('analytics_dashboard_api.operations_summary') }}?hours=${state.lookback}`);
+    const alertId = 'ops-error';
+    const existing = document.getElementById(alertId);
+    if (!res.ok) {
+      if (!existing) {
+        const alert = document.createElement('div');
+        alert.id = alertId;
+        alert.className = 'alert alert-danger mt-3';
+        alert.innerText = 'Unable to load analytics. Please try again or adjust filters.';
+        document.querySelector('#ops-cards').prepend(alert);
+      }
+      return;
+    }
+    if (existing) existing.remove();
+    const data = await res.json();
+    document.getElementById('open-escalations').innerText = data.maintenance_escalations?.open ?? 0;
+    document.getElementById('total-escalations').innerText = data.maintenance_escalations?.total ?? 0;
+    document.getElementById('geo-stale').innerText = data.geo_offline?.stale_work_orders ?? 0;
+    document.getElementById('geo-recent').innerText = data.geo_offline?.recent_checkins ?? 0;
+    document.getElementById('geo-stale-badge').innerText = data.geo_offline?.stale_work_orders ?? 0;
+    document.getElementById('sla-at-risk').innerText = data.sla?.at_risk ?? 0;
+    document.getElementById('ops-updated').innerText = `Last updated ${data.captured_at || ''}`;
+  } finally {
+    spinner.classList.add('d-none');
+  }
 }
 
-document.addEventListener('DOMContentLoaded', loadOpsSummary);
+document.addEventListener('DOMContentLoaded', () => {
+  const select = document.getElementById('lookback-hours');
+  select.addEventListener('change', (event) => {
+    state.lookback = event.target.value;
+    loadOpsSummary();
+  });
+  document.getElementById('refresh-btn').addEventListener('click', loadOpsSummary);
+  loadOpsSummary();
+});
 </script>
 {% endblock %}

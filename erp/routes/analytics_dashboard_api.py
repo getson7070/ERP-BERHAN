@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from typing import Dict
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from sqlalchemy import func, or_
 
 from erp.extensions import db
@@ -18,9 +18,20 @@ bp = Blueprint("analytics_dashboard_api", __name__, url_prefix="/api/analytics-d
 @bp.get("/operations")
 @require_roles("admin", "analytics", "management", "supervisor")
 def operations_summary():
+    """Return geo heartbeat and escalation health for the active org.
+
+    Supports an optional `hours` query parameter (1-168) to tune the geo
+    freshness window used for stale check-ins.
+    """
+
     org_id = resolve_org_id()
+    hours_param = request.args.get("hours", type=int)
+    lookback_hours = hours_param if hours_param is not None else 24
+    if lookback_hours < 1 or lookback_hours > 168:
+        return jsonify({"error": "invalid_hours", "hint": "use 1-168 hours"}), HTTPStatus.BAD_REQUEST
+
     now = datetime.now(UTC)
-    stale_cutoff = now - timedelta(hours=24)
+    stale_cutoff = now - timedelta(hours=lookback_hours)
 
     total_escalations = MaintenanceEscalationEvent.query.filter_by(org_id=org_id).count()
     open_escalations = (
@@ -28,11 +39,16 @@ def operations_summary():
         .filter(MaintenanceEscalationEvent.status != "resolved")
         .count()
     )
+    resolved_escalations = (
+        MaintenanceEscalationEvent.query.filter_by(org_id=org_id, status="resolved").count()
+    )
+
+    active_work_orders = MaintenanceWorkOrder.query.filter_by(org_id=org_id).filter(
+        MaintenanceWorkOrder.status != "closed"
+    )
 
     stale_geo = (
-        MaintenanceWorkOrder.query.filter_by(org_id=org_id)
-        .filter(MaintenanceWorkOrder.status != "closed")
-        .filter(
+        active_work_orders.filter(
             or_(
                 MaintenanceWorkOrder.last_check_in_at.is_(None),
                 MaintenanceWorkOrder.last_check_in_at < stale_cutoff,
@@ -40,23 +56,23 @@ def operations_summary():
         )
         .count()
     )
-    healthy_geo = (
-        MaintenanceWorkOrder.query.filter_by(org_id=org_id)
-        .filter(MaintenanceWorkOrder.status != "closed")
-        .filter(MaintenanceWorkOrder.last_check_in_at >= stale_cutoff)
-        .count()
-    )
+    healthy_geo = active_work_orders.filter(
+        MaintenanceWorkOrder.last_check_in_at >= stale_cutoff
+    ).count()
+    sla_at_risk = active_work_orders.filter(MaintenanceWorkOrder.sla_status != "ok").count()
 
     payload = {
         "maintenance_escalations": {
             "open": int(open_escalations),
+            "resolved": int(resolved_escalations),
             "total": int(total_escalations),
         },
         "geo_offline": {
             "stale_work_orders": int(stale_geo),
             "recent_checkins": int(healthy_geo),
-            "lookback_hours": 24,
+            "lookback_hours": int(lookback_hours),
         },
+        "sla": {"at_risk": int(sla_at_risk)},
         "captured_at": now.isoformat(),
     }
     return jsonify(payload), HTTPStatus.OK
