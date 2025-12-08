@@ -238,6 +238,15 @@ class ProcurementMilestone(db.Model):
     expected_at = db.Column(db.DateTime(timezone=True), nullable=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    geo_lat = db.Column(db.Float, nullable=True)
+    geo_lng = db.Column(db.Float, nullable=True)
+    geo_accuracy_m = db.Column(db.Float, nullable=True)
+    recorded_by_id = db.Column(db.Integer, nullable=True, index=True)
+    recorded_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
 
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     updated_at = db.Column(
