@@ -5,6 +5,8 @@ from sqlalchemy import text
 
 from erp.extensions import db
 from erp.health import checks_core
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 
 @pytest.fixture(autouse=True)
@@ -92,3 +94,33 @@ def test_migration_check_flags_multiple_heads(app, monkeypatch):
         assert result["error"] == "multiple_heads_detected"
         assert result["heads"] == ["h1", "h2"]
         assert "20251212100000" in result.get("resolution", "")
+
+
+def test_migration_check_warns_legacy_env_only(app, monkeypatch):
+    monkeypatch.setenv("MIGRATION_CHECK_STRICT", "1")
+
+    cfg = Config("alembic.ini")
+    script = ScriptDirectory.from_config(cfg)
+    head = script.get_current_head()
+
+    with app.app_context():
+        connection = db.engine.connect()
+        try:
+            connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+            connection.execute(
+                text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+            )
+            connection.execute(text("DELETE FROM alembic_version"))
+            connection.execute(text("INSERT INTO alembic_version (version_num) VALUES (:vnum)"), {"vnum": head})
+            connection.commit()
+
+            result = checks_core.db_migrations()
+        finally:
+            connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+            connection.commit()
+            connection.close()
+
+    assert result["ok"] is True
+    assert result["current"] == head
+    assert result.get("warnings")
+    assert any("legacy alembic/ env shim" in w for w in result.get("warnings", []))

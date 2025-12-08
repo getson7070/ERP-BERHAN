@@ -20,6 +20,10 @@ python tools/check_migration_health.py
 Expected output:
 `[migration-check] OK: single migration root, correct script_location, single head.`
 
+Health endpoints now surface migration warnings (for example, when the legacy
+`alembic/` env shim co-exists with `migrations/`). Warnings do not block deploys
+but should be cleaned up when convenient.
+
 If you see only a warning like:
 
 ```

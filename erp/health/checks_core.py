@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from alembic.config import Config
@@ -80,9 +81,42 @@ def db_migrations() -> dict[str, Any]:
             text("SELECT version_num FROM alembic_version")
         ).scalar()
 
+    warnings: list[str] = []
+    repo_root = Path(__file__).resolve().parents[2]
+    migration_roots = [p for p in (repo_root / "migrations", repo_root / "alembic") if p.exists()]
+
+    legacy_alembic = repo_root / "alembic"
+    legacy_env_only = False
+    if legacy_alembic.exists():
+        try:
+            legacy_env_only = all(child.name == "env.py" for child in legacy_alembic.iterdir())
+        except PermissionError:
+            legacy_env_only = False
+
+    if len(migration_roots) > 1 and not legacy_env_only:
+        return {
+            "ok": False,
+            "current": current_version,
+            "heads": None,
+            "error": "multiple_migration_roots",
+            "roots": [str(p) for p in migration_roots],
+        }
+
     try:
         alembic_ini = os.getenv("ALEMBIC_INI_PATH", "alembic.ini")
         cfg = Config(alembic_ini)
+        script_location = Path(cfg.get_main_option("script_location", "")).resolve()
+        expected_location = (repo_root / "migrations").resolve()
+        if script_location != expected_location:
+            return {
+                "ok": False,
+                "current": current_version,
+                "heads": None,
+                "error": "unexpected_script_location",
+                "script_location": str(script_location),
+                "expected": str(expected_location),
+            }
+
         script = ScriptDirectory.from_config(cfg)
         heads = set(script.get_heads())
     except Exception as exc:  # pragma: no cover - defensive guard for misconfigured paths
@@ -92,6 +126,11 @@ def db_migrations() -> dict[str, Any]:
             "heads": None,
             "error": f"head_discovery_failed: {exc}",
         }
+
+    if len(migration_roots) > 1 and legacy_env_only:
+        warnings.append(
+            "Detected legacy alembic/ env shim alongside migrations/. Prefer the canonical migrations/ root; remove alembic/ if unused."
+        )
 
     if len(heads) > 1:
         return {
@@ -103,7 +142,10 @@ def db_migrations() -> dict[str, Any]:
         }
 
     ok = bool(current_version and current_version in heads)
-    return {"ok": ok, "current": current_version, "heads": sorted(heads)}
+    response: dict[str, Any] = {"ok": ok, "current": current_version, "heads": sorted(heads)}
+    if warnings:
+        response["warnings"] = warnings
+    return response
 
 
 def config_sanity() -> dict[str, Any]:
