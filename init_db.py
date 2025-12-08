@@ -378,7 +378,14 @@ def _assert_single_migration_head(heads: list[str] | None = None) -> list[str]:
 def init_db() -> None:
     """Bootstrap a fresh/local DB so the app can import without errors."""
 
-    _assert_single_migration_head()
+    try:
+        _assert_single_migration_head()
+    except RuntimeError as exc:
+        # Provide a clear, single-line hint so container orchestrators surface
+        # the actionable cause instead of reboot-looping on an opaque stack
+        # trace. The error is still raised so CI/CD fails fast.
+        print(f"Migration head check failed: {exc}")
+        raise
 
     # 1) Always try Alembic migrations first; if they fail, hard reset.
     try:
