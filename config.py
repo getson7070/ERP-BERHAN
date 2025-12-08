@@ -89,6 +89,29 @@ class Config:
         else {}
     )
 
+    # Support / Help Center defaults
+    SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "support@example.com")
+    SUPPORT_PHONE = os.getenv("SUPPORT_PHONE", "+1 (234) 567-890")
+    SUPPORT_HOURS = os.getenv("SUPPORT_HOURS", "Mon–Fri, 9am–6pm local time")
+    SUPPORT_RESPONSE_SLA = os.getenv("SUPPORT_RESPONSE_SLA", "We reply within one business day")
+    HELP_SYSTEM_STATUS = (
+        {
+            "label": "Core platform",
+            "status": "operational",
+            "note": "APIs and dashboards are healthy",
+        },
+        {
+            "label": "Automations & bots",
+            "status": "operational",
+            "note": "Telegram + workflow jobs are healthy",
+        },
+        {
+            "label": "Planned maintenance",
+            "status": "info",
+            "note": "Planned maintenance will be announced in-app",
+        },
+    )
+
     # Authentication / MFA
     # Roles listed here must complete MFA before login and while performing
     # privileged actions such as approvals, role changes, or financial posting.

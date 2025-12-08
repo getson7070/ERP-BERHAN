@@ -28,6 +28,7 @@ from .db import db as db
 from .dlq import _dead_letter_handler
 from .extensions import cache, init_extensions, limiter, login_manager, mail
 from .logging_setup import setup_json_logging
+from .errors import register_error_handlers
 from .metrics import (
     AUDIT_CHAIN_BROKEN,
     DLQ_MESSAGES,
@@ -380,6 +381,7 @@ def create_app(config_object: str | None = None) -> Flask:
     apply_security(app)
     install_privileged_mfa_guard(app)
     apply_security_headers(app)
+    register_error_handlers(app)
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)
