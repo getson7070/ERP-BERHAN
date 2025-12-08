@@ -8,7 +8,7 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Actions: require MFA for admins/supervisors; add pre-auth rate limiting and CSRF on login/registration/bot endpoints; ensure Telegram bot actions require authenticated session tokens.
    - UX: modern responsive auth screens with inline validation and accessibility labels.
    - Database: persist MFA secrets/recovery codes with encryption at rest; seed admin roles with enforced MFA flag.
-   - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; Telegram webhooks now reject requests without the configured secret and bind to known chat IDs/allowlists to stop spoofed updates; next step is bot/session token enforcement.
+   - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; Telegram webhooks now reject requests without the configured secret, bind to known chat IDs/allowlists, and optionally block chats that lack a recent authenticated user session to prevent dormant accounts from invoking bot actions; next step is bot/session token issuance UX.
 
 2) **Role/RBAC hardening with tenant isolation**
    - Layers: 1, 3, 4 (Orders/Commission), 5 (Maintenance), 6 (Procurement), 7 (Reporting).

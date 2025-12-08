@@ -59,6 +59,10 @@ class Config:
     TELEGRAM_WEBHOOK_REQUIRE_SECRET = (
         os.getenv("TELEGRAM_WEBHOOK_REQUIRE_SECRET", "true").lower() != "false"
     )
+    TELEGRAM_REQUIRE_ACTIVE_SESSION = (
+        os.getenv("TELEGRAM_REQUIRE_ACTIVE_SESSION", "false").lower() == "true"
+    )
+    TELEGRAM_SESSION_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_SESSION_MAX_AGE_SECONDS", "7200"))
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     TELEGRAM_BOT_SCOPES_JSON = os.getenv("TELEGRAM_BOT_SCOPES_JSON", "{}")
     TELEGRAM_ALLOWED_CHAT_IDS_JSON = os.getenv("TELEGRAM_ALLOWED_CHAT_IDS_JSON", "{}")

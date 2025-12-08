@@ -6,6 +6,7 @@ Evaluate Telegram/automation handlers for approvals, inventory, analytics, and i
 ## Current Capabilities
 - **Command handlers for approvals/inventory/analytics**: Bot handlers provide approve/reject responses, inventory summaries, and top performance scores via analytics queries, enabling lightweight chat interactions.【F:erp/bots/handlers.py†L1-L58】
 - **Intent mapping**: NLP intents map analytics keywords to the analytics handler, showing extendable intent-based automation surface for future flows.【F:erp/bots/nlp_intents.py†L1-L34】
+- **Webhook security controls**: Webhooks require configured secrets, optional per-bot chat allowlists, and now (when enabled) block chats without a recent authenticated user session, aligning chat automation with active login state.【F:erp/blueprints/telegram_webhook.py†L16-L123】
 
 ## Gaps & Risks vs. Requirements
 - **Workflow execution**: Handlers return static text; they do not execute real approval, order, maintenance, or procurement actions with audit/RBAC checks.
@@ -19,4 +20,4 @@ Evaluate Telegram/automation handlers for approvals, inventory, analytics, and i
 2. **Add MFA/OTP challenge** for privileged actions and supervisor/admin roles; consider per-session signing or deep links with short-lived tokens.
 3. **Context + geo capture** on bot actions, linking to underlying tickets/orders and storing metadata for audit.
 4. **UX improvements**: Inline keyboards, rich status cards, SLA breach notifications, and per-role routing (client/employee/supervisor/admin channels).
-5. **Security/operations**: Enforce webhook signature validation, rate limiting, token rotation, and monitoring; document tenant isolation and error handling.
+5. **Security/operations**: Enforce webhook signature validation, rate limiting, token rotation, and monitoring; document tenant isolation and error handling. Promote the active-session requirement to default once session issuance/refresh UX is finalized.
