@@ -15,7 +15,7 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Actions: implement permission matrix stored in DB; enforce `resolve_org_id()` scoping on all queries; add supervisor vs admin policy gates for approvals; add audit logs for privilege changes.
    - UX: surface denied-access states with consistent UI patterns and audit trail links.
    - Database: add `permissions`, `role_permissions`, and `user_roles` tables plus Alembic migrations; backfill legacy roles safely.
-   - Progress: legacy `role_required` now enforces MFA for privileged roles and order approval endpoints are gated by MFA-aware supervisor/admin roles; still need policy-backed permission matrix and UI hardening.
+   - Progress: legacy `role_required` now enforces MFA for privileged roles and order approval endpoints are gated by MFA-aware supervisor/admin roles; baseline RBAC policy bootstrap seeds default permissions per org to reduce overbroad access; still need curated permission catalog, UI hardening, and data-driven hierarchy seeds.
 
 3) **Client onboarding validation and approval control**
    - Layers: 2 (Onboarding), 4, 5.

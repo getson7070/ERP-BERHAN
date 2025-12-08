@@ -73,7 +73,7 @@ def login_required(fn):
     return _fl_login_required(fn)
 
 
-# Role hierarchy: Admin > Manager > Staff
+# Role hierarchy: Admin > Manager > Staff (legacy compatibility)
 _RANKS = {"Admin": 3, "Manager": 2, "Staff": 1, None: 0}
 
 
@@ -91,9 +91,59 @@ def _current_role() -> str | None:
     return session.get("role")
 
 
-def has_permission(user_role: str | None, required_role: str | None) -> bool:
-    """Return True if user_role >= required_role in the rank hierarchy."""
-    return _RANKS.get(user_role, 0) >= _RANKS.get(required_role, 0)
+def has_permission(
+    user_role_or_permission: str | None = None,
+    required_role: str | None = None,
+    *,
+    org_id: int | None = None,
+) -> bool:
+    """Evaluate permissions using the Phase-2 RBAC engine with legacy fallback.
+
+    Usage patterns supported for backwards compatibility:
+    - has_permission("manager", "Admin") → role rank comparison
+    - has_permission("tenders_list") → mapped to RBAC resource/action
+    - has_permission(required_role="Manager") → uses current_user role
+    """
+
+    from erp.security import _get_user_role_names
+    from erp.security_rbac_phase2 import ensure_default_policy, is_allowed
+    from erp.rbac.defaults import LEGACY_PERMISSION_KEY_MAP
+
+    # Infer roles from caller or current user
+    roles = set()
+    if required_role is None and user_role_or_permission:
+        # Single-argument call: treat user role as None; permission key encoded
+        roles = _get_user_role_names(current_user) if current_user else set()
+    else:
+        if user_role_or_permission:
+            roles.add(str(user_role_or_permission))
+        elif current_user:
+            roles = _get_user_role_names(current_user)
+
+    # Determine which permission key to evaluate
+    permission_key = required_role if required_role is not None else user_role_or_permission
+
+    # RBAC path: map legacy keys to resource/action pairs
+    if permission_key:
+        mapped = LEGACY_PERMISSION_KEY_MAP.get(permission_key)
+        if mapped:
+            org = org_id or resolve_org_id()
+            ensure_default_policy(org)
+            return is_allowed(org, {r.lower() for r in roles}, mapped[0], mapped[1], {
+                "user_id": getattr(current_user, "id", None) if current_user else None,
+            })
+
+    # Fallback to legacy rank comparison
+    user_role = None
+    if roles:
+        # Pick a deterministic role for comparison
+        user_role = sorted({r.title() for r in roles})[-1]
+    else:
+        user_role = _current_role()
+
+    key_norm = permission_key.title() if isinstance(permission_key, str) else permission_key
+
+    return _RANKS.get(user_role, 0) >= _RANKS.get(key_norm, 0)
 
 
 def role_required(*roles):
