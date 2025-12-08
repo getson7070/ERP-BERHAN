@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Any, Callable, Optional, TypeVar
 import os  # kept for future expansion / compatibility
 
-from flask import abort, current_app, redirect, request, url_for
+from flask import abort, current_app, flash, jsonify, redirect, request, session, url_for
 from erp.security_decorators_phase2 import require_permission
 
 try:  # Flask-Login is the primary auth backend
@@ -128,6 +128,20 @@ def require_roles(*role_names: str) -> Callable[[F], F]:
                 if not (user_roles & normalized):
                     abort(403)
 
+                # Enforce MFA for privileged roles defined in config. Admin,
+                # management, and supervisors must complete MFA before
+                # accessing role-gated endpoints.
+                required_roles = {
+                    r.lower() for r in current_app.config.get("MFA_REQUIRED_ROLES", ())
+                }
+                if user_roles & required_roles and not session.get("mfa_verified"):
+                    # Preserve API/browser semantics for missing MFA.
+                    accepts_json = request.accept_mimetypes.accept_json
+                    accepts_html = request.accept_mimetypes.accept_html
+                    if accepts_json and not accepts_html:
+                        abort(403)
+                    return redirect(url_for("auth.login", next=request.url))
+
             return fn(*args, **kwargs)
 
         return wrapper  # type: ignore[misc]
@@ -161,7 +175,9 @@ def mfa_required(fn: F) -> F:
             return redirect(url_for("auth.login", next=request.url))
 
         # If the app defines a stricter check, honour it; otherwise allow.
-        mfa_ok = getattr(user, "mfa_verified", True)
+        mfa_ok = session.get("mfa_verified")
+        if mfa_ok is None:
+            mfa_ok = getattr(user, "mfa_verified", True)
         if not mfa_ok:
             # You can replace this with a dedicated MFA route in your app.
             abort(403)
@@ -215,6 +231,47 @@ def apply_security(app) -> None:
         )
 
 
+def install_privileged_mfa_guard(app) -> None:
+    """Block privileged-role requests unless MFA is verified in the session.
+
+    This complements the per-endpoint ``require_roles`` decorator by adding a
+    global guard that catches unprotected views. HTML requests are redirected
+    back to login with a helpful message; JSON/API requests receive HTTP 403.
+    """
+
+    exempt = set(app.config.get("MFA_GUARD_EXEMPT_ENDPOINTS", ()))
+    privileged = {r.lower() for r in app.config.get("MFA_REQUIRED_ROLES", ())}
+
+    @app.before_request  # type: ignore[misc]
+    def _enforce_privileged_mfa():
+        if current_app and current_app.config.get("LOGIN_DISABLED"):
+            return None
+
+        endpoint = request.endpoint or ""
+        if not privileged or endpoint in exempt or endpoint.startswith("static"):
+            return None
+
+        user = _get_current_user()
+        if not user or not getattr(user, "is_authenticated", False):
+            return None
+
+        roles = _get_user_role_names(user)
+        if not (roles & privileged):
+            return None
+
+        if session.get("mfa_verified"):
+            return None
+
+        # MFA missing: return JSON 403 for API requests, redirect browser.
+        accepts_json = request.accept_mimetypes.accept_json
+        accepts_html = request.accept_mimetypes.accept_html
+        if accepts_json and not accepts_html:
+            return jsonify({"error": "mfa_required"}), 403
+
+        flash("Multi-factor verification is required for this action.", "warning")
+        return redirect(url_for("auth.login", next=request.url))
+
+
 def user_has_role(user: Any, role_name: str) -> bool:
     """Return True if *user* has the given role (case-insensitive)."""
 
@@ -230,5 +287,6 @@ __all__ = [
     "require_permission",
     "mfa_required",
     "apply_security",
+    "install_privileged_mfa_guard",
     "user_has_role",
 ]

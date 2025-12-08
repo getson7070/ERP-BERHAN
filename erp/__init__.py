@@ -37,7 +37,7 @@ from .metrics import (
 )
 from .middleware.security_headers import apply_security_headers
 from .middleware.tenant_guard import install_tenant_guard
-from .security import apply_security
+from .security import apply_security, install_privileged_mfa_guard
 from .security_gate import install_global_gate
 from .socket import socketio
 
@@ -232,6 +232,7 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.geo_api",
     "erp.routes.client_portal",
     "erp.routes.audit_api",
+    "erp.routes.admin",
     "erp.routes.bot_dashboard_api",
     "erp.routes.admin_console_api",
     "erp.routes.sso_oidc",
@@ -366,6 +367,7 @@ def create_app(config_object: str | None = None) -> Flask:
 
     init_extensions(app)
     apply_security(app)
+    install_privileged_mfa_guard(app)
     apply_security_headers(app)
     register_blueprints(app)
     install_global_gate(app)

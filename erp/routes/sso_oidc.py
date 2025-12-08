@@ -55,7 +55,12 @@ def sso_callback():
 
     user = User.query.filter_by(email=email).first()
     if user is None:
-        user = User(username=email.split("@", 1)[0], email=email, full_name=full_name)
+        user = User(
+            username=email.split("@", 1)[0],
+            email=email,
+            full_name=full_name,
+            org_id=resolve_org_id(),
+        )
         db.session.add(user)
         db.session.flush()
         grant_role_to_user(org_id=org_id, user_id=user.id, role_key="employee", acting_user=None)

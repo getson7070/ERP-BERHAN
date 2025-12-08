@@ -54,7 +54,12 @@
             {% for o in orders or [] %}
               <tr>
                 <td>#{{ o.id }}</td>
-                <td><span class="badge bg-secondary text-capitalize">{{ o.status }}</span></td>
+                <td>
+                  <div class="d-flex flex-column">
+                    <span class="badge bg-secondary text-capitalize w-auto">{{ o.status }}</span>
+                    <small class="text-muted">Initiator: {{ o.initiator_type or 'unknown' }}</small>
+                  </div>
+                </td>
                 <td>{{ "%.2f"|format(o.total_amount or 0) }}</td>
                 <td>
                   <span class="badge bg-light text-dark border">{{ (o.payment_status or 'unpaid')|capitalize }}</span>
@@ -63,7 +68,13 @@
                   <div class="d-flex flex-column small">
                     <span class="badge bg-secondary text-capitalize align-self-start">{{ o.commission_status or 'none' }}</span>
                     {% if o.commission_enabled %}
-                      <span class="text-muted">{{ "%.2f"|format((o.commission_amount or 0)) }} at {{ (o.commission_rate or 0) * 100 }}%</span>
+                      <span class="text-muted">{{ "%.2f"|format((o.commission_amount or 0)) }} at {{ (o.commission_rate or 0) *100 }}%</span>
+                      {% if o.commission_block_reason %}
+                        <span class="text-danger">{{ o.commission_block_reason }}</span>
+                      {% endif %}
+                      {% if o.commission_approved_by_management %}
+                        <span class="text-success">Management approved</span>
+                      {% endif %}
                     {% else %}
                       <span class="text-muted">Not enabled</span>
                     {% endif %}
