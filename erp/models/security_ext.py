@@ -29,7 +29,7 @@ class UserMFA(db.Model):
 class UserMFABackupCode(db.Model):
     __tablename__ = "user_mfa_backup_codes"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
     user_id = db.Column(db.Integer, nullable=False, index=True)
 
@@ -51,7 +51,7 @@ class UserSession(db.Model):
     __tablename__ = "user_sessions"
     __table_args__ = (UniqueConstraint("org_id", "session_id", name="uq_session_id"),)
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
     user_id = db.Column(db.Integer, nullable=False, index=True)
 
