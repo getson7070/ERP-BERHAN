@@ -142,12 +142,44 @@ def verify_client():
 
 @bp.post("/login")
 def client_login():
+    """
+    Client login endpoint with clearer outcomes for:
+    - not registered (suggest registration)
+    - inactive or awaiting approval
+    - invalid password
+    - successful login
+
+    This does NOT perform redirects itself; the frontend should inspect the
+    JSON payload and route the user to the appropriate screen.
+    """
     org_id = resolve_org_id()
     payload = request.get_json(silent=True) or {}
 
     email = (payload.get("email") or "").strip().lower()
     phone = (payload.get("phone") or "").strip()
-    password = payload.get("password") or ""
+    password = (payload.get("password") or "").strip()
+
+    if not (email or phone):
+        return (
+            jsonify(
+                {
+                    "error": "missing_identifier",
+                    "message": "Provide either email or phone to sign in.",
+                }
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
+
+    if not password:
+        return (
+            jsonify(
+                {
+                    "error": "missing_password",
+                    "message": "Password is required to sign in.",
+                }
+            ),
+            HTTPStatus.BAD_REQUEST,
+        )
 
     account: Optional[ClientAccount] = None
     if email:
@@ -155,12 +187,57 @@ def client_login():
     if not account and phone:
         account = ClientAccount.query.filter_by(org_id=org_id, phone=phone).first()
 
-    if not account or not account.is_active:
-        return jsonify({"error": "invalid_login"}), HTTPStatus.UNAUTHORIZED
+    # 1) No account found at all – frontend should offer registration flow.
+    if not account:
+        return (
+            jsonify(
+                {
+                    "error": "not_registered",
+                    "need_registration": True,
+                    "message": "No client account found for this email/phone.",
+                }
+            ),
+            HTTPStatus.UNAUTHORIZED,
+        )
+
+    # 2) Account exists but is inactive (e.g. manually disabled).
+    if not account.is_active:
+        return (
+            jsonify(
+                {
+                    "error": "inactive",
+                    "approval_pending": False,
+                    "need_support": True,
+                    "message": "This client account is inactive. Please contact support.",
+                }
+            ),
+            HTTPStatus.FORBIDDEN,
+        )
+
+    # 3) Account is active but not yet verified / fully approved.
     if not account.is_verified:
-        return jsonify({"error": "not_verified"}), HTTPStatus.FORBIDDEN
+        return (
+            jsonify(
+                {
+                    "error": "not_verified",
+                    "approval_pending": True,
+                    "message": "Your registration is received and pending approval.",
+                }
+            ),
+            HTTPStatus.FORBIDDEN,
+        )
+
+    # 4) Password check
     if not verify_password(account, password):
-        return jsonify({"error": "invalid_login"}), HTTPStatus.UNAUTHORIZED
+        return (
+            jsonify(
+                {
+                    "error": "invalid_password",
+                    "message": "Incorrect password.",
+                }
+            ),
+            HTTPStatus.UNAUTHORIZED,
+        )
 
     login_user(account)
     account.last_login_at = datetime.utcnow()
