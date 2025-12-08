@@ -1,0 +1,36 @@
+services:
+  db:
+    container_name: db
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_berhan
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - erp-berhan_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  erp-berhan:
+    container_name: erp-berhan
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "18000:8000"
+    depends_on:
+      - db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; resp=urllib.request.urlopen('http://localhost:8000/readyz', timeout=5); sys.exit(0 if resp.status==200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  erp-berhan_postgres_data:

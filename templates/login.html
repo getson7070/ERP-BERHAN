@@ -27,6 +27,15 @@
               <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required placeholder="Enter your password" />
               <div class="form-text"><a href="/auth/reset">Forgot password?</a></div>
             </div>
+            <div class="mb-3">
+              <label for="totp" class="form-label">MFA code <span class="text-muted">(admins and supervisors required)</span></label>
+              <input id="totp" name="totp" type="text" class="form-control" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" aria-describedby="mfa-help" />
+              <div id="mfa-help" class="form-text">Enter the 6-digit code from your authenticator app. Use a backup code if you do not have access.</div>
+            </div>
+            <div class="mb-3">
+              <label for="backup_code" class="form-label">Backup code <span class="text-muted">(optional)</span></label>
+              <input id="backup_code" name="backup_code" type="text" class="form-control" autocomplete="one-time-code" placeholder="xxxx-xxxx" />
+            </div>
             <button type="submit" class="btn btn-primary w-100">Sign in</button>
           </div>
         </form>

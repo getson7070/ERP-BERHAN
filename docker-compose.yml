@@ -1,33 +1,60 @@
 services:
   db:
-    container_name: db
     image: postgres:15
     restart: unless-stopped
     environment:
       POSTGRES_DB: erp_berhan
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
-      - erp-berhan_postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-erp_berhan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  erp-berhan:
-    container_name: erp-berhan
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
-    volumes:
-      # Mount source for dev/hot-reload; remove in production if you want immutable images
-      - .:/app
+    environment:
+      FLASK_ENV: production
+      ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set for production}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set for production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set for production}
+      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:?SECURITY_PASSWORD_SALT must be set}
+      TELEGRAM_BOT_TOKENS: ${TELEGRAM_BOT_TOKENS:?TELEGRAM_BOT_TOKENS must be set}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?BACKUP_ENCRYPTION_KEY must be set}
+      SKIP_AUTO_MIGRATION_REPAIR: "1"
     ports:
-      # host:container → browser hits http://localhost:18000 → container listens on 8000
       - "18000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; resp=urllib.request.urlopen('http://localhost:8000/readyz', timeout=5); sys.exit(0 if resp.status==200 else 1)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  erp-berhan_postgres_data:
+  pgdata:
+  redisdata:

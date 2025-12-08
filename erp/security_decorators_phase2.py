@@ -5,10 +5,10 @@ from __future__ import annotations
 from functools import wraps
 from typing import Callable
 
-from flask import jsonify, request
+from flask import jsonify, redirect, request, url_for
 from flask_login import current_user
 
-from erp.security_rbac_phase2 import is_allowed
+from erp.security_rbac_phase2 import ensure_default_policy, is_allowed
 
 
 def require_permission(resource: str, action: str) -> Callable:
@@ -25,10 +25,20 @@ def require_permission(resource: str, action: str) -> Callable:
             from erp.security import _get_user_role_names  # local import to avoid cycle
             from erp.utils import resolve_org_id
 
+            user = current_user if getattr(current_user, "is_authenticated", False) else None
+            if not user:
+                accepts_json = request.accept_mimetypes.accept_json
+                accepts_html = request.accept_mimetypes.accept_html
+                if accepts_json and not accepts_html:
+                    return (jsonify({"error": "unauthenticated"}), 401)
+                return redirect(url_for("auth.login", next=request.url))
+
             org_id = resolve_org_id()
-            roles = _get_user_role_names(current_user) if current_user else set()
+            ensure_default_policy(org_id)
+
+            roles = _get_user_role_names(user)
             ctx = {
-                "user_id": getattr(current_user, "id", None),
+                "user_id": getattr(user, "id", None),
                 "ip": request.remote_addr,
             }
 
