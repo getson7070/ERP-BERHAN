@@ -26,8 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ------------------------------------------------------------------
 COPY . .
 
-# Create non-root user for better security
-RUN useradd -m appuser
+# Create non-root user for better security and ensure the app tree is writable
+# so Alembic and other tooling can create merge revisions or logs at runtime.
+RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Expose the app port (inside the container).
