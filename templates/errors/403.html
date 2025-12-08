@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+<section class="card-soft p-4" aria-labelledby="error-403-title">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+    <div>
+      <p class="text-uppercase text-muted fw-semibold mb-1">Error 403</p>
+      <h1 id="error-403-title" class="display-6 mb-3">Access denied</h1>
+      <p class="lead text-muted mb-4">You do not have permission to view this page. Try signing in with the correct role or request access.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ cta_href or '/' }}">Go home</a>
+        <a class="btn btn-outline-secondary" href="/help">Visit Help Center</a>
+      </div>
+    </div>
+    <div class="text-center">
+      <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2">Permission required</span>
+      {% if request_id %}
+      <p class="small text-muted mt-2">Reference ID: {{ request_id }}</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
