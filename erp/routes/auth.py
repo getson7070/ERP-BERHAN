@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+import re
 from secrets import token_urlsafe
 from http import HTTPStatus
 from typing import Any
@@ -216,16 +217,38 @@ def client_register():
     if form.validate_on_submit():
         org_id = resolve_org_id()
         email = (form.email.data or "").lower()
+        tin = (form.tin.data or "").strip()
+
+        # Server-side enforcement beyond WTForms to guarantee 10-digit TINs and
+        # avoid relying solely on client validation.
+        if not re.fullmatch(r"\d{10}", tin):
+            flash("TIN must be a 10 digit number.", "danger")
+            return render_template("client_registration.html", form=form), HTTPStatus.BAD_REQUEST
 
         existing_account = ClientAccount.query.filter_by(org_id=org_id, email=email).first()
         if existing_account:
             flash("An account with that email already exists.", "warning")
             return redirect(url_for("auth.login"))
 
-        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=form.tin.data).first()
+        pending = ClientRegistration.query.filter_by(org_id=org_id, tin=tin).first()
         if pending and pending.status == "pending":
             flash("A registration for this TIN is already awaiting review.", "info")
             return redirect(url_for("auth.login"))
+
+        existing_institution = (
+            db.session.execute(
+                text(
+                    "SELECT id FROM institutions WHERE org_id = :org_id AND tin = :tin LIMIT 1"
+                ),
+                {"org_id": org_id, "tin": tin},
+            ).scalar()
+            is not None
+        )
+        if existing_institution:
+            flash(
+                "This TIN is already registered. Submit again only if requesting an additional contact for the same institution.",
+                "warning",
+            )
 
         registration = ClientRegistration(
             org_id=org_id,
@@ -234,7 +257,7 @@ def client_register():
             contact_position=form.contact_position.data.strip(),
             email=email,
             phone=form.phone.data.strip(),
-            tin=form.tin.data.strip(),
+            tin=tin,
             region=form.region.data.strip() if form.region.data else None,
             zone=form.zone.data.strip() if form.zone.data else None,
             city=form.city.data.strip() if form.city.data else None,
