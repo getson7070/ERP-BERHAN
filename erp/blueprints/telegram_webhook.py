@@ -100,19 +100,36 @@ def _has_active_session(org_id: int, user_id: int) -> bool:
 def telegram_webhook(bot_name: str):
     org_id = resolve_org_id()
 
+    update = request.get_json(silent=True) or {}
+    msg = update.get("message") or update.get("edited_message")
+    cbq = update.get("callback_query")
+
+    if not msg and not cbq:
+        return jsonify({"status": "ignored"}), HTTPStatus.OK
+
+    chat = (msg or cbq or {}).get("chat") or (cbq or {}).get("message", {}).get("chat")
+    chat_id = str(chat["id"]) if chat else None
+    raw_message_id = (msg or {}).get("message_id") or (cbq or {}).get("message", {}).get("message_id")
+    message_id = str(raw_message_id) if raw_message_id is not None else None
+    text = (msg.get("text") or "").strip() if msg else ""
+
+    user = _resolve_user(org_id, chat_id) if chat_id else None
+
     require_secret = bool(
         (current_app.config.get("TELEGRAM_WEBHOOK_REQUIRE_SECRET", True)) if current_app else True
     )
     secret = current_app.config.get("TELEGRAM_WEBHOOK_SECRET") if current_app else None
     if require_secret and not secret:
-        current_app.logger.warning(
-            "Blocking Telegram webhook because TELEGRAM_WEBHOOK_SECRET is not configured",
-            extra={"bot_name": bot_name, "org_id": org_id},
-        )
-        return (
-            jsonify({"status": "misconfigured", "message": "Webhook secret required"}),
-            HTTPStatus.SERVICE_UNAVAILABLE,
-        )
+        if not user:
+            current_app.logger.warning(
+                "Blocking Telegram webhook because TELEGRAM_WEBHOOK_SECRET is not configured",
+                extra={"bot_name": bot_name, "org_id": org_id},
+            )
+            return (
+                jsonify({"status": "misconfigured", "message": "Webhook secret required"}),
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+        return jsonify({"status": "session_required"}), HTTPStatus.UNAUTHORIZED
     if (secret or require_secret) and not verify_telegram_secret(request, require_config=require_secret):
         current_app.logger.warning(
             "Telegram webhook rejected due to invalid secret",
@@ -124,19 +141,7 @@ def telegram_webhook(bot_name: str):
     if bots and bot_name not in bots:
         return jsonify({"status": "unknown_bot"}), HTTPStatus.NOT_FOUND
 
-    update = request.get_json(silent=True) or {}
-    msg = update.get("message") or update.get("edited_message")
-    cbq = update.get("callback_query")
-
-    if not msg and not cbq:
-        return jsonify({"status": "ignored"}), HTTPStatus.OK
-
     if msg:
-        chat_id = str(msg["chat"]["id"])
-        message_id = str(msg.get("message_id"))
-        text = (msg.get("text") or "").strip()
-
-        user = _resolve_user(org_id, chat_id)
         if not user:
             return jsonify({"status": "unknown_chat"}), HTTPStatus.FORBIDDEN
 
@@ -189,11 +194,7 @@ def telegram_webhook(bot_name: str):
         return jsonify({"status": "queued"}), HTTPStatus.OK
 
     if cbq:
-        chat_id = str(cbq["message"]["chat"]["id"])
-        message_id = str(cbq["message"]["message_id"])
         data = cbq.get("data", "")
-
-        user = _resolve_user(org_id, chat_id)
         if not user:
             return jsonify({"status": "unknown_chat"}), HTTPStatus.FORBIDDEN
 
