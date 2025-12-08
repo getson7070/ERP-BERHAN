@@ -56,8 +56,12 @@ class Config:
     TELEGRAM_BOTS_JSON = os.getenv("TELEGRAM_BOTS_JSON", "")
     TELEGRAM_DEFAULT_BOT = os.getenv("TELEGRAM_DEFAULT_BOT", "erpbot")
     TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    TELEGRAM_WEBHOOK_REQUIRE_SECRET = (
+        os.getenv("TELEGRAM_WEBHOOK_REQUIRE_SECRET", "true").lower() != "false"
+    )
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     TELEGRAM_BOT_SCOPES_JSON = os.getenv("TELEGRAM_BOT_SCOPES_JSON", "{}")
+    TELEGRAM_ALLOWED_CHAT_IDS_JSON = os.getenv("TELEGRAM_ALLOWED_CHAT_IDS_JSON", "{}")
     BOT_FALLBACK_EMAILS = tuple(
         addr.strip()
         for addr in os.getenv("BOT_FALLBACK_EMAILS", "").split(",")
@@ -74,6 +78,33 @@ class Config:
         json.loads(TELEGRAM_BOT_SCOPES_JSON)
         if TELEGRAM_BOT_SCOPES_JSON
         else {}
+    )
+    TELEGRAM_ALLOWED_CHAT_IDS = (
+        json.loads(TELEGRAM_ALLOWED_CHAT_IDS_JSON)
+        if TELEGRAM_ALLOWED_CHAT_IDS_JSON
+        else {}
+    )
+
+    # Authentication / MFA
+    # Roles listed here must complete MFA before login and while performing
+    # privileged actions such as approvals, role changes, or financial posting.
+    # Values are normalized to lowercase during enforcement.
+    MFA_REQUIRED_ROLES = (
+        "admin",
+        "management",
+        "supervisor",
+    )
+
+    # Endpoints that should bypass the privileged MFA guard. Auth flows and
+    # health checks stay reachable to avoid lockouts while enforcing MFA for
+    # sensitive modules.
+    MFA_GUARD_EXEMPT_ENDPOINTS = (
+        "auth.login",
+        "auth.register",
+        "auth.client_register",
+        "auth.logout",
+        "healthz",
+        "static",
     )
 
     # Authentication / MFA

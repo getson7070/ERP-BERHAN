@@ -12,7 +12,7 @@ Evaluate Telegram/automation handlers for approvals, inventory, analytics, and i
 - **MFA/role enforcement**: Bot commands do not enforce supervisor/admin MFA or role validation; risk of unauthorized actions if extended.
 - **Geo/context capture**: Bot actions do not record geo/IP/device context or link to order/maintenance tickets; requirement expects geo-aware approvals/visits.
 - **UI/UX and notifications**: No rich formatting, buttons, or notification routing (per-role channels, SLA breaches) to meet modern UX expectations.
-- **Security hardening**: Token rotation, rate limiting, and tenant scoping are not documented; webhook verification and secret management are unspecified.
+- **Security hardening**: Token rotation, rate limiting, and tenant scoping were previously undocumented; webhook requests now require a configured secret, known chat binding, and optional per-bot chat allowlists, but we still need scoped JWT/session tokens before executing privileged workflows.
 
 ## Recommendations
 1. **Bind commands to real workflows** with secure API calls for approvals, order status, maintenance updates; enforce RBAC and audit logging per tenant.
