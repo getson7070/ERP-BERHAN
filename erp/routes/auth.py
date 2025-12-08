@@ -230,6 +230,16 @@ def client_register():
             flash("An account with that email already exists.", "warning")
             return redirect(url_for("auth.login"))
 
+        duplicate_pending = ClientRegistration.query.filter_by(
+            org_id=org_id, email=email, status="pending"
+        ).first()
+        if duplicate_pending:
+            flash(
+                "A registration with this email is already pending review. Please await approval.",
+                "info",
+            )
+            return redirect(url_for("auth.login"))
+
         pending = ClientRegistration.query.filter_by(org_id=org_id, tin=tin).first()
         if pending and pending.status == "pending":
             flash("A registration for this TIN is already awaiting review.", "info")
@@ -273,6 +283,17 @@ def client_register():
         )
         db.session.add(registration)
         db.session.commit()
+
+        try:
+            log_audit(
+                None,
+                org_id,
+                "auth.client_register",
+                f"tin={tin} email={email}",
+            )
+        except Exception:
+            # Registration should not fail if audit logging encounters an error.
+            pass
         flash("Registration submitted. A supervisor will approve your access.", "success")
         return redirect(url_for("auth.login"))
 

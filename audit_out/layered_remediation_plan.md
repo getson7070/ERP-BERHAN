@@ -3,11 +3,12 @@
 This plan sequences the remediation work derived from the 11-layer audits so delivery starts with the highest-risk and highest-impact fixes. Each item notes the affected layers, UX/security/database considerations, and key dependencies. Use this list to create timeboxed epics and track completion evidence in the corresponding audit files.
 
 ## Critical (start immediately)
-1) **Enforce MFA + secure authentication flows**  
-   - Layers: 1 (Identity & Access), 3 (RBAC), 9 (Telegram), 11 (Deployment).  
-   - Actions: require MFA for admins/supervisors; add pre-auth rate limiting and CSRF on login/registration/bot endpoints; ensure Telegram bot actions require authenticated session tokens.  
-   - UX: modern responsive auth screens with inline validation and accessibility labels.  
+1) **Enforce MFA + secure authentication flows**
+   - Layers: 1 (Identity & Access), 3 (RBAC), 9 (Telegram), 11 (Deployment).
+   - Actions: require MFA for admins/supervisors; add pre-auth rate limiting and CSRF on login/registration/bot endpoints; ensure Telegram bot actions require authenticated session tokens.
+   - UX: modern responsive auth screens with inline validation and accessibility labels.
    - Database: persist MFA secrets/recovery codes with encryption at rest; seed admin roles with enforced MFA flag.
+   - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; next step is bot/session token enforcement.
 
 2) **Role/RBAC hardening with tenant isolation**  
    - Layers: 1, 3, 4 (Orders/Commission), 5 (Maintenance), 6 (Procurement), 7 (Reporting).  

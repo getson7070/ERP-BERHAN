@@ -86,5 +86,17 @@ class Config:
         "supervisor",
     )
 
+    # Endpoints that should bypass the privileged MFA guard. Auth flows and
+    # health checks stay reachable to avoid lockouts while enforcing MFA for
+    # sensitive modules.
+    MFA_GUARD_EXEMPT_ENDPOINTS = (
+        "auth.login",
+        "auth.register",
+        "auth.client_register",
+        "auth.logout",
+        "healthz",
+        "static",
+    )
+
 
 
