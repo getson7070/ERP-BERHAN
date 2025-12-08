@@ -28,6 +28,7 @@ from .db import db as db
 from .dlq import _dead_letter_handler
 from .extensions import cache, init_extensions, limiter, login_manager, mail
 from .logging_setup import setup_json_logging
+from .errors import register_error_handlers
 from .metrics import (
     AUDIT_CHAIN_BROKEN,
     DLQ_MESSAGES,
@@ -37,7 +38,7 @@ from .metrics import (
 )
 from .middleware.security_headers import apply_security_headers
 from .middleware.tenant_guard import install_tenant_guard
-from .security import apply_security
+from .security import apply_security, install_privileged_mfa_guard
 from .security_gate import install_global_gate
 from .socket import socketio
 
@@ -226,12 +227,14 @@ _DEFAULT_BLUEPRINT_MODULES = [
     "erp.routes.crm_api",
     "erp.routes.performance_api",
     "erp.routes.analytics_api",
+    "erp.routes.analytics_dashboard_api",
     "erp.routes.csrf_api",
     "erp.routes.marketing_api",
     "erp.routes.marketing_geofence",
     "erp.routes.geo_api",
     "erp.routes.client_portal",
     "erp.routes.audit_api",
+    "erp.routes.admin",
     "erp.routes.bot_dashboard_api",
     "erp.routes.admin_console_api",
     "erp.routes.sso_oidc",
@@ -338,6 +341,16 @@ def create_app(config_object: str | None = None) -> Flask:
     """Application factory used by Flask, Celery, and CLI tooling."""
 
     app = Flask(__name__, instance_relative_config=False)
+
+    # Allow both package-scoped templates (erp/templates) and repository-level
+    # templates/ so modernized UI assets remain available after refactors.
+    repo_templates = Path(__file__).resolve().parent.parent / "templates"
+    if repo_templates.exists():
+        loader = getattr(app, "jinja_loader", None)
+        searchpath = getattr(loader, "searchpath", None)
+        repo_path = str(repo_templates)
+        if isinstance(searchpath, list) and repo_path not in searchpath:
+            searchpath.insert(0, repo_path)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     if config_object:
@@ -366,7 +379,9 @@ def create_app(config_object: str | None = None) -> Flask:
 
     init_extensions(app)
     apply_security(app)
+    install_privileged_mfa_guard(app)
     apply_security_headers(app)
+    register_error_handlers(app)
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)
