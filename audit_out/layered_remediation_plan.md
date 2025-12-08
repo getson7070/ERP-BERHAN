@@ -10,17 +10,19 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Database: persist MFA secrets/recovery codes with encryption at rest; seed admin roles with enforced MFA flag.
    - Progress: global privileged-role MFA guard registered in the app factory (JSON 403 or browser redirect) with configurable exemptions; login/registration already rate-limited with CSRF; next step is bot/session token enforcement.
 
-2) **Role/RBAC hardening with tenant isolation**  
-   - Layers: 1, 3, 4 (Orders/Commission), 5 (Maintenance), 6 (Procurement), 7 (Reporting).  
-   - Actions: implement permission matrix stored in DB; enforce `resolve_org_id()` scoping on all queries; add supervisor vs admin policy gates for approvals; add audit logs for privilege changes.  
-   - UX: surface denied-access states with consistent UI patterns and audit trail links.  
+2) **Role/RBAC hardening with tenant isolation**
+   - Layers: 1, 3, 4 (Orders/Commission), 5 (Maintenance), 6 (Procurement), 7 (Reporting).
+   - Actions: implement permission matrix stored in DB; enforce `resolve_org_id()` scoping on all queries; add supervisor vs admin policy gates for approvals; add audit logs for privilege changes.
+   - UX: surface denied-access states with consistent UI patterns and audit trail links.
    - Database: add `permissions`, `role_permissions`, and `user_roles` tables plus Alembic migrations; backfill legacy roles safely.
+   - Progress: legacy `role_required` now enforces MFA for privileged roles and order approval endpoints are gated by MFA-aware supervisor/admin roles; still need policy-backed permission matrix and UI hardening.
 
-3) **Client onboarding validation and approval control**  
-   - Layers: 2 (Onboarding), 4, 5.  
-   - Actions: require TIN (10 digits) uniqueness; enforce institution-level approvals; support multiple contacts per TIN with manager approval; block unapproved clients from orders/maintenance.  
-   - UX: guided registration wizard with clear error states; responsive forms; geo-consent prompts.  
+3) **Client onboarding validation and approval control**
+   - Layers: 2 (Onboarding), 4, 5.
+   - Actions: require TIN (10 digits) uniqueness; enforce institution-level approvals; support multiple contacts per TIN with manager approval; block unapproved clients from orders/maintenance.
+   - UX: guided registration wizard with clear error states; responsive forms; geo-consent prompts.
    - Database: unique index on TIN; tables for institution contacts and approval status history.
+   - Progress: client registration now enforces `(org_id, TIN, email)` uniqueness via migration, allowing multi-contact submissions without collisions and warning when an additional contact is detected.
 
 4) **Geo capture and auditability for field actions**  
    - Layers: 5 (Maintenance), 8 (Geo Engine), 4 (Orders), 6 (Procurement).  

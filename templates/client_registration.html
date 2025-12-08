@@ -5,7 +5,7 @@
     <div class="row">
       <div class="col">
         <h1 id="client-register-title" class="display-5 mb-2">Client onboarding</h1>
-        <p class="lead text-muted mb-4">Provide your institution details for supervisor review. TIN (10 digits) is required for approval.</p>
+        <p class="lead text-muted mb-4">Provide your institution details for supervisor review. TIN (10 digits) is required for approval. Existing institutions may add multiple verified contacts with supervisor approval.</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -94,7 +94,7 @@
             </div>
           </div>
           <div class="card-footer d-flex justify-content-between align-items-center">
-            <div class="text-muted small">Supervisors review submissions. Additional contacts for an existing TIN may require explicit manager approval.</div>
+            <div class="text-muted small">Supervisors review submissions. Additional contacts for an existing TIN are welcome but must be explicitly approved and linked.</div>
             <button type="submit" class="btn btn-primary">Submit for approval</button>
           </div>
         </form>
@@ -106,7 +106,7 @@
             <ul class="list-unstyled small text-muted mb-0">
               <li class="mb-2">Supervisors validate your TIN and institution details.</li>
               <li class="mb-2">Approved clients receive login access to orders and maintenance tracking.</li>
-              <li class="mb-2">If your institution is already registered, supervisors will link this request as an additional contact.</li>
+              <li class="mb-2">If your institution is already registered, supervisors will link this request as an additional contact and maintain the shared TIN record.</li>
               <li>MFA is required for management actions; we recommend enabling it once approved.</li>
             </ul>
           </div>
