@@ -53,6 +53,12 @@ def _serialize_order(order: PurchaseOrder) -> dict[str, Any]:
         "status": order.status,
         "currency": order.currency,
         "total_amount": float(order.total_amount or 0),
+        "pi_number": order.pi_number,
+        "awb_number": order.awb_number,
+        "hs_code": order.hs_code,
+        "bank_name": order.bank_name,
+        "customs_valuation": float(order.customs_valuation) if order.customs_valuation else None,
+        "efda_reference": order.efda_reference,
         "created_at": order.created_at.isoformat(),
         "created_by_id": order.created_by_id,
         "approved_at": order.approved_at.isoformat() if order.approved_at else None,
@@ -124,6 +130,18 @@ def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
 
 def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
     ticket.evaluate_breach()
+    po_meta: dict[str, Any] | None = None
+    if ticket.purchase_order:
+        po_meta = {
+            "id": ticket.purchase_order.id,
+            "pi_number": ticket.purchase_order.pi_number,
+            "awb_number": ticket.purchase_order.awb_number,
+            "hs_code": ticket.purchase_order.hs_code,
+            "efda_reference": ticket.purchase_order.efda_reference,
+            "customs_valuation": float(ticket.purchase_order.customs_valuation)
+            if ticket.purchase_order.customs_valuation
+            else None,
+        }
     return {
         "id": ticket.id,
         "organization_id": ticket.organization_id,
@@ -149,6 +167,7 @@ def _serialize_ticket(ticket: ProcurementTicket) -> dict[str, Any]:
         "landed_cost_posted_at": ticket.landed_cost_posted_at.isoformat()
         if ticket.landed_cost_posted_at
         else None,
+        "purchase_order": po_meta,
         "milestones": [_serialize_milestone(m) for m in ticket.milestones],
     }
 
@@ -186,6 +205,16 @@ def create_order():
     currency = (payload.get("currency") or "ETB").upper()
     lines_payload = payload.get("lines") or []
 
+    pi_number = (payload.get("pi_number") or "").strip() or None
+    awb_number = (payload.get("awb_number") or "").strip() or None
+    hs_code = (payload.get("hs_code") or "").strip() or None
+    bank_name = (payload.get("bank_name") or "").strip() or None
+    customs_raw = payload.get("customs_valuation")
+    customs_valuation = None
+    if customs_raw not in (None, ""):
+        customs_valuation = _parse_decimal(customs_raw, default="0")
+    efda_reference = (payload.get("efda_reference") or "").strip() or None
+
     if not lines_payload:
         return jsonify({"error": "at least one line is required"}), HTTPStatus.BAD_REQUEST
 
@@ -196,6 +225,12 @@ def create_order():
         currency=currency,
         status="draft",
         created_by_id=getattr(current_user, "id", None),
+        pi_number=pi_number,
+        awb_number=awb_number,
+        hs_code=hs_code,
+        bank_name=bank_name,
+        customs_valuation=customs_valuation,
+        efda_reference=efda_reference,
     )
 
     ticket_id = payload.get("ticket_id")
@@ -235,7 +270,14 @@ def create_order():
         entity_type="purchase_order",
         entity_id=po.id,
         status=po.status,
-        metadata={"currency": po.currency, "line_count": len(lines_payload)},
+        metadata={
+            "currency": po.currency,
+            "line_count": len(lines_payload),
+            "pi_number": po.pi_number,
+            "awb_number": po.awb_number,
+            "hs_code": po.hs_code,
+            "efda_reference": po.efda_reference,
+        },
     )
 
     return jsonify(_serialize_order(po)), HTTPStatus.CREATED

@@ -116,6 +116,10 @@ class Institution(TimestampMixin, OrgScopedMixin, db.Model):
     __table_args__ = (
         UniqueConstraint("org_id", "tin", name="uq_institutions_org_tin"),
         Index("ix_institutions_tin", "tin"),
+        CheckConstraint(
+            "length(tin) = 10 AND tin >= '0000000000' AND tin <= '9999999999'",
+            name="ck_institutions_tin_digits",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

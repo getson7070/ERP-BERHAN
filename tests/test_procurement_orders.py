@@ -23,6 +23,12 @@ def test_full_procurement_flow(client, db_session, procurement_user):
             "supplier_id": 1,
             "supplier_name": "Vendor A",
             "currency": "ETB",
+            "pi_number": "PI-12345",
+            "awb_number": "AWB-555",
+            "hs_code": "9001.10",
+            "bank_name": "Commercial Bank",
+            "customs_valuation": "12345.67",
+            "efda_reference": "EFDA-REF-9",
             "lines": [
                 {"item_code": "ITEM-1", "ordered_quantity": 10, "unit_price": 100},
                 {"item_code": "ITEM-2", "ordered_quantity": 5, "unit_price": 200},
@@ -32,6 +38,12 @@ def test_full_procurement_flow(client, db_session, procurement_user):
     )
     assert resp.status_code == 201
     po = resp.get_json()
+    assert po["pi_number"] == "PI-12345"
+    assert po["awb_number"] == "AWB-555"
+    assert po["hs_code"] == "9001.10"
+    assert po["bank_name"] == "Commercial Bank"
+    assert po["customs_valuation"] == 12345.67
+    assert po["efda_reference"] == "EFDA-REF-9"
     po_id = po["id"]
     line_ids = [line["id"] for line in po["lines"]]
 
@@ -72,6 +84,35 @@ def test_full_procurement_flow(client, db_session, procurement_user):
     assert po_final["status"] == "received"
     for line in po_final["lines"]:
         assert line["received_quantity"] == line["ordered_quantity"]
+
+
+def test_ticket_serialization_includes_trade_fields(client, db_session, procurement_user):
+    headers = _auth_headers(procurement_user)
+
+    po_resp = client.post(
+        "/api/procurement/orders",
+        json={
+            "supplier_id": 5,
+            "pi_number": "PI-555",
+            "hs_code": "0101.10",
+            "efda_reference": "EFDA-10",
+            "lines": [{"item_code": "ITEM-TR", "ordered_quantity": 1, "unit_price": 50}],
+        },
+        headers=headers,
+    )
+    assert po_resp.status_code == 201
+    po_id = po_resp.get_json()["id"]
+
+    ticket_resp = client.post(
+        "/api/procurement/tickets",
+        json={"title": "Import batch", "purchase_order_id": po_id},
+        headers=headers,
+    )
+    assert ticket_resp.status_code == 201
+    payload = ticket_resp.get_json()
+    assert payload["purchase_order"]["pi_number"] == "PI-555"
+    assert payload["purchase_order"]["hs_code"] == "0101.10"
+    assert payload["purchase_order"]["efda_reference"] == "EFDA-10"
 
 
 def test_cannot_receive_more_than_ordered(client, db_session, procurement_user):

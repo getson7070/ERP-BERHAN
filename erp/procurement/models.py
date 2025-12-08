@@ -27,6 +27,13 @@ class PurchaseOrder(db.Model):
     currency = db.Column(db.String(8), nullable=False, default="ETB")
     total_amount = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
 
+    pi_number = db.Column(db.String(64), nullable=True, index=True)
+    awb_number = db.Column(db.String(64), nullable=True, index=True)
+    hs_code = db.Column(db.String(64), nullable=True, index=True)
+    bank_name = db.Column(db.String(128), nullable=True)
+    customs_valuation = db.Column(db.Numeric(14, 2), nullable=True)
+    efda_reference = db.Column(db.String(64), nullable=True, index=True)
+
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     created_by_id = db.Column(db.Integer, nullable=True)
     updated_at = db.Column(

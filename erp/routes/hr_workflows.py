@@ -8,7 +8,8 @@ from flask import (
     flash,
     session,
 )
-from erp.utils import login_required, resolve_org_id, role_required
+from erp.security import require_roles, mfa_required
+from erp.utils import login_required, resolve_org_id
 from erp.models import Recruitment, PerformanceReview
 from erp.extensions import db
 
@@ -19,7 +20,8 @@ bp = hr_workflows_bp
 
 @bp.route("/recruitment", methods=["GET", "POST"])
 @login_required
-@role_required("Manager", "Admin")
+@require_roles("admin", "hr", "management")
+@mfa_required
 def recruitment():
     """Create and list recruitment records."""
     org_id = resolve_org_id()
@@ -58,7 +60,8 @@ def recruitment():
 
 @bp.route("/performance", methods=["GET", "POST"])
 @login_required
-@role_required("Manager", "Admin")
+@require_roles("admin", "hr", "management")
+@mfa_required
 def performance():
     """Capture and list performance reviews."""
     org_id = resolve_org_id()
@@ -94,7 +97,8 @@ def performance():
 
 @bp.post("/performance/<int:review_id>/finalize")
 @login_required
-@role_required("Manager", "Admin")
+@require_roles("admin", "hr", "management")
+@mfa_required
 def finalize_review(review_id: int):
     org_id = resolve_org_id()
     review = PerformanceReview.query.filter_by(

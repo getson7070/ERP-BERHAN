@@ -118,11 +118,16 @@ def approve_client(client_id: int):
         return redirect(url_for("user_management.index"))
 
     org_id = resolve_org_id()
+    tin = (client.tin or "").strip()
+    if not tin or len(tin) != 10 or not tin.isdigit():
+        flash("TIN must be a 10 digit number before approval.", "danger")
+        return redirect(url_for("user_management.index"))
+
     institution = Institution.query.filter_by(org_id=org_id, tin=client.tin).first()
     if institution is None:
         institution = Institution(
             org_id=org_id,
-            tin=client.tin,
+            tin=tin,
             legal_name=client.institution_name,
             region=client.region,
             zone=client.zone,

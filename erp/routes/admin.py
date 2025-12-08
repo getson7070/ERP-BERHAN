@@ -8,6 +8,8 @@ from flask import (
     request,
     session,
     flash,
+    redirect,
+    url_for,
 )
 from http import HTTPStatus
 from flask_login import login_required
@@ -16,7 +18,10 @@ from sqlalchemy import text
 from db import get_db
 from erp.health import health_registry
 from erp.security import require_roles, mfa_required
-from erp.utils import sanitize_sort, sanitize_direction
+from erp.security_rbac_phase2 import invalidate_policy_cache
+from erp.utils import resolve_org_id, sanitize_sort, sanitize_direction
+from erp.extensions import db
+from erp.models import RBACPolicy, RBACPolicyRule
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -105,6 +110,69 @@ def audit_logs():
     return render_template("admin/audit_logs.html")
 
 
+@bp.route("/rbac", methods=["GET", "POST"])
+@login_required
+@require_roles("admin", "management", "supervisor")
+@mfa_required
+def rbac_console():
+    """Minimal UI to inspect and edit RBAC policies safely."""
+
+    org_id = resolve_org_id()
+    policies = (
+        RBACPolicy.query.filter_by(org_id=org_id)
+        .order_by(RBACPolicy.priority.asc())
+        .all()
+    )
+
+    if request.method == "POST":
+        policy_id = request.form.get("policy_id")
+        role_key = (request.form.get("role_key") or "").strip().lower()
+        resource = (request.form.get("resource") or "").strip()
+        action = (request.form.get("action") or "").strip()
+        effect = (request.form.get("effect") or "allow").strip().lower()
+
+        if effect not in {"allow", "deny"}:
+            flash("Effect must be allow or deny.", "danger")
+            return redirect(url_for("admin.rbac_console"))
+
+        if not (role_key and resource and action):
+            flash("Role, resource, and action are required.", "danger")
+            return redirect(url_for("admin.rbac_console"))
+
+        target_policy = None
+        if policy_id:
+            target_policy = RBACPolicy.query.filter_by(
+                org_id=org_id, id=int(policy_id)
+            ).first()
+        if target_policy is None:
+            target_policy = RBACPolicy(
+                org_id=org_id,
+                name="Custom policy",
+                description="Ad-hoc rules from admin console",
+                priority=90,
+                is_active=True,
+            )
+            db.session.add(target_policy)
+            db.session.flush()
+
+        db.session.add(
+            RBACPolicyRule(
+                org_id=org_id,
+                policy_id=target_policy.id,
+                role_key=role_key,
+                resource=resource,
+                action=action,
+                effect=effect,
+            )
+        )
+        db.session.commit()
+        invalidate_policy_cache()
+        flash("RBAC rule saved.", "success")
+        return redirect(url_for("admin.rbac_console"))
+
+    return render_template("admin/rbac.html", policies=policies)
+
+
 @bp.route("/bots")
 @login_required
 @require_roles("admin", "analytics")
@@ -112,6 +180,16 @@ def audit_logs():
 def bots_dashboard():
     """UI shell that talks to /api/bot-dashboard/summary and /events."""
     return render_template("admin/bots_dashboard.html")
+
+
+@bp.route("/analytics/operations")
+@login_required
+@require_roles("admin", "analytics", "management", "supervisor")
+@mfa_required
+def operations_analytics():
+    """Dashboard for maintenance escalations and geo offline alerts."""
+
+    return render_template("admin/ops_analytics.html")
 
 
 @bp.route("/health", methods=["GET"])
