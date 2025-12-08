@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Telegram Bot Activity{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Telegram Bot Activity</h1>
+      <p class="text-muted mb-0">Track queued, successful, and failed jobs across bots. Data refreshes live from secured APIs.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('analytics_dashboard_api.bot_activity') }}">Download JSON</a>
+  </div>
+
+  <div class="row g-3 mb-4" id="bot-cards">
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Successful</p>
+          <h2 class="display-6" id="bot-success">--</h2>
+          <p class="mb-0 text-muted">Jobs delivered/processed.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Queued</p>
+          <h2 class="display-6" id="bot-queued">--</h2>
+          <p class="mb-0 text-muted">Awaiting processing.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100 border-danger-subtle">
+        <div class="card-body">
+          <p class="text-muted text-uppercase fw-semibold small mb-1">Failed</p>
+          <h2 class="display-6 text-danger" id="bot-failed">--</h2>
+          <p class="mb-0 text-muted">Investigate retries and secrets.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white border-0">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="h5 mb-0">Job status by state</h2>
+          <small class="text-muted">Aggregated counts pulled from secured bot outbox.</small>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0" id="bot-table">
+          <thead class="table-light">
+            <tr>
+              <th>Status</th>
+              <th class="text-end">Count</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadBotActivity() {
+  const res = await fetch("{{ url_for('analytics_dashboard_api.bot_activity') }}");
+  if (!res.ok) return;
+  const data = await res.json();
+  document.getElementById('bot-success').innerText = data.successful ?? 0;
+  document.getElementById('bot-queued').innerText = data.queued ?? 0;
+  document.getElementById('bot-failed').innerText = data.failed ?? 0;
+
+  const tbody = document.querySelector('#bot-table tbody');
+  tbody.innerHTML = '';
+  Object.entries(data.by_status || {}).forEach(([status, count]) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${status}</td><td class="text-end fw-semibold">${count}</td>`;
+    tbody.appendChild(row);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', loadBotActivity);
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Bad request{% endblock %}
+{% block content %}
+<section class="card-soft p-4" aria-labelledby="error-400-title">
+  <p class="text-uppercase text-muted fw-semibold mb-1">Error 400</p>
+  <h1 id="error-400-title" class="display-6 mb-3">Bad request</h1>
+  <p class="lead text-muted mb-4">The request could not be processed. Please review the information and try again.</p>
+  <a class="btn btn-primary" href="/">Return to dashboard</a>
+</section>
+{% endblock %}

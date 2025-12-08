@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Something went wrong{% endblock %}
+{% block content %}
+<section class="card-soft p-4" aria-labelledby="error-500-title">
+  <div class="row g-4 align-items-center">
+    <div class="col-lg-8">
+      <p class="text-uppercase text-muted fw-semibold mb-1">Error 500</p>
+      <h1 id="error-500-title" class="display-6 mb-3">Something went wrong</h1>
+      <p class="lead text-muted mb-4">We hit an unexpected error. Please try again shortly or contact support if the issue persists.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="/">Return home</a>
+        <a class="btn btn-outline-secondary" href="/help">Contact support</a>
+      </div>
+    </div>
+    <div class="col-lg-4 text-center">
+      <i class="bi bi-activity display-3 text-danger"></i>
+      {% if request_id %}
+      <p class="small text-muted mt-2">Reference ID: {{ request_id }}</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
