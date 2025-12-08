@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}ERP Platform{% endblock %}</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+    crossorigin="anonymous"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE7yYwH0R2Ll0h59sJv+0y5G2Qp3p9ctnc"
+    crossorigin="anonymous"
+  />
+  <style>
+    :root {
+      --erp-font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --erp-radius: 12px;
+      --erp-border: 1px solid rgba(0, 0, 0, 0.06);
+      --erp-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --erp-muted: #6c757d;
+      --erp-surface: #ffffff;
+      --erp-surface-alt: #f8f9fa;
+    }
+
+    [data-bs-theme="dark"] {
+      --erp-surface: #111827;
+      --erp-surface-alt: #0b1220;
+      --erp-muted: #9ca3af;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--erp-font-family);
+      background: linear-gradient(180deg, #f4f7fb 0%, #ffffff 100%);
+      min-height: 100vh;
+      color: #0f172a;
+    }
+
+    [data-bs-theme="dark"] body {
+      background: radial-gradient(circle at 20% 20%, rgba(59,130,246,0.08), transparent 25%),
+        radial-gradient(circle at 80% 0%, rgba(16,185,129,0.08), transparent 20%),
+        #0b1220;
+      color: #e5e7eb;
+    }
+
+    .page-shell {
+      max-width: 1200px;
+      margin: 24px auto 64px;
+      padding: 0 20px;
+    }
+
+    .card-soft {
+      background: var(--erp-surface);
+      border: var(--erp-border);
+      border-radius: var(--erp-radius);
+      box-shadow: var(--erp-shadow);
+    }
+  </style>
+  {% block head %}{% endblock %}
+  <script>
+    (() => {
+      const saved = localStorage.getItem("erp-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-bs-theme", saved);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="page-shell">
+    {% include "partials/navbar.html" %}
+    <main id="main" class="mt-4">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const toggle = document.getElementById("themeToggle");
+      if (!toggle) return;
+
+      const setTheme = (mode) => {
+        const next = mode === "dark" ? "dark" : "light";
+        root.setAttribute("data-bs-theme", next);
+        localStorage.setItem("erp-theme", next);
+        toggle.setAttribute("aria-pressed", next === "dark");
+        toggle.querySelector("span[data-theme-label]").textContent =
+          next === "dark" ? "Dark" : "Light";
+      };
+
+      const initial = localStorage.getItem("erp-theme") || root.getAttribute("data-bs-theme") || "light";
+      setTheme(initial);
+
+      toggle.addEventListener("click", () => {
+        const current = root.getAttribute("data-bs-theme") === "dark" ? "dark" : "light";
+        setTheme(current === "dark" ? "light" : "dark");
+      });
+    })();
+  </script>
+</body>
+</html>

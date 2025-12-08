@@ -52,7 +52,7 @@
         <div class="d-flex align-items-center justify-content-between mb-2">
           <div>
             <h2 class="h5 mb-0">Purchase orders</h2>
-            <small class="text-muted">Monitor receipts, returns, approvals and landed cost linkage.</small>
+            <small class="text-muted">Monitor receipts, returns, approvals and landed cost linkage with trade metadata.</small>
           </div>
           <span class="badge bg-info-subtle text-info" id="order-count">0</span>
         </div>
@@ -63,17 +63,31 @@
                 <th>ID</th>
                 <th>Supplier</th>
                 <th class="text-nowrap">Status</th>
+                <th class="text-nowrap">Trade</th>
                 <th class="text-nowrap">Total</th>
                 <th class="text-nowrap">Ticket</th>
               </tr>
             </thead>
             <tbody id="order-table-body">
-              <tr><td colspan="5" class="text-muted text-center py-4">Loading...</td></tr>
+              <tr><td colspan="6" class="text-muted text-center py-4">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="orderDrawer" aria-labelledby="orderDrawerLabel">
+  <div class="offcanvas-header">
+    <div>
+      <h5 class="offcanvas-title" id="orderDrawerLabel">Purchase order</h5>
+      <div class="small text-muted" id="orderDrawerMeta"></div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="orderDrawerBody" class="text-muted">Select an order to view details.</div>
   </div>
 </div>
 
@@ -105,6 +119,10 @@
   const drawer = drawerEl ? new bootstrap.Offcanvas(drawerEl) : null;
   const drawerBody = document.getElementById('ticketDrawerBody');
   const drawerMeta = document.getElementById('ticketDrawerMeta');
+  const orderDrawerEl = document.getElementById('orderDrawer');
+  const orderDrawer = orderDrawerEl ? new bootstrap.Offcanvas(orderDrawerEl) : null;
+  const orderDrawerBody = document.getElementById('orderDrawerBody');
+  const orderDrawerMeta = document.getElementById('orderDrawerMeta');
 
   async function fetchJSON(url, options) {
     const res = await fetch(url, options || {});
@@ -133,12 +151,14 @@
 
   function renderOrderRow(order) {
     const status = `<span class="badge bg-${badgeClass(order.status)} text-uppercase">${order.status}</span>`;
+    const trade = renderTradeBadges(order);
     const ticket = order.ticket_id ? `#${order.ticket_id}` : '—';
-    return `<tr>
+    return `<tr role="button" data-order-id="${order.id}">
       <td class="fw-semibold">#${order.id}</td>
       <td>${escapeHtml(order.supplier_name || '—')}</td>
       <td class="text-nowrap">${status}</td>
-      <td class="text-nowrap">${order.total_amount.toLocaleString(undefined, { style: 'currency', currency: order.currency || 'ETB' })}</td>
+      <td class="text-nowrap">${trade}</td>
+      <td class="text-nowrap">${formatCurrency(order.total_amount, order.currency)}</td>
       <td class="text-nowrap">${ticket}</td>
     </tr>`;
   }
@@ -179,11 +199,24 @@
               <div class="fw-semibold">${escapeHtml(m.name)}</div>
               <div class="text-muted small">Expected: ${m.expected_at ? new Date(m.expected_at).toLocaleString() : '—'}</div>
               ${m.notes ? `<div class="text-muted small">${escapeHtml(m.notes)}</div>` : ''}
+              ${renderMilestoneGeo(m.geo)}
             </div>
             <span class="badge bg-${badgeClass(m.status)} text-uppercase">${m.status}</span>
           </div>
         </li>`).join('')}
     </ul>`;
+  }
+
+  function renderMilestoneGeo(geo) {
+    if (!geo || (!geo.lat && !geo.lng)) {
+      return '';
+    }
+    const coords = [geo.lat?.toFixed?.(5) ?? geo.lat, geo.lng?.toFixed?.(5) ?? geo.lng]
+      .filter(Boolean)
+      .join(', ');
+    const accuracy = geo.accuracy_m ? `${geo.accuracy_m.toFixed(1)}m` : '—';
+    const recorded = geo.recorded_at ? new Date(geo.recorded_at).toLocaleString() : '—';
+    return `<div class="text-muted small">Geo: ${coords || '—'} (±${accuracy}) · Recorded ${recorded}</div>`;
   }
 
   async function loadTickets() {
@@ -199,10 +232,130 @@
   async function loadOrders() {
     try {
       const orders = await fetchJSON('/api/procurement/orders');
-      orderTableBody.innerHTML = orders.map(renderOrderRow).join('') || '<tr><td colspan="5" class="text-muted text-center py-4">No purchase orders yet.</td></tr>';
+      orderTableBody.innerHTML = orders.map(renderOrderRow).join('') || '<tr><td colspan="6" class="text-muted text-center py-4">No purchase orders yet.</td></tr>';
       orderCount.textContent = orders.length;
     } catch (err) {
-      orderTableBody.innerHTML = `<tr><td colspan="5" class="text-danger">${err.message}</td></tr>`;
+      orderTableBody.innerHTML = `<tr><td colspan="6" class="text-danger">${err.message}</td></tr>`;
+    }
+  }
+
+  function formatCurrency(value, currency) {
+    const amount = Number.isFinite(value) ? value : 0;
+    try {
+      return amount.toLocaleString(undefined, { style: 'currency', currency: currency || 'ETB' });
+    } catch (err) {
+      return `${amount.toFixed(2)} ${currency || ''}`.trim();
+    }
+  }
+
+  function renderTradeBadges(order) {
+    const parts = [];
+    if (order.pi_number) parts.push(`<span class="badge bg-info-subtle text-info">PI ${escapeHtml(order.pi_number)}</span>`);
+    if (order.awb_number) parts.push(`<span class="badge bg-primary-subtle text-primary">AWB ${escapeHtml(order.awb_number)}</span>`);
+    if (order.hs_code) parts.push(`<span class="badge bg-secondary-subtle text-secondary">HS ${escapeHtml(order.hs_code)}</span>`);
+    if (order.efda_reference) parts.push(`<span class="badge bg-success-subtle text-success">EFDA ${escapeHtml(order.efda_reference)}</span>`);
+    if (order.bank_name) parts.push(`<span class="badge bg-warning-subtle text-warning text-wrap">${escapeHtml(order.bank_name)}</span>`);
+    return parts.join(' ') || '<span class="text-muted">—</span>';
+  }
+
+  function renderLineItems(lines) {
+    if (!lines?.length) {
+      return '<p class="text-muted small">No line items recorded.</p>';
+    }
+    return `<div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Ordered</th>
+            <th class="text-end">Received</th>
+            <th class="text-end">Returned</th>
+            <th class="text-end">Unit price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lines.map(line => `
+            <tr>
+              <td>
+                <div class="fw-semibold">${escapeHtml(line.item_code)}</div>
+                ${line.item_description ? `<div class="text-muted small">${escapeHtml(line.item_description)}</div>` : ''}
+              </td>
+              <td class="text-end">${line.ordered_quantity}</td>
+              <td class="text-end">${line.received_quantity}</td>
+              <td class="text-end">${line.returned_quantity}</td>
+              <td class="text-end">${formatCurrency(line.unit_price, null)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  function renderTradeDetail(order) {
+    return `
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <div class="small text-muted">Proforma invoice</div>
+          <div class="fw-semibold">${escapeHtml(order.pi_number || '—')}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="small text-muted">AWB / BL</div>
+          <div class="fw-semibold">${escapeHtml(order.awb_number || '—')}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="small text-muted">HS code</div>
+          <div class="fw-semibold">${escapeHtml(order.hs_code || '—')}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="small text-muted">EFDA reference</div>
+          <div class="fw-semibold">${escapeHtml(order.efda_reference || '—')}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="small text-muted">Bank</div>
+          <div class="fw-semibold">${escapeHtml(order.bank_name || '—')}</div>
+        </div>
+        <div class="col-sm-6">
+          <div class="small text-muted">Customs valuation</div>
+          <div class="fw-semibold">${order.customs_valuation ? formatCurrency(order.customs_valuation, order.currency) : '—'}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderTicketPurchaseOrderMeta(ticket) {
+    if (!ticket.purchase_order) return '';
+    const po = ticket.purchase_order;
+    return `
+      <div class="mb-3">
+        <div class="fw-semibold d-flex align-items-center gap-2">Purchase order #${po.id || '—'} ${renderTradeBadges(po)}</div>
+        <div class="text-muted small">Currency ${escapeHtml(po.currency || 'ETB')} · Bank ${escapeHtml(po.bank_name || '—')} · Customs ${po.customs_valuation ? formatCurrency(po.customs_valuation, po.currency) : '—'}</div>
+      </div>`;
+  }
+
+  async function showOrderDetail(orderId) {
+    try {
+      const order = await fetchJSON(`/api/procurement/orders/${orderId}`);
+      orderDrawerMeta.textContent = `Status ${order.status.toUpperCase()} · Currency ${order.currency || 'ETB'} · Created ${new Date(order.created_at).toLocaleString()}`;
+      orderDrawerBody.innerHTML = `
+        <div class="mb-3">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="fw-semibold">Supplier</div>
+              <div class="text-muted">${escapeHtml(order.supplier_name || '—')}</div>
+            </div>
+            <div>${renderTradeBadges(order)}</div>
+          </div>
+          <div class="text-muted small mt-2">Ticket ${order.ticket_id ? '#' + order.ticket_id : '—'} · Total ${formatCurrency(order.total_amount, order.currency)}</div>
+        </div>
+        ${renderTradeDetail(order)}
+        <div class="mb-3">
+          <div class="fw-semibold">Line items</div>
+          ${renderLineItems(order.lines)}
+        </div>
+      `;
+      orderDrawer && orderDrawer.show();
+    } catch (err) {
+      orderDrawerBody.innerHTML = `<div class="text-danger small">${err.message}</div>`;
+      orderDrawer && orderDrawer.show();
     }
   }
 
@@ -216,6 +369,7 @@
           <div class="text-muted small">PO #${ticket.purchase_order_id || '—'}</div>
           ${ticket.sla_breached ? '<span class="badge bg-danger">SLA breached</span>' : ''}
         </div>
+        ${renderTicketPurchaseOrderMeta(ticket)}
         <div class="mb-3">
           <div class="fw-semibold">Milestones</div>
           ${renderMilestones(ticket.milestones)}
@@ -238,6 +392,15 @@
     const ticketId = row.getAttribute('data-ticket-id');
     if (ticketId) {
       showTicketDetail(ticketId);
+    }
+  });
+
+  orderTableBody?.addEventListener('click', (event) => {
+    const row = event.target.closest('tr[data-order-id]');
+    if (!row) return;
+    const orderId = row.getAttribute('data-order-id');
+    if (orderId) {
+      showOrderDetail(orderId);
     }
   });
 
