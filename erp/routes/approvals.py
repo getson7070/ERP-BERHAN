@@ -4,12 +4,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
-from flask_login import current_user, login_required
+from flask_login import current_user
 
 from erp.audit import log_audit
 from erp.extensions import db
 from erp.models import ApprovalRequest, Order
-from erp.utils import resolve_org_id, role_required
+from erp.security import require_login, require_roles
+from erp.utils import resolve_org_id
 
 bp = Blueprint("approvals", __name__, url_prefix="/approvals")
 
@@ -28,8 +29,7 @@ def _serialize(record: ApprovalRequest) -> dict[str, object]:
 
 
 @bp.get("/requests")
-@login_required
-@role_required("Manager", "Admin")
+@require_roles("manager", "admin", "supervisor")
 def list_requests():
     """List approval requests for the active organisation."""
 
@@ -43,7 +43,7 @@ def list_requests():
 
 
 @bp.post("/orders/<int:order_id>")
-@login_required
+@require_login
 def request_order_approval(order_id: int):
     """Create an approval request for an order."""
 
@@ -72,8 +72,7 @@ def request_order_approval(order_id: int):
 
 
 @bp.post("/requests/<int:request_id>/decision")
-@login_required
-@role_required("Manager", "Admin")
+@require_roles("manager", "admin", "supervisor")
 def decide(request_id: int):
     """Approve or reject a pending request."""
 

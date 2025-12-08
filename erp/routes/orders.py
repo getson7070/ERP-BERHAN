@@ -32,6 +32,8 @@ def _serialize(order: Order) -> dict[str, object]:
         "commission_enabled": order.commission_enabled,
         "commission_rate": float(order.commission_rate or 0),
         "commission_status": order.commission_status,
+        "commission_block_reason": order.commission_block_reason,
+        "commission_approved_by_management": order.commission_approved_by_management,
         "commission_amount": float(order.commission_amount),
         "placed_at": order.placed_at.isoformat() if order.placed_at else None,
     }
@@ -113,7 +115,11 @@ def index():
                     HTTPStatus.BAD_REQUEST,
                 )
 
-        commission_enabled = _as_bool(payload.get("commission_enabled"), default=False)
+        commission_flag = payload.get("commission_enabled")
+        commission_enabled = _as_bool(
+            commission_flag,
+            default=(initiator_type == "employee" and assigned_sales_rep_id is not None),
+        )
         commission_rate = payload.get("commission_rate")
         try:
             commission_rate_decimal = (
@@ -123,6 +129,21 @@ def index():
             return (
                 jsonify({"error": "commission_rate must be numeric"}),
                 HTTPStatus.BAD_REQUEST,
+            )
+
+        commission_approved_by_management = _as_bool(
+            payload.get("commission_approved_by_management"), default=False
+        )
+
+        if initiator_type == "client" and commission_enabled and not commission_approved_by_management:
+            return (
+                jsonify(
+                    {
+                        "error": "client-initiated commissions require management approval",
+                        "action": "set commission_approved_by_management=true to override",
+                    }
+                ),
+                HTTPStatus.FORBIDDEN,
             )
 
         order = Order(
@@ -135,10 +156,12 @@ def index():
             assigned_sales_rep_id=assigned_sales_rep_id,
             commission_enabled=commission_enabled,
             commission_rate=commission_rate_decimal,
+            commission_approved_by_management=commission_approved_by_management,
             status="submitted",
             payment_status="unpaid",
             commission_status="pending" if commission_enabled else "none",
         )
+        order._sync_commission_status()
         db.session.add(order)
         db.session.flush()
 
@@ -198,7 +221,20 @@ def update(order_id: int):
         order.set_payment_status(payment_status)
 
     if "commission_enabled" in payload:
-        order.set_commission_enabled(_as_bool(payload.get("commission_enabled")))
+        approved_flag = payload.get("commission_approved_by_management")
+        order.set_commission_enabled(
+            _as_bool(payload.get("commission_enabled")),
+            approved_by_management=(
+                _as_bool(approved_flag)
+                if approved_flag is not None
+                else None
+            ),
+        )
+
+    if "commission_approved_by_management" in payload:
+        order.set_commission_approved(
+            _as_bool(payload.get("commission_approved_by_management"))
+        )
 
     if "commission_rate" in payload:
         commission_rate_val = payload.get("commission_rate")

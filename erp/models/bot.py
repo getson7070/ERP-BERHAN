@@ -34,7 +34,7 @@ class BotCommandRegistry(db.Model):
 class BotEvent(db.Model):
     __tablename__ = "bot_events"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     bot_name = db.Column(db.String(64), nullable=False, index=True)
@@ -65,7 +65,7 @@ class BotEvent(db.Model):
 class BotJobOutbox(db.Model):
     __tablename__ = "bot_job_outbox"
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
     bot_name = db.Column(db.String(64), nullable=False, index=True)
