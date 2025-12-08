@@ -85,6 +85,25 @@ def _parse_ts(value: Any) -> Optional[datetime]:
     return None
 
 
+def _parse_geo(payload: dict[str, Any]) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    lat_raw = payload.get("geo_lat")
+    lng_raw = payload.get("geo_lng")
+    accuracy_raw = payload.get("geo_accuracy_m")
+
+    lat = float(lat_raw) if lat_raw not in (None, "") else None
+    lng = float(lng_raw) if lng_raw not in (None, "") else None
+    accuracy = float(accuracy_raw) if accuracy_raw not in (None, "") else None
+
+    if lat is not None and (lat < -90 or lat > 90):
+        raise ValueError("geo_lat must be between -90 and 90")
+    if lng is not None and (lng < -180 or lng > 180):
+        raise ValueError("geo_lng must be between -180 and 180")
+    if accuracy is not None and accuracy < 0:
+        raise ValueError("geo_accuracy_m must be zero or positive")
+
+    return lat, lng, accuracy
+
+
 def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
     return {
         "id": m.id,
@@ -93,6 +112,13 @@ def _serialize_milestone(m: ProcurementMilestone) -> dict[str, Any]:
         "expected_at": m.expected_at.isoformat() if m.expected_at else None,
         "completed_at": m.completed_at.isoformat() if m.completed_at else None,
         "notes": m.notes,
+        "geo": {
+            "lat": m.geo_lat,
+            "lng": m.geo_lng,
+            "accuracy_m": m.geo_accuracy_m,
+            "recorded_at": m.recorded_at.isoformat() if m.recorded_at else None,
+            "recorded_by_id": m.recorded_by_id,
+        },
     }
 
 
@@ -583,14 +609,30 @@ def add_milestone(ticket_id: int) -> Any:
     if not name:
         return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
 
+    try:
+        geo_lat, geo_lng, geo_accuracy_m = _parse_geo(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
+
+    status = (payload.get("status") or "pending").strip() or "pending"
+    if status == "completed" and (geo_lat is None or geo_lng is None):
+        return (
+            jsonify({"error": "geo_lat and geo_lng are required when completing a milestone"}),
+            HTTPStatus.BAD_REQUEST,
+        )
+
     milestone = ProcurementMilestone(
         organization_id=organization_id,
         ticket=ticket,
         name=name,
-        status=(payload.get("status") or "pending").strip() or "pending",
+        status=status,
         expected_at=_parse_ts(payload.get("expected_at")),
         completed_at=_parse_ts(payload.get("completed_at")),
         notes=(payload.get("notes") or "").strip() or None,
+        geo_lat=geo_lat,
+        geo_lng=geo_lng,
+        geo_accuracy_m=geo_accuracy_m,
+        recorded_by_id=getattr(current_user, "id", None),
     )
 
     if milestone.status == "completed" and not milestone.completed_at:

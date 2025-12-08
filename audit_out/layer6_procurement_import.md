@@ -7,12 +7,13 @@ Review procurement purchase orders, milestones, landed cost capture, ticketing, 
 - **Purchase orders with lines and totals**: `/api/procurement/orders` supports creation and listing with supplier, currency, and line detail, recalculating totals and linking to tickets when provided.【F:erp/procurement/routes.py†L135-L200】
 - **Ticket linkage with SLA + milestones**: Procurement tickets expose SLA breach evaluation, escalation level, and milestone tracking, returned with order and ticket serializers for monitoring import steps.【F:erp/procurement/routes.py†L88-L127】
 - **Role-gated submissions/approvals**: Procurement APIs require `procurement`, `inventory`, or `admin` roles for list/create/submit/approve/cancel endpoints, aligning with RBAC for procurement staff.【F:erp/procurement/routes.py†L135-L200】
+- **Geo-located milestones**: Milestones now persist latitude/longitude, accuracy, recorder, and timestamp and enforce location for completed events so custody checkpoints are auditable.【F:erp/procurement/models.py†L181-L213】【F:erp/procurement/routes.py†L65-L122】【F:erp/procurement/routes.py†L565-L613】
 
 ## Gaps & Risks vs. Requirements
 - **Import milestone depth**: Milestones exist but lack predefined templates for import stages (shipping, customs, clearance, delivery) and do not auto-update geo/location checkpoints or ETA changes.
 - **Supervisor approval separation + MFA**: No dedicated supervisor lane or MFA enforcement for approvals/rejections of procurement tickets or orders; requirements call for management supervisor and admin with second factor.
 - **Landed cost/commission alignment**: Landed cost totals exist on tickets, but allocation into inventory/finance and linkage to commission eligibility for import-driven sales is unspecified.
-- **Geo capture and audit trails**: Procurement actions do not record geo metadata or user/device context; requirement wants geo logging on approvals and visits.
+- **Geo capture and audit trails**: Procurement actions beyond milestone creation (e.g., approvals/receipts) still lack geo metadata or device context; requirement wants geo logging on approvals and visits.
 - **UX/visibility**: No modern UI surfaced for procurement dashboards with Kanban/ETA views, SLA breach highlighting, or mobile-ready updates; needs contemporary UX refresh.
 
 ## Recommendations

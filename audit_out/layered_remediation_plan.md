@@ -29,7 +29,7 @@ This plan sequences the remediation work derived from the 11-layer audits so del
    - Actions: require geolocation for visits/maintenance tickets/procurement milestones; store timestamps, accuracy, and actor; add SLA breach alerts.
    - UX: map-based check-in UI with permission prompts and offline-friendly retry.
    - Database: geo columns with indexes; retention and privacy redaction policies.
-   - Progress: maintenance start and check-in flows now require validated lat/lng and surface SLA due minutes plus a responsive dashboard showing status/priority/geo coverage; procurement/order geo capture still pending.
+   - Progress: maintenance start and check-in flows now require validated lat/lng and surface SLA due minutes plus a responsive dashboard showing status/priority/geo coverage; procurement milestones now demand lat/lng for completed events with recorder/accuracy persisted while order geo capture remains pending.
 
 5) **Secure deployment baselines**
    - Layers: 10 (DB/Alembic), 11 (Deployment).
