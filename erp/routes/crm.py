@@ -5,6 +5,7 @@ from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
+from erp.security import require_roles, mfa_required
 
 from erp.extensions import db
 from erp.models import CrmInteraction, CrmLead
@@ -26,6 +27,8 @@ def _serialize_lead(lead: CrmLead) -> dict[str, object]:
 
 @bp.route("/leads", methods=["GET", "POST"])
 @login_required
+@require_roles("crm", "sales", "admin", "management")
+@mfa_required
 def leads():
     org_id = resolve_org_id()
     if request.method == "POST":
@@ -52,6 +55,8 @@ def leads():
 
 @bp.post("/leads/<int:lead_id>/interactions")
 @login_required
+@require_roles("crm", "sales", "admin", "management")
+@mfa_required
 def add_interaction(lead_id: int):
     org_id = resolve_org_id()
     lead = CrmLead.query.filter_by(id=lead_id, org_id=org_id).first_or_404()

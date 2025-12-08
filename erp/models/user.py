@@ -14,12 +14,24 @@ class User(UserMixin, db.Model):
     """Application user used for authentication."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        db.UniqueConstraint("org_id", "telegram_chat_id", name="uq_users_org_chat"),
+    )
 
     # NOTE: This schema is aligned with your current DB table:
     # id | username | email | password_hash | created_at | updated_at
     id = db.Column(db.Integer, primary_key=True)
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        default=1,
+        server_default="1",
+        index=True,
+    )
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    telegram_chat_id = db.Column(db.String(128), nullable=True, index=True)
     password_hash = db.Column(db.String(128), nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
 
