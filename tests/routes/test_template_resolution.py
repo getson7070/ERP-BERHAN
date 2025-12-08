@@ -31,6 +31,12 @@ def test_admin_operational_analytics_template(client):
     assert b"Operational Analytics" in resp.data
 
 
+def test_admin_executive_analytics_template(client):
+    resp = client.get("/admin/analytics/executive")
+    assert resp.status_code == 200
+    assert b"Executive Dashboard" in resp.data
+
+
 def test_admin_bot_dashboard_template(client):
     resp = client.get("/admin/bots")
     assert resp.status_code == 200

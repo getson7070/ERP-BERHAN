@@ -217,6 +217,16 @@ def operations_analytics():
     return render_template("admin/ops_analytics.html")
 
 
+@bp.route("/analytics/executive")
+@login_required
+@require_roles("admin", "analytics", "management")
+@mfa_required
+def executive_analytics():
+    """Cross-domain executive summary dashboard for leadership roles."""
+
+    return render_template("admin/executive_dashboard.html")
+
+
 @bp.route("/health", methods=["GET"])
 @login_required
 @require_roles("admin", "management", "supervisor", "compliance")

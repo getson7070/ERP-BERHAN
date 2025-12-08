@@ -8,7 +8,13 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import func, or_
 
 from erp.extensions import db
-from erp.models import BotJobOutbox, MaintenanceEscalationEvent, MaintenanceWorkOrder
+from erp.models import (
+    BotJobOutbox,
+    MaintenanceEscalationEvent,
+    MaintenanceWorkOrder,
+    Order,
+)
+from erp.procurement.models import ProcurementTicket
 from erp.security import require_roles
 from erp.utils import resolve_org_id
 
@@ -100,6 +106,69 @@ def bot_activity():
         "failed": failed,
         "successful": successful,
         "by_status": counts,
+    }
+    return jsonify(payload), HTTPStatus.OK
+
+
+@bp.get("/executive")
+@require_roles("admin", "analytics", "management", "supervisor")
+def executive_summary():
+    """Cross-domain executive snapshot for the active organisation."""
+
+    org_id = resolve_org_id()
+
+    # Orders snapshot
+    order_q = Order.query.filter_by(organization_id=org_id)
+    order_counts = order_q.with_entities(func.count()).scalar() or 0
+    total_order_amount = order_q.with_entities(func.coalesce(func.sum(Order.total_amount), 0)).scalar() or 0
+    approved_orders = order_q.filter(Order.status.in_(["approved", "delivered", "paid", "settled"])).count()
+    pending_orders = order_q.filter(Order.status.in_(["submitted", "pending"])).count()
+    commission_eligible = order_q.filter(Order.commission_status == "eligible").count()
+    commission_blocked = order_q.filter(Order.commission_status == "blocked").count()
+
+    # Procurement snapshot
+    procurement_q = ProcurementTicket.query.filter_by(organization_id=org_id)
+    procurement_counts = procurement_q.with_entities(func.count()).scalar() or 0
+    procurement_open = procurement_q.filter(ProcurementTicket.status.notin_(
+        ["closed", "cancelled", "landed"]
+    )).count()
+    procurement_breached = procurement_q.filter(ProcurementTicket.breached_at.isnot(None)).count()
+
+    # Maintenance snapshot
+    maintenance_q = MaintenanceWorkOrder.query.filter_by(org_id=org_id)
+    maintenance_open = maintenance_q.filter(MaintenanceWorkOrder.status != "closed").count()
+    maintenance_sla_risk = maintenance_q.filter(MaintenanceWorkOrder.sla_status != "ok").count()
+
+    # Bot throughput
+    bot_rows = (
+        BotJobOutbox.query.filter_by(org_id=org_id)
+        .with_entities(BotJobOutbox.status, func.count())
+        .group_by(BotJobOutbox.status)
+        .all()
+    )
+    bot_counts = {status: int(count) for status, count in bot_rows}
+
+    payload = {
+        "orders": {
+            "total": int(order_counts),
+            "approved": int(approved_orders),
+            "pending": int(pending_orders),
+            "commission": {
+                "eligible": int(commission_eligible),
+                "blocked": int(commission_blocked),
+            },
+            "total_amount": float(total_order_amount),
+        },
+        "procurement": {
+            "total": int(procurement_counts),
+            "open": int(procurement_open),
+            "sla_breached": int(procurement_breached),
+        },
+        "maintenance": {
+            "open": int(maintenance_open),
+            "sla_at_risk": int(maintenance_sla_risk),
+        },
+        "bots": bot_counts,
     }
     return jsonify(payload), HTTPStatus.OK
 

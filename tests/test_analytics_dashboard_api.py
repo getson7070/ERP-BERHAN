@@ -98,3 +98,34 @@ def test_bot_activity_rollup(app, client):
     assert payload["queued"] == 1
     assert payload["failed"] == 1
     assert payload["successful"] == 1
+
+
+def test_executive_summary_rollup(app, client):
+    app.config.update(LOGIN_DISABLED=True)
+    with app.app_context():
+        _seed_ops_data(org_id=1)
+        # Seed minimal order and procurement data
+        from erp.models import Order
+        from erp.procurement.models import ProcurementTicket
+
+        db.session.add(
+            Order(organization_id=1, status="approved", total_amount=1000, commission_status="eligible")
+        )
+        db.session.add(
+            Order(organization_id=1, status="submitted", total_amount=500, commission_status="blocked")
+        )
+        db.session.add(
+            ProcurementTicket(organization_id=1, title="PO", description="desc", status="submitted")
+        )
+        db.session.commit()
+
+    res = client.get("/api/analytics-dash/executive")
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload["orders"]["total"] == 2
+    assert payload["orders"]["approved"] == 1
+    assert payload["orders"]["pending"] == 1
+    assert payload["orders"]["commission"]["eligible"] == 1
+    assert payload["orders"]["commission"]["blocked"] == 1
+    assert payload["procurement"]["total"] == 1
+    assert payload["maintenance"]["open"] >= 0
