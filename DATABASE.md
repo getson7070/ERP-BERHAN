@@ -2,6 +2,14 @@
 
 This document records database maintenance practices.
 
+## Normalized Pillar Schema
+- The six-pillar schema blueprint lives in `docs/schema_pillars.md` with executable DDL in `migrations/pillars_schema.sql`.
+- Run the SQL under Alembic supervision to keep history: `psql $DATABASE_URL -f migrations/pillars_schema.sql` (safe for dry-runs thanks to `IF NOT EXISTS`).
+- All tables follow UUID primary keys, UTC timestamps, and RBAC-friendly foreign keys that avoid circular dependencies.
+- Monetary columns use `NUMERIC(18,2)` with defensive `CHECK` constraints to prevent negative values where inappropriate.
+- `CITEXT` is used for case-insensitive identifiers; enable it once per database with `CREATE EXTENSION IF NOT EXISTS citext;`.
+- Identity is hardened with password rotation timestamps, lockout counters, hashed API keys, and session tables that allow revocation without breaking audit history; onboarding gains verification, invite, and task tracking tables.
+
 ## Index Auditing
 - Run `python -m tools.index_audit` in CI and before major releases. The helper connects to the
   configured `DATABASE_URL`, asserts the presence of critical indexes (audit log, finance ledgers,
