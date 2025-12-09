@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, date
 from decimal import Decimal
 from typing import Optional
+from uuid import uuid4
 
 from sqlalchemy import CheckConstraint, Enum, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -69,12 +70,16 @@ class ActivityEvent(TimestampMixin, OrgScopedMixin, db.Model):
     actor_user_id: Mapped[Optional[int]] = mapped_column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    actor_type: Mapped[str] = mapped_column(db.String(32), default="user", nullable=False)
+    actor_type: Mapped[str] = mapped_column(
+        db.String(32), default="user", nullable=False
+    )
     action: Mapped[str] = mapped_column(db.String(128), nullable=False)
     entity_type: Mapped[Optional[str]] = mapped_column(db.String(64), index=True)
     entity_id: Mapped[Optional[int]] = mapped_column(db.Integer, index=True)
     status: Mapped[Optional[str]] = mapped_column(db.String(64))
-    severity: Mapped[str] = mapped_column(db.String(16), nullable=False, default="info")
+    severity: Mapped[str] = mapped_column(
+        db.String(16), nullable=False, default="info"
+    )
     occurred_at: Mapped[datetime] = mapped_column(
         db.DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
     )
@@ -117,14 +122,32 @@ class Institution(TimestampMixin, OrgScopedMixin, db.Model):
         UniqueConstraint("org_id", "tin", name="uq_institutions_org_tin"),
         Index("ix_institutions_tin", "tin"),
         CheckConstraint(
-            "length(tin) = 10 AND tin >= '0000000000' AND tin <= '9999999999'",
+            "length(tin) = 10 AND tin >= '0000000000' AND tin <= '0999999999'",
             name="ck_institutions_tin_digits",
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Secondary UUID identifier for safer public exposure and integration.
+    uuid: Mapped[str] = mapped_column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
     legal_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
+
+    # Institution category for analytics and permission scoping.
+    # Examples: hospital, clinic, laboratory, pharmacy, retailer,
+    # wholesaler, distributor, other.
+    institution_type: Mapped[Optional[str]] = mapped_column(
+        db.String(32), nullable=True, default="hospital"
+    )
+
     region: Mapped[Optional[str]] = mapped_column(db.String(128))
     zone: Mapped[Optional[str]] = mapped_column(db.String(128))
     city: Mapped[Optional[str]] = mapped_column(db.String(128))
@@ -136,6 +159,11 @@ class Institution(TimestampMixin, OrgScopedMixin, db.Model):
     gps_hint: Mapped[Optional[str]] = mapped_column(db.String(255))
     main_phone: Mapped[Optional[str]] = mapped_column(db.String(64))
     main_email: Mapped[Optional[str]] = mapped_column(db.String(255))
+
+    @property
+    def public_id(self) -> str:
+        """Stable, non-guessable identifier suitable for URLs and APIs."""
+        return str(self.uuid)
 
 
 class MaintenanceTicket(TimestampMixin, OrgScopedMixin, db.Model):
@@ -362,15 +390,38 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
             "email",
             name="uq_client_registrations_org_tin_email",
         ),
+        CheckConstraint(
+            "length(tin) = 10 AND tin >= '0000000000' AND tin <= '0999999999'",
+            name="ck_client_registrations_tin_digits",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Secondary UUID identifier for safer public exposure and integration.
+    uuid: Mapped[str] = mapped_column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     institution_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     contact_name: Mapped[str] = mapped_column(db.String(255), nullable=False)
     contact_position: Mapped[Optional[str]] = mapped_column(db.String(128))
     email: Mapped[str] = mapped_column(db.String(255), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(db.String(64))
+
+    # TIN is a 10-digit number in Ethiopia and must start with 0.
     tin: Mapped[str] = mapped_column(db.String(32), nullable=False)
+
+    # Optional early classification of institution type – aligned with Institution.
+    # Examples: hospital, clinic, lab, pharmacy, retailer, wholesaler, distributor.
+    institution_type: Mapped[Optional[str]] = mapped_column(
+        db.String(32), nullable=True
+    )
+
     region: Mapped[Optional[str]] = mapped_column(db.String(128))
     zone: Mapped[Optional[str]] = mapped_column(db.String(128))
     city: Mapped[Optional[str]] = mapped_column(db.String(128))
@@ -390,6 +441,11 @@ class ClientRegistration(TimestampMixin, OrgScopedMixin, db.Model):
     )
     decided_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime(timezone=True))
     decision_notes: Mapped[Optional[str]] = mapped_column(db.Text)
+
+    @property
+    def public_id(self) -> str:
+        """Stable, non-guessable identifier suitable for URLs and APIs."""
+        return str(self.uuid)
 
 
 class RegistrationInvite(TimestampMixin, db.Model):
@@ -437,7 +493,14 @@ class SalesOpportunity(TimestampMixin, OrgScopedMixin, db.Model):
         db.Float, nullable=False, default=0.5
     )  # 0..1
     stage: Mapped[str] = mapped_column(
-        Enum("prospecting", "proposal", "negotiation", "won", "lost", name="sales_opportunity_stage"),
+        Enum(
+            "prospecting",
+            "proposal",
+            "negotiation",
+            "won",
+            "lost",
+            name="sales_opportunity_stage",
+        ),
         nullable=False,
         default="prospecting",
     )
@@ -465,13 +528,27 @@ class EmployeeScorecard(TimestampMixin, OrgScopedMixin, db.Model):
     )
     period_start: Mapped[date] = mapped_column(db.Date, nullable=False)
     period_end: Mapped[Optional[date]] = mapped_column(db.Date)
-    sales_total: Mapped[Decimal] = mapped_column(db.Numeric(14, 2), nullable=False, default=0)
-    orders_closed: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
-    maintenance_closed: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
-    overdue_tasks: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
-    conversion_rate: Mapped[float] = mapped_column(db.Float, nullable=False, default=0)
-    complaints: Mapped[int] = mapped_column(db.Integer, nullable=False, default=0)
-    performance_score: Mapped[float] = mapped_column(db.Float, nullable=False, default=0)
+    sales_total: Mapped[Decimal] = mapped_column(
+        db.Numeric(14, 2), nullable=False, default=0
+    )
+    orders_closed: Mapped[int] = mapped_column(
+        db.Integer, nullable=False, default=0
+    )
+    maintenance_closed: Mapped[int] = mapped_column(
+        db.Integer, nullable=False, default=0
+    )
+    overdue_tasks: Mapped[int] = mapped_column(
+        db.Integer, nullable=False, default=0
+    )
+    conversion_rate: Mapped[float] = mapped_column(
+        db.Float, nullable=False, default=0
+    )
+    complaints: Mapped[int] = mapped_column(
+        db.Integer, nullable=False, default=0
+    )
+    performance_score: Mapped[float] = mapped_column(
+        db.Float, nullable=False, default=0
+    )
     highlights: Mapped[Optional[dict]] = mapped_column(db.JSON)
 
 
@@ -484,7 +561,9 @@ class Recommendation(TimestampMixin, OrgScopedMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[str] = mapped_column(db.String(64), nullable=False)
     message: Mapped[str] = mapped_column(db.Text, nullable=False)
-    severity: Mapped[str] = mapped_column(db.String(16), nullable=False, default="info")
+    severity: Mapped[str] = mapped_column(
+        db.String(16), nullable=False, default="info"
+    )
     created_for_user_id: Mapped[Optional[int]] = mapped_column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -506,6 +585,7 @@ __all__ = [
     "SupplyChainShipment",
     "InventoryReservation",
     "ClientRegistration",
+    "RegistrationInvite",
     "UserRoleAssignment",
     "SalesOpportunity",
     "EmployeeScorecard",

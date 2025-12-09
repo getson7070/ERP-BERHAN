@@ -1,9 +1,9 @@
 """CRM domain models for accounts, contacts, pipeline events, tickets, and portal links."""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from uuid import uuid4
 
 from erp.extensions import db
 
@@ -11,29 +11,50 @@ from erp.extensions import db
 class CRMAccount(db.Model):
     __tablename__ = "crm_accounts"
 
+    # Internal integer PK
     id = db.Column(db.Integer, primary_key=True)
+
+    # Public, non-guessable identifier for external & portal usage.
+    uuid = db.Column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     organization_id = db.Column(db.Integer, nullable=False, index=True)
 
     code = db.Column(db.String(64), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False)
+
+    # customer | prospect | supplier | partner | distributor | retailer | wholesaler ...
     account_type = db.Column(db.String(32), nullable=False, default="customer")
 
-    pipeline_stage = db.Column(db.String(32), nullable=False, default="lead", index=True)
+    pipeline_stage = db.Column(
+        db.String(32), nullable=False, default="lead", index=True
+    )
     segment = db.Column(db.String(32), nullable=True, index=True)
-
     industry = db.Column(db.String(128), nullable=True)
     country = db.Column(db.String(64), nullable=True)
     city = db.Column(db.String(64), nullable=True)
 
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    credit_limit = db.Column(db.Numeric(14, 2), nullable=False, default=Decimal("0.00"))
+    credit_limit = db.Column(
+        db.Numeric(14, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
     payment_terms_days = db.Column(db.Integer, nullable=True)
 
     created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     created_by_id = db.Column(db.Integer, nullable=True)
+
     updated_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -47,12 +68,14 @@ class CRMAccount(db.Model):
         cascade="all, delete-orphan",
         order_by="CRMContact.id",
     )
+
     pipeline_events = db.relationship(
         "CRMPipelineEvent",
         back_populates="account",
         cascade="all, delete-orphan",
         order_by="CRMPipelineEvent.created_at.desc()",
     )
+
     tickets = db.relationship(
         "SupportTicket",
         back_populates="account",
@@ -60,12 +83,28 @@ class CRMAccount(db.Model):
         order_by="SupportTicket.created_at.desc()",
     )
 
+    @property
+    def public_id(self) -> str:
+        """Stable, non-guessable identifier for external exposure."""
+        return str(self.uuid)
+
 
 class CRMContact(db.Model):
     __tablename__ = "crm_contacts"
 
     id = db.Column(db.Integer, primary_key=True)
+
+    # Public, non-guessable identifier for use in bots or portals.
+    uuid = db.Column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     organization_id = db.Column(db.Integer, nullable=False, index=True)
+
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("crm_accounts.id", ondelete="CASCADE"),
@@ -74,7 +113,11 @@ class CRMContact(db.Model):
     )
 
     full_name = db.Column(db.String(255), nullable=False)
+
+    # Role inside the institution: lab head, procurement, pharmacy head,
+    # management, wholesaler contact, retailer contact, etc.
     role = db.Column(db.String(128), nullable=True)
+
     email = db.Column(db.String(255), nullable=True)
     phone = db.Column(db.String(64), nullable=True)
 
@@ -82,12 +125,17 @@ class CRMContact(db.Model):
 
     account = db.relationship("CRMAccount", back_populates="contacts")
 
+    @property
+    def public_id(self) -> str:
+        return str(self.uuid)
+
 
 class CRMPipelineEvent(db.Model):
     __tablename__ = "crm_pipeline_events"
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, nullable=False, index=True)
+
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("crm_accounts.id", ondelete="CASCADE"),
@@ -100,7 +148,9 @@ class CRMPipelineEvent(db.Model):
     reason = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     created_by_id = db.Column(db.Integer, nullable=True)
 
@@ -111,7 +161,18 @@ class SupportTicket(db.Model):
     __tablename__ = "support_tickets"
 
     id = db.Column(db.Integer, primary_key=True)
+
+    # Public ticket identifier for clients (email links, portal, etc.).
+    uuid = db.Column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     organization_id = db.Column(db.Integer, nullable=False, index=True)
+
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("crm_accounts.id", ondelete="CASCADE"),
@@ -121,13 +182,19 @@ class SupportTicket(db.Model):
 
     subject = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    status = db.Column(db.String(32), nullable=False, default="open", index=True)
+
+    status = db.Column(
+        db.String(32), nullable=False, default="open", index=True
+    )
     priority = db.Column(db.String(32), nullable=False, default="normal")
 
     created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     created_by_id = db.Column(db.Integer, nullable=True)
+
     updated_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -137,6 +204,10 @@ class SupportTicket(db.Model):
 
     account = db.relationship("CRMAccount", back_populates="tickets")
 
+    @property
+    def public_id(self) -> str:
+        return str(self.uuid)
+
 
 class ClientPortalLink(db.Model):
     """Links an internal user to a CRM account for the client portal."""
@@ -144,8 +215,19 @@ class ClientPortalLink(db.Model):
     __tablename__ = "client_portal_links"
 
     id = db.Column(db.Integer, primary_key=True)
+
+    # Public identifier for portal link (if you ever email or expose this).
+    uuid = db.Column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     organization_id = db.Column(db.Integer, nullable=False, index=True)
     user_id = db.Column(db.Integer, nullable=False, index=True, unique=True)
+
     account_id = db.Column(
         db.Integer,
         db.ForeignKey("crm_accounts.id", ondelete="CASCADE"),
@@ -154,10 +236,16 @@ class ClientPortalLink(db.Model):
     )
 
     created_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
 
     account = db.relationship("CRMAccount")
+
+    @property
+    def public_id(self) -> str:
+        return str(self.uuid)
 
 
 __all__ = [

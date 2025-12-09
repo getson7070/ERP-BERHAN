@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import hashlib
 import secrets
+from uuid import uuid4
 
 from flask_login import UserMixin
 
@@ -15,10 +16,25 @@ class ClientAccount(UserMixin, db.Model):
 
     __tablename__ = "client_accounts"
 
+    # Internal integer PK (kept for backward compatibility).
     id = db.Column(db.Integer, primary_key=True)
+
+    # Public, non-guessable identifier for external usage (bots, links, APIs).
+    uuid = db.Column(
+        db.String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: str(uuid4()),
+    )
+
     org_id = db.Column(db.Integer, nullable=False, index=True)
 
+    # Internal client key (can be used to link to other internal models).
     client_id = db.Column(db.Integer, nullable=False, index=True)
+
+    # Optional strong linkage to Institution (supports hospitals, wholesalers,
+    # retailers, distributors, etc.).
     institution_id = db.Column(
         db.Integer,
         db.ForeignKey("institutions.id", ondelete="SET NULL"),
@@ -36,7 +52,6 @@ class ClientAccount(UserMixin, db.Model):
 
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
     verified_at = db.Column(db.DateTime, nullable=True)
-
     last_login_at = db.Column(db.DateTime, nullable=True)
 
     roles = db.relationship(
@@ -53,10 +68,31 @@ class ClientAccount(UserMixin, db.Model):
 
     institution = db.relationship("Institution", backref="client_accounts")
 
-    # Flask-Login integration -------------------------------------------------
+    # ------------------------------------------------------------------
+    # Flask-Login integration
+    # ------------------------------------------------------------------
     def get_id(self) -> str:
-        # Prefix ensures no collision with employee users
+        """
+        Prefix ensures no collision with employee/internal users.
+
+        Session IDs will look like: "client:123".
+        """
         return f"client:{self.id}"
+
+    # ------------------------------------------------------------------
+    # Convenience helpers
+    # ------------------------------------------------------------------
+    @property
+    def public_id(self) -> str:
+        """Stable, non-guessable identifier for use in URLs, APIs, bots."""
+        return str(self.uuid)
+
+    @property
+    def is_fully_verified(self) -> bool:
+        """
+        Convenience flag: client account is active AND verified.
+        """
+        return bool(self.is_active and self.is_verified)
 
 
 class ClientRoleAssignment(db.Model):
@@ -68,12 +104,14 @@ class ClientRoleAssignment(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
+
     client_account_id = db.Column(
         db.Integer,
         db.ForeignKey("client_accounts.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+
     role_id = db.Column(
         db.Integer,
         db.ForeignKey("roles.id", ondelete="CASCADE"),
@@ -103,7 +141,6 @@ class ClientVerification(db.Model):
     code_hash = db.Column(db.String(128), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False, index=True)
     used_at = db.Column(db.DateTime, nullable=True)
-
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     def is_expired(self) -> bool:
@@ -136,7 +173,6 @@ class ClientPasswordReset(db.Model):
     token_hash = db.Column(db.String(128), nullable=False, index=True)
     expires_at = db.Column(db.DateTime, nullable=False, index=True)
     used_at = db.Column(db.DateTime, nullable=True)
-
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     @staticmethod
@@ -156,7 +192,9 @@ class ClientOAuthAccount(db.Model):
 
     __tablename__ = "client_oauth_accounts"
     __table_args__ = (
-        db.UniqueConstraint("org_id", "provider", "provider_user_id", name="uq_client_oauth"),
+        db.UniqueConstraint(
+            "org_id", "provider", "provider_user_id", name="uq_client_oauth"
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
