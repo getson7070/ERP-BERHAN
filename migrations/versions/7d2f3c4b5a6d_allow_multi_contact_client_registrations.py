@@ -15,12 +15,16 @@ depends_on = None
 
 
 def _drop_constraint_if_exists(inspector, table: str, name: str) -> None:
+    if not inspector.has_table(table):
+        return  # Table doesn't exist yet—skip safely
     constraints = inspector.get_unique_constraints(table)
     if any(c.get("name") == name for c in constraints):
         op.drop_constraint(name, table, type_="unique")
 
 
 def _drop_index_if_exists(inspector, table: str, name: str) -> None:
+    if not inspector.has_table(table):
+        return  # Table doesn't exist yet—skip safely
     indexes = inspector.get_indexes(table)
     if any(ix.get("name") == name for ix in indexes):
         op.drop_index(name, table_name=table)
@@ -30,8 +34,12 @@ def upgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
 
-    _drop_constraint_if_exists(inspector, "client_registrations", "uq_client_registrations_org_tin")
+    # Guard: Skip if table missing (created in later branch)
+    if not inspector.has_table("client_registrations"):
+        return
 
+    _drop_constraint_if_exists(inspector, "client_registrations", "uq_client_registrations_org_tin")
+    _drop_index_if_exists(inspector, "client_registrations", "ix_client_registrations_tin")
     _drop_index_if_exists(inspector, "client_registrations", "ix_client_registrations_email")
     op.create_index(
         "ix_client_registrations_email",
@@ -50,6 +58,10 @@ def upgrade():
 def downgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
+
+    # Guard: Skip if table missing
+    if not inspector.has_table("client_registrations"):
+        return
 
     _drop_constraint_if_exists(inspector, "client_registrations", "uq_client_registrations_org_tin_email")
     _drop_index_if_exists(inspector, "client_registrations", "ix_client_registrations_email")

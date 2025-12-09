@@ -10,7 +10,7 @@ import logging
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text, inspect
 
 # ----------------------------------------------------------------------
 # Import the Flask app + SQLAlchemy extension
@@ -89,6 +89,25 @@ def run_migrations_online() -> None:
         connectable = db.engine
 
         with connectable.connect() as connection:
+            # Manually create alembic_version with wide column (avoids default VARCHAR(32))
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS alembic_version (
+                    version_num VARCHAR(255) PRIMARY KEY
+                );
+            """))
+            connection.commit()
+            logger.info("Ensured alembic_version table with VARCHAR(255) for long revisions")
+
+            # Fallback: Widen if somehow short (rare, but safe)
+            insp = inspect(connection)
+            if 'alembic_version' in insp.get_table_names():
+                columns = insp.get_columns('alembic_version')
+                version_col = next((col for col in columns if col['name'] == 'version_num'), None)
+                if version_col and hasattr(version_col['type'], 'length') and version_col['type'].length < 100:
+                    connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);"))
+                    connection.commit()
+                    logger.info("Widened alembic_version.version_num to VARCHAR(255)")
+
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
