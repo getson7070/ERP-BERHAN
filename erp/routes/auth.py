@@ -316,7 +316,7 @@ def login():
         if current_user.is_authenticated:
             # Already logged in → go to customizable dashboard
             return redirect(url_for("dashboard_customize.get_layout"))
-        return render_template("login.html")
+        return render_template("auth/login.html")
 
     # ---- POST: credential-based login ----
     email = _json_or_form("email").lower()
@@ -324,7 +324,7 @@ def login():
 
     if not email or not password:
         flash("Email and password are required.", "danger")
-        return render_template("login.html"), HTTPStatus.BAD_REQUEST
+        return render_template("auth/login.html"), HTTPStatus.BAD_REQUEST
 
     # Check per-email cooldown (in addition to IP rate limiting)
     backoff_state, cooldown = _check_backoff(email)
@@ -341,7 +341,7 @@ def login():
                 HTTPStatus.TOO_MANY_REQUESTS,
             )
         flash(message, "danger")
-        return render_template("login.html"), HTTPStatus.TOO_MANY_REQUESTS
+        return render_template("auth/login.html"), HTTPStatus.TOO_MANY_REQUESTS
 
     org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
@@ -362,14 +362,14 @@ def login():
         flash("Invalid credentials.", "danger")
         if request.is_json:
             return jsonify({"error": "invalid_credentials"}), HTTPStatus.UNAUTHORIZED
-        return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+        return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
 
     # Optional: account deactivation flag
     if hasattr(user, "is_active") and not getattr(user, "is_active", True):
         if request.is_json:
             return jsonify({"error": "account_inactive"}), HTTPStatus.FORBIDDEN
         flash("This account is deactivated.", "danger")
-        return render_template("login.html"), HTTPStatus.FORBIDDEN
+        return render_template("auth/login.html"), HTTPStatus.FORBIDDEN
 
     # ---- MFA handling (TOTP / backup codes) ----
     mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
@@ -379,7 +379,7 @@ def login():
         if request.is_json:
             return jsonify({"error": "mfa_enrollment_required"}), HTTPStatus.FORBIDDEN
         flash(message, "danger")
-        return render_template("login.html"), HTTPStatus.FORBIDDEN
+        return render_template("auth/login.html"), HTTPStatus.FORBIDDEN
 
     if mfa_row and mfa_row.is_enabled:
         totp_code = _json_or_form("totp")
@@ -394,7 +394,7 @@ def login():
                         HTTPStatus.UNAUTHORIZED,
                     )
                 flash("Multi-factor code is invalid.", "danger")
-                return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+                return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
             mfa_row.last_used_at = datetime.now(UTC)
             db.session.add(mfa_row)
 
@@ -407,14 +407,14 @@ def login():
                         HTTPStatus.UNAUTHORIZED,
                     )
                 flash("Backup code is invalid or already used.", "danger")
-                return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+                return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
 
         else:
             # MFA required but no code supplied
             if request.is_json:
                 return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
             flash("Multi-factor authentication required. Enter your code.", "warning")
-            return render_template("login.html"), HTTPStatus.UNAUTHORIZED
+            return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
 
         session["mfa_verified"] = True
     else:

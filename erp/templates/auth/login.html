@@ -1,64 +1,78 @@
 {% extends "base.html" %}
-{% from "macros/form_macros.html" import render_field %}  {# Assume macro for fields; optional #}
 
-{% block title %}Sign In - Berhan ERP{% endblock %}
+{% block title %}Login - ERP-BERHAN{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container my-4">
   <div class="row justify-content-center">
-    <div class="col-md-6">
-      <div class="card shadow">
-        <div class="card-header bg-primary text-white text-center">
-          <img src="{{ url_for('static', filename='pictures/berhan_logo.png') }}" alt="Berhan Pharma Logo" class="img-fluid mb-2" style="max-height: 50px;">
-          <h4>Berhan ERP - Sign In</h4>
-          <p class="mb-0">Choose your access. Employee/Admin panels appear only on trusted devices.</p>
-        </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card shadow-sm">
         <div class="card-body">
-          {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-              {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else 'info' }} alert-dismissible fade show" role="alert">
-                  {{ message }}
-                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-              {% endfor %}
-            {% endif %}
-          {% endwith %}
+          <h1 class="h4 mb-3 text-center">Sign in</h1>
+          <p class="text-muted small text-center mb-4">
+            Use your ERP-BERHAN account credentials to access the system.
+          </p>
 
-          <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
-            {{ form.hidden_tag() }}  {# CSRF token fix - auto-generates <input name="csrf_token"> #}
-            
+          <form method="post" novalidate>
+            {{ form.hidden_tag() }}
+
             <div class="mb-3">
-              {{ form.email.label(class="form-label") }}
-              {{ form.email(class="form-control", placeholder="admin@berhanpharma.com", aria-describedby="emailHelp") }}
+              {{ form.email.label(class_="form-label small") }}
+              {{ form.email(
+                  class_="form-control",
+                  autocomplete="email"
+              ) }}
               {% if form.email.errors %}
-                <div class="invalid-feedback d-block">{{ form.email.errors[0] }}</div>
+                <ul class="text-danger small mb-0">
+                  {% for error in form.email.errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+                </ul>
               {% endif %}
-              <div id="emailHelp" class="form-text">We'll never share your email.</div>
             </div>
-            
+
             <div class="mb-3">
-              {{ form.password.label(class="form-label") }}
-              {{ form.password(class="form-control", aria-describedby="passwordHelp") }}
+              {{ form.password.label(class_="form-label small") }}
+              {{ form.password(
+                  class_="form-control",
+                  autocomplete="current-password"
+              ) }}
               {% if form.password.errors %}
-                <div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>
+                <ul class="text-danger small mb-0">
+                  {% for error in form.password.errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+                </ul>
               {% endif %}
-              <div id="passwordHelp" class="form-text">Use a strong password.</div>
             </div>
-            
+
+            {% if form.remember_me is defined %}
             <div class="mb-3 form-check">
-              {{ form.remember_me(class="form-check-input") }}
-              {{ form.remember_me.label(class="form-check-label") }}
+              {{ form.remember_me(class_="form-check-input") }}
+              {{ form.remember_me.label(class_="form-check-label small") }}
             </div>
-            
-            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+            {% endif %}
+
+            <div class="d-grid gap-2">
+              {% if form.submit is defined %}
+                {{ form.submit(class_="btn btn-primary") }}
+              {% else %}
+                <button type="submit" class="btn btn-primary">Sign in</button>
+              {% endif %}
+            </div>
           </form>
-          
-          <hr class="my-4">
-          <div class="text-center">
-            <a href="{{ url_for('auth.forgot') }}" class="btn btn-link">Forgot Password?</a>
-            <a href="{{ url_for('mfa.start') }}" class="btn btn-link">Use MFA</a>
+
+          <hr class="my-3">
+
+          <div class="small text-muted">
+            <p class="mb-1">
+              If you forgot your password or cannot sign in, please contact the system administrator or Berhan Pharma IT support to reset your access.
+            </p>
+            <p class="mb-0">
+              Client and employee portal access are managed centrally; do not share your credentials with others.
+            </p>
           </div>
+
         </div>
       </div>
     </div>
