@@ -32,6 +32,7 @@ try:
 except Exception:  # pragma: no cover - extremely defensive fallback
     PG_UUID = db.String  # type: ignore[assignment]
 
+from erp.models.role import Role  # UPGRADE: Import for RBAC
 
 class User(UserMixin, db.Model):
     """Application user used for authentication."""
@@ -47,7 +48,7 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # New: secondary UUID identifier for safer public exposure
+    # New: secondary UUID identifier for safer public exposure (preserve original UUID logic)
     uuid = db.Column(
         PG_UUID(as_uuid=True),
         nullable=False,
@@ -74,10 +75,10 @@ class User(UserMixin, db.Model):
 
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
 
-    # Many-to-many via `user_role_assignments` (already exists in your DB)
+    # Many-to-many via `user_role_assignments` (already exists in your DB) - UPGRADE: Use user_roles
     roles = db.relationship(
         "Role",
-        secondary="user_role_assignments",
+        secondary="user_roles",  # UPGRADE: Point to new user_role table
         backref="users",
         lazy="select",
     )
@@ -129,7 +130,7 @@ class User(UserMixin, db.Model):
         return str(self.id)
 
     # ------------------------------------------------------------------
-    # UUID / public identifier helpers
+    # UUID / public identifier helpers (preserve)
     # ------------------------------------------------------------------
     @property
     def public_id(self) -> str:
@@ -142,7 +143,7 @@ class User(UserMixin, db.Model):
         return str(self.uuid)
 
     # ------------------------------------------------------------------
-    # Role / RBAC helper properties
+    # Role / RBAC helper properties (preserve + UPGRADE: Add has_permission dynamic)
     # ------------------------------------------------------------------
     @property
     def role_names(self) -> List[str]:
@@ -195,6 +196,21 @@ class User(UserMixin, db.Model):
                 if rn.startswith(candidate) or candidate.startswith(rn):
                     return True
         return False
+
+    # UPGRADE: Dynamic has_permission (integrates with new Permission model)
+    def has_permission(self, perm_name: str) -> bool:
+        """Check if any role grants the permission (admin wildcard)."""
+        if self.has_any_role("admin", "management"):
+            return True
+        for role in self.roles or []:
+            # UPGRADE: Query role_permissions via relationship
+            if any(p.name.lower() == perm_name.lower() for p in role.permissions or []):
+                return True
+        return False
+
+    def has_any_permission(self, *perm_names: str) -> bool:
+        """Check any of given permissions."""
+        return any(self.has_permission(p) for p in perm_names)
 
     @property
     def is_management(self) -> bool:

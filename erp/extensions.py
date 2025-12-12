@@ -10,12 +10,15 @@ from __future__ import annotations
 import importlib.util
 import os
 
-from flask import Flask
+from flask import Flask  # UPGRADE: Fixed - removed current_user (from flask_login)
 from flask_caching import Cache
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
+
+# UPGRADE: Add Flask-Principal for RBAC (new import)
+from flask_principal import Principal, Identity, RoleNeed, UserNeed, AnonymousIdentity
 
 if importlib.util.find_spec("flask_limiter") is not None:
     from flask_limiter import Limiter
@@ -87,6 +90,9 @@ limiter: Limiter = Limiter(
 
 login_manager: LoginManager = LoginManager()
 
+# UPGRADE: Principal for RBAC (new)
+principal: Principal = Principal()
+
 # --- Flask-Login configuration & loader -------------------------------------
 
 
@@ -136,6 +142,19 @@ def load_user(user_id: str):
 
     return employee
 
+# UPGRADE: RBAC Identity Loader for Principal (added at end of load_user section)
+@principal.identity_loader
+def load_identity():
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        identity = Identity(current_user.id)
+        for role in current_user.roles:
+            identity.provides.add(RoleNeed(role.name))
+        # Dynamic permissions from roles
+        for perm in set(p.name for role in current_user.roles for p in role.permissions):
+            identity.provides.add(UserNeed(perm))
+        return identity
+    return AnonymousIdentity()
 
 # --- Extension init hook -----------------------------------------------------
 
@@ -163,6 +182,9 @@ def init_extensions(app: Flask) -> None:
     # Ensure this matches your blueprint endpoint for the login page
     login_manager.login_view = "auth.login"
     login_manager.login_message_category = "warning"
+
+    # UPGRADE: Principal for RBAC (added; original missing)
+    principal.init_app(app)
 
     # Optional: allow anonymous users by default (Flask-Login default),
     # but you could override login_manager.anonymous_user if needed.

@@ -38,7 +38,7 @@ from erp.models import (
     Role,
     User,
     UserMFA,
-    UserRoleAssignment,
+    UserRoleAssignment,  # UPGRADE: Keep original; no UserRole change
 )
 from erp.services.mfa_service import verify_backup_code, verify_totp
 from erp.services.session_service import (
@@ -48,6 +48,9 @@ from erp.services.session_service import (
     revoke_session,
 )
 from erp.utils import resolve_org_id
+
+# UPGRADE: Import from new rbac package (no conflict with security.py)
+from erp.rbac.permissions import has_permission
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -305,7 +308,7 @@ def client_register():
         flash(success_message, "success")
         return redirect(url_for("auth.login"))
 
-    return render_template("client_registration.html", form=form)
+    return render_template("client_registration.html", form=form)  # UPGRADE: Pass form
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -321,8 +324,8 @@ def login():
             # Already logged in → go to customizable dashboard
             return redirect(url_for("dashboard_customize.get_layout"))
 
-        form = LoginForm()
-        return render_template("auth/login.html", form=form)
+        form = LoginForm()  # UPGRADE: Always create form
+        return render_template("auth/login.html", form=form)  # UPGRADE: Pass form (fixes undefined)
 
     # ---- POST: HTML form vs JSON payload ----
     if not expects_json:

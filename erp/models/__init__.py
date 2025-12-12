@@ -1,53 +1,50 @@
 """Public model exports and shared SQLAlchemy handle."""
-
 from __future__ import annotations
-
 # Provide a single SQLAlchemy instance early so model modules can import it.
 # Always reuse the shared handle exported by ``erp.db`` to avoid creating
 # duplicate metadata registries during test bootstraps.
-from ..db import db  # type: ignore
-
+from ..db import db # type: ignore
 # Eager exports the tests expect
-from .user import User  # noqa: F401
-from .role import Role  # noqa: F401
-from .organization import Organization  # noqa: F401
-from .invoice import Invoice  # noqa: F401
-from .employee import Employee  # noqa: F401
-from .recruitment import Recruitment  # noqa: F401
-from .performance_review import PerformanceReview  # noqa: F401
-from .user_dashboard import UserDashboard  # noqa: F401
-from .order import Order  # noqa: F401
-from .hr_lifecycle import (  # noqa: F401
+from .user import User # noqa: F401
+from .role import Role # noqa: F401
+from .organization import Organization # noqa: F401
+from .invoice import Invoice # noqa: F401
+from .employee import Employee # noqa: F401
+from .recruitment import Recruitment # noqa: F401
+from .performance_review import PerformanceReview # noqa: F401
+from .user_dashboard import UserDashboard # noqa: F401
+from .order import Order # noqa: F401
+from .hr_lifecycle import ( # noqa: F401
     HROnboarding,
     HROffboarding,
     LeaveRequest,
 )
-from .crm import (  # noqa: F401
+from .crm import ( # noqa: F401
     CRMAccount,
     CRMContact,
     CRMPipelineEvent,
     SupportTicket,
     ClientPortalLink,
 )
-from .client_auth import (  # noqa: F401
+from .client_auth import ( # noqa: F401
     ClientAccount,
     ClientOAuthAccount,
     ClientPasswordReset,
     ClientRoleAssignment,
     ClientVerification,
 )
-from .security_ext import (  # noqa: F401
+from .security_ext import ( # noqa: F401
     UserMFA,
     UserMFABackupCode,
     UserSession,
 )
-from .geolocation import (  # noqa: F401
+from .geolocation import ( # noqa: F401
     GeoAssignment,
     GeoLastLocation,
     GeoPing,
     GeoRouteCache,
 )
-from .maintenance import (  # noqa: F401
+from .maintenance import ( # noqa: F401
     MaintenanceAsset,
     MaintenanceEscalationEvent,
     MaintenanceEscalationRule,
@@ -56,14 +53,14 @@ from .maintenance import (  # noqa: F401
     MaintenanceSensorReading,
     MaintenanceWorkOrder,
 )
-from .analytics import (  # noqa: F401
+from .analytics import ( # noqa: F401
     AnalyticsDashboard,
     AnalyticsFact,
     AnalyticsMetric,
     AnalyticsWidget,
     DataLineage,
 )
-from .performance import (  # noqa: F401
+from .performance import ( # noqa: F401
     Feedback360,
     KPIRegistry,
     MLSuggestion,
@@ -72,15 +69,15 @@ from .performance import (  # noqa: F401
     ScorecardItem,
     ScorecardTemplate,
 )
-from .incident import Incident  # noqa: F401
-from .bot import (  # noqa: F401
+from .incident import Incident # noqa: F401
+from .bot import ( # noqa: F401
     BotCommandRegistry,
     BotEvent,
     BotIdempotencyKey,
     BotJobOutbox,
     TelegramConversationState,
 )
-from .rbac import (  # noqa: F401
+from .rbac import ( # noqa: F401
     RBACPolicy,
     RBACPolicyRule,
     RoleAssignmentRequest,
@@ -92,8 +89,8 @@ from erp.procurement.models import (
     PurchaseOrder,
     PurchaseOrderLine,
 )
-from .audit_log import AuditLog  # noqa: F401
-from .core_entities import (  # noqa: F401
+from .audit_log import AuditLog # noqa: F401
+from .core_entities import ( # noqa: F401
     ActivityEvent,
     AnalyticsEvent,
     ApprovalRequest,
@@ -136,14 +133,12 @@ from .finance_gl import (
     BankStatement,
     BankStatementLine,
 )
-StatementLine = BankStatementLine  # noqa: F401
-
+StatementLine = BankStatementLine # noqa: F401
 # Inventory: try eager, else lazy fallback + back-compat aliases
 _BACKCOMPAT_ITEM_NAMES = ("Item", "InventoryItem", "Product", "StockItem")
-
 try:
-    from .inventory import Inventory  # noqa: F401
-    from erp.inventory.models import (  # noqa: F401
+    from .inventory import Inventory # noqa: F401
+    from erp.inventory.models import ( # noqa: F401
         CycleCount,
         CycleCountLine,
         InventoryLocation,
@@ -155,12 +150,12 @@ try:
         StockLedgerEntry,
         Warehouse,
     )
-    Item = Inventory  # noqa: F401
-    InventoryItem = Inventory  # noqa: F401
-    Product = Inventory  # noqa: F401
-    StockItem = Inventory  # noqa: F401
-    SerialNumber = InventorySerial  # Alias for crucial device/equipment tracking
-except Exception:  # pragma: no cover
+    Item = Inventory # noqa: F401
+    InventoryItem = Inventory # noqa: F401
+    Product = Inventory # noqa: F401
+    StockItem = Inventory # noqa: F401
+    SerialNumber = InventorySerial # Alias for crucial device/equipment tracking
+except Exception: # pragma: no cover
     def __getattr__(name: str):
         if name in ("Inventory",) + _BACKCOMPAT_ITEM_NAMES:
             from . import inventory as _inv
@@ -177,6 +172,11 @@ except Exception:  # pragma: no cover
                 globals()[alias] = inv
             return globals()[name]
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+# UPGRADE: Expose new RBAC models (added; original missing for UserRole etc.)
+from .user_role import UserRole  # noqa: F401
+from .role_permission import RolePermission  # noqa: F401
+from .permission import Permission  # noqa: F401
 
 __all__ = [
     "db",
@@ -291,4 +291,8 @@ __all__ = [
     "CycleCount",
     "CycleCountLine",
     "ReorderRule",
+    # UPGRADE: Add new RBAC models to __all__ (preserves original list)
+    "UserRole",
+    "RolePermission",
+    "Permission",
 ]

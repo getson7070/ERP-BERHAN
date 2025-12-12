@@ -1,9 +1,7 @@
 """ERP package root.
 
-This package bundles the various modules of the ERP‑BERHAN system, including
-finance, CRM, sales, user management and core data models. The modules are
-organised into subpackages with clearly defined responsibilities. See the
-documentation for details on each module’s functionality.
+This package bundles the various modules of the ERP-BERHAN system, including
+finance, CRM, sales, user management and core data models.
 """
 
 from __future__ import annotations
@@ -18,7 +16,8 @@ from pathlib import Path
 from typing import Iterable
 
 import sentry_sdk
-from flask import Blueprint as FlaskBlueprint, Flask, jsonify
+from flask import Blueprint as FlaskBlueprint, Flask, jsonify, url_for
+from flask_login import current_user
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -101,7 +100,7 @@ def _load_config(app: Flask) -> None:
     if not secret_key or secret_key == "change-me":
         if allow_insecure:
             secret_key = secret_key or "change-me"
-        else:  # Production/staging must explicitly configure a secret
+        else:
             raise RuntimeError(
                 "SECRET_KEY is not configured. Export SECRET_KEY or set "
                 "ALLOW_INSECURE_DEFAULTS=1 for ephemeral local testing."
@@ -161,8 +160,6 @@ def _load_config(app: Flask) -> None:
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        # Sensible defaults to avoid dev-time warnings while still keeping
-        # security-focused settings (short-lived, in-memory cache by default).
         CACHE_TYPE=os.environ.get("CACHE_TYPE", "SimpleCache"),
         CACHE_DEFAULT_TIMEOUT=int(os.environ.get("CACHE_DEFAULT_TIMEOUT", 300)),
         SESSION_COOKIE_SECURE=True,
@@ -256,14 +253,13 @@ _EXCLUDED_BLUEPRINT_MODULES = {
     "erp.blueprints.health_compat",
     "erp.ops.health",
     "erp.ops.status",
-    "erp.finance.banking",  # legacy banking blueprint defining duplicate models
-    "erp.crm.routes",  # legacy CRM blueprint colliding with the upgraded module
+    "erp.finance.banking",
+    "erp.crm.routes",
 }
 
 
 def _iter_blueprint_modules() -> Iterable[str]:
     """Yield dotted module paths that are expected to expose a Blueprint."""
-
     seen: set[str] = set()
 
     if _MANIFEST.exists():
@@ -292,7 +288,6 @@ def _iter_blueprint_modules() -> Iterable[str]:
 
 def _extract_blueprints(module_obj) -> list[FlaskBlueprint]:
     """Return Blueprint objects exposed by *module_obj* (if any)."""
-
     discovered: list[FlaskBlueprint] = []
     seen: set[str] = set()
     for attr_name, attr in vars(module_obj).items():
@@ -304,7 +299,6 @@ def _extract_blueprints(module_obj) -> list[FlaskBlueprint]:
 
 def register_blueprints(app: Flask) -> None:
     """Register all configured blueprints while avoiding duplicates."""
-
     for module in _iter_blueprint_modules():
         if module in _EXCLUDED_BLUEPRINT_MODULES:
             LOGGER.debug("Skipping excluded blueprint module %s", module)
@@ -338,13 +332,26 @@ def _register_core_routes(app: Flask) -> None:
             return jsonify(status="ok"), 200
 
 
+# ---------------------------------------------------------------------------
+# RBAC menu (endpoints + perms only; URL resolution is per-request)
+# ---------------------------------------------------------------------------
+
+_MENU_DEFINITION: list[dict[str, str]] = [
+    {"label": "Dashboard", "endpoint": "analytics.dashboard", "perm": "view_dashboard"},
+    {"label": "Orders", "endpoint": "orders.index", "perm": "view_orders"},
+    {"label": "Inventory", "endpoint": "inventory.index", "perm": "view_inventory"},
+    {"label": "Procurement", "endpoint": "procurement.index", "perm": "manage_procurement"},
+    {"label": "Tenders", "endpoint": "tenders.list", "perm": "view_tenders"},
+    {"label": "Maintenance", "endpoint": "maintenance.index", "perm": "view_maintenance"},
+    {"label": "Admin", "endpoint": "admin.index", "perm": "manage_users"},
+]
+
+
 def create_app(config_object: str | None = None) -> Flask:
     """Application factory used by Flask, Celery, and CLI tooling."""
-
     app = Flask(__name__, instance_relative_config=False)
 
-    # Allow both package-scoped templates (erp/templates) and repository-level
-    # templates/ so modernized UI assets remain available after refactors.
+    # Allow both package-scoped templates (erp/templates) and repository-level templates/
     repo_templates = Path(__file__).resolve().parent.parent / "templates"
     if repo_templates.exists():
         loader = getattr(app, "jinja_loader", None)
@@ -352,6 +359,7 @@ def create_app(config_object: str | None = None) -> Flask:
         repo_path = str(repo_templates)
         if isinstance(searchpath, list) and repo_path not in searchpath:
             searchpath.insert(0, repo_path)
+
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     if config_object:
@@ -359,8 +367,6 @@ def create_app(config_object: str | None = None) -> Flask:
     else:
         _load_config(app)
 
-    # When running under pytest we want predictable test behaviour: bypass global gates
-    # and allow tenant guard to fall back to DEFAULT_ORG_ID without aborting.
     if os.getenv("PYTEST_CURRENT_TEST") and not app.config.get("TESTING"):
         app.config["TESTING"] = True
 
@@ -386,31 +392,50 @@ def create_app(config_object: str | None = None) -> Flask:
     register_blueprints(app)
     install_global_gate(app)
     install_tenant_guard(app)
-    from erp.routes.sso_oidc import init_sso
 
+    from erp.routes.sso_oidc import init_sso
     init_sso(app)
 
-    # Ensure Telegram bot commands are registered before webhooks start routing
-    # updates so that intents resolve to concrete handlers.
     register_default_bot_commands()
-
-    # Register core routes if not already present from blueprints
     _register_core_routes(app)
 
     # Legacy before_first_request setup migrated to direct execution
-    # (Flask 2.3+ compatibility: removed deprecated @app.before_first_request decorator)
     def legacy_before_first_request_setup():
-        # Insert your original before_first_request logic here.
-        # Common examples: db.create_all(), cache population, or one-time inits.
-        # For instance, if it was initializing something like:
-        # from .some_module import init_something
-        # init_something()
-        # Or DB-related: db.create_all()
-        # Ensure this is idempotent to avoid issues on restarts/migrations.
-        pass  # Replace with actual code from original file around line 381
+        # Keep idempotent if you later add logic here.
+        return
 
-    # Run the setup directly within app context (replaces @app.before_first_request)
     with app.app_context():
         legacy_before_first_request_setup()
+
+    # -----------------------------------------------------------------------
+    # RBAC context: has_permission + request-safe nav_menu (REAL permissions)
+    # -----------------------------------------------------------------------
+    @app.context_processor
+    def inject_rbac():
+        def has_permission(perm_name: str) -> bool:
+            if not current_user.is_authenticated:
+                return False
+            return bool(current_user.has_permission(perm_name))
+
+        nav_menu: list[dict[str, str]] = []
+        if current_user.is_authenticated:
+            for item in _MENU_DEFINITION:
+                perm = item.get("perm") or ""
+                if perm and not has_permission(perm):
+                    continue
+                endpoint = item.get("endpoint") or ""
+                if not endpoint:
+                    continue
+                # url_for is SAFE here (template/request context)
+                nav_menu.append(
+                    {
+                        "label": item.get("label", ""),
+                        "url": url_for(endpoint),
+                        "perm": perm,
+                        "endpoint": endpoint,
+                    }
+                )
+
+        return dict(has_permission=has_permission, nav_menu=nav_menu)
 
     return app
