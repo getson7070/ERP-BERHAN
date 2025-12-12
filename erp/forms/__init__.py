@@ -1,4 +1,3 @@
-# erp/forms.py
 from __future__ import annotations
 
 from decimal import Decimal
@@ -25,15 +24,16 @@ from wtforms.validators import (
 
 
 class LoginForm(FlaskForm):
-    """Basic email/password login form with CSRF protection."""
+    """Standard email/password login form with CSRF."""
 
     email = StringField(
         "Email",
         validators=[
             DataRequired(message="Email is required."),
-            Email(message="Invalid email format."),
+            Email(message="Please enter a valid email address."),
         ],
     )
+
     password = PasswordField(
         "Password",
         validators=[
@@ -41,8 +41,10 @@ class LoginForm(FlaskForm):
             Length(min=8, message="Password must be at least 8 characters."),
         ],
     )
-    remember_me = BooleanField("Remember Me")
-    submit = SubmitField("Sign In")
+
+    remember_me = BooleanField("Remember me")
+
+    submit = SubmitField("Sign in")
 
 
 class ForgotPasswordForm(FlaskForm):
@@ -52,73 +54,77 @@ class ForgotPasswordForm(FlaskForm):
         "Email",
         validators=[
             DataRequired(message="Email is required."),
-            Email(message="Invalid email address."),
+            Email(message="Please enter a valid email address."),
         ],
     )
-    submit = SubmitField("Send Reset Link")
+
+    submit = SubmitField("Send reset link")
 
 
 class ChangePasswordForm(FlaskForm):
     """Change password for an authenticated user."""
 
     old_password = PasswordField(
-        "Old Password",
-        validators=[DataRequired(message="Old password is required.")],
+        "Current password",
+        validators=[DataRequired(message="Current password is required.")],
     )
+
     new_password = PasswordField(
-        "New Password",
+        "New password",
         validators=[
             DataRequired(message="New password is required."),
             Length(min=8, message="Password must be at least 8 characters."),
-            EqualTo("confirm_password", message="Passwords must match."),
+            EqualTo("confirm_password", message="New passwords must match."),
         ],
     )
+
     confirm_password = PasswordField(
-        "Confirm New Password",
+        "Confirm new password",
         validators=[DataRequired(message="Please confirm the new password.")],
     )
-    submit = SubmitField("Change Password")
+
+    submit = SubmitField("Change password")
 
 
 class ItemForm(FlaskForm):
     """
-    Simple item creation form used by erp.routes.inventory.new_item.
+    Base catalog item form used by inventory views.
 
-    NOTE:
-    - Serial numbers (for devices/equipment) and lot/batch numbers (for reagents)
-      are handled in the inventory models (InventorySerial, Lot, etc.).
-    - This form is only for the base catalog item; stock & serial/lot flows
-      can be layered on top with dedicated forms/views.
+    Serial numbers for devices/equipment and lot/batch numbers for reagents
+    are handled in the inventory models and related flows; this form covers
+    the master catalog item record (SKU, name, initial quantity, price).
     """
 
     sku = StringField(
         "SKU",
         validators=[
             DataRequired(message="SKU is required."),
-            Length(max=64, message="SKU must be at most 64 characters."),
+            Length(max=64, message="SKU can be at most 64 characters."),
         ],
     )
+
     name = StringField(
         "Name",
         validators=[
             DataRequired(message="Item name is required."),
-            Length(max=255, message="Name must be at most 255 characters."),
+            Length(max=255, message="Name can be at most 255 characters."),
         ],
     )
 
-    # These map directly to how new_item() in erp.routes.inventory uses the form:
+    # These map to how new_item() in erp.routes.inventory uses the form:
     #   qty_on_hand=form.qty_on_hand.data or 0
     #   price=form.price.data or 0
     qty_on_hand = IntegerField(
-        "Quantity on Hand",
+        "Quantity on hand",
         default=0,
         validators=[
             Optional(),
             NumberRange(min=0, message="Quantity cannot be negative."),
         ],
     )
+
     price = DecimalField(
-        "Unit Price",
+        "Unit price",
         default=Decimal("0.00"),
         places=2,
         rounding=None,
@@ -128,26 +134,31 @@ class ItemForm(FlaskForm):
         ],
     )
 
-    submit = SubmitField("Save Item")
+    submit = SubmitField("Save item")
 
 
 class TicketForm(FlaskForm):
-    """Example non-auth form kept for future use / demos."""
+    """Generic ticket form kept for support/demo flows."""
 
     title = StringField(
         "Title",
         validators=[
             DataRequired(message="Title is required."),
-            Length(max=100, message="Title must be at most 100 characters."),
+            Length(max=100, message="Title can be at most 100 characters."),
         ],
     )
+
     description = TextAreaField(
         "Description",
         validators=[
             DataRequired(message="Description is required."),
-            Length(max=500, message="Description must be at most 500 characters."),
+            Length(
+                max=500,
+                message="Description can be at most 500 characters.",
+            ),
         ],
     )
+
     priority = SelectField(
         "Priority",
         choices=[
@@ -157,4 +168,14 @@ class TicketForm(FlaskForm):
         ],
         validators=[DataRequired(message="Priority is required.")],
     )
-    submit = SubmitField("Create Ticket")
+
+    submit = SubmitField("Create ticket")
+
+
+__all__ = [
+    "LoginForm",
+    "ForgotPasswordForm",
+    "ChangePasswordForm",
+    "ItemForm",
+    "TicketForm",
+]

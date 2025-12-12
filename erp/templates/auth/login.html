@@ -13,8 +13,18 @@
             Use your ERP-BERHAN account credentials to access the system.
           </p>
 
-          <form method="post" novalidate>
+          {% if form is defined and form %}
+          <form
+            method="post"
+            action="{{ url_for('auth.login', next=request.args.get('next')) }}"
+            novalidate
+          >
             {{ form.hidden_tag() }}
+
+            {# UUID-ready: if a login_uuid is passed from the backend, carry it forward #}
+            {% if login_uuid is defined and login_uuid %}
+              <input type="hidden" name="login_uuid" value="{{ login_uuid }}">
+            {% endif %}
 
             <div class="mb-3">
               {{ form.email.label(class_="form-label small") }}
@@ -61,12 +71,18 @@
               {% endif %}
             </div>
           </form>
+          {% else %}
+          <div class="alert alert-danger small" role="alert">
+            Login form is not properly initialised. Please contact the system administrator.
+          </div>
+          {% endif %}
 
           <hr class="my-3">
 
           <div class="small text-muted">
             <p class="mb-1">
-              If you forgot your password or cannot sign in, please contact the system administrator or Berhan Pharma IT support to reset your access.
+              If you forgot your password or cannot sign in, please contact the system administrator
+              or Berhan Pharma IT support to reset your access.
             </p>
             <p class="mb-0">
               Client and employee portal access are managed centrally; do not share your credentials with others.

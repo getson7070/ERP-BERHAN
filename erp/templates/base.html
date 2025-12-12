@@ -25,9 +25,12 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body
-  class="bg-light"
+  class="bg-light d-flex flex-column min-vh-100"
   data-current-user-id="{{ current_user.id if current_user.is_authenticated else '' }}"
   data-is-authenticated="{{ '1' if current_user.is_authenticated else '0' }}">
+
+  {# Normalise ACL object; safe even if `acl` is undefined #}
+  {% set ACL = acl or {} %}
 
   <!-- Top navigation -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -48,36 +51,78 @@
 
       <div class="collapse navbar-collapse" id="navbarMain">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          {# Only show module links for authenticated users #}
           {% if current_user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('analytics.dashboard_snapshot') }}">
-                Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/orders">
-                Orders
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/maintenance/tickets">
-                Maintenance
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/tenders">
-                Tenders
-              </a>
-            </li>
+            {# Dashboard – usually available to all authenticated users #}
+            {% if ACL.get('dashboard', {}).get('can_view', True) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('analytics.dashboard_snapshot') }}">
+                  Dashboard
+                </a>
+              </li>
+            {% endif %}
+
+            {# Orders – e.g. storekeepers, sales, admin #}
+            {% if ACL.get('orders', {}).get('can_view', True) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('orders.index') if 'orders.index' in current_app.view_functions else '/orders' }}">
+                  Orders
+                </a>
+              </li>
+            {% endif %}
+
+            {# Inventory – storekeeper / warehouse / admin #}
+            {% if ACL.get('inventory', {}).get('can_view', False) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('inventory.index') if 'inventory.index' in current_app.view_functions else '/inventory' }}">
+                  Inventory
+                </a>
+              </li>
+            {% endif %}
+
+            {# Maintenance – engineers / service coordinators / admin #}
+            {% if ACL.get('maintenance', {}).get('can_view', False) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('maintenance.tickets_index') if 'maintenance.tickets_index' in current_app.view_functions else '/maintenance/tickets' }}">
+                  Maintenance
+                </a>
+              </li>
+            {% endif %}
+
+            {# Procurement / Tenders – procurement team / management #}
+            {% if ACL.get('procurement', {}).get('can_view', False) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('procurement.index') if 'procurement.index' in current_app.view_functions else '/procurement' }}">
+                  Procurement
+                </a>
+              </li>
+            {% endif %}
+
+            {% if ACL.get('tenders', {}).get('can_view', False) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('tenders.index') if 'tenders.index' in current_app.view_functions else '/tenders' }}">
+                  Tenders
+                </a>
+              </li>
+            {% endif %}
+
+            {# Help / docs – usually safe for everyone #}
+            {% if ACL.get('help', {}).get('can_view', True) %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('help.index') if 'help.index' in current_app.view_functions else '/help' }}">
+                  Help
+                </a>
+              </li>
+            {% endif %}
           {% endif %}
         </ul>
 
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
           {% if current_user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link" href="/profile">
+              <span class="navbar-text me-2 small">
                 {{ current_user.email or 'Profile' }}
-              </a>
+              </span>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('auth.logout') }}">
@@ -97,7 +142,7 @@
   </nav>
 
   <!-- Main content -->
-  <main class="container my-4">
+  <main class="container my-4 flex-grow-1">
     {% block header %}
       {# Pages can override this block; by default nothing is rendered #}
     {% endblock %}
@@ -119,7 +164,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="bg-white border-top py-3 mt-auto">
+  <footer class="bg-white border-top py-3">
     <div class="container text-center text-muted small">
       &copy; {{ 2025 }} Berhan Pharma PLC — ERP-BERHAN
     </div>
@@ -137,4 +182,3 @@
   {% block extra_js %}{% endblock %}
 </body>
 </html>
-

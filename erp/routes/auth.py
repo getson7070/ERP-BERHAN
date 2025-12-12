@@ -29,6 +29,7 @@ from werkzeug.security import generate_password_hash
 
 from erp.audit import log_audit
 from erp.extensions import db, get_remote_address, limiter
+from erp.forms import LoginForm
 from erp.models import (
     ClientRegistration,
     ClientAccount,
@@ -310,27 +311,50 @@ def client_register():
 @bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute", key_func=_login_rate_limit_key)
 def login():
-    """Authenticate a user via form or JSON payload and start a session."""
+    """Authenticate a user and start a session (HTML form + JSON API)."""
+
+    expects_json = request.is_json
+
     # ---- GET: render login form or redirect authenticated users ----
     if request.method == "GET":
         if current_user.is_authenticated:
             # Already logged in → go to customizable dashboard
             return redirect(url_for("dashboard_customize.get_layout"))
-        return render_template("auth/login.html")
 
-    # ---- POST: credential-based login ----
-    email = _json_or_form("email").lower()
-    password = _json_or_form("password")
+        form = LoginForm()
+        return render_template("auth/login.html", form=form)
+
+    # ---- POST: HTML form vs JSON payload ----
+    if not expects_json:
+        # Browser form with CSRF via Flask-WTF
+        form = LoginForm()
+        if not form.validate_on_submit():
+            # Validation or CSRF failure
+            return render_template("auth/login.html", form=form), HTTPStatus.BAD_REQUEST
+        email = (form.email.data or "").lower().strip()
+        password = form.password.data or ""
+    else:
+        # JSON API client – no CSRF, keep the previous behavior
+        form = None
+        email = _json_or_form("email").lower()
+        password = _json_or_form("password")
 
     if not email or not password:
+        if expects_json:
+            return (
+                jsonify({"error": "email_and_password_required"}),
+                HTTPStatus.BAD_REQUEST,
+            )
         flash("Email and password are required.", "danger")
-        return render_template("auth/login.html"), HTTPStatus.BAD_REQUEST
+        # Recreate form so the template has something to render
+        form = form or LoginForm()
+        return render_template("auth/login.html", form=form), HTTPStatus.BAD_REQUEST
 
     # Check per-email cooldown (in addition to IP rate limiting)
     backoff_state, cooldown = _check_backoff(email)
     if backoff_state == "cooldown":
         message = f"Too many failed attempts. Try again in {cooldown} seconds."
-        if request.is_json:
+        if expects_json:
             return (
                 jsonify(
                     {
@@ -341,7 +365,8 @@ def login():
                 HTTPStatus.TOO_MANY_REQUESTS,
             )
         flash(message, "danger")
-        return render_template("auth/login.html"), HTTPStatus.TOO_MANY_REQUESTS
+        form = form or LoginForm()
+        return render_template("auth/login.html", form=form), HTTPStatus.TOO_MANY_REQUESTS
 
     org_id = resolve_org_id()
     user = User.query.filter_by(email=email).first()
@@ -359,27 +384,30 @@ def login():
     # Invalid credentials → record failure + generic error
     if user is None or not user.check_password(password):
         _record_failure(email)
-        flash("Invalid credentials.", "danger")
-        if request.is_json:
+        if expects_json:
             return jsonify({"error": "invalid_credentials"}), HTTPStatus.UNAUTHORIZED
-        return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
+        flash("Invalid credentials.", "danger")
+        form = form or LoginForm()
+        return render_template("auth/login.html", form=form), HTTPStatus.UNAUTHORIZED
 
     # Optional: account deactivation flag
     if hasattr(user, "is_active") and not getattr(user, "is_active", True):
-        if request.is_json:
+        if expects_json:
             return jsonify({"error": "account_inactive"}), HTTPStatus.FORBIDDEN
         flash("This account is deactivated.", "danger")
-        return render_template("auth/login.html"), HTTPStatus.FORBIDDEN
+        form = form or LoginForm()
+        return render_template("auth/login.html", form=form), HTTPStatus.FORBIDDEN
 
     # ---- MFA handling (TOTP / backup codes) ----
     mfa_row = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
 
     if mfa_required_for_role and not (mfa_row and mfa_row.is_enabled):
         message = "Admins and supervisors must enroll MFA before signing in."
-        if request.is_json:
+        if expects_json:
             return jsonify({"error": "mfa_enrollment_required"}), HTTPStatus.FORBIDDEN
         flash(message, "danger")
-        return render_template("auth/login.html"), HTTPStatus.FORBIDDEN
+        form = form or LoginForm()
+        return render_template("auth/login.html", form=form), HTTPStatus.FORBIDDEN
 
     if mfa_row and mfa_row.is_enabled:
         totp_code = _json_or_form("totp")
@@ -388,33 +416,36 @@ def login():
         if totp_code:
             if not verify_totp(mfa_row.totp_secret, totp_code):
                 _record_failure(email)
-                if request.is_json:
+                if expects_json:
                     return (
                         jsonify({"error": "mfa_required_invalid_totp"}),
                         HTTPStatus.UNAUTHORIZED,
                     )
                 flash("Multi-factor code is invalid.", "danger")
-                return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
+                form = form or LoginForm()
+                return render_template("auth/login.html", form=form), HTTPStatus.UNAUTHORIZED
             mfa_row.last_used_at = datetime.now(UTC)
             db.session.add(mfa_row)
 
         elif backup_code:
             if not verify_backup_code(org_id, user.id, backup_code):
                 _record_failure(email)
-                if request.is_json:
+                if expects_json:
                     return (
                         jsonify({"error": "mfa_required_invalid_backup"}),
                         HTTPStatus.UNAUTHORIZED,
                     )
                 flash("Backup code is invalid or already used.", "danger")
-                return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
+                form = form or LoginForm()
+                return render_template("auth/login.html", form=form), HTTPStatus.UNAUTHORIZED
 
         else:
             # MFA required but no code supplied
-            if request.is_json:
+            if expects_json:
                 return jsonify({"error": "mfa_required"}), HTTPStatus.UNAUTHORIZED
             flash("Multi-factor authentication required. Enter your code.", "warning")
-            return render_template("auth/login.html"), HTTPStatus.UNAUTHORIZED
+            form = form or LoginForm()
+            return render_template("auth/login.html", form=form), HTTPStatus.UNAUTHORIZED
 
         session["mfa_verified"] = True
     else:
@@ -447,7 +478,7 @@ def login():
     if not next_url or urlparse(next_url).netloc:
         next_url = url_for("analytics.dashboard_snapshot")
 
-    if request.is_json:
+    if expects_json:
         return jsonify({"user_id": user.id, "redirect": next_url}), HTTPStatus.OK
 
     flash("Signed in successfully.", "success")
