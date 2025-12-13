@@ -145,8 +145,13 @@ def _discover_blueprints() -> list[tuple[str, FlaskBlueprint]]:
     """
     Keep blueprint discovery conservative. If a module is missing,
     skip it instead of killing the server.
+
+    IMPORTANT:
+    - Register both UI and API blueprints that the system depends on.
+    - Client onboarding (C2) requires client_auth_api + admin_console_api to be registered.
     """
     candidates = [
+        # UI / core
         "erp.routes.main:main_bp",
         "erp.routes.auth:auth_bp",
         "erp.routes.health:health_bp",
@@ -158,6 +163,19 @@ def _discover_blueprints() -> list[tuple[str, FlaskBlueprint]]:
         "erp.routes.inventory:inventory_bp",
         "erp.routes.maintenance:maintenance_bp",
         "erp.routes.reports:reports_bp",
+
+        # API (needed for dashboards + bots + onboarding)
+        "erp.routes.api:bp",
+        "erp.routes.admin_console_api:bp",
+        "erp.routes.client_auth_api:bp",
+        "erp.routes.client_portal:bp",
+
+        # Keep adding your other APIs here as needed:
+        # "erp.routes.maintenance_api:bp",
+        # "erp.routes.inventory_ext_api:bp",
+        # "erp.routes.geo_api:bp",
+        # "erp.routes.analytics_api:bp",
+        # "erp.routes.crm_api:bp",
     ]
 
     out: list[tuple[str, FlaskBlueprint]] = []
@@ -218,41 +236,17 @@ def create_app() -> Flask:
     except Exception as e:
         LOGGER.warning("DLQ handler skipped: %s", e)
 
-    @app.context_processor
-    def inject_rbac():
-        """
-        Provides:
-          - acl: dict of permission->bool for templates
-          - nav_menu: auto-generated sections/items derived from real DB permissions
-        """
-        acl = {}
-        if current_user.is_authenticated:
-            # Build a small ACL map commonly used in templates.
-            # You can expand these keys as you standardize templates.
-            keys = [
-                "dashboard.view",
-                "orders.view",
-                "orders.client.view",
-                "inventory.view",
-                "maintenance.view",
-                "maintenance.client.view",
-                "reports.view",
-                "orgs.view",
-                "users.view",
-                "rbac.manage",
-                "audit.view",
-            ]
-            for k in keys:
-                try:
-                    acl[k] = bool(current_user.has_permission(k))  # type: ignore[attr-defined]
-                except Exception:
-                    acl[k] = False
-
-        nav_menu = build_menu_for_user(current_user)
-        return {"acl": acl, "nav_menu": nav_menu}
-
-    @app.get("/readyz")
-    def readyz():
-        return jsonify({"ok": True, "service": "erp-berhan", "ready": True}), 200
+    # Optional: expose menu build for templates
+    try:
+        @app.context_processor
+        def inject_menu():
+            if getattr(current_user, "is_authenticated", False):
+                return {"menu": build_menu_for_user(current_user)}
+            return {"menu": []}
+    except Exception:
+        pass
 
     return app
+
+
+__all__ = ["create_app", "db"]
