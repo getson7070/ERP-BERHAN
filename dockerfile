@@ -1,8 +1,5 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -19,6 +16,6 @@ COPY . /app
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8000
+EXPOSE 18000
 
-CMD ["gunicorn", "-b", "0.0.0.0:18000", "erp.wsgi:app"]
+CMD ["sh", "-c", "set -e; alembic upgrade head; python init_db.py; gunicorn -b 0.0.0.0:${PORT:-18000} wsgi:app"]

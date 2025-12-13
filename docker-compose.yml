@@ -1,63 +1,49 @@
 services:
   db:
     image: postgres:15
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: erp_berhan
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: erp_berhan
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-erp_berhan}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp_berhan"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   redis:
     image: redis:7
-    restart: unless-stopped
     volumes:
       - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   web:
     build:
       context: .
-      dockerfile: dockerfile  # matches your lowercase filename
-    command: >
-      sh -c "alembic upgrade head &&
-             python init_db.py &&
-             gunicorn -b 0.0.0.0:8000 'erp.app:create_app()'"
+      dockerfile: dockerfile
     environment:
-      FLASK_ENV: production
-      ENV: production
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/erp_berhan}
-      SECRET_KEY: ${SECRET_KEY:-dev-change-me}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-change-me}
-      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:-dev-change-me}
-      TELEGRAM_BOT_TOKENS: ${TELEGRAM_BOT_TOKENS:-your-token-here}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dev-change-me}
-      SKIP_AUTO_MIGRATION_REPAIR: "1"
-    ports:
-      - "18000:18000"
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/erp_berhan
+      REDIS_URL: redis://redis:6379/0
+      PORT: "18000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
+    ports:
+      - "18000:18000"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; resp=urllib.request.urlopen('http://localhost:8000/readyz', timeout=5); sys.exit(0 if resp.status==200 else 1)\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:18000/healthz').read(); print('ok')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
   pgdata:

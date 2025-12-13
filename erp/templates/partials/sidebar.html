@@ -1,0 +1,47 @@
+<aside class="sidebar p-3 d-none d-lg-block">
+  <div class="mb-3">
+    <div class="small text-muted">Signed in as</div>
+    <div class="fw-semibold">{{ current_user.email }}</div>
+  </div>
+
+  {% if nav_menu %}
+    {% for section in nav_menu %}
+      <div class="text-uppercase small text-muted mt-3 mb-2">{{ section.section }}</div>
+      <ul class="nav nav-pills flex-column gap-1">
+        {% for item in section.items %}
+          {% if item.children and item.children|length > 0 %}
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center justify-content-between"
+                 data-bs-toggle="collapse"
+                 href="#menu-{{ loop.index0 }}-{{ loop.parent.loop.index0 }}"
+                 role="button"
+                 aria-expanded="false">
+                <span><i class="bi {{ item.icon }} me-2"></i>{{ item.label }}</span>
+                <i class="bi bi-chevron-down"></i>
+              </a>
+              <div class="collapse" id="menu-{{ loop.index0 }}-{{ loop.parent.loop.index0 }}">
+                <ul class="nav flex-column ms-3 mt-1">
+                  {% for c in item.children %}
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ c.url }}">
+                        <i class="bi {{ c.icon }} me-2"></i>{{ c.label }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ item.url }}">
+                <i class="bi {{ item.icon }} me-2"></i>{{ item.label }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  {% else %}
+    <div class="text-muted small">No menu items available for your permissions.</div>
+  {% endif %}
+</aside>

@@ -1,7 +1,18 @@
-<!doctype html><title>ERP-BERHAN</title>
-<div style="max-width:720px;margin:5rem auto;padding:2rem;border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,.08);">
-  <h1>ERP-BERHAN</h1>
-  <p>Clean build is installed. You should see this page when the app starts.</p>
-  <p><a href="/login">Go to Login</a></p>
-</div>
+{% extends "base.html" %}
+{% block title %}Landing{% endblock %}
+{% block header %}ERP-BERHAN{% endblock %}
 
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h2 class="h5">Welcome</h2>
+    <p class="text-muted">
+      Please login to continue. Access is controlled by organization approval and RBAC permissions.
+    </p>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Login</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('auth.register_client') }}">Client Registration</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
