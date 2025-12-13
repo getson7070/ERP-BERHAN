@@ -11,7 +11,7 @@ from sqlalchemy import func
 
 from erp.extensions import db
 from erp.models import AnalyticsDashboard, AnalyticsFact, AnalyticsMetric, AnalyticsWidget
-from erp.security import require_roles
+from erp.security_decorators_phase2 import require_permission
 from erp.utils import resolve_org_id
 
 bp = Blueprint("analytics_api", __name__, url_prefix="/api/analytics")
@@ -27,41 +27,49 @@ def _role_names(user: Any) -> set[str]:
         for role_obj in rel:
             role_name = getattr(role_obj, "name", None)
             if role_name:
-                names.add(str(role_name).lower())
-
-    for attr in ("role", "role_name"):
-        val = getattr(user, attr, None)
-        if isinstance(val, str):
-            names.add(val.lower())
-
+                names.add(str(role_name).strip().lower())
+    # Some user implementations store roles as strings already
+    if isinstance(rel, (list, tuple)) and rel and isinstance(rel[0], str):
+        names.update({str(x).strip().lower() for x in rel if x})
     return names
 
 
 def _user_has_role(user: Any, role: str) -> bool:
-    return role.lower() in _role_names(user)
-
-
-def _serialize_metric(metric: AnalyticsMetric) -> dict[str, Any]:
-    return {
-        "key": metric.key,
-        "name": metric.name,
-        "unit": metric.unit,
-        "type": metric.metric_type,
-        "privacy_class": metric.privacy_class,
-        "source_module": metric.source_module,
-    }
+    return str(role).strip().lower() in _role_names(user)
 
 
 @bp.get("/metrics")
-@require_roles("analytics", "admin")
+@require_permission("analytics", "view")
 def list_metrics():
     org_id = resolve_org_id()
-    q = AnalyticsMetric.query.filter_by(org_id=org_id, is_active=True)
-    return jsonify([_serialize_metric(m) for m in q.all()]), HTTPStatus.OK
+
+    metrics = (
+        AnalyticsMetric.query.filter_by(org_id=org_id)
+        .order_by(AnalyticsMetric.category.asc(), AnalyticsMetric.key.asc())
+        .all()
+    )
+    return (
+        jsonify(
+            [
+                {
+                    "id": m.id,
+                    "key": m.key,
+                    "name": m.name,
+                    "category": m.category,
+                    "description": m.description,
+                    "unit": m.unit,
+                    "privacy_class": m.privacy_class,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in metrics
+            ]
+        ),
+        HTTPStatus.OK,
+    )
 
 
 @bp.get("/fact")
-@require_roles("analytics", "admin")
+@require_permission("analytics", "view")
 def query_fact():
     org_id = resolve_org_id()
     metric_key = request.args.get("metric_key")
@@ -72,82 +80,97 @@ def query_fact():
     if metric is None:
         return jsonify({"error": "unknown metric"}), HTTPStatus.NOT_FOUND
 
+    # Preserve existing behaviour: sensitive/PII requires admin role.
     if metric.privacy_class in {"sensitive", "pii"} and not _user_has_role(current_user, "admin"):
         return jsonify({"error": "insufficient permission for sensitive metric"}), HTTPStatus.FORBIDDEN
 
     today = date.today()
     from_raw = request.args.get("from")
     to_raw = request.args.get("to")
-    date_from = date.fromisoformat(from_raw) if from_raw else today - timedelta(days=30)
-    date_to = date.fromisoformat(to_raw) if to_raw else today
 
-    query = AnalyticsFact.query.filter(
-        AnalyticsFact.org_id == org_id,
-        AnalyticsFact.metric_key == metric_key,
-        AnalyticsFact.ts_date >= date_from,
-        AnalyticsFact.ts_date <= date_to,
+    try:
+        start = date.fromisoformat(from_raw) if from_raw else today - timedelta(days=30)
+        end = date.fromisoformat(to_raw) if to_raw else today
+    except ValueError:
+        return jsonify({"error": "from/to must be ISO dates (YYYY-MM-DD)"}), HTTPStatus.BAD_REQUEST
+
+    facts = (
+        AnalyticsFact.query.filter_by(org_id=org_id, metric_id=metric.id)
+        .filter(AnalyticsFact.fact_date >= start)
+        .filter(AnalyticsFact.fact_date <= end)
+        .order_by(AnalyticsFact.fact_date.asc())
+        .all()
     )
 
-    for dim in ("warehouse_id", "user_id", "client_id", "item_id", "region"):
-        value = request.args.get(dim)
-        if value:
-            column = getattr(AnalyticsFact, dim)
-            query = query.filter(column == value)
-
-    query = query.order_by(AnalyticsFact.ts_date.asc())
-    payload = [
-        {"date": row.ts_date.isoformat(), "value": float(row.value)} for row in query.all()
-    ]
-    return jsonify(payload), HTTPStatus.OK
-
-
-def _serialize_widget(widget: AnalyticsWidget) -> dict[str, Any]:
-    return {
-        "id": widget.id,
-        "title": widget.title,
-        "metric_key": widget.metric_key,
-        "chart_type": widget.chart_type,
-        "config": widget.config_json,
-        "position": widget.position,
-    }
-
-
-def _serialize_dashboard(dashboard: AnalyticsDashboard) -> dict[str, Any]:
-    return {
-        "id": dashboard.id,
-        "name": dashboard.name,
-        "for_role": dashboard.for_role,
-        "is_default": dashboard.is_default,
-        "widgets": [_serialize_widget(w) for w in dashboard.widgets],
-    }
+    return (
+        jsonify(
+            {
+                "metric": {
+                    "key": metric.key,
+                    "name": metric.name,
+                    "category": metric.category,
+                    "unit": metric.unit,
+                    "privacy_class": metric.privacy_class,
+                },
+                "from": start.isoformat(),
+                "to": end.isoformat(),
+                "facts": [
+                    {
+                        "date": f.fact_date.isoformat(),
+                        "value": float(f.value) if f.value is not None else None,
+                        "dimensions": f.dimensions_json or {},
+                    }
+                    for f in facts
+                ],
+            }
+        ),
+        HTTPStatus.OK,
+    )
 
 
 @bp.get("/dashboards")
-@require_roles("analytics", "admin")
-def dashboards_for_user():
+@require_permission("analytics", "view")
+def list_dashboards():
     org_id = resolve_org_id()
-    roles = _role_names(current_user)
+
     dashboards = (
-        AnalyticsDashboard.query.filter(
-            AnalyticsDashboard.org_id == org_id,
-            AnalyticsDashboard.is_active.is_(True),
-        )
+        AnalyticsDashboard.query.filter_by(org_id=org_id)
         .order_by(AnalyticsDashboard.name.asc())
         .all()
     )
 
-    visible: list[AnalyticsDashboard] = []
-    for dashboard in dashboards:
-        if dashboard.for_role is None:
-            visible.append(dashboard)
-        elif dashboard.for_role in roles or _user_has_role(current_user, "admin"):
-            visible.append(dashboard)
+    out = []
+    for d in dashboards:
+        widgets = (
+            AnalyticsWidget.query.filter_by(org_id=org_id, dashboard_id=d.id)
+            .order_by(AnalyticsWidget.position.asc())
+            .all()
+        )
+        out.append(
+            {
+                "id": d.id,
+                "name": d.name,
+                "description": d.description,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+                "widgets": [
+                    {
+                        "id": w.id,
+                        "type": w.widget_type,
+                        "title": w.title,
+                        "metric_key": w.metric_key,
+                        "config": w.config_json or {},
+                        "position": w.position,
+                    }
+                    for w in widgets
+                ],
+            }
+        )
 
-    return jsonify([_serialize_dashboard(d) for d in visible]), HTTPStatus.OK
+    return jsonify(out), HTTPStatus.OK
 
 
 @bp.post("/dashboards")
-@require_roles("analytics", "admin")
+@require_permission("analytics", "manage")
 def create_dashboard():
     org_id = resolve_org_id()
     payload = request.get_json(silent=True) or {}
@@ -156,52 +179,38 @@ def create_dashboard():
     if not name:
         return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
 
-    dashboard = AnalyticsDashboard(
+    d = AnalyticsDashboard(
         org_id=org_id,
         name=name,
-        for_role=(payload.get("for_role") or None),
-        is_default=bool(payload.get("is_default", False)),
-        is_active=True,
-        created_by_id=getattr(current_user, "id", None),
+        description=(payload.get("description") or "").strip(),
     )
-    db.session.add(dashboard)
-    db.session.flush()
-
-    widgets_payload = payload.get("widgets") or []
-    for position, widget_payload in enumerate(widgets_payload):
-        metric_key = (widget_payload.get("metric_key") or "").strip()
-        if not metric_key:
-            continue
-        widget = AnalyticsWidget(
-            org_id=org_id,
-            dashboard_id=dashboard.id,
-            title=(widget_payload.get("title") or metric_key),
-            metric_key=metric_key,
-            chart_type=(widget_payload.get("chart_type") or "line"),
-            config_json=widget_payload.get("config") or {},
-            position=position,
-        )
-        db.session.add(widget)
-
+    db.session.add(d)
     db.session.commit()
-    return jsonify(_serialize_dashboard(dashboard)), HTTPStatus.CREATED
+
+    return jsonify({"ok": True, "id": d.id}), HTTPStatus.CREATED
 
 
 @bp.get("/metrics/summary")
-@require_roles("analytics", "admin")
-def metrics_summary():
+@require_permission("analytics", "view")
+def summary():
     org_id = resolve_org_id()
-    counts = (
-        db.session.query(
-            AnalyticsMetric.privacy_class,
-            func.count(AnalyticsMetric.id),
-        )
-        .filter(
-            AnalyticsMetric.org_id == org_id,
-            AnalyticsMetric.is_active.is_(True),
-        )
-        .group_by(AnalyticsMetric.privacy_class)
-        .all()
+
+    metric_count = db.session.query(func.count(AnalyticsMetric.id)).filter(AnalyticsMetric.org_id == org_id).scalar() or 0
+    fact_count = db.session.query(func.count(AnalyticsFact.id)).filter(AnalyticsFact.org_id == org_id).scalar() or 0
+    dashboard_count = (
+        db.session.query(func.count(AnalyticsDashboard.id))
+        .filter(AnalyticsDashboard.org_id == org_id)
+        .scalar()
+        or 0
     )
-    summary = {privacy: count for privacy, count in counts}
-    return jsonify(summary), HTTPStatus.OK
+
+    return (
+        jsonify(
+            {
+                "metrics": int(metric_count),
+                "facts": int(fact_count),
+                "dashboards": int(dashboard_count),
+            }
+        ),
+        HTTPStatus.OK,
+    )
