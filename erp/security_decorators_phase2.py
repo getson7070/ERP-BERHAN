@@ -11,54 +11,52 @@ from flask_login import current_user
 from erp.security_rbac_phase2 import ensure_default_policy, is_allowed
 
 
+def _is_api_request() -> bool:
+    return (
+        request.path.startswith("/api/")
+        or request.accept_mimetypes.best == "application/json"
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+
+
 def require_permission(resource: str, action: str) -> Callable:
-    """Decorator enforcing policy-based permission checks.
+    """Decorator enforcing policy-based permission checks."""
 
-    Example:
-        @require_permission("inventory.stock", "adjust")
-        def adjust(): ...
-    """
-
-    def decorator(fn: Callable):
+    def decorator(fn: Callable) -> Callable:
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            from erp.security import _get_user_role_names  # local import to avoid cycle
-            from erp.utils import resolve_org_id
-
-            user = current_user if getattr(current_user, "is_authenticated", False) else None
-            if not user:
-                accepts_json = request.accept_mimetypes.accept_json
-                accepts_html = request.accept_mimetypes.accept_html
-                if accepts_json and not accepts_html:
-                    return (jsonify({"error": "unauthenticated"}), 401)
+            if not getattr(current_user, "is_authenticated", False):
+                if _is_api_request():
+                    return jsonify({"error": "authentication_required"}), 401
                 return redirect(url_for("auth.login", next=request.url))
 
-            org_id = resolve_org_id()
-            ensure_default_policy(org_id)
+            org_id = getattr(current_user, "org_id", None) or 1
+            roles = getattr(current_user, "roles", None) or []
+            actor_id = getattr(current_user, "id", None)
 
-            roles = _get_user_role_names(user)
+            ensure_default_policy(int(org_id))
+
             ctx = {
-                "user_id": getattr(user, "id", None),
-                "ip": request.remote_addr,
+                "actor_id": actor_id,
+                # route handlers can add more fields to ctx by setting request.rbac_ctx
             }
+            extra_ctx = getattr(request, "rbac_ctx", None)
+            if isinstance(extra_ctx, dict):
+                ctx.update(extra_ctx)
 
-            if not is_allowed(org_id, roles, resource, action, ctx):
-                return (
-                    jsonify(
-                        {
-                            "error": "permission_denied",
-                            "resource": resource,
-                            "action": action,
-                        }
-                    ),
-                    403,
-                )
+            if not is_allowed(int(org_id), roles, resource, action, ctx):
+                payload = {
+                    "error": "permission_denied",
+                    "resource": resource,
+                    "action": action,
+                }
+                if _is_api_request():
+                    return jsonify(payload), 403
+                # For HTML requests, redirect to a safe page (or show a flash message later)
+                return redirect(url_for("home.index"))
 
             return fn(*args, **kwargs)
 
         return wrapper
 
     return decorator
-
-
-__all__ = ["require_permission"]
