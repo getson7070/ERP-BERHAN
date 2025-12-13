@@ -1,12 +1,12 @@
 """Policy-based RBAC evaluator (Phase-2).
 
-This engine evaluates allow/deny rules with support for:
+This evaluator enforces allow/deny rules with:
 - Wildcards (fnmatch) on resource and action
 - Simple conditions (amount limits, ownership rules)
-- Role alias normalization (manager/management/supervisor -> management_supervisor)
+- Canonical role normalisation and backward-compatible role aliases
 - Optional role hierarchy expansion (RoleHierarchy), if configured
 
-Deny wins over allow.
+Governance rule: DENY overrides ALLOW.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 
 from erp.extensions import db
 from erp.models import RBACPolicy, RBACPolicyRule, RoleHierarchy
-from erp.rbac.defaults import DEFAULT_POLICY_NAME, ROLE_ALIASES, canonical_role, iter_default_rules
+from erp.rbac.defaults import DEFAULT_POLICY_NAME, canonical_role, iter_default_rules
 
 
 @lru_cache(maxsize=2048)
@@ -31,22 +31,23 @@ def _load_rules(org_id: int) -> list[RBACPolicyRule]:
         .order_by(RBACPolicy.priority.asc())
         .all()
     )
+
     rules: list[RBACPolicyRule] = []
     for policy in policies:
-        # policy.rules relationship should already be ordered/loaded
         rules.extend(policy.rules)
     return rules
 
 
 def invalidate_policy_cache() -> None:
-    """Clear in-memory cached policy rules."""
+    """Clear cached policy rules."""
     _load_rules.cache_clear()
+    _expand_roles_with_hierarchy.cache_clear()
 
 
 def ensure_default_policy(org_id: int) -> None:
     """Create a default policy with baseline rules when none exist.
 
-    This is a safety net so an org is never "locked out" due to missing rules.
+    This prevents an org from being locked out due to missing policy rows.
     """
     if RBACPolicy.query.filter_by(org_id=org_id).count():
         return
@@ -64,21 +65,27 @@ def ensure_default_policy(org_id: int) -> None:
                 role_key=rule_dict["role_key"],
                 resource=rule_dict["resource"],
                 action=rule_dict["action"],
-                effect=rule_dict["effect"],
+                effect=rule_dict.get("effect", "allow"),
                 condition_json=rule_dict.get("condition_json") or {},
             )
         )
 
     db.session.add_all(rules)
+
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        # Another worker likely seeded the policy concurrently; safe to ignore.
+        current_app.logger.info(
+            "RBAC bootstrap skipped because another transaction created defaults",
+            extra={"org_id": org_id},
+        )
+    else:
+        invalidate_policy_cache()
 
 
 def _normalize_roles(user_roles: Iterable[str]) -> set[str]:
-    """Normalize role keys for policy evaluation (lowercase + alias mapping)."""
+    """Normalize role keys for policy evaluation."""
     normalized: set[str] = set()
     for r in user_roles or []:
         rr = canonical_role(str(r))
@@ -89,17 +96,17 @@ def _normalize_roles(user_roles: Iterable[str]) -> set[str]:
 
 @lru_cache(maxsize=2048)
 def _expand_roles_with_hierarchy(org_id: int, roles_frozenset: frozenset[str]) -> frozenset[str]:
-    """Expand roles using RoleHierarchy table if present.
+    """Expand roles using RoleHierarchy if configured.
 
-    If RoleHierarchy rows exist, we treat them as 'parent_role dominates child_role',
-    and expand the user's effective roles to include dominated roles.
+    RoleHierarchy rows are interpreted as: parent_role dominates child_role.
+    The user's effective roles are expanded to include any dominated roles.
     """
     roles = set(roles_frozenset)
-    # Fast path: if no hierarchy rows exist for org, skip expansion.
+
+    # Fast path if no hierarchy exists
     if RoleHierarchy.query.filter_by(org_id=org_id).limit(1).count() == 0:
         return frozenset(roles)
 
-    # Build adjacency: parent -> children
     rows = RoleHierarchy.query.filter_by(org_id=org_id).all()
     children_map: dict[str, set[str]] = {}
     for row in rows:
@@ -107,7 +114,6 @@ def _expand_roles_with_hierarchy(org_id: int, roles_frozenset: frozenset[str]) -
         child = canonical_role(row.child_role)
         children_map.setdefault(parent, set()).add(child)
 
-    # BFS expansion
     q = deque(list(roles))
     while q:
         parent = q.popleft()
@@ -126,26 +132,18 @@ def is_allowed(
     action: str,
     ctx: dict | None = None,
 ) -> bool:
-    """Evaluate allow/deny rules for a user (deny wins).
-
-    Wildcards are supported on resource/action.
-    Role aliases are normalized and (optionally) expanded via RoleHierarchy.
-    """
+    """Evaluate allow/deny rules for a user (deny wins)."""
     ctx = ctx or {}
-
-    # Ensure org has baseline rules
-    ensure_default_policy(org_id)
+    ensure_default_policy(int(org_id))
 
     roles = _normalize_roles(user_roles)
-    roles = set(_expand_roles_with_hierarchy(org_id, frozenset(roles)))
+    roles = set(_expand_roles_with_hierarchy(int(org_id), frozenset(roles)))
 
-    rules = _load_rules(org_id)
+    rules = _load_rules(int(org_id))
     matched_allow = False
 
     for rule in rules:
-        # Normalize rule role key too (defensive)
         rule_role = canonical_role(rule.role_key)
-
         if rule_role not in roles:
             continue
 
@@ -166,10 +164,10 @@ def is_allowed(
 
 
 def _conditions_met(conditions: dict, ctx: dict) -> bool:
-    """Evaluate simple conditions.
+    """Evaluate simple conditions for a rule.
 
     Supported:
-    - own_only: ctx["owner_id"] must equal ctx["actor_id"]
+    - own_only: ctx["owner_id"] == ctx["actor_id"]
     - min_amount/max_amount: compare ctx["amount"]
     """
     if not conditions:
@@ -188,8 +186,4 @@ def _conditions_met(conditions: dict, ctx: dict) -> bool:
     return True
 
 
-__all__ = [
-    "is_allowed",
-    "invalidate_policy_cache",
-    "ensure_default_policy",
-]
+__all__ = ["ensure_default_policy", "invalidate_policy_cache", "is_allowed"]
