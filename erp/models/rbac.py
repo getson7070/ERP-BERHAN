@@ -1,9 +1,14 @@
-"""Phase-2 RBAC models for policy-driven permissions.
+"""
+Phase-2 RBAC models for policy-driven permissions.
 
 These tables enable dynamic policy management, deny-overrides, role
 hierarchies, and role-assignment workflows. They intentionally avoid
 business logic so the evaluation engine can remain separate and easily
 cached.
+
+Important design notes:
+- All data is scoped by org_id (multi-tenant).
+- RBACPolicyRule targets roles by role_key, which maps to roles.key within the same org.
 """
 
 from __future__ import annotations
@@ -17,7 +22,13 @@ class RBACPolicy(db.Model):
     __tablename__ = "rbac_policies"
 
     id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     name = db.Column(db.String(128), nullable=False, index=True)
     description = db.Column(db.Text, nullable=True)
@@ -44,7 +55,13 @@ class RBACPolicyRule(db.Model):
     __tablename__ = "rbac_policy_rules"
 
     id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     policy_id = db.Column(
         db.Integer,
@@ -53,11 +70,16 @@ class RBACPolicyRule(db.Model):
         index=True,
     )
 
+    # role_key maps to roles.key within the same org (see uq_roles_org_key)
     role_key = db.Column(db.String(64), nullable=False, index=True)
+
     resource = db.Column(db.String(128), nullable=False, index=True)
     action = db.Column(db.String(64), nullable=False, index=True)
 
+    # "allow" or "deny"
     effect = db.Column(db.String(8), nullable=False, default="allow")
+
+    # JSON conditions evaluated by engine (ABAC-style)
     condition_json = db.Column(db.JSON, nullable=False, default=dict)
 
     policy = db.relationship("RBACPolicy", back_populates="rules")
@@ -73,7 +95,13 @@ class RoleHierarchy(db.Model):
     __tablename__ = "role_hierarchy"
 
     id = db.Column(db.Integer, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     parent_role = db.Column(db.String(64), nullable=False, index=True)
     child_role = db.Column(db.String(64), nullable=False, index=True)
@@ -91,7 +119,13 @@ class RoleAssignmentRequest(db.Model):
     __tablename__ = "role_assignment_requests"
 
     id = db.Column(db.BigInteger, primary_key=True)
-    org_id = db.Column(db.Integer, nullable=False, index=True)
+
+    org_id = db.Column(
+        db.Integer,
+        db.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     requester_id = db.Column(db.Integer, nullable=False, index=True)
     target_user_id = db.Column(db.Integer, nullable=False, index=True)

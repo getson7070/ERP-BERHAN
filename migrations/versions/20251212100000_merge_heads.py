@@ -1,31 +1,23 @@
-"""Merge Alembic heads 0001_add_users_uuid and 739649794424.
+"""Merge head (kept for compatibility).
 
-This is a merge-only revision. It performs no schema changes.
-It exists to unify divergent migration branches so the app can boot
-with a single head.
-
-Heads merged:
-- 0001_add_users_uuid
-- 739649794424
+Revision ID: 20251212100000
+Revises: 0001_add_users_uuid
+Create Date: 2025-12-12
 """
 
-from __future__ import annotations
+from alembic import op
 
-from alembic import op  # noqa: F401
 
-# Revision identifiers, used by Alembic.
 revision = "20251212100000"
-down_revision = ("0001_add_users_uuid", "739649794424")
+down_revision = "0001_add_users_uuid"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # Merge revision: no-op by design.
-    return
+    # No-op merge placeholder (linear chain compatibility)
+    pass
 
 
 def downgrade() -> None:
-    # Downgrading a merge revision is also a no-op; Alembic will
-    # naturally re-split the branches based on graph traversal.
-    return
+    pass
