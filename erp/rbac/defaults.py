@@ -34,6 +34,7 @@ CANONICAL_ROLES = {
     "marketing",
     "hr",
     "analytics",
+    "crm",
     "compliance",
     "audit",
 }
@@ -74,11 +75,18 @@ DEFAULT_PERMISSION_RULES: list[dict] = [
     {"role": "management_supervisor", "resource": "maintenance_events", "action": "*", "effect": "allow"},
     {"role": "management_supervisor", "resource": "procurement", "action": "*", "effect": "allow"},
     {"role": "management_supervisor", "resource": "analytics", "action": "view", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "banking", "action": "view", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "audit", "action": "view", "effect": "allow"},
 
     # Orders
     {"role": "sales", "resource": "orders", "action": "view", "effect": "allow"},
     {"role": "sales", "resource": "orders", "action": "create", "effect": "allow"},
     {"role": "sales", "resource": "orders", "action": "update", "effect": "allow"},
+
+    # CRM (sales previously had access via require_roles("crm","sales","admin"))
+    {"role": "sales", "resource": "crm", "action": "view", "effect": "allow"},
+    {"role": "sales", "resource": "crm", "action": "manage", "effect": "allow"},
+    {"role": "crm", "resource": "crm", "action": "*", "effect": "allow"},
 
     # Maintenance team
     {"role": "maintenance", "resource": "maintenance_assets", "action": "*", "effect": "allow"},
@@ -102,6 +110,19 @@ DEFAULT_PERMISSION_RULES: list[dict] = [
     {"role": "procurement", "resource": "procurement", "action": "*", "effect": "allow"},
     {"role": "inventory", "resource": "procurement", "action": "view", "effect": "allow"},
     {"role": "inventory", "resource": "procurement", "action": "create", "effect": "allow"},
+
+    # Analytics (previously allowed by require_roles("analytics"...))
+    {"role": "analytics", "resource": "analytics", "action": "view", "effect": "allow"},
+    {"role": "analytics", "resource": "analytics", "action": "manage", "effect": "allow"},
+
+    # Banking (previously allowed by require_roles("finance","admin"))
+    {"role": "finance", "resource": "banking", "action": "*", "effect": "allow"},
+
+    # Audit/Compliance
+    {"role": "audit", "resource": "audit", "action": "view", "effect": "allow"},
+    {"role": "audit", "resource": "audit", "action": "export", "effect": "allow"},
+    {"role": "compliance", "resource": "audit", "action": "view", "effect": "allow"},
+    {"role": "compliance", "resource": "audit", "action": "export", "effect": "allow"},
 ]
 
 # ---------------------------------------------------------------------------
