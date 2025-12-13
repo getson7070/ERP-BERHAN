@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from http import HTTPStatus
 
 from flask import Blueprint, jsonify, request
+from flask_login import current_user
 
 from erp.extensions import db
 from erp.models import (
     ClientAccount,
     ClientRegistration,
+    ClientRoleAssignment,
     Institution,
+    Role,
     User,
+    UserMFA,
 )
 from erp.security_decorators_phase2 import require_permission
+from erp.services.client_auth_utils import set_password
 from erp.services.mfa_service import (
     disable_mfa,
     enable_mfa,
@@ -21,33 +26,36 @@ from erp.services.mfa_service import (
     get_totp_uri,
     verify_totp,
 )
+from erp.services.role_service import grant_role_to_user, list_role_names, revoke_role_from_user
+from erp.services.session_service import revoke_all_sessions_for_user
 from erp.utils import resolve_org_id
 
 bp = Blueprint("admin_console_api", __name__, url_prefix="/api/admin")
 
 
+def _serialize_user(user: User, org_id: int) -> dict[str, object]:
+    mfa = UserMFA.query.filter_by(org_id=org_id, user_id=user.id).first()
+    return {
+        "id": user.id,
+        "email": getattr(user, "email", None),
+        "username": getattr(user, "username", None),
+        "full_name": getattr(user, "full_name", None),
+        "is_active": getattr(user, "is_active", True),
+        "roles": sorted(list_role_names(user)),
+        "mfa_enabled": bool(mfa and mfa.is_enabled),
+    }
+
+
 # --------------------------
-# Users (existing)
+# Employees/Admin users
 # --------------------------
 
 @bp.get("/users")
 @require_permission("users", "view")
 def list_users():
     org_id = resolve_org_id()
-    users = User.query.filter_by(org_id=org_id).order_by(User.id.desc()).limit(500).all()
-    out = []
-    for u in users:
-        out.append(
-            {
-                "id": u.id,
-                "username": u.username,
-                "email": u.email,
-                "full_name": u.full_name,
-                "is_active": bool(u.is_active),
-                "created_at": u.created_at.isoformat() if getattr(u, "created_at", None) else None,
-            }
-        )
-    return jsonify(out), HTTPStatus.OK
+    users = User.query.order_by(User.id.asc()).all()
+    return jsonify([_serialize_user(u, org_id) for u in users]), HTTPStatus.OK
 
 
 @bp.post("/users/<int:user_id>/roles/grant")
@@ -59,13 +67,14 @@ def grant_user_role(user_id: int):
     if not role:
         return jsonify({"error": "role required"}), HTTPStatus.BAD_REQUEST
 
-    user = User.query.filter_by(org_id=org_id, id=user_id).first()
-    if user is None:
-        return jsonify({"error": "user not found"}), HTTPStatus.NOT_FOUND
+    try:
+        grant_role_to_user(org_id=org_id, user_id=user_id, role_key=role, acting_user=current_user)
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.FORBIDDEN
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.NOT_FOUND
 
-    user.grant_role(role)
-    db.session.commit()
-    return jsonify({"ok": True}), HTTPStatus.OK
+    return jsonify({"status": "granted", "role": role.lower()}), HTTPStatus.OK
 
 
 @bp.post("/users/<int:user_id>/roles/revoke")
@@ -77,49 +86,41 @@ def revoke_user_role(user_id: int):
     if not role:
         return jsonify({"error": "role required"}), HTTPStatus.BAD_REQUEST
 
-    user = User.query.filter_by(org_id=org_id, id=user_id).first()
-    if user is None:
-        return jsonify({"error": "user not found"}), HTTPStatus.NOT_FOUND
+    try:
+        revoke_role_from_user(org_id=org_id, user_id=user_id, role_key=role, acting_user=current_user)
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.BAD_REQUEST
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), HTTPStatus.NOT_FOUND
 
-    user.revoke_role(role)
-    db.session.commit()
-    return jsonify({"ok": True}), HTTPStatus.OK
+    return jsonify({"status": "revoked", "role": role.lower()}), HTTPStatus.OK
 
 
 @bp.post("/users/<int:user_id>/deactivate")
 @require_permission("users", "deactivate")
 def deactivate_user(user_id: int):
-    org_id = resolve_org_id()
-    user = User.query.filter_by(org_id=org_id, id=user_id).first()
-    if user is None:
-        return jsonify({"error": "user not found"}), HTTPStatus.NOT_FOUND
+    user = User.query.get_or_404(user_id)
     user.is_active = False
+    revoke_all_sessions_for_user(user_id, getattr(current_user, "id", None))
     db.session.commit()
-    return jsonify({"ok": True}), HTTPStatus.OK
+    return jsonify({"status": "deactivated"}), HTTPStatus.OK
 
 
 @bp.post("/users/<int:user_id>/reactivate")
 @require_permission("users", "reactivate")
 def reactivate_user(user_id: int):
-    org_id = resolve_org_id()
-    user = User.query.filter_by(org_id=org_id, id=user_id).first()
-    if user is None:
-        return jsonify({"error": "user not found"}), HTTPStatus.NOT_FOUND
+    user = User.query.get_or_404(user_id)
     user.is_active = True
     db.session.commit()
-    return jsonify({"ok": True}), HTTPStatus.OK
+    return jsonify({"status": "reactivated"}), HTTPStatus.OK
 
 
 @bp.post("/users/<int:user_id>/mfa/init")
 @require_permission("users", "mfa_manage")
 def init_mfa(user_id: int):
-    org_id = resolve_org_id()
-    user = User.query.filter_by(org_id=org_id, id=user_id).first()
-    if user is None:
-        return jsonify({"error": "user not found"}), HTTPStatus.NOT_FOUND
-
+    user = User.query.get_or_404(user_id)
     secret = generate_totp_secret()
-    uri = get_totp_uri(user.email, secret)
+    uri = get_totp_uri(user.email or f"user{user.id}@erp", secret)
     return jsonify({"secret": secret, "uri": uri}), HTTPStatus.OK
 
 
@@ -130,10 +131,8 @@ def enable_user_mfa(user_id: int):
     payload = request.get_json(silent=True) or {}
     secret = (payload.get("secret") or "").strip()
     code = (payload.get("code") or "").strip()
-
     if not secret or not code:
         return jsonify({"error": "secret and code required"}), HTTPStatus.BAD_REQUEST
-
     if not verify_totp(secret, code):
         return jsonify({"error": "invalid_totp"}), HTTPStatus.BAD_REQUEST
 
@@ -151,8 +150,24 @@ def disable_user_mfa(user_id: int):
 
 
 # --------------------------
-# C2: Client Onboarding Approvals (NEW, critical)
+# C2: Client onboarding approvals
 # --------------------------
+
+def _ensure_role(role_name: str) -> Role:
+    role = Role.query.filter_by(name=role_name).first()
+    if role is None:
+        role = Role(name=role_name)
+        db.session.add(role)
+        db.session.flush()
+    return role
+
+
+def _grant_client_role(account: ClientAccount, role_name: str = "client") -> None:
+    role = _ensure_role(role_name)
+    exists = ClientRoleAssignment.query.filter_by(client_account_id=account.id, role_id=role.id).first()
+    if not exists:
+        db.session.add(ClientRoleAssignment(client_account_id=account.id, role_id=role.id))
+
 
 @bp.get("/client-registrations")
 @require_permission("clients", "approve")
@@ -169,7 +184,7 @@ def list_client_registrations():
         out.append(
             {
                 "id": r.id,
-                "uuid": r.uuid,
+                "uuid": r.public_id,
                 "status": r.status,
                 "tin": r.tin,
                 "institution_name": r.institution_name,
@@ -186,9 +201,11 @@ def list_client_registrations():
                 "kebele": r.kebele,
                 "street": r.street,
                 "house_number": r.house_number,
+                "gps_hint": r.gps_hint,
                 "notes": r.notes,
                 "decided_by": r.decided_by,
-                "created_at": r.created_at.isoformat() if getattr(r, "created_at", None) else None,
+                "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+                "decision_notes": r.decision_notes,
             }
         )
     return jsonify(out), HTTPStatus.OK
@@ -206,7 +223,7 @@ def approve_client_registration(reg_uuid: str):
     if not reg.password_hash:
         return jsonify({"error": "missing_password_hash"}), HTTPStatus.CONFLICT
 
-    # 1) Create or fetch Institution by TIN (TIN unique per org)
+    # 1) Create or fetch institution by TIN (unique per org)
     inst = Institution.query.filter_by(org_id=org_id, tin=reg.tin).first()
     if inst is None:
         inst = Institution(
@@ -222,37 +239,54 @@ def approve_client_registration(reg_uuid: str):
             kebele=reg.kebele,
             street=reg.street,
             house_number=reg.house_number,
-            notes=reg.notes,
+            gps_hint=reg.gps_hint,
+            main_phone=reg.phone,
+            main_email=reg.email,
         )
         db.session.add(inst)
         db.session.flush()
 
-    # 2) Create client account for this contact
-    existing = ClientAccount.query.filter_by(org_id=org_id, email=reg.email.lower()).first()
+    # 2) Create ClientAccount (email unique per org)
+    existing = ClientAccount.query.filter_by(org_id=org_id, email=reg.email).first()
     if existing:
         return jsonify({"error": "client_account_email_exists"}), HTTPStatus.CONFLICT
 
+    # ClientAccount.client_id is required in your model; we map it to Institution.id as the stable key.
     account = ClientAccount(
         org_id=org_id,
+        client_id=inst.id,
         institution_id=inst.id,
-        email=reg.email.lower(),
+        email=reg.email,
         phone=reg.phone,
-        contact_name=reg.contact_name,
-        contact_position=reg.contact_position,
-        password_hash=reg.password_hash,
         is_active=True,
-        is_approved=True,
+        is_verified=True,
+        verified_at=datetime.utcnow(),
     )
+    # Preserve the password hash from registration
+    account.password_hash = reg.password_hash
     db.session.add(account)
+    db.session.flush()
 
-    # 3) Mark registration approved
+    _grant_client_role(account, "client")
+
+    # 3) Mark registration as approved
     reg.status = "approved"
-    reg.decided_by = getattr(getattr(request, "user", None), "id", None) or None  # safe fallback
-    reg.updated_at = datetime.now(UTC) if hasattr(reg, "updated_at") else None
+    reg.decided_by = getattr(current_user, "id", None)
+    reg.decided_at = datetime.utcnow()
+    reg.decision_notes = (request.get_json(silent=True) or {}).get("decision_notes") or None
 
     db.session.commit()
 
-    return jsonify({"ok": True, "institution_id": inst.id, "client_account_id": account.id}), HTTPStatus.OK
+    return (
+        jsonify(
+            {
+                "ok": True,
+                "institution_id": inst.id,
+                "client_account_id": account.id,
+            }
+        ),
+        HTTPStatus.OK,
+    )
 
 
 @bp.post("/client-registrations/<string:reg_uuid>/reject")
@@ -266,12 +300,12 @@ def reject_client_registration(reg_uuid: str):
         return jsonify({"error": "not_pending", "status": reg.status}), HTTPStatus.CONFLICT
 
     payload = request.get_json(silent=True) or {}
-    reason = (payload.get("reason") or "").strip() or None
+    notes = (payload.get("decision_notes") or "").strip() or None
 
     reg.status = "rejected"
-    if reason:
-        reg.notes = (reg.notes or "") + f"\nREJECT_REASON: {reason}"
-    reg.decided_by = getattr(getattr(request, "user", None), "id", None) or None
+    reg.decided_by = getattr(current_user, "id", None)
+    reg.decided_at = datetime.utcnow()
+    reg.decision_notes = notes
 
     db.session.commit()
     return jsonify({"ok": True}), HTTPStatus.OK
