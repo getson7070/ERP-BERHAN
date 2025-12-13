@@ -12,7 +12,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-erp_berhan}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7
@@ -23,24 +23,28 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile  # matches your lowercase filename
+    command: >
+      sh -c "alembic upgrade head &&
+             python init_db.py &&
+             gunicorn -b 0.0.0.0:8000 'erp.app:create_app()'"
     environment:
       FLASK_ENV: production
       ENV: production
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set for production}
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set for production}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set for production}
-      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:?SECURITY_PASSWORD_SALT must be set}
-      TELEGRAM_BOT_TOKENS: ${TELEGRAM_BOT_TOKENS:?TELEGRAM_BOT_TOKENS must be set}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?BACKUP_ENCRYPTION_KEY must be set}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/erp_berhan}
+      SECRET_KEY: ${SECRET_KEY:-dev-change-me}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-change-me}
+      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:-dev-change-me}
+      TELEGRAM_BOT_TOKENS: ${TELEGRAM_BOT_TOKENS:-your-token-here}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dev-change-me}
       SKIP_AUTO_MIGRATION_REPAIR: "1"
     ports:
-      - "18000:8000"
+      - "18000:18000"
     depends_on:
       db:
         condition: service_healthy

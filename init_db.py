@@ -1,17 +1,19 @@
-"""Database bootstrap utility (SEED ONLY).
+"""
+Seed baseline data (SEED ONLY).
 
-This script MUST NOT define/create tables. Alembic migrations own schema.
-It only inserts baseline data if missing.
+- Alembic migrations own schema creation.
+- This script only inserts baseline org/roles/permissions/admin if missing.
+- It must be safe to run multiple times.
 """
 
 from __future__ import annotations
 
 import os
-import uuid
 from datetime import datetime
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import ProgrammingError
 
 from db import get_engine
 
@@ -29,8 +31,15 @@ def _now() -> str:
 
 def seed_baseline(engine: Engine) -> None:
     with engine.begin() as conn:
-        # Ensure organizations table exists (hard fail early if migrations didn't run)
-        conn.execute(text("SELECT 1 FROM organizations LIMIT 1"))
+        # If migrations haven't been applied, do not crash-loop.
+        try:
+            conn.execute(text("SELECT 1 FROM organizations LIMIT 1"))
+        except ProgrammingError as e:
+            msg = str(e).lower()
+            if "does not exist" in msg and "organizations" in msg:
+                print("[init_db] organizations table missing. Skipping seed (migrations not applied).")
+                return
+            raise
 
         # 1) Organization
         org_id = conn.execute(
@@ -53,7 +62,7 @@ def seed_baseline(engine: Engine) -> None:
                 {"tin": DEFAULT_ORG_TIN},
             ).scalar()
 
-        # 2) Permissions catalog (minimal starter set; expand anytime without migrations)
+        # 2) Permissions catalog (examples; extend as your modules grow)
         perms = [
             ("auth.login", "auth", "Login access"),
             ("users.read", "users", "View users"),
@@ -75,15 +84,12 @@ def seed_baseline(engine: Engine) -> None:
                 {"code": code, "module": module, "desc": desc},
             )
 
-        # 3) System roles (global)
+        # 3) System roles (org_id NULL means “global/system role”)
         roles = [
-            ("admin", "Full system access", True),
-            ("management", "Management analytics + approvals", True),
-            ("supervisor", "Team approvals + monitoring", True),
-            ("storekeeper", "Inventory & store operations", True),
-            ("sales_rep", "Sales activities", True),
-            ("engineer", "Maintenance & technical work", True),
-            ("technical_manager", "Technical oversight + approvals", True),
+            ("admin", "Full system access + oversight + approvals", True),
+            ("storekeeper", "Inventory operations", True),
+            ("sales_rep", "Sales operations", True),
+            ("engineer", "Maintenance/service operations", True),
             ("tender_clerk", "Tender registration & tracking", True),
         ]
         for name, desc, is_system in roles:
@@ -98,15 +104,13 @@ def seed_baseline(engine: Engine) -> None:
                 {"name": name, "desc": desc, "is_system": bool(is_system)},
             )
 
-        # 4) Admin user (belongs to default org)
+        # 4) Admin user (note: password handling is managed elsewhere in your app)
         admin_id = conn.execute(
             text("SELECT id FROM users WHERE email = :email"),
             {"email": DEFAULT_ADMIN_EMAIL},
         ).scalar()
 
         if not admin_id:
-            # NOTE: password hashing is handled in your auth flow; if you want seeded password,
-            # you must insert a valid hash your app expects. For now: create user with NULL password_hash.
             conn.execute(
                 text(
                     """
@@ -130,10 +134,11 @@ def seed_baseline(engine: Engine) -> None:
                 {"email": DEFAULT_ADMIN_EMAIL},
             ).scalar()
 
-        # 5) Assign admin role to admin user
+        # 5) Assign admin role
         admin_role_id = conn.execute(
             text("SELECT id FROM roles WHERE org_id IS NULL AND name = 'admin'"),
         ).scalar()
+
         if admin_role_id and admin_id:
             conn.execute(
                 text(
@@ -146,7 +151,6 @@ def seed_baseline(engine: Engine) -> None:
                 {"user_id": int(admin_id), "role_id": int(admin_role_id)},
             )
 
-        # Done
         print(f"[init_db] Seed OK at {_now()} | org_id={org_id} admin_id={admin_id}")
 
 

@@ -1,42 +1,24 @@
-# Multi-tenant ERP-BERHAN Dockerfile
-# Clean, production-ready base with no reliance on the host .venv
-
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# System deps for building some Python packages (psycopg2, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    curl \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# ------------------------------------------------------------------
-# Install Python dependencies
-# ------------------------------------------------------------------
-COPY requirements.txt .
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . /app
 
-# ------------------------------------------------------------------
-# Copy application source
-# ------------------------------------------------------------------
-COPY . .
-
-# Create non-root user for better security and ensure the app tree is writable
-# so Alembic and other tooling can create merge revisions or logs at runtime.
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose the app port (inside the container).
 EXPOSE 8000
 
-# ------------------------------------------------------------------
-# Default command:
-# - Run init_db.py to ensure schema + seeds
-# - Start the app via gunicorn using the Flask app factory
-# ------------------------------------------------------------------
-CMD ["sh", "-c", "python init_db.py && gunicorn -b 0.0.0.0:8000 'erp.app:create_app()'"]
+CMD ["gunicorn", "-b", "0.0.0.0:18000", "erp.wsgi:app"]
