@@ -8,6 +8,7 @@ from typing import Any
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
+
 from erp.extensions import db
 from erp.models import (
     MaintenanceAsset,
@@ -18,92 +19,33 @@ from erp.models import (
     MaintenanceSensorReading,
     MaintenanceWorkOrder,
 )
-from erp.audit import log_audit
-from erp.security import require_roles
+from erp.security_decorators_phase2 import require_permission
+from erp.services.geo_utils import get_geo_data_from_request
+from erp.services.notification_service import notify_escalation
 from erp.utils import resolve_org_id
-from erp.utils.activity import log_activity_event
 
 bp = Blueprint("maintenance_api", __name__, url_prefix="/api/maintenance")
 
-
-def _parse_decimal(value: Any, default: str = "0") -> Decimal:
-    if value is None or value == "":
-        return Decimal(default)
-    return Decimal(str(value))
-
-
-# ---------------------------------------------------------------------------
-# Assets
-# ---------------------------------------------------------------------------
 
 def _serialize_asset(asset: MaintenanceAsset) -> dict[str, Any]:
     return {
         "id": asset.id,
         "code": asset.code,
         "name": asset.name,
-        "category": asset.category,
-        "manufacturer": asset.manufacturer,
-        "model": asset.model,
         "serial_number": asset.serial_number,
+        "model": asset.model,
+        "manufacturer": asset.manufacturer,
+        "category": asset.category,
+        "department": asset.department,
         "location": asset.location,
+        "institution_id": asset.institution_id,
         "purchase_date": asset.purchase_date.isoformat() if asset.purchase_date else None,
-        "purchase_cost": float(asset.purchase_cost or 0),
-        "salvage_value": float(asset.salvage_value or 0),
-        "useful_life_years": asset.useful_life_years,
-        "depreciation_method": asset.depreciation_method,
-        "is_critical": asset.is_critical,
-        "is_active": asset.is_active,
-        "created_at": asset.created_at.isoformat(),
+        "warranty_end": asset.warranty_end.isoformat() if asset.warranty_end else None,
+        "status": asset.status,
+        "created_at": asset.created_at.isoformat() if asset.created_at else None,
+        "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
     }
 
-
-@bp.get("/assets")
-@require_roles("maintenance", "admin")
-def list_assets():
-    org_id = resolve_org_id()
-    q = (
-        MaintenanceAsset.query.filter_by(org_id=org_id, is_active=True)
-        .order_by(MaintenanceAsset.name.asc())
-    )
-    return jsonify([_serialize_asset(a) for a in q.all()]), HTTPStatus.OK
-
-
-@bp.post("/assets")
-@require_roles("maintenance", "admin")
-def create_asset():
-    org_id = resolve_org_id()
-    payload = request.get_json(silent=True) or {}
-
-    code = (payload.get("code") or "").strip()
-    name = (payload.get("name") or "").strip()
-    if not (code and name):
-        return jsonify({"error": "code and name are required"}), HTTPStatus.BAD_REQUEST
-
-    asset = MaintenanceAsset(
-        org_id=org_id,
-        code=code,
-        name=name,
-        category=(payload.get("category") or "").strip() or None,
-        manufacturer=(payload.get("manufacturer") or "").strip() or None,
-        model=(payload.get("model") or "").strip() or None,
-        serial_number=(payload.get("serial_number") or "").strip() or None,
-        location=(payload.get("location") or "").strip() or None,
-        purchase_date=date.fromisoformat(payload["purchase_date"]) if payload.get("purchase_date") else None,
-        purchase_cost=_parse_decimal(payload.get("purchase_cost")),
-        salvage_value=_parse_decimal(payload.get("salvage_value")),
-        useful_life_years=payload.get("useful_life_years"),
-        depreciation_method=(payload.get("depreciation_method") or "straight_line"),
-        is_critical=bool(payload.get("is_critical", False)),
-        created_by_id=getattr(current_user, "id", None),
-    )
-    db.session.add(asset)
-    db.session.commit()
-    return jsonify(_serialize_asset(asset)), HTTPStatus.CREATED
-
-
-# ---------------------------------------------------------------------------
-# Schedules
-# ---------------------------------------------------------------------------
 
 def _serialize_schedule(schedule: MaintenanceSchedule) -> dict[str, Any]:
     return {
@@ -112,49 +54,20 @@ def _serialize_schedule(schedule: MaintenanceSchedule) -> dict[str, Any]:
         "name": schedule.name,
         "schedule_type": schedule.schedule_type,
         "interval_days": schedule.interval_days,
+        "interval_hours": schedule.interval_hours,
+        "interval_minutes": schedule.interval_minutes,
         "next_due_date": schedule.next_due_date.isoformat() if schedule.next_due_date else None,
+        "sla_minutes": schedule.sla_minutes,
+        "active": schedule.active,
         "last_completed_date": schedule.last_completed_date.isoformat() if schedule.last_completed_date else None,
-        "usage_metric": schedule.usage_metric,
-        "usage_interval": schedule.usage_interval,
-        "is_active": schedule.is_active,
+        "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
+        "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
     }
 
 
-@bp.post("/assets/<int:asset_id>/schedules")
-@require_roles("maintenance", "admin")
-def create_schedule(asset_id: int):
-    org_id = resolve_org_id()
-    asset = MaintenanceAsset.query.filter_by(org_id=org_id, id=asset_id).first_or_404()
-
-    payload = request.get_json(silent=True) or {}
-    name = (payload.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
-
-    schedule = MaintenanceSchedule(
-        org_id=org_id,
-        asset_id=asset.id,
-        name=name,
-        schedule_type=(payload.get("schedule_type") or "time").lower(),
-        interval_days=payload.get("interval_days"),
-        next_due_date=date.fromisoformat(payload["next_due_date"]) if payload.get("next_due_date") else None,
-        usage_metric=(payload.get("usage_metric") or "").strip() or None,
-        usage_interval=payload.get("usage_interval"),
-        is_active=True,
-        created_by_id=getattr(current_user, "id", None),
-    )
-    db.session.add(schedule)
-    db.session.commit()
-    return jsonify(_serialize_schedule(schedule)), HTTPStatus.CREATED
-
-
-# ---------------------------------------------------------------------------
-# Work orders
-# ---------------------------------------------------------------------------
-
 def _serialize_work_order(work_order: MaintenanceWorkOrder) -> dict[str, Any]:
     now = datetime.now(UTC)
-    sla_due_at: datetime | None = None
+
     sla_due_minutes: int | None = None
     if work_order.due_date:
         sla_due_at = datetime.combine(work_order.due_date, time(23, 59, tzinfo=UTC))
@@ -170,463 +83,361 @@ def _serialize_work_order(work_order: MaintenanceWorkOrder) -> dict[str, Any]:
         "description": work_order.description,
         "status": work_order.status,
         "priority": work_order.priority,
-        "requested_by_id": work_order.requested_by_id,
-        "assigned_to_id": work_order.assigned_to_id,
-        "request_lat": work_order.request_lat,
-        "request_lng": work_order.request_lng,
-        "request_location_label": work_order.request_location_label,
-        "start_lat": work_order.start_lat,
-        "start_lng": work_order.start_lng,
-        "requested_at": work_order.requested_at.isoformat(),
+        "requested_at": work_order.requested_at.isoformat() if work_order.requested_at else None,
         "due_date": work_order.due_date.isoformat() if work_order.due_date else None,
         "started_at": work_order.started_at.isoformat() if work_order.started_at else None,
         "completed_at": work_order.completed_at.isoformat() if work_order.completed_at else None,
-        "last_check_in_at": work_order.last_check_in_at.isoformat()
-        if work_order.last_check_in_at
-        else None,
+        "assigned_to_id": work_order.assigned_to_id,
+        "requested_by_id": work_order.requested_by_id,
+        "institution_id": work_order.institution_id,
+        "site_lat": work_order.site_lat,
+        "site_lng": work_order.site_lng,
+        "site_geo_accuracy_m": work_order.site_geo_accuracy_m,
         "sla_status": work_order.sla_status,
-        "sla_due_at": sla_due_at.isoformat() if sla_due_at else None,
         "sla_due_minutes": sla_due_minutes,
-        "downtime_start": work_order.downtime_start.isoformat() if work_order.downtime_start else None,
-        "downtime_end": work_order.downtime_end.isoformat() if work_order.downtime_end else None,
-        "downtime_minutes": work_order.downtime_minutes,
-        "labor_cost": float(work_order.labor_cost or 0),
-        "material_cost": float(work_order.material_cost or 0),
-        "other_cost": float(work_order.other_cost or 0),
-        "total_cost": float(work_order.total_cost or 0),
+        "created_at": work_order.created_at.isoformat() if work_order.created_at else None,
+        "updated_at": work_order.updated_at.isoformat() if work_order.updated_at else None,
     }
-
-
-def _record_event(
-    work_order: MaintenanceWorkOrder,
-    event_type: str,
-    message: str | None = None,
-    from_status: str | None = None,
-    to_status: str | None = None,
-    geo_lat: float | None = None,
-    geo_lng: float | None = None,
-) -> MaintenanceEvent:
-    event = MaintenanceEvent(
-        org_id=work_order.org_id,
-        work_order=work_order,
-        event_type=event_type,
-        message=message,
-        from_status=from_status,
-        to_status=to_status,
-        geo_lat=geo_lat,
-        geo_lng=geo_lng,
-        created_by_id=getattr(current_user, "id", None),
-    )
-    db.session.add(event)
-    return event
-
-
-def _priority_rank(priority: str) -> int:
-    order = {"low": 1, "normal": 2, "medium": 2, "high": 3, "critical": 4}
-    return order.get(priority or "normal", 2)
-
-
-def _should_escalate_for_rule(
-    rule: MaintenanceEscalationRule, work_order: MaintenanceWorkOrder
-) -> bool:
-    if not rule.is_active:
-        return False
-    if rule.asset_id and work_order.asset_id and rule.asset_id != work_order.asset_id:
-        return False
-    if rule.asset_category and work_order.asset and work_order.asset.category:
-        if rule.asset_category != work_order.asset.category:
-            return False
-    return _priority_rank(work_order.priority) >= _priority_rank(rule.min_priority)
-
-
-def _extract_geo_coordinates(payload: dict[str, Any], *, required: bool = False) -> tuple[float | None, float | None, str | None]:
-    """Parse latitude/longitude with validation and optional requirement."""
-
-    lat_raw = payload.get("lat") or payload.get("geo_lat") or payload.get("start_lat")
-    lng_raw = payload.get("lng") or payload.get("geo_lng") or payload.get("start_lng")
-
-    try:
-        lat = float(lat_raw) if lat_raw is not None else None
-    except (TypeError, ValueError):
-        return None, None, "lat must be numeric"
-
-    try:
-        lng = float(lng_raw) if lng_raw is not None else None
-    except (TypeError, ValueError):
-        return None, None, "lng must be numeric"
-
-    if required and (lat is None or lng is None):
-        return None, None, "lat and lng are required for geo check-ins"
-
-    return lat, lng, None
-
-
-def _run_sla_evaluations(work_order: MaintenanceWorkOrder) -> None:
-    """Trigger SLA escalation events and audit logs when thresholds breach."""
-
-    if work_order.status == "completed":
-        work_order.sla_status = "completed"
-        return
-
-    org_id = work_order.org_id
-    now = datetime.now(UTC)
-    sla_breached = False
-
-    # Overdue by due_date
-    if work_order.due_date and work_order.due_date < now.date():
-        sla_breached = True
-        _record_event(
-            work_order,
-            "ESCALATION",
-            message="Due date passed without completion",
-            from_status=work_order.status,
-            to_status=work_order.status,
-        )
-        log_audit(
-            getattr(current_user, "id", None),
-            org_id,
-            "maintenance.sla_overdue",
-            f"work_order={work_order.id};due_date={work_order.due_date}",
-        )
-        log_activity_event(
-            action="maintenance.sla_overdue",
-            entity_type="work_order",
-            entity_id=work_order.id,
-            status=work_order.status,
-            severity="warning",
-            metadata={"due_date": str(work_order.due_date)},
-        )
-
-    rules = MaintenanceEscalationRule.query.filter_by(org_id=org_id, is_active=True).all()
-    for rule in rules:
-        if not _should_escalate_for_rule(rule, work_order):
-            continue
-        downtime_ref = work_order.downtime_start or work_order.started_at or work_order.requested_at
-        if not downtime_ref:
-            continue
-        delta_minutes = int((now - downtime_ref).total_seconds() // 60)
-        if delta_minutes < (rule.downtime_threshold_minutes or 0):
-            continue
-
-        existing = MaintenanceEscalationEvent.query.filter_by(
-            org_id=org_id, rule_id=rule.id, work_order_id=work_order.id
-        ).first()
-        if existing:
-            continue
-
-        sla_breached = True
-        escalation_event = MaintenanceEscalationEvent(
-            org_id=org_id,
-            rule_id=rule.id,
-            work_order_id=work_order.id,
-            status="triggered",
-            note=(
-                f"Exceeded downtime threshold ({delta_minutes}m >= {rule.downtime_threshold_minutes}m)"
-            ),
-            created_by_id=getattr(current_user, "id", None),
-        )
-        db.session.add(escalation_event)
-        _record_event(
-            work_order,
-            "ESCALATION",
-            message=f"Escalated via {rule.name} to {rule.notify_channel}",
-            from_status=work_order.status,
-            to_status=work_order.status,
-        )
-        log_audit(
-            getattr(current_user, "id", None),
-            org_id,
-            "maintenance.sla_escalated",
-            f"work_order={work_order.id};rule={rule.name};channel={rule.notify_channel}",
-        )
-        log_activity_event(
-            action="maintenance.sla_escalated",
-            entity_type="work_order",
-            entity_id=work_order.id,
-            status=work_order.status,
-            severity="warning",
-            metadata={"rule": rule.name, "channel": rule.notify_channel},
-        )
-
-    work_order.sla_status = "breached" if sla_breached else "ok"
-
-
-@bp.post("/work-orders")
-@require_roles("maintenance", "admin", "client", "dispatch", "sales", "marketing")
-def create_work_order():
-    org_id = resolve_org_id()
-    payload = request.get_json(silent=True) or {}
-
-    title = (payload.get("title") or "").strip()
-    if not title:
-        return jsonify({"error": "title is required"}), HTTPStatus.BAD_REQUEST
-
-    request_lat = payload.get("request_lat") or payload.get("site_lat")
-    request_lng = payload.get("request_lng") or payload.get("site_lng")
-    request_label = (payload.get("request_location_label") or payload.get("site_label") or "").strip() or None
-
-    work_order = MaintenanceWorkOrder(
-        org_id=org_id,
-        asset_id=payload.get("asset_id"),
-        schedule_id=payload.get("schedule_id"),
-        work_type=(payload.get("work_type") or "corrective").lower(),
-        title=title,
-        description=(payload.get("description") or "").strip() or None,
-        status="open",
-        priority=(payload.get("priority") or "normal").lower(),
-        requested_by_id=getattr(current_user, "id", None),
-        request_lat=request_lat,
-        request_lng=request_lng,
-        request_location_label=request_label,
-        due_date=date.fromisoformat(payload["due_date"]) if payload.get("due_date") else None,
-    )
-    db.session.add(work_order)
-
-    _record_event(
-        work_order,
-        "REQUEST",
-        message="Maintenance request submitted",
-        to_status="open",
-        geo_lat=request_lat,
-        geo_lng=request_lng,
-    )
-    _record_event(
-        work_order,
-        "STATUS_CHANGE",
-        from_status=None,
-        to_status="open",
-    )
-
-    log_activity_event(
-        action="maintenance.request_created",
-        entity_type="work_order",
-        entity_id=work_order.id,
-        status=work_order.status,
-        metadata={"priority": work_order.priority, "request_location": request_label},
-    )
-
-    db.session.commit()
-    _run_sla_evaluations(work_order)
-    db.session.commit()
-    log_audit(
-        getattr(current_user, "id", None),
-        org_id,
-        "maintenance.work_order_requested",
-        f"work_order={work_order.id};title={title}",
-    )
-    return jsonify(_serialize_work_order(work_order)), HTTPStatus.CREATED
-
-
-@bp.post("/work-orders/<int:work_order_id>/start")
-@require_roles("maintenance", "admin", "dispatch")
-def start_work_order(work_order_id: int):
-    org_id = resolve_org_id()
-    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
-
-    if work_order.status not in {"open"}:
-        return jsonify({"error": f"cannot start from status {work_order.status}"}), HTTPStatus.BAD_REQUEST
-
-    now = datetime.now(UTC)
-    work_order.status = "in_progress"
-    work_order.started_at = now
-    payload = request.get_json(silent=True) or {}
-    start_lat, start_lng, geo_error = _extract_geo_coordinates(payload, required=True)
-    if geo_error:
-        return jsonify({"error": geo_error}), HTTPStatus.BAD_REQUEST
-
-    work_order.start_lat = start_lat
-    work_order.start_lng = start_lng
-    work_order.last_check_in_at = now
-    if not work_order.downtime_start:
-        work_order.downtime_start = now
-
-    _record_event(
-        work_order,
-        "STATUS_CHANGE",
-        from_status="open",
-        to_status="in_progress",
-        geo_lat=work_order.start_lat,
-        geo_lng=work_order.start_lng,
-    )
-
-    db.session.commit()
-    _run_sla_evaluations(work_order)
-    db.session.commit()
-    log_audit(
-        getattr(current_user, "id", None),
-        org_id,
-        "maintenance.work_order_started",
-        f"work_order={work_order.id}",
-    )
-    return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
-
-
-@bp.post("/work-orders/<int:work_order_id>/check-in")
-@require_roles("maintenance", "admin", "dispatch")
-def check_in(work_order_id: int):
-    """Capture on-site geo check-ins for technicians."""
-
-    org_id = resolve_org_id()
-    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
-    if work_order.status not in {"in_progress", "open"}:
-        return (
-            jsonify({"error": f"cannot check-in from status {work_order.status}"}),
-            HTTPStatus.BAD_REQUEST,
-        )
-
-    payload = request.get_json(silent=True) or {}
-    lat, lng, geo_error = _extract_geo_coordinates(payload, required=True)
-    if geo_error:
-        return jsonify({"error": geo_error}), HTTPStatus.BAD_REQUEST
-    work_order.last_check_in_at = datetime.now(UTC)
-    work_order.start_lat = work_order.start_lat or lat
-    work_order.start_lng = work_order.start_lng or lng
-
-    _record_event(
-        work_order,
-        "CHECK_IN",
-        message="Technician checked in on site",
-        from_status=work_order.status,
-        to_status=work_order.status,
-        geo_lat=lat,
-        geo_lng=lng,
-    )
-    db.session.commit()
-    _run_sla_evaluations(work_order)
-    db.session.commit()
-    log_activity_event(
-        action="maintenance.check_in",
-        entity_type="work_order",
-        entity_id=work_order.id,
-        status=work_order.status,
-        metadata={"lat": lat, "lng": lng},
-    )
-    log_audit(
-        getattr(current_user, "id", None),
-        org_id,
-        "maintenance.work_order_check_in",
-        f"work_order={work_order.id}",
-    )
-    return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
-
-
-@bp.post("/work-orders/<int:work_order_id>/complete")
-@require_roles("maintenance", "admin", "dispatch")
-def complete_work_order(work_order_id: int):
-    org_id = resolve_org_id()
-    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
-
-    if work_order.status not in {"open", "in_progress"}:
-        return jsonify({"error": f"cannot complete from status {work_order.status}"}), HTTPStatus.BAD_REQUEST
-
-    now = datetime.now(UTC)
-    prev_status = work_order.status
-    work_order.status = "completed"
-    work_order.completed_at = now
-
-    payload = request.get_json(silent=True) or {}
-    if "labor_cost" in payload:
-        work_order.labor_cost = _parse_decimal(payload.get("labor_cost"))
-    if "material_cost" in payload:
-        work_order.material_cost = _parse_decimal(payload.get("material_cost"))
-    if "other_cost" in payload:
-        work_order.other_cost = _parse_decimal(payload.get("other_cost"))
-    work_order.recompute_total_cost()
-
-    if work_order.downtime_start and not work_order.downtime_end:
-        work_order.downtime_end = now
-        delta = work_order.downtime_end - work_order.downtime_start
-        work_order.downtime_minutes = int(delta.total_seconds() // 60)
-
-    _record_event(
-        work_order,
-        "STATUS_CHANGE",
-        from_status=prev_status,
-        to_status="completed",
-    )
-
-    db.session.commit()
-    _run_sla_evaluations(work_order)
-    db.session.commit()
-    log_activity_event(
-        action="maintenance.completed",
-        entity_type="work_order",
-        entity_id=work_order.id,
-        status=work_order.status,
-        metadata={
-            "labor_cost": float(work_order.labor_cost or 0),
-            "material_cost": float(work_order.material_cost or 0),
-        },
-    )
-    log_audit(
-        getattr(current_user, "id", None),
-        org_id,
-        "maintenance.work_order_completed",
-        f"work_order={work_order.id}",
-    )
-    return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
-
-
-@bp.get("/work-orders")
-@require_roles("maintenance", "admin", "client", "dispatch")
-def list_work_orders():
-    """Return recent work orders for the current organisation.
-
-    Optional query parameters:
-    - status: filter by status
-    - limit: number of rows (default 200)
-    """
-
-    org_id = resolve_org_id()
-    status_filter = request.args.get("status")
-    limit = int(request.args.get("limit", "200"))
-
-    query = MaintenanceWorkOrder.query.filter_by(org_id=org_id)
-    if status_filter:
-        query = query.filter(MaintenanceWorkOrder.status == status_filter)
-
-    query = query.order_by(MaintenanceWorkOrder.requested_at.desc()).limit(max(1, min(limit, 500)))
-    work_orders = query.all()
-    for wo in work_orders:
-        _run_sla_evaluations(wo)
-    db.session.commit()
-    return jsonify([_serialize_work_order(wo) for wo in work_orders]), HTTPStatus.OK
-
-
-# ---------------------------------------------------------------------------
-# Escalation rules & events
-# ---------------------------------------------------------------------------
 
 
 def _serialize_escalation_rule(rule: MaintenanceEscalationRule) -> dict[str, Any]:
     return {
         "id": rule.id,
         "name": rule.name,
-        "asset_category": rule.asset_category,
-        "asset_id": rule.asset_id,
-        "min_priority": rule.min_priority,
-        "downtime_threshold_minutes": rule.downtime_threshold_minutes,
+        "active": rule.active,
+        "priority_min": rule.priority_min,
+        "priority_max": rule.priority_max,
+        "minutes_after_due": rule.minutes_after_due,
         "notify_role": rule.notify_role,
-        "notify_channel": rule.notify_channel,
-        "is_active": rule.is_active,
-        "created_at": rule.created_at.isoformat(),
+        "notify_telegram_chat_id": rule.notify_telegram_chat_id,
+        "created_at": rule.created_at.isoformat() if rule.created_at else None,
+        "updated_at": rule.updated_at.isoformat() if rule.updated_at else None,
     }
 
 
+def _serialize_event(ev: MaintenanceEvent) -> dict[str, Any]:
+    return {
+        "id": ev.id,
+        "work_order_id": ev.work_order_id,
+        "event_type": ev.event_type,
+        "message": ev.message,
+        "old_status": ev.old_status,
+        "new_status": ev.new_status,
+        "created_at": ev.created_at.isoformat() if ev.created_at else None,
+        "created_by_id": ev.created_by_id,
+        "geo_lat": ev.geo_lat,
+        "geo_lng": ev.geo_lng,
+        "geo_accuracy_m": ev.geo_accuracy_m,
+    }
+
+
+@bp.get("/assets")
+@require_permission("maintenance_assets", "view")
+def list_assets():
+    org_id = resolve_org_id()
+    q = (
+        MaintenanceAsset.query.filter_by(org_id=org_id)
+        .order_by(MaintenanceAsset.name.asc())
+    )
+    return jsonify([_serialize_asset(a) for a in q.all()]), HTTPStatus.OK
+
+
+@bp.post("/assets")
+@require_permission("maintenance_assets", "create")
+def create_asset():
+    org_id = resolve_org_id()
+    payload = request.get_json(silent=True) or {}
+
+    code = (payload.get("code") or "").strip()
+    name = (payload.get("name") or "").strip()
+    if not (code and name):
+        return jsonify({"error": "code and name are required"}), HTTPStatus.BAD_REQUEST
+
+    asset = MaintenanceAsset(
+        org_id=org_id,
+        code=code,
+        name=name,
+        serial_number=(payload.get("serial_number") or "").strip(),
+        model=(payload.get("model") or "").strip(),
+        manufacturer=(payload.get("manufacturer") or "").strip(),
+        category=(payload.get("category") or "").strip(),
+        department=(payload.get("department") or "").strip(),
+        location=(payload.get("location") or "").strip(),
+        institution_id=payload.get("institution_id"),
+        status=(payload.get("status") or "active").strip().lower(),
+    )
+
+    purchase_date = payload.get("purchase_date")
+    if purchase_date:
+        try:
+            asset.purchase_date = date.fromisoformat(str(purchase_date))
+        except ValueError:
+            return jsonify({"error": "purchase_date must be ISO format (YYYY-MM-DD)"}), HTTPStatus.BAD_REQUEST
+
+    warranty_end = payload.get("warranty_end")
+    if warranty_end:
+        try:
+            asset.warranty_end = date.fromisoformat(str(warranty_end))
+        except ValueError:
+            return jsonify({"error": "warranty_end must be ISO format (YYYY-MM-DD)"}), HTTPStatus.BAD_REQUEST
+
+    db.session.add(asset)
+    db.session.commit()
+
+    return jsonify(_serialize_asset(asset)), HTTPStatus.CREATED
+
+
+@bp.post("/assets/<int:asset_id>/schedules")
+@require_permission("maintenance_assets", "create_schedule")
+def create_schedule(asset_id: int):
+    org_id = resolve_org_id()
+    asset = MaintenanceAsset.query.filter_by(org_id=org_id, id=asset_id).first_or_404()
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
+
+    schedule = MaintenanceSchedule(
+        org_id=org_id,
+        asset_id=asset.id,
+        name=name,
+        schedule_type=(payload.get("schedule_type") or "time").lower(),
+        interval_days=int(payload.get("interval_days") or 0),
+        interval_hours=int(payload.get("interval_hours") or 0),
+        interval_minutes=int(payload.get("interval_minutes") or 0),
+        sla_minutes=int(payload.get("sla_minutes") or 0) if payload.get("sla_minutes") is not None else None,
+        active=bool(payload.get("active", True)),
+    )
+
+    next_due_date = payload.get("next_due_date")
+    if next_due_date:
+        try:
+            schedule.next_due_date = date.fromisoformat(str(next_due_date))
+        except ValueError:
+            return jsonify({"error": "next_due_date must be ISO format (YYYY-MM-DD)"}), HTTPStatus.BAD_REQUEST
+
+    db.session.add(schedule)
+    db.session.commit()
+
+    return jsonify(_serialize_schedule(schedule)), HTTPStatus.CREATED
+
+
+@bp.post("/work-orders")
+@require_permission("maintenance_work_orders", "create")
+def create_work_order():
+    org_id = resolve_org_id()
+    payload = request.get_json(silent=True) or {}
+
+    asset_id = payload.get("asset_id")
+    if not asset_id:
+        return jsonify({"error": "asset_id is required"}), HTTPStatus.BAD_REQUEST
+
+    asset = MaintenanceAsset.query.filter_by(org_id=org_id, id=asset_id).first()
+    if asset is None:
+        return jsonify({"error": "asset not found"}), HTTPStatus.NOT_FOUND
+
+    schedule_id = payload.get("schedule_id")
+    schedule = None
+    if schedule_id:
+        schedule = MaintenanceSchedule.query.filter_by(org_id=org_id, id=schedule_id, asset_id=asset.id).first()
+        if schedule is None:
+            return jsonify({"error": "schedule not found"}), HTTPStatus.NOT_FOUND
+
+    title = (payload.get("title") or "").strip()
+    description = (payload.get("description") or "").strip()
+    if not title:
+        return jsonify({"error": "title is required"}), HTTPStatus.BAD_REQUEST
+
+    work_type = (payload.get("work_type") or "corrective").strip().lower()
+    status = (payload.get("status") or "open").strip().lower()
+    priority = (payload.get("priority") or "normal").strip().lower()
+
+    due_date_raw = payload.get("due_date")
+    due_date_value = None
+    if due_date_raw:
+        try:
+            due_date_value = date.fromisoformat(str(due_date_raw))
+        except ValueError:
+            return jsonify({"error": "due_date must be ISO format (YYYY-MM-DD)"}), HTTPStatus.BAD_REQUEST
+
+    # Geo capture (optional in current design; will be enforced in Layer 5 SLA/Geo step)
+    geo = get_geo_data_from_request(payload)
+    site_lat = geo.get("lat")
+    site_lng = geo.get("lng")
+    site_acc = geo.get("accuracy_m")
+
+    work_order = MaintenanceWorkOrder(
+        org_id=org_id,
+        asset_id=asset.id,
+        schedule_id=schedule.id if schedule else None,
+        work_type=work_type,
+        title=title,
+        description=description,
+        status=status,
+        priority=priority,
+        requested_at=datetime.now(UTC),
+        due_date=due_date_value,
+        requested_by_id=getattr(current_user, "id", None),
+        assigned_to_id=payload.get("assigned_to_id"),
+        institution_id=payload.get("institution_id") or asset.institution_id,
+        site_lat=site_lat,
+        site_lng=site_lng,
+        site_geo_accuracy_m=site_acc,
+    )
+
+    db.session.add(work_order)
+    db.session.flush()
+
+    ev = MaintenanceEvent(
+        org_id=org_id,
+        work_order_id=work_order.id,
+        event_type="created",
+        message="Work order created",
+        old_status=None,
+        new_status=work_order.status,
+        created_at=datetime.now(UTC),
+        created_by_id=getattr(current_user, "id", None),
+        geo_lat=site_lat,
+        geo_lng=site_lng,
+        geo_accuracy_m=site_acc,
+    )
+    db.session.add(ev)
+    db.session.commit()
+
+    return jsonify(_serialize_work_order(work_order)), HTTPStatus.CREATED
+
+
+@bp.post("/work-orders/<int:work_order_id>/start")
+@require_permission("maintenance_work_orders", "start")
+def start_work_order(work_order_id: int):
+    org_id = resolve_org_id()
+    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
+
+    if work_order.status in {"completed", "closed"}:
+        return jsonify({"error": "work order already completed/closed"}), HTTPStatus.CONFLICT
+
+    payload = request.get_json(silent=True) or {}
+    geo = get_geo_data_from_request(payload)
+    lat = geo.get("lat")
+    lng = geo.get("lng")
+    acc = geo.get("accuracy_m")
+
+    old = work_order.status
+    work_order.status = "in_progress"
+    work_order.started_at = datetime.now(UTC)
+
+    ev = MaintenanceEvent(
+        org_id=org_id,
+        work_order_id=work_order.id,
+        event_type="started",
+        message="Work order started",
+        old_status=old,
+        new_status=work_order.status,
+        created_at=datetime.now(UTC),
+        created_by_id=getattr(current_user, "id", None),
+        geo_lat=lat,
+        geo_lng=lng,
+        geo_accuracy_m=acc,
+    )
+    db.session.add(ev)
+    db.session.commit()
+
+    return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
+
+
+@bp.post("/work-orders/<int:work_order_id>/check-in")
+@require_permission("maintenance_work_orders", "checkin")
+def check_in(work_order_id: int):
+    org_id = resolve_org_id()
+    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
+
+    if work_order.status not in {"in_progress", "open"}:
+        return jsonify({"error": "work order is not open or in progress"}), HTTPStatus.CONFLICT
+
+    payload = request.get_json(silent=True) or {}
+    geo = get_geo_data_from_request(payload)
+    lat = geo.get("lat")
+    lng = geo.get("lng")
+    acc = geo.get("accuracy_m")
+
+    work_order.last_check_in_at = datetime.now(UTC)
+
+    ev = MaintenanceEvent(
+        org_id=org_id,
+        work_order_id=work_order.id,
+        event_type="check_in",
+        message=(payload.get("message") or "Check-in recorded"),
+        old_status=work_order.status,
+        new_status=work_order.status,
+        created_at=datetime.now(UTC),
+        created_by_id=getattr(current_user, "id", None),
+        geo_lat=lat,
+        geo_lng=lng,
+        geo_accuracy_m=acc,
+    )
+    db.session.add(ev)
+    db.session.commit()
+
+    return jsonify({"ok": True}), HTTPStatus.OK
+
+
+@bp.post("/work-orders/<int:work_order_id>/complete")
+@require_permission("maintenance_work_orders", "complete")
+def complete_work_order(work_order_id: int):
+    org_id = resolve_org_id()
+    work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
+
+    if work_order.status in {"completed", "closed"}:
+        return jsonify({"error": "work order already completed/closed"}), HTTPStatus.CONFLICT
+
+    payload = request.get_json(silent=True) or {}
+    geo = get_geo_data_from_request(payload)
+    lat = geo.get("lat")
+    lng = geo.get("lng")
+    acc = geo.get("accuracy_m")
+
+    old = work_order.status
+    work_order.status = "completed"
+    work_order.completed_at = datetime.now(UTC)
+
+    ev = MaintenanceEvent(
+        org_id=org_id,
+        work_order_id=work_order.id,
+        event_type="completed",
+        message=(payload.get("message") or "Work order completed"),
+        old_status=old,
+        new_status=work_order.status,
+        created_at=datetime.now(UTC),
+        created_by_id=getattr(current_user, "id", None),
+        geo_lat=lat,
+        geo_lng=lng,
+        geo_accuracy_m=acc,
+    )
+    db.session.add(ev)
+    db.session.commit()
+
+    return jsonify(_serialize_work_order(work_order)), HTTPStatus.OK
+
+
+@bp.get("/work-orders")
+@require_permission("maintenance_work_orders", "view")
+def list_work_orders():
+    org_id = resolve_org_id()
+    q = MaintenanceWorkOrder.query.filter_by(org_id=org_id).order_by(MaintenanceWorkOrder.id.desc()).limit(500)
+    return jsonify([_serialize_work_order(wo) for wo in q.all()]), HTTPStatus.OK
+
+
 @bp.get("/escalation-rules")
-@require_roles("maintenance", "admin")
+@require_permission("maintenance_work_orders", "manage_escalations")
 def list_escalation_rules():
     org_id = resolve_org_id()
-    rules = (
-        MaintenanceEscalationRule.query.filter_by(org_id=org_id)
-        .order_by(MaintenanceEscalationRule.name.asc())
-        .all()
-    )
-    return jsonify([_serialize_escalation_rule(rule) for rule in rules]), HTTPStatus.OK
+    q = MaintenanceEscalationRule.query.filter_by(org_id=org_id).order_by(MaintenanceEscalationRule.id.desc())
+    return jsonify([_serialize_escalation_rule(r) for r in q.all()]), HTTPStatus.OK
 
 
 @bp.post("/escalation-rules")
-@require_roles("maintenance", "admin")
+@require_permission("maintenance_work_orders", "manage_escalations")
 def create_escalation_rule():
     org_id = resolve_org_id()
     payload = request.get_json(silent=True) or {}
@@ -635,24 +446,15 @@ def create_escalation_rule():
     if not name:
         return jsonify({"error": "name is required"}), HTTPStatus.BAD_REQUEST
 
-    try:
-        threshold = int(payload.get("downtime_threshold_minutes", 0))
-    except (TypeError, ValueError):
-        return jsonify({"error": "downtime_threshold_minutes must be an integer"}), HTTPStatus.BAD_REQUEST
-    if threshold <= 0:
-        return jsonify({"error": "downtime_threshold_minutes must be greater than zero"}), HTTPStatus.BAD_REQUEST
-
     rule = MaintenanceEscalationRule(
         org_id=org_id,
         name=name,
-        asset_category=(payload.get("asset_category") or "").strip() or None,
-        asset_id=payload.get("asset_id"),
-        min_priority=(payload.get("min_priority") or "normal").lower(),
-        downtime_threshold_minutes=threshold,
-        notify_role=(payload.get("notify_role") or "").strip() or None,
-        notify_channel=(payload.get("notify_channel") or "telegram").lower(),
-        is_active=bool(payload.get("is_active", True)),
-        created_by_id=getattr(current_user, "id", None),
+        active=bool(payload.get("active", True)),
+        priority_min=(payload.get("priority_min") or "").strip(),
+        priority_max=(payload.get("priority_max") or "").strip(),
+        minutes_after_due=int(payload.get("minutes_after_due") or 0),
+        notify_role=(payload.get("notify_role") or "management_supervisor").strip(),
+        notify_telegram_chat_id=(payload.get("notify_telegram_chat_id") or "").strip() or None,
     )
     db.session.add(rule)
     db.session.commit()
@@ -660,139 +462,73 @@ def create_escalation_rule():
 
 
 @bp.get("/work-orders/<int:work_order_id>/events")
-@require_roles("maintenance", "admin", "client", "dispatch")
+@require_permission("maintenance_events", "view")
 def list_work_order_events(work_order_id: int):
     org_id = resolve_org_id()
     work_order = MaintenanceWorkOrder.query.filter_by(org_id=org_id, id=work_order_id).first_or_404()
-    events = [
-        {
-            "id": event.id,
-            "event_type": event.event_type,
-            "message": event.message,
-            "from_status": event.from_status,
-            "to_status": event.to_status,
-            "created_at": event.created_at.isoformat(),
-            "created_by_id": event.created_by_id,
-            "geo_lat": event.geo_lat,
-            "geo_lng": event.geo_lng,
-        }
-        for event in work_order.events
-    ]
-    return jsonify(events), HTTPStatus.OK
-
-
-# ---------------------------------------------------------------------------
-# Sensor readings
-# ---------------------------------------------------------------------------
+    q = (
+        MaintenanceEvent.query.filter_by(org_id=org_id, work_order_id=work_order.id)
+        .order_by(MaintenanceEvent.id.asc())
+        .limit(1000)
+    )
+    return jsonify([_serialize_event(e) for e in q.all()]), HTTPStatus.OK
 
 
 @bp.post("/assets/<int:asset_id>/sensor-readings")
-@require_roles("maintenance", "admin")
+@require_permission("maintenance_assets", "record_sensor_reading")
 def record_sensor_reading(asset_id: int):
     org_id = resolve_org_id()
     asset = MaintenanceAsset.query.filter_by(org_id=org_id, id=asset_id).first_or_404()
 
     payload = request.get_json(silent=True) or {}
-    sensor_type = (payload.get("sensor_type") or "").strip()
-    if not sensor_type:
-        return jsonify({"error": "sensor_type is required"}), HTTPStatus.BAD_REQUEST
+    reading_type = (payload.get("reading_type") or "").strip()
+    value = payload.get("value")
+    unit = (payload.get("unit") or "").strip()
+    recorded_at_raw = payload.get("recorded_at")
 
-    reading = MaintenanceSensorReading(
+    if not reading_type:
+        return jsonify({"error": "reading_type is required"}), HTTPStatus.BAD_REQUEST
+
+    try:
+        value_dec = Decimal(str(value))
+    except Exception:
+        return jsonify({"error": "value must be numeric"}), HTTPStatus.BAD_REQUEST
+
+    recorded_at = datetime.now(UTC)
+    if recorded_at_raw:
+        try:
+            recorded_at = datetime.fromisoformat(str(recorded_at_raw))
+        except ValueError:
+            return jsonify({"error": "recorded_at must be ISO datetime"}), HTTPStatus.BAD_REQUEST
+
+    sensor = MaintenanceSensorReading(
         org_id=org_id,
         asset_id=asset.id,
-        sensor_type=sensor_type,
-        value=_parse_decimal(payload.get("value"), default="0"),
-        unit=(payload.get("unit") or "").strip() or None,
-        raw_payload=payload.get("raw_payload") or None,
+        reading_type=reading_type,
+        value=value_dec,
+        unit=unit,
+        recorded_at=recorded_at,
+        created_by_id=getattr(current_user, "id", None),
     )
-    db.session.add(reading)
+    db.session.add(sensor)
     db.session.commit()
 
-    return (
-        jsonify(
-            {
-                "id": reading.id,
-                "sensor_type": reading.sensor_type,
-                "value": float(reading.value or 0),
-                "unit": reading.unit,
-                "recorded_at": reading.recorded_at.isoformat(),
-            }
-        ),
-        HTTPStatus.CREATED,
-    )
-
-
-# ---------------------------------------------------------------------------
-# KPI / Analytics
-# ---------------------------------------------------------------------------
+    return jsonify({"ok": True, "id": sensor.id}), HTTPStatus.CREATED
 
 
 @bp.get("/kpi/summary")
-@require_roles("maintenance", "admin")
+@require_permission("analytics", "view")
 def kpi_summary():
     org_id = resolve_org_id()
-    from_raw = request.args.get("from")
-    to_raw = request.args.get("to")
 
-    today = datetime.utcnow().date()
-    date_from = date.fromisoformat(from_raw) if from_raw else today - timedelta(days=30)
-    date_to = date.fromisoformat(to_raw) if to_raw else today
+    open_count = MaintenanceWorkOrder.query.filter_by(org_id=org_id, status="open").count()
+    in_progress_count = MaintenanceWorkOrder.query.filter_by(org_id=org_id, status="in_progress").count()
+    completed_count = MaintenanceWorkOrder.query.filter_by(org_id=org_id, status="completed").count()
 
-    query = MaintenanceWorkOrder.query.filter(
-        MaintenanceWorkOrder.org_id == org_id,
-        MaintenanceWorkOrder.requested_at >= datetime.combine(date_from, datetime.min.time()),
-        MaintenanceWorkOrder.requested_at <= datetime.combine(date_to, datetime.max.time()),
-        MaintenanceWorkOrder.status == "completed",
-    )
-
-    work_orders = query.all()
-    if not work_orders:
-        return (
-            jsonify(
-                {
-                    "date_from": date_from.isoformat(),
-                    "date_to": date_to.isoformat(),
-                    "total_downtime_minutes": 0,
-                    "mttr_minutes": 0,
-                    "avg_response_minutes": 0,
-                    "total_cost": 0.0,
-                }
-            ),
-            HTTPStatus.OK,
-        )
-
-    total_downtime = 0
-    repair_events = 0
-    total_response = 0
-    response_count = 0
-    total_cost = Decimal("0")
-
-    for work_order in work_orders:
-        if work_order.downtime_minutes:
-            total_downtime += work_order.downtime_minutes
-            repair_events += 1
-        if work_order.started_at:
-            delta_resp = work_order.started_at - work_order.requested_at
-            total_response += int(delta_resp.total_seconds() // 60)
-            response_count += 1
-        total_cost += work_order.total_cost or 0
-
-    mttr = int(total_downtime / repair_events) if repair_events else 0
-    avg_response = int(total_response / response_count) if response_count else 0
-
-    return (
-        jsonify(
-            {
-                "date_from": date_from.isoformat(),
-                "date_to": date_to.isoformat(),
-                "total_downtime_minutes": total_downtime,
-                "mttr_minutes": mttr,
-                "avg_response_minutes": avg_response,
-                "total_cost": float(total_cost),
-            }
-        ),
-        HTTPStatus.OK,
-    )
-
-
-__all__ = ["bp"]
+    return jsonify(
+        {
+            "open": open_count,
+            "in_progress": in_progress_count,
+            "completed": completed_count,
+        }
+    ), HTTPStatus.OK
