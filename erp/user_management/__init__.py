@@ -7,7 +7,7 @@ from secrets import token_urlsafe
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 
-from erp.security import require_roles
+from erp.security_decorators_phase2 import require_permission
 from erp.extensions import db
 from erp.models import (
     ClientAccount,
@@ -49,7 +49,7 @@ def _assign_client_role(account: ClientAccount, role_name: str) -> None:
 
 
 @bp.route("/", methods=["GET", "POST"])
-@require_roles("admin")
+@require_permission("admin_console", "view")
 def index():
     org_id = resolve_org_id()
     if request.method == "POST":
@@ -72,45 +72,45 @@ def index():
 
             username = email.split("@", 1)[0]
             password = token_urlsafe(12)
-            user = User(username=username, email=email, org_id=org_id)
-            user.password = password  # hashed via setter
+            user = User(
+                org_id=org_id,
+                username=username,
+                email=email,
+                full_name=name,
+                is_active=True,
+            )
+            set_password(user, password)
             db.session.add(user)
             db.session.flush()
+
             _assign_role(user, role)
             db.session.commit()
-            flash("Employee created and invited", "success")
+            flash(
+                f"User created: {username}. Temporary password: {password}",
+                "success",
+            )
             return redirect(url_for("user_management.index"))
 
     pending_clients = (
         ClientRegistration.query.filter_by(status="pending", org_id=org_id)
-        .order_by(ClientRegistration.created_at.desc())
+        .order_by(ClientRegistration.created_at.asc())
         .all()
     )
-    users = (
-        db.session.query(User, Role.name)
-        .join(UserRoleAssignment, UserRoleAssignment.user_id == User.id, isouter=True)
-        .join(Role, Role.id == UserRoleAssignment.role_id, isouter=True)
-        .order_by(User.username)
-        .all()
-    )
-    users_list = [
-        {
-            "id": user.id,
-            "name": user.username,
-            "email": user.email,
-            "role": role or "--",
-        }
-        for user, role in users
-    ]
+    users = User.query.filter_by(org_id=org_id).order_by(User.id.desc()).limit(200).all()
+    employees = Employee.query.filter_by(organization_id=org_id).order_by(Employee.id.desc()).limit(200).all()
+    institutions = Institution.query.filter_by(org_id=org_id).order_by(Institution.id.desc()).limit(200).all()
+
     return render_template(
         "user_management/index.html",
         pending_clients=pending_clients,
-        users_list=users_list,
+        users=users,
+        employees=employees,
+        institutions=institutions,
     )
 
 
 @bp.post("/clients/<int:client_id>/approve")
-@require_roles("admin", "manager")
+@require_permission("clients", "approve")
 def approve_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
     if client.status != "pending":
@@ -123,69 +123,65 @@ def approve_client(client_id: int):
         flash("TIN must be a 10 digit number before approval.", "danger")
         return redirect(url_for("user_management.index"))
 
-    institution = Institution.query.filter_by(org_id=org_id, tin=client.tin).first()
+    institution = Institution.query.filter_by(org_id=org_id, tin=tin).first()
     if institution is None:
         institution = Institution(
             org_id=org_id,
             tin=tin,
-            legal_name=client.institution_name,
-            region=client.region,
-            zone=client.zone,
-            city=client.city,
-            subcity=client.subcity,
-            woreda=client.woreda,
-            kebele=client.kebele,
-            street=client.street,
-            house_number=client.house_number,
-            gps_hint=client.gps_hint,
-            main_phone=client.phone,
-            main_email=client.email,
+            name=client.institution_name or "",
+            region=client.region or "",
+            zone=client.zone or "",
+            city=client.city or "",
+            address_line=client.address_line or "",
+            phone=client.phone or "",
+            email=client.email or "",
         )
         db.session.add(institution)
         db.session.flush()
 
-    account = ClientAccount.query.filter_by(org_id=org_id, email=client.email).first()
-    if account is None:
-        account = ClientAccount(
-            org_id=org_id,
-            client_id=institution.id,
-            institution_id=institution.id,
-            email=client.email,
-            phone=client.phone,
-            is_active=True,
-            is_verified=True,
-        )
-        if client.password_hash:
-            account.password_hash = client.password_hash
-        else:
-            set_password(account, token_urlsafe(16))
-        db.session.add(account)
-        db.session.flush()
-        _assign_client_role(account, "client")
+    account = ClientAccount(
+        org_id=org_id,
+        institution_id=institution.id,
+        email=client.email,
+        phone=client.phone,
+        full_name=client.client_name,
+        position=client.position,
+        is_active=True,
+        is_verified=True,
+        created_at=datetime.now(UTC),
+    )
+    set_password(account, token_urlsafe(18))
+    db.session.add(account)
+    db.session.flush()
 
+    _assign_client_role(account, "client")
     client.status = "approved"
-    client.decided_at = datetime.now(UTC)
-    client.decided_by = getattr(current_user, "id", None)
-    client.decision_notes = request.form.get("decision_notes") or client.decision_notes
+    client.reviewed_by_id = getattr(current_user, "id", None)
+    client.reviewed_at = datetime.now(UTC)
+
     db.session.commit()
-    flash("Client approved and account provisioned", "success")
+    flash("Client approved and account created.", "success")
     return redirect(url_for("user_management.index"))
 
 
 @bp.post("/clients/<int:client_id>/reject")
-@require_roles("admin", "manager")
+@require_permission("clients", "reject")
 def reject_client(client_id: int):
     client = ClientRegistration.query.get_or_404(client_id)
+    if client.status != "pending":
+        flash("Client request has already been reviewed.", "info")
+        return redirect(url_for("user_management.index"))
+
     client.status = "rejected"
-    client.decided_at = datetime.now(UTC)
-    client.decided_by = getattr(current_user, "id", None)
+    client.reviewed_by_id = getattr(current_user, "id", None)
+    client.reviewed_at = datetime.now(UTC)
     db.session.commit()
     flash("Client rejected", "warning")
     return redirect(url_for("user_management.index"))
 
 
 @bp.post("/users/<int:user_id>/delete")
-@require_roles("admin")
+@require_permission("users", "delete")
 def delete_user(user_id: int):
     user = User.query.get_or_404(user_id)
     UserRoleAssignment.query.filter_by(user_id=user.id).delete()
