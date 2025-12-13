@@ -2,9 +2,12 @@
 
 This module centralises default permission rules and legacy permission key
 translations so we can bootstrap a minimum viable policy set per organisation
-without blocking existing role-based checks. Rules intentionally use wildcard
-resources/actions for compatibility and can be overridden by administrators
-through the policy tables.
+without blocking existing role-based checks.
+
+IMPORTANT GOVERNANCE RULE:
+- The policy engine must use a canonical role vocabulary.
+- We keep a limited alias map for backward compatibility while routes/models
+  are migrated (e.g., "manager" -> "management_supervisor").
 """
 
 from __future__ import annotations
@@ -13,63 +16,93 @@ from typing import Iterable
 
 DEFAULT_POLICY_NAME = "Default Permission Matrix"
 
-# Core resource/action rules applied when no organisation-specific policy
-# exists. Role keys are stored in lowercase to match the runtime normalisation
-# used in `erp.security._get_user_role_names`.
-DEFAULT_PERMISSION_RULES: list[dict] = [
-    # Administrative control
-    {"role": "admin", "resource": "*", "action": "*", "effect": "allow"},
-    {"role": "management", "resource": "orders:*", "action": "approve", "effect": "allow"},
-    {"role": "supervisor", "resource": "orders:*", "action": "approve", "effect": "allow"},
-    {"role": "management", "resource": "maintenance:*", "action": "approve", "effect": "allow"},
-    {"role": "supervisor", "resource": "maintenance:*", "action": "approve", "effect": "allow"},
-    {"role": "management", "resource": "procurement:*", "action": "approve", "effect": "allow"},
-    {"role": "supervisor", "resource": "procurement:*", "action": "approve", "effect": "allow"},
-
-    # Order lifecycle
-    {"role": "employee", "resource": "orders", "action": "create", "effect": "allow"},
-    {"role": "sales_rep", "resource": "orders", "action": "create", "effect": "allow"},
-    {"role": "sales_rep", "resource": "orders", "action": "view", "effect": "allow"},
-    {"role": "management", "resource": "orders", "action": "view", "effect": "allow"},
-
-    # Commission and finance visibility (read-only by default)
-    {"role": "management", "resource": "commission", "action": "view", "effect": "allow"},
-    {"role": "supervisor", "resource": "commission", "action": "view", "effect": "allow"},
-
-    # Maintenance lifecycle
-    {"role": "employee", "resource": "maintenance", "action": "create", "effect": "allow"},
-    {"role": "employee", "resource": "maintenance", "action": "view", "effect": "allow"},
-    {"role": "biomedical_engineer", "resource": "maintenance", "action": "update", "effect": "allow"},
-
-    # Procurement/import tracking
-    {"role": "procurement", "resource": "procurement", "action": "create", "effect": "allow"},
-    {"role": "procurement", "resource": "procurement", "action": "view", "effect": "allow"},
-
-    # Reporting and analytics
-    {"role": "management", "resource": "reports", "action": "view", "effect": "allow"},
-    {"role": "supervisor", "resource": "reports", "action": "view", "effect": "allow"},
-
-    # Telegram bot / automation hooks (limited until MFA-aware tokens exist)
-    {"role": "employee", "resource": "bot", "action": "read", "effect": "allow"},
-]
-
-
-# Legacy permission keys used across older views (e.g. tenders). These map to
-# canonical resource/action pairs for the policy engine.
-LEGACY_PERMISSION_KEY_MAP: dict[str, tuple[str, str]] = {
-    "add_tender": ("tenders", "create"),
-    "tenders_list": ("tenders", "view"),
-    "tenders_report": ("tenders", "report"),
+# ---------------------------------------------------------------------------
+# Canonical role vocabulary (policy truth)
+# ---------------------------------------------------------------------------
+CANONICAL_ROLES = {
+    "admin",
+    "management_supervisor",
+    "client",
+    # Department / employee roles (extend as needed)
+    "sales",
+    "maintenance",
+    "dispatch",
+    "procurement",
+    "inventory",
+    "finance",
+    "tender",
+    "marketing",
+    "hr",
+    "analytics",
+    "compliance",
+    "audit",
 }
+
+# Backward compatible aliases for roles already used across routes / DB.
+# This prevents authorization breakage while we migrate routes to require_permission.
+ROLE_ALIASES = {
+    "manager": "management_supervisor",
+    "management": "management_supervisor",
+    "supervisor": "management_supervisor",
+}
+
+def canonical_role(role_key: str) -> str:
+    """Return canonical role for policy evaluation."""
+    role_key = (role_key or "").strip().lower()
+    return ROLE_ALIASES.get(role_key, role_key)
+
+# ---------------------------------------------------------------------------
+# Default permission rules
+# ---------------------------------------------------------------------------
+# Note: These are baseline rules. Administrators can override in the RBAC policy tables.
+# Deny rules can be added later to restrict specific actions.
+DEFAULT_PERMISSION_RULES = [
+    # Admin: everything
+    {"role": "admin", "resource": "*", "action": "*", "effect": "allow"},
+
+    # Management supervisor: approvals and oversight across major workflows
+    {"role": "management_supervisor", "resource": "orders", "action": "*", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "clients", "action": "*", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "maintenance_*", "action": "*", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "procurement", "action": "*", "effect": "allow"},
+    {"role": "management_supervisor", "resource": "analytics", "action": "view", "effect": "allow"},
+
+    # Sales: create/view/update orders (approval can be limited to supervisor if desired)
+    {"role": "sales", "resource": "orders", "action": "view", "effect": "allow"},
+    {"role": "sales", "resource": "orders", "action": "create", "effect": "allow"},
+    {"role": "sales", "resource": "orders", "action": "update", "effect": "allow"},
+
+    # Maintenance team: assets + work orders
+    {"role": "maintenance", "resource": "maintenance_assets", "action": "*", "effect": "allow"},
+    {"role": "maintenance", "resource": "maintenance_work_orders", "action": "*", "effect": "allow"},
+    {"role": "maintenance", "resource": "maintenance_events", "action": "*", "effect": "allow"},
+    {"role": "maintenance", "resource": "maintenance_kpi", "action": "view", "effect": "allow"},
+
+    # Dispatch: workflow actions on work orders (start/check-in/complete)
+    {"role": "dispatch", "resource": "maintenance_work_orders", "action": "view", "effect": "allow"},
+    {"role": "dispatch", "resource": "maintenance_work_orders", "action": "start", "effect": "allow"},
+    {"role": "dispatch", "resource": "maintenance_work_orders", "action": "checkin", "effect": "allow"},
+    {"role": "dispatch", "resource": "maintenance_work_orders", "action": "complete", "effect": "allow"},
+    {"role": "dispatch", "resource": "maintenance_events", "action": "view", "effect": "allow"},
+
+    # Client: view and create maintenance work orders + view events (scope checks happen in route logic)
+    {"role": "client", "resource": "maintenance_work_orders", "action": "view", "effect": "allow"},
+    {"role": "client", "resource": "maintenance_work_orders", "action": "create", "effect": "allow"},
+    {"role": "client", "resource": "maintenance_events", "action": "view", "effect": "allow"},
+
+    # Procurement + inventory: procurement ticketing
+    {"role": "procurement", "resource": "procurement", "action": "*", "effect": "allow"},
+    {"role": "inventory", "resource": "procurement", "action": "view", "effect": "allow"},
+    {"role": "inventory", "resource": "procurement", "action": "create", "effect": "allow"},
+]
 
 
 def iter_default_rules(org_id: int) -> Iterable[dict]:
     """Yield default rule dictionaries with the provided org id attached."""
-
     for rule in DEFAULT_PERMISSION_RULES:
         yield {
             "org_id": org_id,
-            "role_key": rule["role"],
+            "role_key": canonical_role(rule["role"]),
             "resource": rule["resource"],
             "action": rule["action"],
             "effect": rule.get("effect", "allow"),
@@ -78,8 +111,10 @@ def iter_default_rules(org_id: int) -> Iterable[dict]:
 
 
 __all__ = [
-    "DEFAULT_PERMISSION_RULES",
     "DEFAULT_POLICY_NAME",
-    "LEGACY_PERMISSION_KEY_MAP",
+    "DEFAULT_PERMISSION_RULES",
+    "ROLE_ALIASES",
+    "CANONICAL_ROLES",
+    "canonical_role",
     "iter_default_rules",
 ]
